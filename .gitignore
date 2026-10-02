@@ -4,3 +4,12 @@ build
 .env
 *.log
 .env.local
+
+# Agent scaffolding
+.agents/
+.claude/
+skills-lock.json
+
+# Temp
+*.bak
+~$*
