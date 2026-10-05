@@ -8,6 +8,7 @@ import Error404 from '../pages/Error/404';
 import Error500 from '../pages/Error/500';
 import ProtectedRoute from './ProtectedRoute';
 import RoomUsageAnalytics from '../pages/shared/RoomUsageAnalytics';
+import ZoneTrafficAnalytics from '../pages/shared/ZoneTrafficAnalytics';
 import EmployeeOnTimeAnalytics from '../pages/shared/EmployeeOnTimeAnalytics';
 import MeetingAttendanceAdmin from '../pages/shared/MeetingAttendanceAdmin';
 
@@ -112,6 +113,10 @@ export const router = [
             {
                 path: 'zones',
                 element: <ZoneManagement />
+            },
+            {
+                path: 'zone-traffic',
+                element: <ZoneTrafficAnalytics />
             },
             {
                 path: 'roles-permissions',
@@ -222,6 +227,10 @@ export const router = [
                 element: <RoomUsageAnalytics />
             },
             {
+                path: 'zone-traffic',
+                element: <ZoneTrafficAnalytics />
+            },
+            {
                 path: 'attendance-analytics',
                 element: <EmployeeOnTimeAnalytics />
             },
@@ -312,6 +321,10 @@ export const router = [
             {
                 path: 'attendance-analytics',
                 element: <EmployeeOnTimeAnalytics />
+            },
+            {
+                path: 'zone-traffic',
+                element: <ZoneTrafficAnalytics />
             },
             {
                 path: 'my-vehicles',

@@ -6,7 +6,7 @@ import {
     RiCpuLine, RiHardDriveLine, RiMapLine,
     RiLoginBoxLine, RiCameraLine, RiCarLine, RiMapPinLine,
     RiAlertLine, RiEqualizerLine, RiShieldUserLine,
-    RiFileTextLine, RiMenuLine, RiFileListLine
+    RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -41,6 +41,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Thiết bị IoT',                  to: '/system-admin/devices',              icon: RiHardDriveLine },
             { label: 'Khu vực giám sát',              to: '/system-admin/zones',                icon: RiMapLine },
+            { label: 'Lưu lượng & Heatmap',           to: '/system-admin/zone-traffic',         icon: RiFireLine },
             { label: 'Nhật ký ra/vào phòng',          to: '/system-admin/room-access-logs',     icon: RiLoginBoxLine },
         ],
     },

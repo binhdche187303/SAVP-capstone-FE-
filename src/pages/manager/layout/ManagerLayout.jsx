@@ -1,4 +1,4 @@
-import { Activity, Archive, BarChart2, Calendar, ChevronDown, Clock, Car, FileCheck, FileText, Home, MapPin, Monitor, PlusCircle, Menu, X } from 'lucide-react';
+import { Activity, Archive, BarChart2, Calendar, ChevronDown, Clock, Car, FileCheck, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, X } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -83,6 +83,11 @@ const STATIC_NAVIGATION_ITEMS = [
                 label: 'Chuyên cần phòng ban',
                 to: '/manager/meeting-attendance',
                 icon: Activity,
+            },
+            {
+                label: 'Lưu lượng & Heatmap',
+                to: '/manager/zone-traffic',
+                icon: Flame,
             },
         ],
     },

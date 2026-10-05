@@ -18,6 +18,7 @@ import {
     PieChart,
     Clock,
     Fingerprint,
+    Flame,
 } from 'lucide-react';
 
 const STATIC_NAVIGATION_ITEMS = [
@@ -45,6 +46,7 @@ const STATIC_NAVIGATION_ITEMS = [
         icon: BarChart2,
         children: [
             { label: 'Hiệu suất phòng họp', to: '/business-admin/room-analytics', icon: PieChart },
+            { label: 'Lưu lượng & Heatmap', to: '/business-admin/zone-traffic', icon: Flame },
             { label: 'Tỷ lệ đúng giờ', to: '/business-admin/attendance-analytics', icon: Clock },
             { label: 'Chuyên cần phòng ban', to: '/business-admin/meeting-attendance', icon: Activity },
         ],

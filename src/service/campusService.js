@@ -49,3 +49,14 @@ export const getEmployeeSummary = async () => {
 export const getBusinessAdminSummary = async () => {
     return await get('/campus-dashboard/business-admin-summary');
 };
+
+/**
+ * ZTH-001 / UC-120: Lưu lượng người + heatmap theo khu vực công cộng
+ * GET /campus-dashboard/zones/traffic (SYSTEM_ADMIN, BUSINESS_ADMIN, MANAGER — campus_dashboard.traffic.read)
+ * @param {object} params - { from, to (ISO, tối đa 31 ngày), building?, floor? }
+ * @returns {Promise<object>} { success, data: { series: [{zoneId, hourBucket, avgOccupancy, peakOccupancy}], heatmap: [{zoneId, zoneName, building, floor, avgOccupancy, peakOccupancy, peakAt, relativeDensity}] } }
+ */
+export const getZoneTraffic = async (params = {}) => {
+    const query = buildQuery(params);
+    return await get(`/campus-dashboard/zones/traffic${query}`);
+};
