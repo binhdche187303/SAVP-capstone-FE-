@@ -1184,9 +1184,6 @@ const BookMeeting = () => {
         }
     };
 
-    // BE trả roleCode dạng UPPER_SNAKE trong currentUser.roles[] (mảng object), không phải field `role` string PascalCase.
-    // Chỉ Manager tự động phê duyệt theo nghiệp vụ Ý ĐỊNH — Business/System Admin không đặt phòng, không có luồng duyệt riêng.
-    // Lưu ý: BE hiện vẫn PENDING_APPROVAL cho MỌI role (chưa nhánh hóa theo role) — label này phản ánh nghiệp vụ mục tiêu, sẽ khớp hành vi thật sau khi BE fix riêng.
     // BE auto-approve khi người đặt có quyền duyệt (resolveApproverIds fallback theo
     // permission `meeting_request.approve`). Login trả roles dạng string[] nên so
     // r.roleCode luôn false → luôn hiện "Cần Trưởng phòng duyệt" dù BE đã tự duyệt.
