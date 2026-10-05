@@ -3,11 +3,30 @@ import { createPortal } from 'react-dom';
 import { X, FileText, CheckCircle, AlertTriangle, Download, RefreshCw } from 'lucide-react';
 import { post, get } from '../../utils/request';
 
+// BE bắt buộc from/to (YYYY-MM-DD) — quy đổi preset sang khoảng ngày theo giờ local.
+const toYmd = (d) => {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+const presetToRange = (preset) => {
+    const today = new Date();
+    if (preset === 'week') {
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+        return { from: toYmd(monday), to: toYmd(today) };
+    }
+    if (preset === 'month') {
+        return { from: toYmd(new Date(today.getFullYear(), today.getMonth(), 1)), to: toYmd(today) };
+    }
+    return { from: toYmd(today), to: toYmd(today) };
+};
+
 const ExportReportModal = ({
     isOpen,
     onClose,
     endpoint = '/reports/room-utilization/exports',
     title = 'Xuất báo cáo hiệu năng',
+    formats = ['xlsx', 'pdf', 'csv'],
 }) => {
     const [format, setFormat] = useState('xlsx');
     const [preset, setPreset] = useState('month');
@@ -76,11 +95,8 @@ const ExportReportModal = ({
         setError(null);
         setJobStatus('queued');
         try {
-            const payload = {
-                format,
-                preset,
-                ...(preset === 'custom' && { from, to })
-            };
+            const range = preset === 'custom' ? { from, to } : presetToRange(preset);
+            const payload = { format, ...range };
             const res = await post(endpoint, payload);
             if (res?.success) {
                 setJobId(res.data.jobId);
@@ -99,7 +115,8 @@ const ExportReportModal = ({
         setDownloading(true);
         setError(null);
         try {
-            const res = await get(`/media-files/${outputFileId}/secure-download`);
+            // secure-download cần signed token → lấy downloadUrl (đã ký) từ API detail.
+            const res = await get(`/media-files/${outputFileId}`);
             if (res?.success && res.data?.downloadUrl) {
                 window.open(res.data.downloadUrl, '_blank');
             } else {
@@ -170,7 +187,7 @@ const ExportReportModal = ({
                             <div className="space-y-1.5">
                                 <label className="block text-xs font-bold text-slate-blue uppercase">Định dạng file</label>
                                 <div className="grid grid-cols-3 gap-3">
-                                    {['xlsx', 'pdf', 'csv'].map((fmt) => (
+                                    {formats.map((fmt) => (
                                         <button
                                             key={fmt}
                                             type="button"

@@ -626,6 +626,7 @@ const ANPRManagement = () => {
                 isOpen={isExportOpen}
                 onClose={() => setIsExportOpen(false)}
                 endpoint="/reports/vehicle/exports"
+                formats={['xlsx', 'pdf']}
                 title="Xuất báo cáo phương tiện"
             />
         </div>

@@ -947,7 +947,8 @@ const SecurityAlerts = () => {
             <ExportReportModal
                 isOpen={isExportOpen}
                 onClose={() => setIsExportOpen(false)}
-                endpoint="/reports/security-alerts/exports"
+                endpoint="/reports/security-alert/exports"
+                formats={['xlsx', 'pdf']}
                 title="Xuất báo cáo sự kiện an ninh"
             />
         </div>
