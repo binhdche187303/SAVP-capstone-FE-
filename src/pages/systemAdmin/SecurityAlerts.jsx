@@ -608,6 +608,14 @@ const SecurityAlerts = () => {
                                                         {getAlertPlateNumber(alert)}
                                                     </span>
                                                 )}
+                                                {alert.alert_type === 'person_watchlist_match' && alert.payload_json?.displayName && (
+                                                    <span
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 text-[10px] font-bold rounded border border-orange-200"
+                                                        title={alert.payload_json?.reason || 'Đối tượng theo dõi'}
+                                                    >
+                                                        📌 {alert.payload_json.displayName}
+                                                    </span>
+                                                )}
                                                 {(alert.occurrence_count > 1 || alert.occurrenceCount > 1) && (
                                                     <button
                                                         onClick={() => setOccurrencesModal({ open: true, alert })}
@@ -628,7 +636,7 @@ const SecurityAlerts = () => {
                                             </span>
                                         </td>
                                         <td className="p-4 text-sm text-midnight-indigo text-center">
-                                            {zones.find(z => z.id === alert.zone_id)?.zone_name || 'Hệ thống'}
+                                            {zones.find(z => z.id === alert.zone_id)?.zone_name || alert.payload_json?.roomName || 'Hệ thống'}
                                         </td>
                                         <td className="p-4 text-center">
                                             {getStatusBadge(alert.status)}
