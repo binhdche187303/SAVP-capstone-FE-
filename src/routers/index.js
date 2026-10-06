@@ -28,6 +28,7 @@ import MyVehicles from '../pages/shared/MyVehicles';
 import SecurityAlerts from '../pages/systemAdmin/SecurityAlerts';
 import AlertRules from '../pages/systemAdmin/AlertRules';
 import VehicleControlList from '../pages/systemAdmin/VehicleControlList';
+import PersonControlList from '../pages/systemAdmin/PersonControlList';
 import VehicleRegistrations from '../pages/systemAdmin/VehicleRegistrations';
 import RoomAccessLogs from '../pages/systemAdmin/RoomAccessLogs';
 import UserJourney from '../pages/shared/UserJourney';
@@ -154,6 +155,10 @@ export const router = [
             {
                 path: 'vehicle-control-list',
                 element: <VehicleControlList />
+            },
+            {
+                path: 'person-control-list',
+                element: <PersonControlList />
             },
             {
                 path: 'vehicle-registrations',
