@@ -136,6 +136,17 @@ export const subscribeToNotificationUpdates = (onCreate) => {
   };
 };
 
+// Dùng ở Trung tâm Cảnh báo An ninh (SecurityAlerts) — nhận `security.alert.new`
+// khi BE tạo cảnh báo an ninh MỚI (SecurityAlertNotifierService → emitToUser cho
+// người có quyền security_alert.read). Bump cảnh báo đang mở KHÔNG phát event.
+export const subscribeToSecurityAlerts = (onNew) => {
+  const s = ensureUserRoomJoined();
+  s.on('security.alert.new', onNew);
+  return () => {
+    s.off('security.alert.new', onNew);
+  };
+};
+
 // Dùng ở ZoneManagement (ZoneAccessLogCard/ZoneTimelineCard) — nhận
 // `zone.presence.updated` realtime khi BE bật ZONE_REALTIME_ENABLED (mặc định
 // OFF — khi tắt, subscribe vẫn join room bình thường nhưng không bao giờ

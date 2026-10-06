@@ -15,6 +15,34 @@ import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import Pagination from '../../components/common/Pagination';
 import { getAlertTypeLabel } from '../../constants/alertType';
+import { subscribeToSecurityAlerts } from '../../utils/socket';
+
+const FALLBACK_POLL_MS = 30000;
+const WS_BATCH_MS = 1500;
+const SOUND_THROTTLE_MS = 5000;
+const HIGH_SEVERITIES = new Set(['high', 'critical']);
+
+// Tiếng "ting" ngắn bằng WebAudio (không cần file âm thanh). Trình duyệt có thể chặn
+// khi người dùng chưa tương tác với trang — bỏ qua lỗi, không ảnh hưởng hiển thị.
+const playAlertSound = () => {
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+        osc.onended = () => ctx.close();
+    } catch {
+        // ignore
+    }
+};
 
 // Biển số nằm ở payload_json gốc (được lưu ngay từ lần vi phạm đầu tiên, occurrence_count=1),
 // KHÔNG chỉ trong payload_json.occurrences[] (chỉ có từ lần vi phạm thứ 2 trở đi).
@@ -210,12 +238,35 @@ const SecurityAlerts = () => {
     useEffect(() => {
         fetchAlerts(filters);
 
-        // Polling every 1 second for new alerts (silent — không giật icon/nút Làm mới)
+        // Polling dự phòng 30s (khi mất WS) — nguồn cập nhật chính là WS bên dưới.
         const intervalId = setInterval(() => {
             fetchAlerts(filters, true);
-        }, 1000);
+        }, FALLBACK_POLL_MS);
 
         return () => clearInterval(intervalId);
+    }, [filters, fetchAlerts]);
+
+    // Realtime: BE phát `security.alert.new` khi có cảnh báo MỚI. Gom lô (nhiều camera
+    // báo cùng lúc → chỉ tải lại 1 lần); banner góc màn hình đã có sẵn qua
+    // notification.created, ở đây thêm âm thanh cho mức cao (giới hạn tần suất).
+    useEffect(() => {
+        let batchTimer = null;
+        let lastSoundAt = 0;
+        const unsubscribe = subscribeToSecurityAlerts((evt) => {
+            if (HIGH_SEVERITIES.has(evt?.severity) && Date.now() - lastSoundAt > SOUND_THROTTLE_MS) {
+                lastSoundAt = Date.now();
+                playAlertSound();
+            }
+            if (batchTimer) return;
+            batchTimer = setTimeout(() => {
+                batchTimer = null;
+                fetchAlerts(filters, true);
+            }, WS_BATCH_MS);
+        });
+        return () => {
+            unsubscribe();
+            if (batchTimer) clearTimeout(batchTimer);
+        };
     }, [filters, fetchAlerts]);
 
     useEffect(() => {
@@ -406,7 +457,7 @@ const SecurityAlerts = () => {
                         >
                             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                         </button>
-                        <span className="text-[10px] text-slate-400 whitespace-nowrap">Tự động cập nhật mỗi 1s</span>
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap">Realtime · dự phòng mỗi 30s</span>
                     </div>
                     {selectedIds.length > 0 && (
                         <button
