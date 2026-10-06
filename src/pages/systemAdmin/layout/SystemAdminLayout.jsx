@@ -5,7 +5,7 @@ import {
     RiSettings3Line, RiShieldLine, RiSettings2Line,
     RiCpuLine, RiHardDriveLine, RiMapLine,
     RiLoginBoxLine, RiCameraLine, RiCarLine, RiMapPinLine,
-    RiAlertLine, RiEqualizerLine, RiShieldUserLine,
+    RiAlertLine, RiMapPin2Line, RiEqualizerLine, RiShieldUserLine,
     RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine
 } from 'react-icons/ri';
 
@@ -55,6 +55,7 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Đăng ký phương tiện',           to: '/system-admin/vehicle-registrations',icon: RiFileTextLine },
             { label: 'Hành trình khuôn viên',         to: '/system-admin/user-journey',         icon: RiMapPinLine },
             { label: 'Cảnh báo an ninh',              to: '/system-admin/security-alerts',      icon: RiAlertLine },
+            { label: 'Bản đồ khuôn viên',             to: '/system-admin/campus-map',           icon: RiMapPin2Line },
         ],
     },
 ];

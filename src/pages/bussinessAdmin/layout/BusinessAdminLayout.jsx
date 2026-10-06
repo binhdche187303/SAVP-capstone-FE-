@@ -19,6 +19,7 @@ import {
     Clock,
     Fingerprint,
     Flame,
+    Map as MapIcon,
 } from 'lucide-react';
 
 const STATIC_NAVIGATION_ITEMS = [
@@ -47,6 +48,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Hiệu suất phòng họp', to: '/business-admin/room-analytics', icon: PieChart },
             { label: 'Lưu lượng & Heatmap', to: '/business-admin/zone-traffic', icon: Flame },
+            { label: 'Bản đồ khuôn viên', to: '/business-admin/campus-map', icon: MapIcon },
             { label: 'Tỷ lệ đúng giờ', to: '/business-admin/attendance-analytics', icon: Clock },
             { label: 'Chuyên cần phòng ban', to: '/business-admin/meeting-attendance', icon: Activity },
         ],

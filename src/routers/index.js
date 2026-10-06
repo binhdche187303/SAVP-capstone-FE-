@@ -9,6 +9,7 @@ import Error500 from '../pages/Error/500';
 import ProtectedRoute from './ProtectedRoute';
 import RoomUsageAnalytics from '../pages/shared/RoomUsageAnalytics';
 import ZoneTrafficAnalytics from '../pages/shared/ZoneTrafficAnalytics';
+import CampusMap from '../pages/shared/CampusMap';
 import EmployeeOnTimeAnalytics from '../pages/shared/EmployeeOnTimeAnalytics';
 import MeetingAttendanceAdmin from '../pages/shared/MeetingAttendanceAdmin';
 
@@ -117,6 +118,10 @@ export const router = [
             {
                 path: 'zone-traffic',
                 element: <ZoneTrafficAnalytics />
+            },
+            {
+                path: 'campus-map',
+                element: <CampusMap />
             },
             {
                 path: 'roles-permissions',
@@ -229,6 +234,10 @@ export const router = [
             {
                 path: 'zone-traffic',
                 element: <ZoneTrafficAnalytics />
+            },
+            {
+                path: 'campus-map',
+                element: <CampusMap />
             },
             {
                 path: 'attendance-analytics',

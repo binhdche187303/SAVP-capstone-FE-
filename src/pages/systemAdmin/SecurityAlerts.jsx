@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle, CheckSquare, Clock, Download, Edit3, Eye, F
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 
 import {
     getSecurityAlerts, acknowledgeSecurityAlert,
@@ -122,6 +123,7 @@ const AlertImagesStack = ({ alert, onClick }) => {
 
 const SecurityAlerts = () => {
     const [alerts, setAlerts] = useState([]);
+    const [searchParams] = useSearchParams();
     const [zones, setZones] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
@@ -134,7 +136,8 @@ const SecurityAlerts = () => {
         limit: 10,
         status: '',
         alert_type: '',
-        zone_id: ''
+        // Bản đồ khuôn viên mở trang này kèm ?zone_id=… để lọc sẵn theo khu vực.
+        zone_id: searchParams.get('zone_id') || ''
     });
     const [meta, setMeta] = useState(null);
 

@@ -10,6 +10,7 @@ import { getZoneAccessLog, getZonePresenceTimeline } from '../../service/sysAdmi
 import { subscribeToZonePresence } from '../../utils/socket';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
+import ZoneLocationPicker, { parseZoneCoordinates } from '../../components/campus/ZoneLocationPicker';
 
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -593,7 +594,9 @@ const ZoneManagement = () => {
         building: '',
         floor: '',
         description: '',
-        metadata_json: ''
+        metadata_json: '',
+        latitude: '',
+        longitude: ''
     });
 
     const ZONE_TYPE_LABELS = {
@@ -610,7 +613,9 @@ const ZoneManagement = () => {
         zone_type: 'gate',
         building: '',
         floor: '',
-        description: ''
+        description: '',
+        latitude: '',
+        longitude: ''
     });
 
 
@@ -695,13 +700,18 @@ const ZoneManagement = () => {
             setError("Mô tả tối đa 255 ký tự.");
             return;
         }
+        const createCoords = parseZoneCoordinates(createForm.latitude, createForm.longitude);
+        if (createCoords.error) {
+            setError(createCoords.error);
+            return;
+        }
 
         try {
-            const res = await createZone(createForm);
+            const res = await createZone({ ...createForm, ...createCoords });
             if (res?.success) {
                 setSuccessMessage('Tạo khu vực mới thành công!');
                 setIsCreateModalOpen(false);
-                setCreateForm({ zone_code: '', zone_name: '', zone_type: 'gate', building: '', floor: '', description: '' });
+                setCreateForm({ zone_code: '', zone_name: '', zone_type: 'gate', building: '', floor: '', description: '', latitude: '', longitude: '' });
                 fetchZones();
             } else {
                 setError(res?.message || 'Tạo khu vực thất bại.');
@@ -750,7 +760,9 @@ const ZoneManagement = () => {
             building: zone.building || '',
             floor: zone.floor || '',
             description: zone.description || '',
-            metadata_json: zone.metadata_json ? JSON.stringify(zone.metadata_json, null, 2) : ''
+            metadata_json: zone.metadata_json ? JSON.stringify(zone.metadata_json, null, 2) : '',
+            latitude: zone.latitude != null ? String(zone.latitude) : '',
+            longitude: zone.longitude != null ? String(zone.longitude) : ''
         });
         setSelectedZone(zone);
         setIsEditModalOpen(true);
@@ -810,6 +822,16 @@ const ZoneManagement = () => {
         const oldDesc = selectedZone.description || '';
         if (editForm.description.trim() !== oldDesc) {
             payload.description = editForm.description.trim() === '' ? null : editForm.description.trim();
+        }
+
+        const editCoords = parseZoneCoordinates(editForm.latitude, editForm.longitude);
+        if (editCoords.error) {
+            setError(editCoords.error);
+            return;
+        }
+        if (editCoords.latitude !== (selectedZone.latitude ?? null) || editCoords.longitude !== (selectedZone.longitude ?? null)) {
+            payload.latitude = editCoords.latitude;
+            payload.longitude = editCoords.longitude;
         }
 
         let parsedMetadata = null;
@@ -1033,7 +1055,7 @@ const ZoneManagement = () => {
                                 <h3 className="font-bold text-midnight-indigo">Tạo khu vực mới</h3>
                                 <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">✕</button>
                             </div>
-                            <form onSubmit={handleCreateSubmit} className="p-6 space-y-4">
+                            <form onSubmit={handleCreateSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã khu vực <span className="text-red-500">*</span></label>
                                     <input required type="text" value={createForm.zone_code} onChange={e => setCreateForm({ ...createForm, zone_code: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: ROOM-101" />
@@ -1061,6 +1083,11 @@ const ZoneManagement = () => {
                                         <input type="text" value={createForm.floor} onChange={e => setCreateForm({ ...createForm, floor: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: Tầng 1" />
                                     </div>
                                 </div>
+                                <ZoneLocationPicker
+                                    latitude={createForm.latitude}
+                                    longitude={createForm.longitude}
+                                    onChange={(latitude, longitude) => setCreateForm({ ...createForm, latitude, longitude })}
+                                />
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mô tả</label>
                                     <textarea rows="3" value={createForm.description} onChange={e => setCreateForm({ ...createForm, description: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm resize-none" placeholder="Mô tả chức năng khu vực..." />
@@ -1083,7 +1110,7 @@ const ZoneManagement = () => {
                                 <h3 className="font-bold text-midnight-indigo">Cập nhật khu vực</h3>
                                 <button onClick={() => setIsEditModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">✕</button>
                             </div>
-                            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                            <form onSubmit={handleEditSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã khu vực <span className="text-red-500">*</span></label>
                                     <input required type="text" value={editForm.zone_code} onChange={e => setEditForm({ ...editForm, zone_code: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: ROOM-101" />
@@ -1121,6 +1148,11 @@ const ZoneManagement = () => {
                                         <input type="text" value={editForm.floor} onChange={e => setEditForm({ ...editForm, floor: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: Tầng 1" />
                                     </div>
                                 </div>
+                                <ZoneLocationPicker
+                                    latitude={editForm.latitude}
+                                    longitude={editForm.longitude}
+                                    onChange={(latitude, longitude) => setEditForm({ ...editForm, latitude, longitude })}
+                                />
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mô tả</label>
                                     <textarea rows="2" value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm resize-none" placeholder="Mô tả chức năng khu vực..." />
