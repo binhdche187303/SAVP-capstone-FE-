@@ -26,6 +26,7 @@ import { getVehicleControlList } from '../../service/anprService';
 import { getBusinessAdminSummary } from '../../service/campusService';
 import { get } from '../../utils/request';
 import DashboardBanner from '../../components/common/DashboardBanner';
+import ZonePresenceTable from '../../components/campus/ZonePresenceTable';
 import { getAlertTypeLabel } from '../../constants/alertType';
 
 // ─── Design tokens (Sky Blueprint — mirrored from sysadmin) ──────────────────
@@ -1019,6 +1020,9 @@ const DashBoard = () => {
                         <KpiTile delay={120} icon={LogIn}       label="Tổng lượt ra/vào hôm nay"         value={campusLoading ? '—' : kpi.gateEventsToday}   sub="Qua tất cả cổng" iconColor={D.cyan} />
                         <KpiTile delay={180} icon={Wifi}        label="Thiết bị Online"                  value={campusLoading ? '—' : kpi.devicesOnline}     sub={`Offline: ${kpi.devicesOffline}`} iconColor={D.green} progress={campusLoading ? undefined : onlinePct} />
                     </div>
+
+                    {/* Hiện diện theo khu vực (2.12) */}
+                    <ZonePresenceTable />
 
                     {/* Alert trend 7d (sysadmin API) + Audit hourly (sysadmin API) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
