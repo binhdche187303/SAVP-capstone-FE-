@@ -3,7 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import {
     RiHome4Line,
     RiSettings3Line, RiShieldLine, RiSettings2Line,
-    RiCpuLine, RiHardDriveLine, RiMapLine,
+    RiCpuLine, RiHardDriveLine, RiMapLine, RiUserUnfollowLine,
     RiLoginBoxLine, RiCameraLine, RiCarLine, RiMapPinLine,
     RiAlertLine, RiMapPin2Line, RiEqualizerLine, RiShieldUserLine,
     RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiLayoutMasonryLine, RiFilmLine
@@ -54,6 +54,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Kiểm soát ra vào cổng',         to: '/system-admin/anpr-management',      icon: RiCameraLine },
             { label: 'Danh sách biển số giám sát',    to: '/system-admin/vehicle-control-list', icon: RiCarLine },
+            { label: 'Người lạ',                      to: '/system-admin/strangers',            icon: RiUserUnfollowLine },
             { label: 'Danh sách người giám sát',      to: '/system-admin/person-control-list',  icon: RiShieldUserLine },
             { label: 'Đăng ký phương tiện',           to: '/system-admin/vehicle-registrations',icon: RiFileTextLine },
             { label: 'Hành trình khuôn viên',         to: '/system-admin/user-journey',         icon: RiMapPinLine },

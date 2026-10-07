@@ -1,10 +1,11 @@
 import {
     AlertCircle, ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck,
     Car, Check, Clock, Eye, Image as ImageIcon, Map, MapPin, RefreshCw,
-    Search, Sparkles, Timer, User, Video,
+    Download, Filter, Search, Sparkles, Timer, User, Video,
 } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
@@ -40,6 +41,27 @@ const formatDuration = (ms) => {
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
     return m > 0 ? `${h}g ${m}p` : `${h} giờ`;
+};
+
+const MAX_RANGE_DAYS = 31;
+
+const toVNDateKey = (utcStr) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(utcStr));
+
+const formatDayHeader = (dateKey) =>
+    new Date(dateKey + 'T00:00:00').toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+const formatDateVN = (dateKey) => new Date(dateKey + 'T00:00:00').toLocaleDateString('vi-VN');
+
+const dayDiff = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
+
+const TYPE_LABELS = { gate: 'Cổng (xe)', meeting: 'Phòng họp', zone: 'Khu vực' };
+
+/** Tên nơi chốn của 1 sự kiện — dùng cho bộ lọc "nơi" và cột Excel. */
+const getPlace = (event) => {
+    const type = (event.type || '').toLowerCase();
+    if (type === 'meeting') return event.roomName || null;
+    return event.zoneName || null;
 };
 
 /* ─── component ───────────────────────────────────────────── */
@@ -101,6 +123,13 @@ const UserJourney = () => {
     const [usersLoading, setUsersLoading] = useState(false);
 
     const [date, setDate] = useState(searchParams.get('date') || getVNTodayString());
+    const [dateTo, setDateTo] = useState(searchParams.get('to') || searchParams.get('date') || getVNTodayString());
+    const [typeFilter, setTypeFilter] = useState('');
+    const [placeFilter, setPlaceFilter] = useState('');
+    const isRange = dateTo !== date;
+    const rangeError = dateTo < date
+        ? 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.'
+        : dayDiff(date, dateTo) + 1 > MAX_RANGE_DAYS ? `Chỉ xem tối đa ${MAX_RANGE_DAYS} ngày một lần.` : null;
 
     const [journeyData, setJourneyData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -173,17 +202,20 @@ const UserJourney = () => {
     // userId lấy từ token) thay thế. Route "me" trả ĐẦY ĐỦ 3 nguồn (cổng/họp/khu vực) giống
     // hệt bản admin, chỉ khác ở chỗ luôn tự khoá vào chính user đang đăng nhập.
     const fetchJourney = useCallback(async () => {
-        if (!selectedUser) return;
+        if (!selectedUser || rangeError) return;
         setLoading(true);
         setError(null);
         try {
+            const range = isRange ? { date, to: dateTo } : { date };
             const res = isSelfOnly
-                ? await getMyUserJourney({ date })
-                : await getUserJourney({ userId: selectedUser.id || selectedUser.uuid, date });
+                ? await getMyUserJourney(range)
+                : await getUserJourney({ userId: selectedUser.id || selectedUser.uuid, ...range });
             if (res?.success) {
                 setJourneyData(res.data);
                 setPage(1);
-                setSearchParams({ userId: selectedUser.id || selectedUser.uuid, date });
+                setTypeFilter('');
+                setPlaceFilter('');
+                setSearchParams({ userId: selectedUser.id || selectedUser.uuid, ...range });
             } else {
                 setError(res?.message || 'Không thể tải hành trình di chuyển.');
             }
@@ -192,18 +224,66 @@ const UserJourney = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedUser, date, setSearchParams, isSelfOnly]);
+    }, [selectedUser, date, dateTo, isRange, rangeError, setSearchParams, isSelfOnly]);
 
     useEffect(() => {
         if (selectedUser) fetchJourney();
         else setJourneyData(null);
-    }, [selectedUser, date, fetchJourney]);
+    }, [selectedUser, date, dateTo, fetchJourney]);
 
-    /* sorted events — newest first */
+    /* các nơi xuất hiện trong dữ liệu đã tải — nguồn cho dropdown lọc nơi */
+    const placeOptions = React.useMemo(() => {
+        const set = new Set();
+        (journeyData?.events || []).forEach(e => {
+            if (typeFilter && (e.type || '').toLowerCase() !== typeFilter) return;
+            const p = getPlace(e);
+            if (p) set.add(p);
+        });
+        return [...set].sort((a, b) => a.localeCompare(b, 'vi'));
+    }, [journeyData?.events, typeFilter]);
+
+    /* sorted events — newest first, đã áp bộ lọc loại + nơi (lọc phía FE trên dữ liệu đã tải) */
     const sortedEvents = React.useMemo(() => {
         if (!journeyData?.events) return [];
-        return [...journeyData.events].sort((a, b) => new Date(b.time) - new Date(a.time));
-    }, [journeyData?.events]);
+        return journeyData.events
+            .filter(e => (!typeFilter || (e.type || '').toLowerCase() === typeFilter) && (!placeFilter || getPlace(e) === placeFilter))
+            .sort((a, b) => new Date(b.time) - new Date(a.time));
+    }, [journeyData?.events, typeFilter, placeFilter]);
+
+    /* số sự kiện mỗi ngày (sau lọc) — hiện trên nhãn phân cách ngày */
+    const dayCounts = React.useMemo(() => {
+        const m = {};
+        sortedEvents.forEach(e => { const k = toVNDateKey(e.time); m[k] = (m[k] || 0) + 1; });
+        return m;
+    }, [sortedEvents]);
+
+    useEffect(() => { setPage(1); }, [typeFilter, placeFilter]);
+
+    const handleExport = () => {
+        const rows = sortedEvents.map(e => {
+            const type = (e.type || '').toLowerCase();
+            const dir = (e.direction || '').toLowerCase();
+            return {
+                'Ngày': formatDateVN(toVNDateKey(e.time)),
+                'Giờ': toVNTime(e.time),
+                'Đến': e.endTime ? toVNTime(e.endTime) : '',
+                'Thời lượng': formatDuration(e.durationMs) || '',
+                'Loại': TYPE_LABELS[type] || type,
+                'Hướng': dir === 'enter' ? 'Vào' : dir === 'leave' || dir === 'exit' ? 'Ra' : '',
+                'Nơi': getPlace(e) || '',
+                'Biển số': e.plateNumber || '',
+                'Chi tiết': e.detail || '',
+            };
+        });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 24 }, { wch: 14 }, { wch: 60 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Hành trình');
+        const who = (selectedUser?.fullName || journeyData?.fullName || 'nhan-vien').replace(/[\\/:*?"<>|]/g, '');
+        XLSX.writeFile(wb, `Hanh-trinh_${who}_${date}${isRange ? `_den_${dateTo}` : ''}.xlsx`);
+    };
+
+    const rangeLabel = isRange ? `${formatDateVN(date)} → ${formatDateVN(dateTo)}` : formatDateVN(date);
 
     const totalEvents = sortedEvents.length;
     const totalPages = Math.ceil(totalEvents / eventsPerPage);
@@ -485,19 +565,32 @@ const UserJourney = () => {
 
                     {/* Date picker */}
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Chọn Ngày *</label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-blue">
-                                <Calendar className="w-4 h-4" />
-                            </div>
-                            <input
-                                type="date"
-                                value={date}
-                                max={getVNTodayString()}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
-                            />
+                        <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Khoảng ngày * <span className="normal-case font-semibold text-slate-400">(tối đa {MAX_RANGE_DAYS} ngày)</span></label>
+                        <div className="flex items-center gap-2">
+                            {[
+                                { value: date, onChange: (v) => { setDate(v); if (v > dateTo) setDateTo(v); }, title: 'Từ ngày' },
+                                { value: dateTo, onChange: setDateTo, title: 'Đến ngày', min: date },
+                            ].map((p, i) => (
+                                <React.Fragment key={p.title}>
+                                    {i === 1 && <span className="text-slate-blue text-sm">→</span>}
+                                    <div className="relative flex-1">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-blue">
+                                            <Calendar className="w-4 h-4" />
+                                        </div>
+                                        <input
+                                            type="date"
+                                            title={p.title}
+                                            value={p.value}
+                                            min={p.min}
+                                            max={getVNTodayString()}
+                                            onChange={(e) => e.target.value && p.onChange(e.target.value)}
+                                            className="w-full pl-9 pr-2 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
+                                        />
+                                    </div>
+                                </React.Fragment>
+                            ))}
                         </div>
+                        {rangeError && <p className="text-xs font-semibold text-red-600">{rangeError}</p>}
                     </div>
                 </div>
             </div>
@@ -552,7 +645,7 @@ const UserJourney = () => {
                         <div>
                             <h3 className="text-lg font-bold text-midnight-indigo">Không có dữ liệu hành trình</h3>
                             <p className="text-slate-blue text-sm mt-1">
-                                Không tìm thấy bất kỳ hoạt động nào của <strong>{selectedUser.fullName}</strong> trong ngày {new Date(date + 'T00:00:00').toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}.
+                                Không tìm thấy bất kỳ hoạt động nào của <strong>{selectedUser.fullName}</strong> trong {isRange ? 'khoảng' : 'ngày'} {rangeLabel}.
                             </p>
                         </div>
                     </div>
@@ -599,8 +692,30 @@ const UserJourney = () => {
                                 Nhật ký Hành trình chi tiết
                             </h3>
                             <span className="text-xs font-bold px-3 py-1 bg-cloud-mist border border-platinum-tint text-slate-blue rounded-full">
-                                {selectedUser.fullName} &bull; {new Date(date + 'T00:00:00').toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                                {selectedUser.fullName} &bull; {rangeLabel}
                             </span>
+                        </div>
+
+                        {/* bộ lọc loại + nơi + xuất Excel */}
+                        <div className="flex flex-wrap items-center gap-2 mb-6">
+                            <Filter className="w-4 h-4 text-slate-blue" />
+                            <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPlaceFilter(''); }}
+                                className="pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none">
+                                <option value="">Tất cả loại</option>
+                                {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                            </select>
+                            <select value={placeFilter} onChange={(e) => setPlaceFilter(e.target.value)} disabled={placeOptions.length === 0}
+                                className="pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none disabled:opacity-50">
+                                <option value="">Tất cả nơi</option>
+                                {placeOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                            {(typeFilter || placeFilter) && (
+                                <button onClick={() => { setTypeFilter(''); setPlaceFilter(''); }} className="text-xs font-semibold text-action-blue hover:underline">Bỏ lọc</button>
+                            )}
+                            <button onClick={handleExport} disabled={sortedEvents.length === 0}
+                                className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 bg-action-blue hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50">
+                                <Download className="w-3.5 h-3.5" /> Xuất Excel ({sortedEvents.length})
+                            </button>
                         </div>
 
                         {/* legend */}
@@ -625,8 +740,21 @@ const UserJourney = () => {
 
                         {/* vertical timeline */}
                         <div className="relative pl-6 sm:pl-8 border-l border-platinum-tint/80 ml-5 sm:ml-6 space-y-8 pb-4">
+                            {currentEvents.length === 0 && (
+                                <p className="text-sm text-slate-blue py-6">Không có sự kiện nào khớp bộ lọc.</p>
+                            )}
                             {currentEvents.map((event, idx) => (
-                                <div key={idx} className="relative group animate-fade-in-up" style={{ animationDelay: `${idx * 60}ms` }}>
+                                <React.Fragment key={idx}>
+                                {isRange && (idx === 0 || toVNDateKey(currentEvents[idx - 1].time) !== toVNDateKey(event.time)) && (
+                                    <div className="relative -ml-6 sm:-ml-8 pl-2 pt-2">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-action-blue text-white text-xs font-bold shadow-sm">
+                                            <Calendar className="w-3.5 h-3.5" />
+                                            <span className="capitalize">{formatDayHeader(toVNDateKey(event.time))}</span>
+                                            <span className="font-semibold opacity-80">· {dayCounts[toVNDateKey(event.time)]} sự kiện</span>
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="relative group animate-fade-in-up" style={{ animationDelay: `${idx * 60}ms` }}>
 
                                     {/* node */}
                                     <div className="absolute -left-[45px] sm:-left-[53px] top-0 transition-transform duration-300 group-hover:scale-110">
@@ -638,6 +766,7 @@ const UserJourney = () => {
                                         {renderEventCard(event)}
                                     </div>
                                 </div>
+                                </React.Fragment>
                             ))}
                         </div>
 

@@ -143,8 +143,8 @@ const CameraLayout = () => {
     setLoading(true);
     try {
       const [zRes, rRes, dRes, mRes] = await Promise.all([
-        getZones({ limit: 200 }),
-        getRooms({ limit: 200 }),
+        getZones({ limit: 100 }),
+        getRooms({ limit: 100 }),
         getDevices({ limit: 100 }),
         getCampusMap(),
       ]);
