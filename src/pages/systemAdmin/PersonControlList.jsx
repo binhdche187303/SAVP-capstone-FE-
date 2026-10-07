@@ -12,6 +12,7 @@ import {
 import { getUsers } from '../../service/businessAdminServices';
 import { motion, AnimatePresence } from 'framer-motion';
 import Pagination from '../../components/common/Pagination';
+import { API_BASE_URL } from '../../utils/request';
 
 // Đối chiếu khi nhận diện khuôn mặt chạy theo user_id → bắt buộc chọn user có trong hệ thống.
 const emptyForm = {
@@ -374,8 +375,22 @@ const PersonControlList = () => {
                                     return (
                                         <tr key={person.id} className="hover:bg-cloud-mist/30 transition-colors">
                                             <td className="px-6 py-4 text-left">
-                                                <div className="font-extrabold text-midnight-indigo">{person.display_name}</div>
-                                                <div className="text-[11px] text-slate-blue mt-0.5">Cập nhật: {formatDate(person.updated_at)}</div>
+                                                <div className="flex items-center gap-3">
+                                                    {person.photo_media_file_id && (
+                                                        <a href={`${API_BASE_URL}/person-control-list/${person.id}/photo?token=${localStorage.getItem('accessToken')}`} target="_blank" rel="noreferrer" title="Xem ảnh hồ sơ">
+                                                            <img
+                                                                src={`${API_BASE_URL}/person-control-list/${person.id}/photo?token=${localStorage.getItem('accessToken')}`}
+                                                                alt={person.display_name}
+                                                                className="w-10 h-10 rounded-full object-cover border border-platinum-tint flex-shrink-0"
+                                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                            />
+                                                        </a>
+                                                    )}
+                                                    <div>
+                                                        <div className="font-extrabold text-midnight-indigo">{person.display_name}</div>
+                                                        <div className="text-[11px] text-slate-blue mt-0.5">Cập nhật: {formatDate(person.updated_at)}</div>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${listType.color}`}>

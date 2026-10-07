@@ -261,6 +261,12 @@ export const getStrangerAlerts = async (params = {}) => {
     return await get(`/face-access/stranger-alerts${query}`);
 };
 
+/** Các lần xuất hiện của 1 người lạ (trang Người lạ). strangerId null = thiết bị không gán mã. */
+export const getStrangerSightings = async (deviceId, strangerId) => {
+    const query = buildQuery(strangerId ? { strangerId } : {});
+    return await get(`/face-access/stranger-alerts/${deviceId}/sightings${query}`);
+};
+
 export const resolveStrangerAlert = async (alertId, data) => {
     // sync BE: Redirect to real security-alerts endpoint
     return await post(`/security-alerts/${alertId}/resolve`, { resolution_note: data.resolution_note || data.reason || '' });

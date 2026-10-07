@@ -1,11 +1,13 @@
-import { Cpu } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { Activity, Cpu, Film } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 
 import { createPortal } from 'react-dom';
 import { API_BASE_URL } from '../../utils/request';
 import {
     getDevices,
     getDeviceStatusSummary,
+    getAnprStats,
     registerDevice,
     updateDevice,
     getRooms,
@@ -16,9 +18,37 @@ import {
     rotateFaceServerToken,
     revokeFaceServerToken,
     checkDeviceAvailability,
-    updateDeviceAiConfig,
     configureFaceTerminal,
 } from '../../service/sysAdminServices';
+import { subscribeToNotificationUpdates, subscribeToSecurityAlerts } from '../../utils/socket';
+import DeviceConnectionHistoryPanel from '../../components/devices/DeviceConnectionHistoryPanel';
+import CameraAiConfigModal from '../../components/devices/CameraAiConfigModal';
+import { CAMERA_TYPES, LANE_LABEL, getAnprInfo } from '../../mocks/cameraMock';
+
+// Realtime trạng thái: tải lại im lặng mỗi 30s + ngay khi có cảnh báo/thông báo mới qua
+// WebSocket (BE gửi khi camera đổi online↔offline). So trạng thái cũ/mới để báo thay đổi.
+const LIVE_POLL_MS = 30000;
+const WS_REFRESH_DELAY_MS = 1500;
+const FLASH_MS = 2500;
+const TOAST_MS = 6000;
+
+const HEALTH_CONFIG = {
+    healthy: { label: 'Khoẻ', cls: 'text-green-600 bg-green-50' },
+    warning: { label: 'Cảnh báo', cls: 'text-amber-700 bg-amber-50' },
+    faulty:  { label: 'Lỗi', cls: 'text-red-600 bg-red-50' },
+    unknown: { label: 'Chưa rõ', cls: 'text-steel-gray bg-slate-50' },
+};
+
+const timeAgo = (iso, now) => {
+    if (!iso) return 'chưa ghi nhận';
+    const sec = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+    if (sec < 60) return `${sec} giây trước`;
+    const min = Math.round(sec / 60);
+    if (min < 60) return `${min} phút trước`;
+    const h = Math.round(min / 60);
+    if (h < 24) return `${h} giờ trước`;
+    return `${Math.round(h / 24)} ngày trước`;
+};
 
 /**
  * DeviceManagement Component
@@ -71,14 +101,7 @@ const DeviceManagement = () => {
     const [statusSummary, setStatusSummary] = useState(null);
 
     // UC-96: AI Config Modal
-    const [isAiConfigModalOpen, setIsAiConfigModalOpen] = useState(false);
     const [aiConfigDevice, setAiConfigDevice] = useState(null);
-    const [aiConfig, setAiConfig] = useState({
-        faceRecognitionEnabled: false,
-        strangerDetectionEnabled: false,
-        occupancyCountingEnabled: false,
-    });
-    const [aiConfigSubmitting, setAiConfigSubmitting] = useState(false);
 
     // FE-AR: Face Terminal first-time configure modal
     const [isFaceConfigModalOpen, setIsFaceConfigModalOpen] = useState(false);
@@ -98,6 +121,15 @@ const DeviceManagement = () => {
     const [search, setSearch] = useState('');
     const [selectedType, setSelectedType] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
+    const [selectedHealth, setSelectedHealth] = useState('');
+    const [historyDevice, setHistoryDevice] = useState(null);
+    const [lastUpdated, setLastUpdated] = useState(null);
+    const [now, setNow] = useState(Date.now());
+    // Lượt xe hôm nay theo camera biển số (GET /iot-devices/anpr-stats).
+    const [anprToday, setAnprToday] = useState({});
+    const [statusToasts, setStatusToasts] = useState([]);
+    const [flashIds, setFlashIds] = useState([]);
+    const prevStatusRef = useRef(null);
     const [selectedRoomId, setSelectedRoomId] = useState('');
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
@@ -113,28 +145,72 @@ const DeviceManagement = () => {
     });
 
     // Load rooms and devices
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        setError(null);
+    // silent = cập nhật nền (poll/WebSocket): không hiện spinner, không xoá thông báo lỗi.
+    const fetchData = useCallback(async (silent = false) => {
+        if (!silent) {
+            setLoading(true);
+            setError(null);
+        }
         try {
-            const [roomsRes, devicesRes, summaryRes] = await Promise.all([
+            const [roomsRes, devicesRes, summaryRes, anprRes] = await Promise.all([
                 getRooms({ limit: 100 }),
                 getDevices({ limit: 100 }),
                 getDeviceStatusSummary().catch(() => null),
+                getAnprStats().catch(() => null),
             ]);
+            if (anprRes?.success) {
+                setAnprToday(Object.fromEntries((anprRes.data || []).map(r => [r.device_id, r.total])));
+            }
 
             if (roomsRes?.success) setRooms(roomsRes.data || []);
-            if (devicesRes?.success) setDevicesList(devicesRes.data || []);
+            if (devicesRes?.success) {
+                const list = devicesRes.data || [];
+                const prev = prevStatusRef.current;
+                if (prev) {
+                    const changed = list.filter(d => prev.has(d.id) && prev.get(d.id) !== d.status);
+                    if (changed.length > 0) {
+                        const ids = changed.map(d => d.id);
+                        setFlashIds(ids);
+                        setTimeout(() => setFlashIds(cur => cur.filter(id => !ids.includes(id))), FLASH_MS);
+                        const at = new Date();
+                        const toasts = changed.map(d => ({ key: `${d.id}-${at.getTime()}`, device: d, at }));
+                        setStatusToasts(cur => [...toasts, ...cur].slice(0, 4));
+                        setTimeout(() => setStatusToasts(cur => cur.filter(t => !toasts.includes(t))), TOAST_MS);
+                    }
+                }
+                prevStatusRef.current = new Map(list.map(d => [d.id, d.status]));
+                setDevicesList(list);
+            }
             if (summaryRes?.success) setStatusSummary(summaryRes.data);
+            setLastUpdated(Date.now());
         } catch (err) {
-            setError(err?.error?.message || err?.message || 'Không thể tải dữ liệu thiết bị và phòng họp.');
+            if (!silent) setError(err?.error?.message || err?.message || 'Không thể tải dữ liệu thiết bị và phòng họp.');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, []);
 
     useEffect(() => {
         fetchData();
+    }, [fetchData]);
+
+    useEffect(() => {
+        const poll = setInterval(() => fetchData(true), LIVE_POLL_MS);
+        const tick = setInterval(() => setNow(Date.now()), 1000);
+        let wsTimer = null;
+        const onWs = () => {
+            if (wsTimer) return;
+            wsTimer = setTimeout(() => { wsTimer = null; fetchData(true); }, WS_REFRESH_DELAY_MS);
+        };
+        const offAlerts = subscribeToSecurityAlerts(onWs);
+        const offNotifications = subscribeToNotificationUpdates(onWs);
+        return () => {
+            clearInterval(poll);
+            clearInterval(tick);
+            clearTimeout(wsTimer);
+            offAlerts();
+            offNotifications();
+        };
     }, [fetchData]);
 
     // Auto-hide alert boxes
@@ -204,7 +280,10 @@ const DeviceManagement = () => {
                 device_type: formData.deviceType,
                 ip_address: formData.ipAddress.trim() || undefined,
                 metadata_json: {
-                    agent_version: formData.agentVersion || 'v1.0.0'
+                    agent_version: formData.agentVersion || 'v1.0.0',
+                    ...(formData.deviceType === 'anpr_camera' && {
+                        anpr: { lane_direction: formData.laneDirection || 'in', lane_no: 1 },
+                    }),
                 }
             };
             const res = await registerDevice(payload);
@@ -534,44 +613,12 @@ const DeviceManagement = () => {
         }
     };
 
-    // UC-96: Open AI Config modal and pre-fill from device metadata
-    const handleAiConfigOpen = (device) => {
-        const saved = device.metadata_json?.ai_config || {};
-        setAiConfigDevice(device);
-        setAiConfig({
-            faceRecognitionEnabled: saved.faceRecognitionEnabled ?? false,
-            strangerDetectionEnabled: saved.strangerDetectionEnabled ?? false,
-            occupancyCountingEnabled: saved.occupancyCountingEnabled ?? false,
-        });
-        setIsAiConfigModalOpen(true);
-    };
-
-    const handleAiConfigSubmit = async (e) => {
-        e.preventDefault();
-        if (!aiConfigDevice) return;
-        setAiConfigSubmitting(true);
-        setError(null);
-        try {
-            const res = await updateDeviceAiConfig(aiConfigDevice.id, aiConfig);
-            if (res?.success) {
-                setSuccessMessage(`Đã cập nhật cấu hình AI cho ${aiConfigDevice.device_name} thành công.`);
-                setIsAiConfigModalOpen(false);
-                fetchData();
-            } else {
-                throw new Error(res?.error?.message || res?.message || 'Không thể cập nhật cấu hình AI.');
-            }
-        } catch (err) {
-            setError(err?.error?.message || err?.message || 'Không thể cập nhật cấu hình AI.');
-        } finally {
-            setAiConfigSubmitting(false);
-        }
-    };
-
     // Helper translation dicts
     const TYPE_MAP = {
         'ip_camera':       'Camera AI',
         'door_camera':     'Camera kiểm soát vào/ra',
         'room_camera':     'Camera phòng họp',
+        'anpr_camera':     'Camera nhận diện biển số',
         'face_server':     'Máy chủ Face Server',
         'microphone':      'Micro ghi âm',
         'capture_agent':   'Capture Agent',
@@ -582,6 +629,7 @@ const DeviceManagement = () => {
         'ip_camera':        { label: 'Camera AI',     accentBar: 'bg-blue-400',    border: 'border-blue-100',    badgeBg: 'bg-blue-50',    badgeText: 'text-blue-700'    },
         'door_camera':      { label: 'Camera vào/ra', accentBar: 'bg-violet-400',  border: 'border-violet-100',  badgeBg: 'bg-violet-50',  badgeText: 'text-violet-700'  },
         'room_camera':      { label: 'Camera phòng',  accentBar: 'bg-indigo-400',  border: 'border-indigo-100',  badgeBg: 'bg-indigo-50',  badgeText: 'text-indigo-700'  },
+        'anpr_camera':      { label: 'Camera biển số', accentBar: 'bg-orange-400', border: 'border-orange-100', badgeBg: 'bg-orange-50', badgeText: 'text-orange-700' },
         'face_server':      { label: 'Face Server',   accentBar: 'bg-emerald-400', border: 'border-emerald-100', badgeBg: 'bg-emerald-50', badgeText: 'text-emerald-700' },
         'microphone':       { label: 'Micro',         accentBar: 'bg-orange-400',  border: 'border-orange-100',  badgeBg: 'bg-orange-50',  badgeText: 'text-orange-700'  },
         'capture_agent':    { label: 'Capture Agent', accentBar: 'bg-sky-400',     border: 'border-sky-100',     badgeBg: 'bg-sky-50',     badgeText: 'text-sky-700'     },
@@ -602,9 +650,11 @@ const DeviceManagement = () => {
         const matchType = selectedType === '' || device.device_type === selectedType;
         const matchStatus = selectedStatus === '' || device.status === selectedStatus;
         const matchRoom = selectedRoomId === '' || device.room_id === selectedRoomId;
-        return matchSearch && matchType && matchStatus && matchRoom;
+        const matchHealth = selectedHealth === '' || device.health_status === selectedHealth;
+        return matchSearch && matchType && matchStatus && matchRoom && matchHealth;
     });
 
+    const offlineDevices = devicesList.filter(d => d.status === 'offline');
     const totalPages = Math.ceil(filteredDevices.length / limit) || 1;
     const paginatedDevices = filteredDevices.slice((page - 1) * limit, page * limit);
 
@@ -631,6 +681,27 @@ const DeviceManagement = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                     </svg>
                     Đăng ký thiết bị
+                </button>
+            </div>
+
+            {/* Dải trạng thái live */}
+            <div className="flex items-center justify-between gap-3 bg-white rounded-xl border border-platinum-tint px-4 py-2.5">
+                <div className="flex items-center gap-2 text-xs text-slate-blue">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span className="font-semibold text-midnight-indigo">Đang theo dõi trực tiếp</span>
+                    <span>· cập nhật {lastUpdated ? timeAgo(lastUpdated, now) : '...'}</span>
+                </div>
+                <button
+                    onClick={() => fetchData(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-action-blue hover:bg-blue-50 transition-colors"
+                >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Làm mới
                 </button>
             </div>
 
@@ -749,6 +820,9 @@ const DeviceManagement = () => {
                             >
                                 <option value="">Tất cả loại</option>
                                 <option value="ip_camera">Camera AI</option>
+                                <option value="door_camera">Camera vào/ra</option>
+                                <option value="room_camera">Camera phòng</option>
+                                <option value="anpr_camera">Camera biển số</option>
                                 <option value="face_server">Face Server</option>
                             </select>
                             <select
@@ -760,6 +834,17 @@ const DeviceManagement = () => {
                                 <option value="online">Online</option>
                                 <option value="offline">Offline</option>
                                 <option value="disabled">Vô hiệu</option>
+                                <option value="maintenance">Bảo trì</option>
+                            </select>
+                            <select
+                                value={selectedHealth}
+                                onChange={(e) => { setSelectedHealth(e.target.value); setPage(1); }}
+                                className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue bg-white"
+                            >
+                                <option value="">Tất cả sức khoẻ</option>
+                                {Object.entries(HEALTH_CONFIG).map(([value, h]) => (
+                                    <option key={value} value={value}>{h.label}</option>
+                                ))}
                             </select>
                         </div>
                         {filteredDevices.length > 0 && (
@@ -768,6 +853,45 @@ const DeviceManagement = () => {
                             </span>
                         )}
                     </div>
+
+                    {/* Sự cố đang mở: thiết bị đang mất kết nối */}
+                    {offlineDevices.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                                <p className="text-sm font-bold text-red-700">
+                                    ⚠ {offlineDevices.length} thiết bị đang mất kết nối
+                                </p>
+                                <Link to="/system-admin/security-alerts" className="text-xs font-semibold text-red-700 hover:underline">
+                                    Xem cảnh báo
+                                </Link>
+                            </div>
+                            <ul className="divide-y divide-red-100">
+                                {offlineDevices.slice(0, 5).map(d => (
+                                    <li key={d.id} className="py-1.5 flex items-center justify-between gap-3">
+                                        <span className="text-xs text-red-800 min-w-0 truncate">
+                                            <span className="font-mono font-semibold">{d.device_code}</span> · {d.device_name}
+                                            <span className="text-red-600"> · hoạt động lần cuối {timeAgo(d.last_seen_at, now)}</span>
+                                        </span>
+                                        <span className="flex items-center gap-1 shrink-0">
+                                            {['ip_camera', 'face_server'].includes(d.device_type) && (
+                                                <button onClick={() => handleCheckAvailability(d)} className="px-2 py-1 rounded-lg text-[11px] font-semibold text-red-700 hover:bg-red-100">
+                                                    Ping lại
+                                                </button>
+                                            )}
+                                            <button onClick={() => setHistoryDevice(d)} className="px-2 py-1 rounded-lg text-[11px] font-semibold text-red-700 hover:bg-red-100">
+                                                Lịch sử
+                                            </button>
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                            {offlineDevices.length > 5 && (
+                                <button onClick={() => { setSelectedStatus('offline'); setPage(1); }} className="mt-1 text-[11px] font-semibold text-red-700 hover:underline">
+                                    và {offlineDevices.length - 5} thiết bị khác — lọc tất cả
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     {/* Empty state */}
                     {filteredDevices.length === 0 ? (
@@ -786,7 +910,7 @@ const DeviceManagement = () => {
                                     const cfg = DEVICE_CONFIG[device.device_type] || DEVICE_CFG_DEFAULT;
                                     const assignedRoom = rooms.find(r => r.roomId === device.room_id);
                                     return (
-                                        <div key={device.id} className={`bg-white rounded-2xl border ${cfg.border} shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col`}>
+                                        <div key={device.id} className={`bg-white rounded-2xl border ${flashIds.includes(device.id) ? 'border-red-400 ring-2 ring-red-300' : cfg.border} shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col`}>
                                             {/* Accent strip */}
                                             <div className={`${cfg.accentBar} h-[3px] shrink-0`} />
 
@@ -838,9 +962,30 @@ const DeviceManagement = () => {
                                                 <div>
                                                     <h3 className="text-[15px] font-bold text-midnight-indigo leading-snug line-clamp-1">{device.device_name}</h3>
                                                     <p className="mt-0.5 text-[10px] font-mono text-steel-gray tracking-wider">{device.device_code}</p>
+                                                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${(HEALTH_CONFIG[device.health_status] || HEALTH_CONFIG.unknown).cls}`}>
+                                                            {(HEALTH_CONFIG[device.health_status] || HEALTH_CONFIG.unknown).label}
+                                                        </span>
+                                                        <span className="text-[11px] text-slate-blue">
+                                                            Hoạt động lần cuối: <span className="font-semibold text-midnight-indigo">{timeAgo(device.last_seen_at, now)}</span>
+                                                        </span>
+                                                    </div>
                                                 </div>
 
                                                 {/* Room + Network */}
+                                                {device.device_type === 'anpr_camera' && (() => {
+                                                    const anpr = getAnprInfo(device);
+                                                    return (
+                                                        <div className="flex items-center justify-between gap-2 rounded-xl bg-orange-50 px-3 py-2 text-[11px]">
+                                                            <span className="font-semibold text-orange-700">
+                                                                {LANE_LABEL[anpr.laneDirection]} · Làn {anpr.laneNo}
+                                                            </span>
+                                                            <Link to="/system-admin/anpr-management" className="text-orange-700 hover:underline">
+                                                                Hôm nay: <strong className="tabular-nums">{anprToday[device.id] ?? 0}</strong> lượt xe →
+                                                            </Link>
+                                                        </div>
+                                                    );
+                                                })()}
                                                 <div className="border-t border-platinum-tint pt-3 space-y-2">
                                                     <div className="flex items-center gap-2">
                                                         <svg className="w-3.5 h-3.5 text-steel-gray shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -892,6 +1037,13 @@ const DeviceManagement = () => {
                                                                 </svg>
                                                             </button>
                                                         )}
+                                                        <button
+                                                            onClick={() => setHistoryDevice(device)}
+                                                            title="Lịch sử kết nối"
+                                                            className="p-2 rounded-lg text-steel-gray hover:text-sky-600 hover:bg-sky-50 transition-colors"
+                                                        >
+                                                            <Activity className="w-4 h-4" />
+                                                        </button>
                                                         {device.device_type === 'face_server' && (
                                                             <>
                                                             {!device.metadata_json?.face_server_config ? (
@@ -927,9 +1079,12 @@ const DeviceManagement = () => {
                                                             )}
                                                             </>
                                                         )}
-                                                        {['ip_camera', 'door_camera', 'room_camera'].includes(device.device_type) && (
+                                                        {CAMERA_TYPES.includes(device.device_type) && (
                                                             <>
-                                                            <button onClick={() => handleAiConfigOpen(device)} title="Cấu hình AI Camera" className="p-2 rounded-lg text-steel-gray hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                                                            <Link to={`/system-admin/camera-recording?camera=${device.id}`} title="Lịch ghi hình & lưu trữ" className="p-2 rounded-lg text-steel-gray hover:text-action-blue hover:bg-blue-50 transition-colors">
+                                                                <Film className="w-4 h-4" />
+                                                            </Link>
+                                                            <button onClick={() => setAiConfigDevice(device)} title="Cấu hình AI Camera" className="p-2 rounded-lg text-steel-gray hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
                                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                                                 </svg>
@@ -1075,9 +1230,26 @@ const DeviceManagement = () => {
                                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
                                     >
                                         <option value="ip_camera">Camera AI</option>
+                                        <option value="door_camera">Camera kiểm soát vào/ra</option>
+                                        <option value="room_camera">Camera phòng</option>
+                                        <option value="anpr_camera">Camera nhận diện biển số</option>
                                         <option value="face_server">Máy chủ Face Server</option>
                                     </select>
                                 </div>
+                                {formData.deviceType === 'anpr_camera' && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Hướng làn</label>
+                                        <select
+                                            value={formData.laneDirection || 'in'}
+                                            onChange={(e) => setFormData({ ...formData, laneDirection: e.target.value })}
+                                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
+                                        >
+                                            {Object.entries(LANE_LABEL).map(([k, v]) => (
+                                                <option key={k} value={k}>{v}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                             <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
                                 Gán phòng cho thiết bị sau khi tạo — dùng nút <strong>Gán phòng</strong> (icon tòa nhà) trong danh sách.
@@ -1324,68 +1496,17 @@ const DeviceManagement = () => {
                 document.body
             )}
 
-            {/* UC-96: AI CONFIG MODAL */}
-            {isAiConfigModalOpen && aiConfigDevice && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-midnight-indigo/50 backdrop-blur-md p-4">
-                    <div className="bg-white rounded-2xl border border-platinum-tint shadow-2xl max-w-sm w-full overflow-hidden animate-fade-in-up">
-                        <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-cloud-mist/50">
-                            <div>
-                                <h3 className="font-bold text-midnight-indigo text-sm">Cấu hình AI Camera</h3>
-                                <p className="text-[10px] text-slate-blue mt-0.5">{aiConfigDevice.device_name}</p>
-                            </div>
-                            <button onClick={() => setIsAiConfigModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
-                        <form onSubmit={handleAiConfigSubmit} className="p-6 space-y-4">
-                            <div className="space-y-3">
-                                <label className="flex items-center justify-between gap-3 p-3 rounded-xl border border-platinum-tint hover:bg-cloud-mist/40 cursor-pointer">
-                                    <div>
-                                        <p className="text-sm font-semibold text-midnight-indigo">Nhận diện khuôn mặt</p>
-                                        <p className="text-[10px] text-slate-blue">Face Recognition — xác định nhân viên</p>
-                                    </div>
-                                    <div
-                                        onClick={() => setAiConfig(c => ({ ...c, faceRecognitionEnabled: !c.faceRecognitionEnabled }))}
-                                        className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${aiConfig.faceRecognitionEnabled ? 'bg-action-blue' : 'bg-platinum-tint'}`}
-                                    >
-                                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${aiConfig.faceRecognitionEnabled ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                                    </div>
-                                </label>
-                                <label className="flex items-center justify-between gap-3 p-3 rounded-xl border border-platinum-tint hover:bg-cloud-mist/40 cursor-pointer">
-                                    <div>
-                                        <p className="text-sm font-semibold text-midnight-indigo">Phát hiện người lạ</p>
-                                        <p className="text-[10px] text-slate-blue">Stranger Detection — cảnh báo ngoài danh sách</p>
-                                    </div>
-                                    <div
-                                        onClick={() => setAiConfig(c => ({ ...c, strangerDetectionEnabled: !c.strangerDetectionEnabled }))}
-                                        className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${aiConfig.strangerDetectionEnabled ? 'bg-action-blue' : 'bg-platinum-tint'}`}
-                                    >
-                                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${aiConfig.strangerDetectionEnabled ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                                    </div>
-                                </label>
-                                <label className="flex items-center justify-between gap-3 p-3 rounded-xl border border-platinum-tint hover:bg-cloud-mist/40 cursor-pointer">
-                                    <div>
-                                        <p className="text-sm font-semibold text-midnight-indigo">Đếm người trong phòng</p>
-                                        <p className="text-[10px] text-slate-blue">Occupancy Counting — theo dõi sĩ số</p>
-                                    </div>
-                                    <div
-                                        onClick={() => setAiConfig(c => ({ ...c, occupancyCountingEnabled: !c.occupancyCountingEnabled }))}
-                                        className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${aiConfig.occupancyCountingEnabled ? 'bg-action-blue' : 'bg-platinum-tint'}`}
-                                    >
-                                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${aiConfig.occupancyCountingEnabled ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                                    </div>
-                                </label>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-4 border-t border-platinum-tint">
-                                <button type="button" onClick={() => setIsAiConfigModalOpen(false)} className="px-4 py-2 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-xs font-bold">Hủy</button>
-                                <button type="submit" disabled={aiConfigSubmitting} className="px-4 py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-bold disabled:opacity-50">
-                                    {aiConfigSubmitting ? 'Đang lưu...' : 'Lưu cấu hình AI'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>,
-                document.body
+            {/* UC-96 + 2.2.6: AI CONFIG MODAL */}
+            {aiConfigDevice && (
+                <CameraAiConfigModal
+                    device={aiConfigDevice}
+                    onClose={() => setAiConfigDevice(null)}
+                    onSaved={(msg) => {
+                        setSuccessMessage(msg);
+                        setAiConfigDevice(null);
+                        fetchData();
+                    }}
+                />
             )}
 
             {/* FE-AR: FACE TERMINAL CONFIGURE MODAL */}
@@ -1569,6 +1690,23 @@ const DeviceManagement = () => {
                             }`}>Xác nhận</button>
                         </div>
                     </div>
+                </div>,
+                document.body
+            )}
+
+            {historyDevice && (
+                <DeviceConnectionHistoryPanel device={historyDevice} onClose={() => setHistoryDevice(null)} />
+            )}
+
+            {/* Thông báo thiết bị vừa đổi trạng thái (góc phải dưới) */}
+            {statusToasts.length > 0 && createPortal(
+                <div className="fixed bottom-4 right-4 z-50 space-y-2">
+                    {statusToasts.map(t => (
+                        <div key={t.key} className={`px-4 py-2.5 rounded-xl shadow-lg border text-xs font-semibold bg-white ${t.device.status === 'online' ? 'border-green-200 text-green-700' : 'border-red-200 text-red-700'}`}>
+                            {t.device.status === 'online' ? '🟢' : '🔴'} {t.device.device_code} {t.device.status === 'online' ? 'đã kết nối lại' : t.device.status === 'offline' ? 'vừa mất kết nối' : `chuyển sang ${t.device.status}`}
+                            <span className="text-steel-gray font-normal"> ({t.at.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})</span>
+                        </div>
+                    ))}
                 </div>,
                 document.body
             )}

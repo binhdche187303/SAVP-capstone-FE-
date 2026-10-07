@@ -1,7 +1,7 @@
 import { AlertTriangle, Camera, ExternalLink, Map as MapIcon, MapPin, RefreshCw, Users } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, LayersControl, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getCampusMap } from '../../service/campusService';
@@ -11,7 +11,7 @@ import { getAlertTypeLabel } from '../../constants/alertType';
 // Vị trí camera = vị trí zone (iot_devices không có toạ độ riêng). Nền OSM cần internet.
 
 const REFRESH_MS = 60000;
-const DEFAULT_CENTER = [21.0130, 105.5265];
+const DEFAULT_CENTER = [10.7554, 106.6634]; // ĐH Y Dược TP.HCM — 217 Hồng Bàng, Q.5
 
 const HOURS_OPTIONS = [
     { value: 1, label: '1 giờ qua' },
@@ -248,12 +248,23 @@ const CampusMap = () => {
 
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
                 <div className="xl:col-span-3 bg-white rounded-xl border border-gray-200 overflow-hidden relative">
-                    <MapContainer center={DEFAULT_CENTER} zoom={17} style={{ height: 560 }} scrollWheelZoom>
-                        <TileLayer
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            maxZoom={19}
-                        />
+                    <MapContainer center={DEFAULT_CENTER} zoom={18} style={{ height: 560 }} scrollWheelZoom>
+                        <LayersControl position="topright">
+                            <LayersControl.BaseLayer checked name="Bản đồ">
+                                <TileLayer
+                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    maxZoom={19}
+                                />
+                            </LayersControl.BaseLayer>
+                            <LayersControl.BaseLayer name="Vệ tinh">
+                                <TileLayer
+                                    attribution="Tiles &copy; Esri"
+                                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                                    maxZoom={19}
+                                />
+                            </LayersControl.BaseLayer>
+                        </LayersControl>
                         <FitBounds points={points} />
                         {located.map((z) => (
                             <Marker key={z.zoneId} position={[z.coordinates.lat, z.coordinates.lng]} icon={zoneIcon(z)}

@@ -3,10 +3,10 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import {
     RiHome4Line,
     RiSettings3Line, RiShieldLine, RiSettings2Line,
-    RiCpuLine, RiHardDriveLine, RiMapLine,
+    RiCpuLine, RiHardDriveLine, RiMapLine, RiUserUnfollowLine,
     RiLoginBoxLine, RiCameraLine, RiCarLine, RiMapPinLine,
     RiAlertLine, RiMapPin2Line, RiEqualizerLine, RiShieldUserLine,
-    RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine
+    RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiLayoutMasonryLine, RiFilmLine
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -40,6 +40,8 @@ const STATIC_NAVIGATION_ITEMS = [
         icon: RiCpuLine,
         children: [
             { label: 'Thiết bị IoT',                  to: '/system-admin/devices',              icon: RiHardDriveLine },
+            { label: 'Sơ đồ lắp đặt camera',          to: '/system-admin/camera-layout',        icon: RiLayoutMasonryLine },
+            { label: 'Ghi hình & lưu trữ',            to: '/system-admin/camera-recording',     icon: RiFilmLine },
             { label: 'Khu vực giám sát',              to: '/system-admin/zones',                icon: RiMapLine },
             { label: 'Lưu lượng & Heatmap',           to: '/system-admin/zone-traffic',         icon: RiFireLine },
             { label: 'Nhật ký ra/vào phòng',          to: '/system-admin/room-access-logs',     icon: RiLoginBoxLine },
@@ -52,6 +54,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Kiểm soát ra vào cổng',         to: '/system-admin/anpr-management',      icon: RiCameraLine },
             { label: 'Danh sách biển số giám sát',    to: '/system-admin/vehicle-control-list', icon: RiCarLine },
+            { label: 'Người lạ',                      to: '/system-admin/strangers',            icon: RiUserUnfollowLine },
             { label: 'Danh sách người giám sát',      to: '/system-admin/person-control-list',  icon: RiShieldUserLine },
             { label: 'Đăng ký phương tiện',           to: '/system-admin/vehicle-registrations',icon: RiFileTextLine },
             { label: 'Hành trình khuôn viên',         to: '/system-admin/user-journey',         icon: RiMapPinLine },
