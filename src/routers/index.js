@@ -61,6 +61,18 @@ import InMeetingRoom from '../pages/shared/InMeetingRoom';
 import LegalAndSupport from '../pages/public/LegalAndSupport';
 import GuestJoin from '../pages/guest/GuestJoin';
 import GuestMeeting from '../pages/guest/GuestMeeting';
+import VisitorGate from '../pages/public/VisitorGate';
+import VisitorStatus from '../pages/public/VisitorStatus';
+import VisitorStats from '../pages/shared/visitors/VisitorStats';
+import VisitorHistory from '../pages/shared/visitors/VisitorHistory';
+import MyVisitors from '../pages/shared/visitors/MyVisitors';
+import ReportRuns from '../pages/shared/reports/ReportRuns';
+import ReportSchedules from '../pages/shared/reports/ReportSchedules';
+import VisitorDesk from '../pages/shared/visitors/VisitorDesk';
+import VisitorManagement from '../pages/shared/visitors/VisitorManagement';
+import VisitorRegister from '../pages/public/VisitorRegister';
+import ReportCenter from '../pages/shared/reports/ReportCenter';
+import ReportViewer from '../pages/shared/reports/ReportViewer';
 
 // Lazy-loaded to break circular dependency with minutesServices import chain
 const DocumentArchive = React.lazy(() => import('../pages/bussinessAdmin/DocumentArchive'));
@@ -94,6 +106,22 @@ export const router = [
     {
         path: '/guest/meeting/:meetingId',
         element: <GuestMeeting />
+    },
+    {
+        path: '/visitor/gate',
+        element: <VisitorGate />
+    },
+    {
+        path: '/visitor/status',
+        element: <VisitorStatus />
+    },
+    {
+        path: '/visitor/status/:code',
+        element: <VisitorStatus />
+    },
+    {
+        path: '/visitor/register',
+        element: <VisitorRegister />
     },
     // ========== SystemAdmin Routes (protected) ==========
     {
@@ -177,6 +205,38 @@ export const router = [
                 element: <AuditLogs />
             },
             {
+                path: 'reports/:type',
+                element: <ReportViewer />
+            },
+            {
+                path: 'reports',
+                element: <ReportCenter />
+            },
+            {
+                path: 'visitors',
+                element: <VisitorManagement />
+            },
+            {
+                path: 'visitors/desk',
+                element: <VisitorDesk />
+            },
+            {
+                path: 'report-schedules',
+                element: <ReportSchedules />
+            },
+            {
+                path: 'report-schedules/runs',
+                element: <ReportRuns />
+            },
+            {
+                path: 'visitors/history',
+                element: <VisitorHistory />
+            },
+            {
+                path: 'visitors/stats',
+                element: <VisitorStats />
+            },
+            {
                 path: 'legal',
                 element: <LegalAndSupport />
             }
@@ -251,6 +311,38 @@ export const router = [
             {
                 path: 'meeting-attendance',
                 element: <MeetingAttendanceAdmin />
+            },
+            {
+                path: 'reports/:type',
+                element: <ReportViewer />
+            },
+            {
+                path: 'reports',
+                element: <ReportCenter />
+            },
+            {
+                path: 'visitors',
+                element: <VisitorManagement />
+            },
+            {
+                path: 'visitors/desk',
+                element: <VisitorDesk />
+            },
+            {
+                path: 'report-schedules',
+                element: <ReportSchedules />
+            },
+            {
+                path: 'report-schedules/runs',
+                element: <ReportRuns />
+            },
+            {
+                path: 'visitors/history',
+                element: <VisitorHistory />
+            },
+            {
+                path: 'visitors/stats',
+                element: <VisitorStats />
             },
             {
                 path: 'legal',
@@ -345,6 +437,18 @@ export const router = [
                 element: <MyVehicles />
             },
             {
+                path: 'reports/:type',
+                element: <ReportViewer />
+            },
+            {
+                path: 'reports',
+                element: <ReportCenter />
+            },
+            {
+                path: 'my-visitors',
+                element: <MyVisitors />
+            },
+            {
                 path: 'legal',
                 element: <LegalAndSupport />
             }
@@ -419,6 +523,10 @@ export const router = [
             {
                 path: 'my-vehicles',
                 element: <MyVehicles />
+            },
+            {
+                path: 'my-visitors',
+                element: <MyVisitors />
             },
             {
                 path: 'legal',

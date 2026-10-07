@@ -6,7 +6,10 @@ import {
     RiCpuLine, RiHardDriveLine, RiMapLine,
     RiLoginBoxLine, RiCameraLine, RiCarLine, RiMapPinLine,
     RiAlertLine, RiMapPin2Line, RiEqualizerLine, RiShieldUserLine,
-    RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine
+    RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine,
+    RiBarChartBoxLine, RiFileChartLine,
+    RiUserReceivedLine, RiContactsBookLine, RiServiceLine,
+    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -57,6 +60,27 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Hành trình khuôn viên',         to: '/system-admin/user-journey',         icon: RiMapPinLine },
             { label: 'Cảnh báo an ninh',              to: '/system-admin/security-alerts',      icon: RiAlertLine },
             { label: 'Bản đồ khuôn viên',             to: '/system-admin/campus-map',           icon: RiMapPin2Line },
+        ],
+    },
+    {
+        label: 'Khách',
+        isDropdown: true,
+        icon: RiUserReceivedLine,
+        children: [
+            { label: 'Quầy lễ tân',                   to: '/system-admin/visitors/desk',        icon: RiServiceLine },
+            { label: 'Quản lý khách',                 to: '/system-admin/visitors', end: true,  icon: RiContactsBookLine },
+            { label: 'Lịch sử khách',                 to: '/system-admin/visitors/history',     icon: RiHistoryLine },
+            { label: 'Thống kê khách',                to: '/system-admin/visitors/stats',       icon: RiPieChartLine },
+        ],
+    },
+    {
+        label: 'Báo cáo',
+        isDropdown: true,
+        icon: RiBarChartBoxLine,
+        children: [
+            { label: 'Trung tâm báo cáo',             to: '/system-admin/reports',              icon: RiFileChartLine },
+            { label: 'Lịch gửi báo cáo',              to: '/system-admin/report-schedules', end: true, icon: RiCalendarScheduleLine },
+            { label: 'Lịch sử gửi',                   to: '/system-admin/report-schedules/runs', icon: RiMailSendLine },
         ],
     },
 ];

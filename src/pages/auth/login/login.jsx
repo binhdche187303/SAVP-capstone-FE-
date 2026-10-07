@@ -325,6 +325,13 @@ const Login = () => {
                         {loading ? "Đang xử lý..." : "Đăng nhập"}
                     </button>
                 </form>
+                {/* Lối vào cho khách đến làm việc (2.10) — không cần tài khoản */}
+                <p className="mt-6 text-center text-sm text-slate-blue">
+                    Khách đến làm việc?{' '}
+                    <Link to="/visitor/register" className="font-semibold text-action-blue hover:underline">Đăng ký tại đây</Link>
+                    {' · '}
+                    <Link to="/visitor/status" className="font-semibold text-action-blue hover:underline">Tra cứu đăng ký</Link>
+                </p>
             </div>
         </AuthLayout>
     );

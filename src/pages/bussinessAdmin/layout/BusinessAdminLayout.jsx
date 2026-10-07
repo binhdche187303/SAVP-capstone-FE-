@@ -20,6 +20,13 @@ import {
     Fingerprint,
     Flame,
     Map as MapIcon,
+    FileBarChart,
+    UserCheck,
+    ClipboardList,
+    ConciergeBell,
+    CalendarClock,
+    History,
+    BarChart3,
 } from 'lucide-react';
 
 const STATIC_NAVIGATION_ITEMS = [
@@ -42,10 +49,24 @@ const STATIC_NAVIGATION_ITEMS = [
         ],
     },
     {
+        label: 'Khách',
+        isDropdown: true,
+        icon: UserCheck,
+        children: [
+            { label: 'Quầy lễ tân', to: '/business-admin/visitors/desk', icon: ConciergeBell },
+            { label: 'Quản lý khách', to: '/business-admin/visitors', end: true, icon: ClipboardList },
+            { label: 'Lịch sử khách', to: '/business-admin/visitors/history', icon: History },
+            { label: 'Thống kê khách', to: '/business-admin/visitors/stats', icon: BarChart3 },
+        ],
+    },
+    {
         label: 'Báo cáo',
         isDropdown: true,
         icon: BarChart2,
         children: [
+            { label: 'Trung tâm báo cáo', to: '/business-admin/reports', icon: FileBarChart },
+            { label: 'Lịch gửi báo cáo', to: '/business-admin/report-schedules', end: true, icon: CalendarClock },
+            { label: 'Lịch sử gửi', to: '/business-admin/report-schedules/runs', icon: History },
             { label: 'Hiệu suất phòng họp', to: '/business-admin/room-analytics', icon: PieChart },
             { label: 'Lưu lượng & Heatmap', to: '/business-admin/zone-traffic', icon: Flame },
             { label: 'Bản đồ khuôn viên', to: '/business-admin/campus-map', icon: MapIcon },
