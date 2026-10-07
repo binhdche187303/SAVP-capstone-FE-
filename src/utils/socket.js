@@ -138,12 +138,15 @@ export const subscribeToNotificationUpdates = (onCreate) => {
 
 // Dùng ở Trung tâm Cảnh báo An ninh (SecurityAlerts) — nhận `security.alert.new`
 // khi BE tạo cảnh báo an ninh MỚI (SecurityAlertNotifierService → emitToUser cho
-// người có quyền security_alert.read). Bump cảnh báo đang mở KHÔNG phát event.
-export const subscribeToSecurityAlerts = (onNew) => {
+// người có quyền security_alert.read). Cảnh báo đang mở có thêm lượt → `security.alert.updated`
+// (onUpdated, tuỳ chọn) — chỉ cập nhật màn hình, KHÔNG chuông/in-app.
+export const subscribeToSecurityAlerts = (onNew, onUpdated) => {
   const s = ensureUserRoomJoined();
   s.on('security.alert.new', onNew);
+  if (onUpdated) s.on('security.alert.updated', onUpdated);
   return () => {
     s.off('security.alert.new', onNew);
+    if (onUpdated) s.off('security.alert.updated', onUpdated);
   };
 };
 

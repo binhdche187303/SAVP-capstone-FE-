@@ -18,7 +18,14 @@ import { getAlertTypeLabel } from '../../constants/alertType';
 import { subscribeToSecurityAlerts } from '../../utils/socket';
 
 const FALLBACK_POLL_MS = 30000;
+const PAGE_SIZE = 10;
+const STATUS_CARDS = [
+    { value: 'new', label: 'Mới', hint: 'Chưa ai tiếp nhận', icon: AlertTriangle, tone: 'text-red-600 bg-red-50 border-red-200', ring: 'ring-red-400' },
+    { value: 'acknowledged', label: 'Đã tiếp nhận', hint: 'Đang chờ xử lý xong', icon: Clock, tone: 'text-yellow-700 bg-yellow-50 border-yellow-200', ring: 'ring-yellow-400' },
+    { value: 'resolved', label: 'Đã xử lý', hint: 'Đã đóng (người xử lý / tự động)', icon: CheckCircle, tone: 'text-green-700 bg-green-50 border-green-200', ring: 'ring-green-400' },
+];
 const WS_BATCH_MS = 1500;
+const FLASH_MS = 4000;
 const SOUND_THROTTLE_MS = 5000;
 const HIGH_SEVERITIES = new Set(['high', 'critical']);
 
@@ -149,6 +156,11 @@ const AlertImagesStack = ({ alert, onClick }) => {
     );
 };
 
+/** Cảnh báo "Người lạ" đã có lượt được bảo vệ chuyển theo dõi (payload_json.watchlistConversions, BE giữ alert_type gốc). */
+const getConversions = (alert) => alert?.payload_json?.watchlistConversions || [];
+const getTypeDisplay = (alert) => getConversions(alert).length ? 'Đối tượng theo dõi' : getAlertTypeLabel(alert?.alert_type);
+const PRIORITY_LABEL = { low: 'Thấp', medium: 'Trung bình', high: 'Cao', critical: 'Nghiêm trọng' };
+
 const SecurityAlerts = () => {
     const [alerts, setAlerts] = useState([]);
     const [searchParams] = useSearchParams();
@@ -161,13 +173,14 @@ const SecurityAlerts = () => {
     // Pagination & Filters
     const [filters, setFilters] = useState({
         page: 1,
-        limit: 10,
+        limit: PAGE_SIZE,
         status: '',
         alert_type: '',
         // Bản đồ khuôn viên mở trang này kèm ?zone_id=… để lọc sẵn theo khu vực.
         zone_id: searchParams.get('zone_id') || ''
     });
     const [meta, setMeta] = useState(null);
+    const [counts, setCounts] = useState({});
 
     // Bulk selection
     const [selectedIds, setSelectedIds] = useState([]);
@@ -218,6 +231,11 @@ const SecurityAlerts = () => {
         setError(null);
         try {
             const res = await getSecurityAlerts(currentFilters);
+            // Ô thống kê: đếm theo trạng thái (giữ lọc Loại/Khu vực) — limit 1, chỉ lấy meta.total.
+            const base = { page: 1, limit: 1, alert_type: currentFilters.alert_type, zone_id: currentFilters.zone_id };
+            Promise.all(STATUS_CARDS.map(c => getSecurityAlerts({ ...base, status: c.value })))
+                .then(rs => setCounts(Object.fromEntries(STATUS_CARDS.map((c, i) => [c.value, rs[i]?.meta?.total ?? 0]))))
+                .catch(() => {});
             if (res?.success) {
                 setAlerts(res.data || []);
                 setMeta(res.meta);
@@ -249,25 +267,46 @@ const SecurityAlerts = () => {
     // Realtime: BE phát `security.alert.new` khi có cảnh báo MỚI. Gom lô (nhiều camera
     // báo cùng lúc → chỉ tải lại 1 lần); banner góc màn hình đã có sẵn qua
     // notification.created, ở đây thêm âm thanh cho mức cao (giới hạn tần suất).
+    // Cảnh báo đang mở có thêm lượt (security.alert.updated): đếm "+N mới" + tô vàng dòng.
+    const [freshBumps, setFreshBumps] = useState({}); // alertId → số lượt mới chưa xem
+    const [flashIds, setFlashIds] = useState(new Set());
+
     useEffect(() => {
         let batchTimer = null;
         let lastSoundAt = 0;
-        const unsubscribe = subscribeToSecurityAlerts((evt) => {
-            if (HIGH_SEVERITIES.has(evt?.severity) && Date.now() - lastSoundAt > SOUND_THROTTLE_MS) {
-                lastSoundAt = Date.now();
-                playAlertSound();
-            }
+        const reload = () => {
             if (batchTimer) return;
             batchTimer = setTimeout(() => {
                 batchTimer = null;
                 fetchAlerts(filters, true);
             }, WS_BATCH_MS);
+        };
+        const unsubscribe = subscribeToSecurityAlerts((evt) => {
+            if (HIGH_SEVERITIES.has(evt?.severity) && Date.now() - lastSoundAt > SOUND_THROTTLE_MS) {
+                lastSoundAt = Date.now();
+                playAlertSound();
+            }
+            reload();
+        }, (evt) => {
+            const id = evt?.alertId;
+            if (!id) return;
+            setFreshBumps(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+            setFlashIds(prev => new Set(prev).add(id));
+            setTimeout(() => setFlashIds(prev => { const n = new Set(prev); n.delete(id); return n; }), FLASH_MS);
+            reload();
         });
         return () => {
             unsubscribe();
             if (batchTimer) clearTimeout(batchTimer);
         };
     }, [filters, fetchAlerts]);
+
+    const clearBump = (id) => setFreshBumps(prev => {
+        if (!prev[id]) return prev;
+        const n = { ...prev };
+        delete n[id];
+        return n;
+    });
 
     useEffect(() => {
         if (successMessage || error) {
@@ -480,6 +519,39 @@ const SecurityAlerts = () => {
                 </div>
             )}
 
+            {/* STATUS CARDS — bấm để lọc, bấm lại để bỏ lọc */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button
+                    onClick={() => handleFilterChange('status', filters.status === 'open' ? '' : 'open')}
+                    className={`text-left p-4 rounded-2xl border shadow-sm bg-white border-platinum-tint hover:shadow-md transition-all ${filters.status === 'open' ? 'ring-2 ring-action-blue' : ''}`}
+                >
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase text-slate-blue">Đang mở</span>
+                        <ShieldAlert className="w-5 h-5 text-action-blue" />
+                    </div>
+                    <p className="text-3xl font-bold text-midnight-indigo mt-2">{(counts.new ?? 0) + (counts.acknowledged ?? 0)}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Mới + Đã tiếp nhận · cần xử lý</p>
+                </button>
+                {STATUS_CARDS.map(c => {
+                    const Icon = c.icon;
+                    const active = filters.status === c.value;
+                    return (
+                        <button
+                            key={c.value}
+                            onClick={() => handleFilterChange('status', active ? '' : c.value)}
+                            className={`text-left p-4 rounded-2xl border shadow-sm hover:shadow-md transition-all ${c.tone} ${active ? `ring-2 ${c.ring}` : ''}`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold uppercase">{c.label}</span>
+                                <Icon className="w-5 h-5" />
+                            </div>
+                            <p className="text-3xl font-bold mt-2">{counts[c.value] ?? 0}</p>
+                            <p className="text-[11px] opacity-70 mt-1">{c.hint}</p>
+                        </button>
+                    );
+                })}
+            </div>
+
             {/* FILTERS */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-platinum-tint grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="relative">
@@ -490,6 +562,7 @@ const SecurityAlerts = () => {
                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                     >
                         <option value="">Tất cả</option>
+                        <option value="open">Đang mở (Mới + Đã tiếp nhận)</option>
                         <option value="new">Mới</option>
                         <option value="acknowledged">Đã tiếp nhận</option>
                         <option value="resolved">Đã xử lý</option>
@@ -527,7 +600,7 @@ const SecurityAlerts = () => {
                 </div>
                 <div className="relative flex items-end">
                     <button
-                        onClick={() => setFilters({ page: 1, limit: 20, status: '', alert_type: '', zone_id: '' })}
+                        onClick={() => setFilters({ page: 1, limit: PAGE_SIZE, status: '', alert_type: '', zone_id: '' })}
                         className="w-full px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
                     >
                         <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
@@ -569,7 +642,7 @@ const SecurityAlerts = () => {
                                 </tr>
                             ) : (
                                 alerts.map(alert => (
-                                    <tr key={alert.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <tr key={alert.id} className={`transition-colors duration-700 ${flashIds.has(alert.id) ? 'bg-amber-100' : freshBumps[alert.id] ? 'bg-amber-50/60 hover:bg-amber-50' : 'hover:bg-slate-50/50'}`}>
                                         <td className="p-4 text-center whitespace-nowrap">
                                             <p className="text-sm font-bold text-midnight-indigo">
                                                 {formatDate(alert.updated_at || alert.triggered_at)}
@@ -597,7 +670,10 @@ const SecurityAlerts = () => {
                                         </td>
                                         {/* Loại */}
                                         <td className="p-4 text-center">
-                                            <p className="text-sm font-bold text-midnight-indigo">{getAlertTypeLabel(alert.alert_type)}</p>
+                                            <p className={`text-sm font-bold ${getConversions(alert).length ? 'text-orange-700' : 'text-midnight-indigo'}`}>{getTypeDisplay(alert)}</p>
+                                            {getConversions(alert).length > 0 && (
+                                                <p className="text-[10px] text-slate-blue">(từ {getAlertTypeLabel(alert.alert_type)})</p>
+                                            )}
                                             <div className="flex flex-col items-center gap-1 mt-1">
                                                 {alert.alert_type === 'vehicle_control_match' && getAlertPlateNumber(alert) && (
                                                     <span
@@ -616,15 +692,25 @@ const SecurityAlerts = () => {
                                                         📌 {alert.payload_json.displayName}
                                                     </span>
                                                 )}
-                                                {(alert.occurrence_count > 1 || alert.occurrenceCount > 1) && (
+                                                {getConversions(alert).map(c => (
+                                                    <span key={c.personControlId + c.at} className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 text-[10px] font-bold rounded border border-orange-200">
+                                                        📌 {c.watchlistName}
+                                                    </span>
+                                                ))}
+                                                {(alert.occurrence_count > 1 || alert.occurrenceCount > 1 || getConversions(alert).length > 0) && (
                                                     <button
-                                                        onClick={() => setOccurrencesModal({ open: true, alert })}
+                                                        onClick={() => { clearBump(alert.id); getConversions(alert).forEach(c => resolveUserName(c.byUserId)); setOccurrencesModal({ open: true, alert }); }}
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 transition-colors"
                                                         title="Bấm để xem tất cả lượt vi phạm"
                                                     >
                                                         <Users className="w-3 h-3" />
                                                         {alert.occurrence_count || alert.occurrenceCount} lần
                                                     </button>
+                                                )}
+                                                {freshBumps[alert.id] > 0 && (
+                                                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse" title="Lượt mới từ lúc mở trang — bấm 'x lần' để xem">
+                                                        +{freshBumps[alert.id]} mới
+                                                    </span>
                                                 )}
                                             </div>
                                         </td>
@@ -713,7 +799,7 @@ const SecurityAlerts = () => {
             {/* RESOLVE MODAL */}
             {resolveModal.open && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 animate-fade-in-up">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden border border-platinum-tint flex flex-col">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-platinum-tint flex flex-col">
                         <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex justify-between items-center">
                             <h3 className="font-bold text-midnight-indigo flex items-center">
                                 <ShieldAlert className="w-5 h-5 mr-2 text-action-blue" />
@@ -724,8 +810,57 @@ const SecurityAlerts = () => {
                         <form onSubmit={handleResolve} className="p-6">
                             <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                 <p className="text-xs text-slate-blue font-bold uppercase mb-1">Loại sự kiện</p>
-                                <p className="text-sm font-bold text-midnight-indigo">{getAlertTypeLabel(resolveModal.alert?.alert_type)}</p>
+                                <p className="text-sm font-bold text-midnight-indigo">
+                                    {getTypeDisplay(resolveModal.alert)} · {zones.find(z => z.id === resolveModal.alert?.zone_id)?.zone_name || resolveModal.alert?.payload_json?.roomName || 'Hệ thống'}
+                                </p>
                             </div>
+                            {(() => {
+                                // Tóm tắt các lượt — để người xử lý thấy đủ (VD: 2 người lạ khác nhau trong 1 cảnh báo).
+                                const a = resolveModal.alert;
+                                const occs = a?.payload_json?.occurrences?.length
+                                    ? a.payload_json.occurrences
+                                    : [{ sourceEventId: a?.source_event_id, occurredAt: a?.triggered_at }];
+                                const count = Math.max(a?.occurrence_count || 0, occs.length);
+                                const first = a?.triggered_at || occs[0]?.occurredAt;
+                                const last = a?.last_seen_at || occs[occs.length - 1]?.occurredAt;
+                                const images = [...new Set(occs.map(o => o.sourceEventId).filter(Boolean))];
+                                return (
+                                    <div className="mb-4 bg-amber-50/60 p-3 rounded-xl border border-amber-200">
+                                        <p className="text-xs text-amber-800 font-bold uppercase mb-1">{count} lượt xuất hiện</p>
+                                        <p className="text-xs text-slate-blue mb-2">
+                                            {count > 1 ? <>Từ <b>{formatDateTime(first)}</b> → <b>{formatDateTime(last)}</b></> : <>Lúc <b>{formatDateTime(first)}</b></>}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {occs.map((o, i) => (
+                                                <div key={i} className="flex flex-col items-center w-12">
+                                                    <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 bg-white flex items-center justify-center">
+                                                        {o.sourceEventId ? (
+                                                            <ThumbnailImage
+                                                                eventId={o.sourceEventId}
+                                                                className="w-full h-full object-cover border-0 cursor-zoom-in"
+                                                                onClick={() => {
+                                                                    setSnapshotEventIds(images);
+                                                                    setSnapshotEventId(o.sourceEventId);
+                                                                    setIsSnapshotOpen(true);
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <ImageIcon className="w-4 h-4 text-slate-300" />
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-400">#{i + 1}</span>
+                                                    {o.watchlistName && (
+                                                        <span className="text-[9px] text-orange-700 truncate w-full text-center" title={o.watchlistName}>📌 {o.watchlistName}</span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {count > 1 && (
+                                            <p className="text-[11px] text-amber-800 mt-2">💡 Kiểm tra kỹ: các lượt có thể là nhiều người/xe khác nhau. Ghi chú xử lý cho tất cả.</p>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                             {resolveModal.alert?.acknowledged_by && (
                                 <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                     <p className="text-xs text-slate-blue font-bold uppercase mb-1 flex items-center gap-1.5">
@@ -760,7 +895,9 @@ const SecurityAlerts = () => {
                                     rows="4"
                                     value={resolutionNote}
                                     onChange={e => setResolutionNote(e.target.value)}
-                                    placeholder="Ghi rõ hành động đã thực hiện (VD: Đã mời người lạ ra khỏi phòng...)"
+                                    placeholder={(resolveModal.alert?.occurrence_count || 1) > 1
+                                        ? 'Ghi rõ hành động cho TẤT CẢ các lượt (VD: Đã mời 2 người lạ — nam áo nâu, nữ tóc vàng — ra khỏi Sảnh A...)'
+                                        : 'Ghi rõ hành động đã thực hiện (VD: Đã mời người lạ ra khỏi phòng...)'}
                                     className="w-full px-4 py-3 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue focus:ring-1 focus:ring-action-blue resize-none"
                                 />
                                 <p className="text-xs text-slate-blue mt-2">Ghi chú này sẽ được lưu lại vĩnh viễn trong Audit Log.</p>
@@ -866,7 +1003,7 @@ const SecurityAlerts = () => {
                                     Chi tiết lượt vi phạm
                                 </h3>
                                 <p className="text-xs text-slate-blue mt-0.5">
-                                    {getAlertTypeLabel(occurrencesModal.alert?.alert_type)} — {zones.find(z => z.id === occurrencesModal.alert?.zone_id)?.zone_name || 'Hệ thống'}
+                                    {getTypeDisplay(occurrencesModal.alert)}{getConversions(occurrencesModal.alert).length > 0 && ` (từ ${getAlertTypeLabel(occurrencesModal.alert?.alert_type)})`} — {zones.find(z => z.id === occurrencesModal.alert?.zone_id)?.zone_name || 'Hệ thống'}
                                     {' · '}Tổng: {occurrencesModal.alert?.occurrence_count || occurrencesModal.alert?.occurrenceCount} lượt
                                 </p>
                             </div>
@@ -876,6 +1013,25 @@ const SecurityAlerts = () => {
                             >✕</button>
                         </div>
                         <div className="overflow-y-auto flex-1 p-4 space-y-3 bg-slate-50/30">
+                            {getConversions(occurrencesModal.alert).length > 0 && (
+                                <div className="p-4 bg-white rounded-2xl border border-orange-200">
+                                    <p className="text-xs font-bold text-orange-700 uppercase mb-2">Lịch sử trạng thái</p>
+                                    <ol className="space-y-2 text-xs">
+                                        <li className="flex gap-3">
+                                            <span className="font-bold text-midnight-indigo w-32 shrink-0">{formatDateTime(occurrencesModal.alert?.triggered_at || occurrencesModal.alert?.created_at)}</span>
+                                            <span>Tạo cảnh báo: <b>{getAlertTypeLabel(occurrencesModal.alert?.alert_type)}</b></span>
+                                        </li>
+                                        {getConversions(occurrencesModal.alert).map(c => (
+                                            <li key={c.personControlId + c.at} className="flex gap-3">
+                                                <span className="font-bold text-midnight-indigo w-32 shrink-0">{formatDateTime(c.at)}</span>
+                                                <span>
+                                                    {getUserDisplay(c.byUserId)} chuyển sang <b className="text-orange-700">Đối tượng theo dõi</b>: "{c.watchlistName}" · mức {PRIORITY_LABEL[c.watchlistPriority] || c.watchlistPriority} · {c.eventIds?.length || 0} lượt
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </div>
+                            )}
                             {(occurrencesModal.alert?.payload_json?.occurrences || []).length === 0 ? (
                                 <p className="text-center text-slate-blue py-8 text-sm">Không có dữ liệu occurrence.</p>
                             ) : (
@@ -944,6 +1100,9 @@ const SecurityAlerts = () => {
                                                 </div>
                                             )}
 
+                                            {getConversions(occurrencesModal.alert).length > 0 && !occ.watchlistName && (
+                                                <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">❓ Người lạ</span>
+                                            )}
                                             {(occ.watchlistName || occ.name) && (
                                                 <div className="flex items-center gap-1">
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">

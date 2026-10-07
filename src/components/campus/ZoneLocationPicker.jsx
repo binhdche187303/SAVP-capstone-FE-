@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 // Toạ độ GPS của khu vực (zones.latitude/longitude) — dùng cho Bản đồ khuôn viên.
 // Giá trị trong form là chuỗi; parseZoneCoordinates đổi sang number|null trước khi gửi BE.
 
-const DEFAULT_CENTER = [21.0130, 105.5265];
+const DEFAULT_CENTER = [10.7554, 106.6634]; // ĐH Y Dược TP.HCM — 217 Hồng Bàng, Q.5
 
 const round6 = (n) => Math.round(n * 1e6) / 1e6;
 
@@ -55,9 +55,9 @@ const ZoneLocationPicker = ({ latitude, longitude, onChange }) => {
             </div>
             <div className="flex gap-4 mb-2">
                 <input type="text" inputMode="decimal" value={latitude} onChange={(e) => onChange(e.target.value, longitude)}
-                    className={inputCls} placeholder="Vĩ độ (VD: 21.013250)" />
+                    className={inputCls} placeholder="Vĩ độ (VD: 10.755400)" />
                 <input type="text" inputMode="decimal" value={longitude} onChange={(e) => onChange(latitude, e.target.value)}
-                    className={inputCls} placeholder="Kinh độ (VD: 105.526700)" />
+                    className={inputCls} placeholder="Kinh độ (VD: 106.663400)" />
             </div>
             <div className="rounded-xl overflow-hidden border border-platinum-tint">
                 <MapContainer center={position || DEFAULT_CENTER} zoom={17} style={{ height: 180 }} scrollWheelZoom>

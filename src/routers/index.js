@@ -17,6 +17,8 @@ import MeetingAttendanceAdmin from '../pages/shared/MeetingAttendanceAdmin';
 import SystemAdminLayout from '../pages/systemAdmin/layout/SystemAdminLayout';
 import DashBoard from '../pages/systemAdmin/dashBoard';
 import DeviceManagement from '../pages/systemAdmin/DeviceManagement';
+import CameraLayout from '../pages/systemAdmin/CameraLayout';
+import CameraRecording from '../pages/systemAdmin/CameraRecording';
 import EquipmentManagement from '../pages/systemAdmin/EquipmentManagement';
 import ZoneManagement from '../pages/systemAdmin/ZoneManagement';
 import RolePermissionManagement from '../pages/systemAdmin/RolePermissionManagement';
@@ -29,6 +31,7 @@ import SecurityAlerts from '../pages/systemAdmin/SecurityAlerts';
 import AlertRules from '../pages/systemAdmin/AlertRules';
 import VehicleControlList from '../pages/systemAdmin/VehicleControlList';
 import PersonControlList from '../pages/systemAdmin/PersonControlList';
+import Strangers from '../pages/systemAdmin/Strangers';
 import VehicleRegistrations from '../pages/systemAdmin/VehicleRegistrations';
 import RoomAccessLogs from '../pages/systemAdmin/RoomAccessLogs';
 import UserJourney from '../pages/shared/UserJourney';
@@ -141,6 +144,14 @@ export const router = [
                 element: <DeviceManagement />
             },
             {
+                path: 'camera-layout',
+                element: <CameraLayout />
+            },
+            {
+                path: 'camera-recording',
+                element: <CameraRecording />
+            },
+            {
                 path: 'zones',
                 element: <ZoneManagement />
             },
@@ -187,6 +198,10 @@ export const router = [
             {
                 path: 'person-control-list',
                 element: <PersonControlList />
+            },
+            {
+                path: 'strangers',
+                element: <Strangers />
             },
             {
                 path: 'vehicle-registrations',
