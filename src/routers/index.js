@@ -17,6 +17,8 @@ import MeetingAttendanceAdmin from '../pages/shared/MeetingAttendanceAdmin';
 import SystemAdminLayout from '../pages/systemAdmin/layout/SystemAdminLayout';
 import DashBoard from '../pages/systemAdmin/dashBoard';
 import DeviceManagement from '../pages/systemAdmin/DeviceManagement';
+import CameraLayout from '../pages/systemAdmin/CameraLayout';
+import CameraRecording from '../pages/systemAdmin/CameraRecording';
 import EquipmentManagement from '../pages/systemAdmin/EquipmentManagement';
 import ZoneManagement from '../pages/systemAdmin/ZoneManagement';
 import RolePermissionManagement from '../pages/systemAdmin/RolePermissionManagement';
@@ -111,6 +113,14 @@ export const router = [
             {
                 path: 'devices',
                 element: <DeviceManagement />
+            },
+            {
+                path: 'camera-layout',
+                element: <CameraLayout />
+            },
+            {
+                path: 'camera-recording',
+                element: <CameraRecording />
             },
             {
                 path: 'zones',
