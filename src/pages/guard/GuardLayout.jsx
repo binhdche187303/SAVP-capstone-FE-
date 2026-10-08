@@ -77,7 +77,7 @@ const GuardLayout = () => {
                                     <p className="text-sm font-semibold text-midnight-indigo leading-tight">{displayName}</p>
                                     <p className="text-xs text-slate-blue leading-tight">Bảo vệ</p>
                                 </div>
-                                <UserAvatar user={currentUser} size="md" />
+                                <UserAvatar user={currentUser} className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20" />
                                 <ChevronDown className={`w-4 h-4 text-slate-blue transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {isProfileMenuOpen && (
