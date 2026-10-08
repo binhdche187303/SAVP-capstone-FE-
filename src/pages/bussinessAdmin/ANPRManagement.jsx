@@ -1,4 +1,4 @@
-import { Car, Download, Image as ImageIcon, Search, Calendar as CalendarIcon, UserX, X, Mail, Phone, Briefcase } from 'lucide-react';
+import { Car, Download, Search, Calendar as CalendarIcon, X, Mail, Phone, Briefcase, Loader2, LogIn, LogOut, RefreshCw } from 'lucide-react';
 import toast from '../../utils/toast';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -9,7 +9,8 @@ import {
     getAdminVehicleHistory,
     adminRegisterVehicle,
     getUnknownVehicles,
-    getMyVehicles
+    mockAnprVehicleEvent,
+    setupMockAnprCamera
 } from '../../service/anprService';
 import { getUsers } from '../../service/employeeServices'; // Để lấy danh sách nhân viên
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
@@ -17,6 +18,17 @@ import ExportReportModal from '../../components/common/ExportReportModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import UserAvatar from '../../components/common/UserAvatar';
 import Pagination from '../../components/common/Pagination';
+
+const ANPR_HISTORY_REFRESH_MS = 1000;
+
+const getVehicleTypeLabel = (type) => {
+    const normalized = String(type || '').toUpperCase();
+    if (normalized === 'CAR') return 'Ô tô';
+    if (normalized === 'MOTORBIKE' || normalized === 'MOTORCYCLE') return 'Xe máy';
+    if (normalized === 'TRUCK') return 'Xe tải';
+    if (normalized === 'BUS') return 'Xe buýt';
+    return type || 'Chưa rõ';
+};
 
 const ANPRManagement = () => {
     const [activeTab, setActiveTab] = useState('history'); // 'history', 'register', 'unknown'
@@ -42,6 +54,9 @@ const ANPRManagement = () => {
     const [startDate, endDate] = dateRange;
     const [searchKeyword, setSearchKeyword] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [mockPlate, setMockPlate] = useState('30A-123.45');
+    const [mockVehicleType, setMockVehicleType] = useState('CAR');
+    const [mockLoading, setMockLoading] = useState(false);
     const itemsPerPage = 10;
 
     useEffect(() => {
@@ -55,8 +70,8 @@ const ANPRManagement = () => {
         setHistoryPage(1);
     }, [filterMatchState, debouncedSearch, startDate, endDate]);
 
-    const fetchHistory = async () => {
-        setLoading(true);
+    const fetchHistory = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const params = {
                 page: historyPage,
@@ -88,7 +103,29 @@ const ANPRManagement = () => {
         } catch (err) {
             console.error('Error fetching history:', err);
         }
-        setLoading(false);
+        if (!silent) setLoading(false);
+    };
+
+    const handleMockVehicle = async (direction) => {
+        setMockLoading(true);
+        const startedAt = performance.now();
+        try {
+            await setupMockAnprCamera();
+            await mockAnprVehicleEvent({
+                plateNumber: mockPlate,
+                direction,
+                vehicleType: mockVehicleType
+            });
+            const elapsed = Math.round(performance.now() - startedAt);
+            setActiveTab('history');
+            setHistoryPage(1);
+            await fetchHistory(true);
+            toast.success(`Đã mock xe ${direction === 'leave' ? 'ra' : 'vào'} cổng (${elapsed}ms).`);
+        } catch (err) {
+            toast.error(err?.error?.message || err?.message || 'Không thể mock sự kiện ANPR.');
+        } finally {
+            setMockLoading(false);
+        }
     };
 
     // ============================================
@@ -171,9 +208,10 @@ const ANPRManagement = () => {
         let interval;
         if (activeTab === 'history' || activeTab === 'unknown') {
             interval = setInterval(() => {
+                if (document.hidden) return;
                 if (activeTab === 'history') fetchHistory();
                 if (activeTab === 'unknown') fetchUnknown();
-            }, 10000); // 10 seconds auto-refresh
+            }, ANPR_HISTORY_REFRESH_MS);
         }
         return () => clearInterval(interval);
     }, [activeTab, filterMatchState, debouncedSearch, startDate, endDate, historyPage, unknownPage]);
@@ -221,17 +259,65 @@ const ANPRManagement = () => {
                 <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 p-6 space-y-5 animate-fade-in">
 
                     {/* Header */}
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
                         <div>
                             <h2 className="text-lg font-bold text-midnight-indigo">Luồng xe vào ra hệ thống</h2>
-                            <p className="text-xs text-slate-blue mt-0.5">Nhật ký nhận diện biển số qua camera ANPR · cập nhật mỗi 10 giây</p>
+                            <p className="text-xs text-slate-blue mt-0.5">Nhật ký nhận diện biển số qua camera ANPR · cập nhật mỗi giây</p>
                         </div>
-                        <button
-                            onClick={() => setIsExportOpen(true)}
-                            className="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors"
-                        >
-                            <Download className="w-4 h-4" /> Xuất báo cáo
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-2 rounded-xl border border-dashed border-platinum-tint bg-slate-50 px-2 py-1.5">
+                                <span className="text-[11px] font-bold text-slate-blue whitespace-nowrap">Test xe</span>
+                                <input
+                                    type="text"
+                                    value={mockPlate}
+                                    onChange={(e) => setMockPlate(e.target.value.toUpperCase())}
+                                    className="w-32 px-2 py-1.5 rounded-lg border border-platinum-tint text-xs font-mono font-bold text-midnight-indigo focus:border-action-blue focus:ring-1 focus:ring-action-blue/20 outline-none"
+                                    placeholder="30A-123.45"
+                                />
+                                <select
+                                    value={mockVehicleType}
+                                    onChange={(e) => setMockVehicleType(e.target.value)}
+                                    className="w-20 px-2 py-1.5 rounded-lg border border-platinum-tint bg-white text-xs font-bold text-midnight-indigo focus:border-action-blue focus:ring-1 focus:ring-action-blue/20 outline-none"
+                                    title="Loại phương tiện"
+                                >
+                                    <option value="CAR">Ô tô</option>
+                                    <option value="MOTORBIKE">Xe máy</option>
+                                    <option value="TRUCK">Xe tải</option>
+                                    <option value="BUS">Xe buýt</option>
+                                </select>
+                                <button
+                                    onClick={() => handleMockVehicle('enter')}
+                                    disabled={mockLoading}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold disabled:opacity-60"
+                                    title="Mock xe vào cổng"
+                                >
+                                    {mockLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
+                                    Vào
+                                </button>
+                                <button
+                                    onClick={() => handleMockVehicle('leave')}
+                                    disabled={mockLoading}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold disabled:opacity-60"
+                                    title="Mock xe ra cổng"
+                                >
+                                    {mockLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+                                    Ra
+                                </button>
+                            </div>
+                            <button
+                                onClick={() => fetchHistory()}
+                                disabled={loading}
+                                className="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors disabled:opacity-60"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Làm mới
+                            </button>
+                            <button
+                                onClick={() => setIsExportOpen(true)}
+                                className="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors"
+                            >
+                                <Download className="w-4 h-4" /> Xuất báo cáo
+                            </button>
+                        </div>
                     </div>
 
                     {/* Filter bar */}
@@ -284,6 +370,7 @@ const ANPRManagement = () => {
                                     <th className="py-3 px-4 text-[11px] font-extrabold text-slate-blue uppercase tracking-wider whitespace-nowrap text-center">Hướng</th>
                                     <th className="py-3 px-4 text-[11px] font-extrabold text-slate-blue uppercase tracking-wider whitespace-nowrap text-center">Camera</th>
                                     <th className="py-3 px-4 text-[11px] font-extrabold text-slate-blue uppercase tracking-wider whitespace-nowrap text-center">Biển số</th>
+                                    <th className="py-3 px-4 text-[11px] font-extrabold text-slate-blue uppercase tracking-wider whitespace-nowrap text-center">Loại xe</th>
                                     <th className="py-3 px-4 text-[11px] font-extrabold text-slate-blue uppercase tracking-wider whitespace-nowrap text-center">Đối soát</th>
                                     <th className="py-3 px-4 text-[11px] font-extrabold text-slate-blue uppercase tracking-wider whitespace-nowrap">Chủ xe</th>
                                     <th className="py-3 px-4 text-[11px] font-extrabold text-slate-blue uppercase tracking-wider whitespace-nowrap text-center">Ảnh</th>
@@ -291,9 +378,9 @@ const ANPRManagement = () => {
                             </thead>
                             <tbody className="divide-y divide-platinum-tint">
                                 {loading && historyList.length === 0 ? (
-                                    <tr><td colSpan="7" className="py-10 text-center text-slate-blue text-sm">Đang tải...</td></tr>
+                                    <tr><td colSpan="8" className="py-10 text-center text-slate-blue text-sm">Đang tải...</td></tr>
                                 ) : historyList.length === 0 ? (
-                                    <tr><td colSpan="7" className="py-10 text-center text-slate-blue text-sm">Không có dữ liệu phù hợp.</td></tr>
+                                    <tr><td colSpan="8" className="py-10 text-center text-slate-blue text-sm">Không có dữ liệu phù hợp.</td></tr>
                                 ) : (
                                     historyList.map((item, idx) => {
                                         const evtDate = item.eventTime ? new Date(item.eventTime) : null;
@@ -347,6 +434,13 @@ const ANPRManagement = () => {
                                                             </span>
                                                         )}
                                                     </div>
+                                                </td>
+
+                                                {/* Loại xe */}
+                                                <td className="py-3 px-4 text-center whitespace-nowrap">
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-50 text-slate-blue border border-platinum-tint">
+                                                        {getVehicleTypeLabel(item.vehicleType || item.vehicle_type)}
+                                                    </span>
                                                 </td>
 
                                                 {/* Đối soát */}

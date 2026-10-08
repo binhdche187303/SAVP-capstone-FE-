@@ -642,7 +642,7 @@ export const updateEarlyVacancyConfig = async (data) => {
     return await request('/early-vacancy-config', { method: 'PUT', body: data });
 };
 
-// UC-IVSS-02 — Nhật ký ra/vào phòng họp
+// Nhật ký ra/vào phòng họp từ event camera khuôn mặt.
 // BE hỗ trợ phân trang + search server-side (xem BE_Plan_RoomAccessLog.md mục 1):
 // page, limit, date, search (lọc theo tên người dùng).
 export const getRoomAccessLog = async (roomId, date, params = {}) => {
@@ -651,6 +651,21 @@ export const getRoomAccessLog = async (roomId, date, params = {}) => {
         return await get(`/ivss/access-log${query}`);
     }
     return await get(`/ivss/rooms/${roomId}/access-log${query}`);
+};
+
+// FaceID attendance cho phòng họp: đọc dữ liệu thật từ attendance_records.
+export const getMeetingAttendance = async (meetingId, params = {}) => {
+    const query = buildQuery(params);
+    return await get(`/meetings/${meetingId}/attendance${query}`);
+};
+
+// Dev/mock API camera FaceID. Camera thật sau này chỉ cần gọi cùng contract về BE adapter.
+export const mockFaceAttendance = async (meetingId, data = {}) => {
+    return await post('/dev/mock-face-attendance', { meetingId, ...data });
+};
+
+export const mockCameraFaceScan = async (meetingId, data = {}) => {
+    return await post('/dev/mock-camera-face-scan', { meetingId, ...data });
 };
 
 // UC-IVSS-ZONE — Nhật ký ra/vào khu vực (mirror getRoomAccessLog)

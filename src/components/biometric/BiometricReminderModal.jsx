@@ -13,6 +13,22 @@ const STATUS_LABEL = {
     approved: { label: 'Đã duyệt', badge: 'bg-green-50 text-green-700 border border-green-200' },
 };
 
+const BIOMETRIC_ERROR_MAP = {
+    BIOMETRIC_FILE_REQUIRED: 'Vui lòng chọn một ảnh để tải lên.',
+    BIOMETRIC_FILE_TOO_LARGE: 'Ảnh vượt quá dung lượng cho phép (tối đa 5MB).',
+    BIOMETRIC_FILE_TYPE_INVALID: 'Định dạng ảnh không hợp lệ. Chỉ hỗ trợ JPG, PNG, WEBP.',
+    BIOMETRIC_CONSENT_REQUIRED: 'Bạn cần đồng ý cho phép sử dụng ảnh cho mục đích nhận diện khuôn mặt trước khi tiếp tục.',
+    ACCOUNT_NOT_ACTIVE: 'Tài khoản của bạn hiện không ở trạng thái hoạt động.',
+    BIOMETRIC_ALREADY_PENDING_REVIEW: 'Ảnh sinh trắc học của bạn đang chờ duyệt, vui lòng đợi kết quả trước khi nộp ảnh khác.',
+    BIOMETRIC_STORAGE_FAILED: 'Không thể lưu ảnh vào hệ thống lưu trữ. Vui lòng thử lại.',
+    BIOMETRIC_UPLOAD_FAILED: 'Có lỗi xảy ra khi xử lý ảnh. Vui lòng thử lại sau.',
+};
+
+const getBiometricErrorMessage = (err, fallback = 'Gửi ảnh sinh trắc học thất bại.') => {
+    const code = err?.error?.code;
+    return (code && BIOMETRIC_ERROR_MAP[code]) || err?.error?.message || err?.message || fallback;
+};
+
 const BiometricReminderModal = () => {
     const [open, setOpen] = useState(false);
     const [biometricData, setBiometricData] = useState(null);
@@ -67,7 +83,7 @@ const BiometricReminderModal = () => {
 
                     if (isAdmin) {
                         setLoading(false);
-                        return; // Bỏ qua hoàn toàn cơ chế nhắc nhở sinh trắc học đối với Admin
+                        return; // Bỏ qua cơ chế nhắc nhở sinh trắc học đối với Admin
                     }
 
                     // Sử dụng chính xác cờ biometricRequired do BE trả về trong login-response
@@ -156,7 +172,7 @@ const BiometricReminderModal = () => {
                 setError(res?.error?.message || 'Gửi ảnh sinh trắc học thất bại.');
             }
         } catch (err) {
-            setError('Không thể tải ảnh đại diện hiện tại. Vui lòng sử dụng tính năng Chụp ảnh bằng Webcam.');
+            setError(getBiometricErrorMessage(err, 'Không thể tải ảnh đại diện hiện tại. Vui lòng sử dụng tính năng Chụp ảnh bằng Webcam.'));
         } finally {
             setSubmitting(false);
         }
@@ -300,7 +316,7 @@ const BiometricReminderModal = () => {
                 setError(res?.error?.message || 'Gửi ảnh sinh trắc học thất bại.');
             }
         } catch (err) {
-            setError(err?.error?.message || 'Gửi ảnh sinh trắc học thất bại.');
+            setError(getBiometricErrorMessage(err));
         } finally {
             setSubmitting(false);
         }

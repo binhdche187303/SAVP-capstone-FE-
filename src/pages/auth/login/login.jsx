@@ -26,6 +26,15 @@ const getRedirectPathByRoles = (roles) => {
     if (normalizedRoles.includes('MANAGER')) {
         return '/manager';
     }
+    if (normalizedRoles.includes('GUARD')) {
+        return '/guard';
+    }
+    if (normalizedRoles.includes('TEACHER')) {
+        return '/teacher';
+    }
+    if (normalizedRoles.includes('STUDENT')) {
+        return '/student';
+    }
     return '/employee';
 };
 

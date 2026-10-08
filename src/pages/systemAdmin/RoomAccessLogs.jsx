@@ -1,8 +1,9 @@
 import {
     AlertTriangle, ArrowUpDown, Briefcase, Building, Calendar,
-    CheckCircle2, Clock, DoorOpen, Eye, Filter,
+    Clock, DoorOpen, Eye, Filter,
     LogIn, LogOut, Mail, Phone, RefreshCw, RotateCw,
-    Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users, X, ChevronDown,
+    Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users,
+    X, ChevronDown,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -66,6 +67,9 @@ const getPageNumbers = (current, total) => {
     });
     return withDots;
 };
+
+const getBookingMeetingId = (booking) =>
+    booking?.meetingId || booking?.meeting_id || booking?.meeting?.id || booking?.id || '';
 
 // ─── StatCard ────────────────────────────────────────────────────────────────
 
@@ -204,8 +208,8 @@ const RoomAccessLogs = () => {
     const fetchMeetings = useCallback(async () => {
         if (!selectedRoomId || !selectedDate) { setMeetings([]); setSelectedMeetingId(''); return; }
         try {
-            const from = new Date(`${selectedDate}T00:00:00`).toISOString();
-            const to   = new Date(`${selectedDate}T23:59:59`).toISOString();
+            const from = `${selectedDate}T00:00:00.000+07:00`;
+            const to   = `${selectedDate}T23:59:59.999+07:00`;
             const res  = await getRoomBookings({ roomId: selectedRoomId, from, to, limit: 100, sortOrder: 'asc' });
             setMeetings(res?.success && res.data ? res.data : []);
         } catch (_) { setMeetings([]); }
@@ -325,7 +329,7 @@ const RoomAccessLogs = () => {
                         </span>
                     </div>
                     <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Kiểm soát ra vào cổng</h1>
-                    <p className="text-slate-blue text-sm mt-1">Đối soát an ninh ra/vào dựa trên camera AI nhận diện khuôn mặt (IVSS)</p>
+                    <p className="text-slate-blue text-sm mt-1">Đối soát an ninh ra/vào dựa trên API camera nhận diện khuôn mặt</p>
                 </div>
                 <div className="self-start flex flex-col items-end gap-1">
                     <button
@@ -410,9 +414,9 @@ const RoomAccessLogs = () => {
                             <button
                                 type="button"
                                 onClick={() => setIsMeetingDropdownOpen(v => !v)}
-                                disabled={!selectedRoomId || meetings.length === 0}
+                                disabled={!selectedRoomId}
                                 className={`w-full pl-9 pr-8 py-2.5 border rounded-xl text-sm text-left font-semibold outline-none transition-all ${
-                                    !selectedRoomId || meetings.length === 0
+                                    !selectedRoomId
                                         ? 'bg-slate-50 border-platinum-tint text-slate-400 cursor-not-allowed'
                                         : isMeetingDropdownOpen
                                             ? 'bg-white border-action-blue ring-2 ring-action-blue/20 text-midnight-indigo'
@@ -421,7 +425,7 @@ const RoomAccessLogs = () => {
                             >
                                 <span className="truncate block">
                                     {selectedMeetingId === '' ? 'Toàn bộ ngày' : (() => {
-                                        const m = meetings.find(x => (x.meetingId || x.meeting_id || x.id) === selectedMeetingId);
+                                        const m = meetings.find(x => getBookingMeetingId(x) === selectedMeetingId);
                                         if (!m) return 'Toàn bộ ngày';
                                         const s = formatVNFull(m.reservedStartTime || m.reserved_start_time).split(' ')[0].slice(0, 5);
                                         const e = formatVNFull(m.reservedEndTime || m.reserved_end_time).split(' ')[0].slice(0, 5);
@@ -439,8 +443,13 @@ const RoomAccessLogs = () => {
                                             <span className={`w-1.5 h-1.5 rounded-full ${selectedMeetingId === '' ? 'bg-action-blue' : 'bg-transparent'}`} />
                                             Toàn bộ ngày
                                         </button>
+                                        {meetings.length === 0 && (
+                                            <div className="px-4 py-3 text-[11px] text-slate-blue font-semibold border-t border-slate-50">
+                                                Không có ca họp trong ngày/phòng đã chọn.
+                                            </div>
+                                        )}
                                         {meetings.map(m => {
-                                            const tid  = m.meetingId || m.meeting_id || m.id;
+                                            const tid  = getBookingMeetingId(m);
                                             const sel  = selectedMeetingId === tid;
                                             const s    = formatVNFull(m.reservedStartTime || m.reserved_start_time).split(' ')[0].slice(0, 5);
                                             const e    = formatVNFull(m.reservedEndTime || m.reserved_end_time).split(' ')[0].slice(0, 5);
@@ -585,7 +594,7 @@ const RoomAccessLogs = () => {
                                         const meetingLabel = (() => {
                                             if (!ev.meetingId) return null;
                                             let t = ev.meetingTitle || ev.meetingName || ev.meeting_title || ev.meeting?.title;
-                                            if (!t) { const m = meetings.find(x => (x.meetingId || x.meeting_id || x.id) === ev.meetingId); if (m) t = m.meeting?.title || m.title; }
+                                            if (!t) { const m = meetings.find(x => getBookingMeetingId(x) === ev.meetingId); if (m) t = m.meeting?.title || m.title; }
                                             return t || ev.meetingId.substring(0, 8);
                                         })();
 

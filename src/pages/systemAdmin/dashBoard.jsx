@@ -78,6 +78,26 @@ const SEVERITY_COLORS = {
     low:      '#006BFF',
 };
 
+const formatTrafficBucket = (bucket) => {
+    if (!bucket) return '—';
+    const text = String(bucket);
+    const hourMatch = text.match(/(\d{2}):00$/);
+    if (hourMatch) return `${hourMatch[1]}:00`;
+    return text.length >= 10 ? text.slice(5).replace('-', '/') : text;
+};
+
+const mapVehicleTrafficSeries = (payload) => {
+    const data = payload?.data?.data || payload?.data || {};
+    const rows = data.series || data.buckets || [];
+    return rows
+        .map((b) => ({
+            hour: formatTrafficBucket(b.bucket || b.period),
+            'Vào': b.enter ?? b.total_enter ?? 0,
+            'Ra': b.leave ?? b.total_leave ?? 0,
+        }))
+        .filter((b) => b['Vào'] > 0 || b['Ra'] > 0);
+};
+
 const SEVERITY_LABEL = {
     critical: 'Nguy cấp',
     high:     'Cao',
@@ -558,16 +578,9 @@ const DashBoard = () => {
 
         // ── Traffic ───────────────────────────────────────────────────────────
         if (trafficRes.status === 'fulfilled' && trafficRes.value?.success) {
-            const buckets = trafficRes.value.data?.buckets
-                         || trafficRes.value.data?.data?.buckets
-                         || [];
-            setTrafficData(
-                buckets.map(b => ({
-                    hour: b.period,
-                    'Vào': b.total_enter || 0,
-                    'Ra':  b.total_leave || 0,
-                }))
-            );
+            setTrafficData(mapVehicleTrafficSeries(trafficRes.value));
+        } else {
+            setTrafficData([]);
         }
 
         // ── Rooms ─────────────────────────────────────────────────────────────

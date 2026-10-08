@@ -56,7 +56,7 @@ const NotificationBell = ({
 
     // EMPLOYEE không có permission security_alert.read (đúng thiết kế BE, xem Plan.md mục 1)
     // — gọi /security-alerts ở role này chỉ gây 403 vô ích, nên bỏ qua hẳn lời gọi.
-    const canReadSecurityAlerts = basePath !== '/employee';
+    const canReadSecurityAlerts = !['/employee', '/teacher', '/student', '/guard'].includes(basePath);
 
     const fetchFeed = useCallback(async () => {
         setLoading(true);

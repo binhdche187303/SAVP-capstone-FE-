@@ -19,6 +19,7 @@ import {
     Clock,
     Fingerprint,
     Flame,
+    GraduationCap,
 } from 'lucide-react';
 
 const STATIC_NAVIGATION_ITEMS = [
@@ -49,6 +50,7 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Lưu lượng & Heatmap', to: '/business-admin/zone-traffic', icon: Flame },
             { label: 'Tỷ lệ đúng giờ', to: '/business-admin/attendance-analytics', icon: Clock },
             { label: 'Chuyên cần phòng ban', to: '/business-admin/meeting-attendance', icon: Activity },
+            { label: 'Chuyên cần lớp học', to: '/business-admin/class-attendance', icon: GraduationCap },
         ],
     },
 ];

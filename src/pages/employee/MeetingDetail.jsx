@@ -64,6 +64,7 @@ const EmployeeMeetingDetail = () => {
 
     // State
     const [loading, setLoading] = useState(true);
+    const [nowTs, setNowTs] = useState(Date.now());
     const [timeValidationModal, setTimeValidationModal] = useState({ isOpen: false, message: '' });
     const [meeting, setMeeting] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
@@ -85,6 +86,11 @@ const EmployeeMeetingDetail = () => {
             setSuccessMsg(null);
         }
     }, [successMsg]);
+
+    useEffect(() => {
+        const timer = setInterval(() => setNowTs(Date.now()), 30000);
+        return () => clearInterval(timer);
+    }, []);
     const [activeParticipantTab, setActiveParticipantTab] = useState('internal');
     const [internalPage, setInternalPage] = useState(1);
     const [externalPage, setExternalPage] = useState(1);
@@ -852,17 +858,11 @@ const EmployeeMeetingDetail = () => {
     // trả data.roles là mảng { roleCode }, không phải field `role` dạng string.
     const isAdmin = currentUser?.roles?.some(r => ['BUSINESS_ADMIN', 'SYSTEM_ADMIN'].includes(r.roleCode || r.role_code));
     const canManage = isHost || isOrganizer || isAdmin;
-    // BE (meetings.service.ts addInternalParticipant/addExternalParticipant) chỉ cho thêm
-    // người tham dự khi status là 'scheduled' hoặc 'in_progress' — draft/pending_approval bị
-    // BE từ chối 400 INVALID_MEETING_STATUS, nên phải ẩn nút thêm người ở các trạng thái đó.
-    const canAddParticipants = canManage && (meeting.status === 'scheduled' || meeting.status === 'in_progress');
     // [2026-08-23] Mời khách ngoài: BE (meetings.service.ts addExternalParticipant) cho phép
     // khi `isOwner (organizer/host) HOẶC có permission meeting.participant.add.external` —
     // controller không còn PermissionsGuard. Điều kiện hiển thị nút phải khớp đúng luật đó:
     // Host/Organizer luôn mời được (đồng bộ với lúc đặt lịch), còn Business Admin không phải
     // chủ cuộc họp thì KHÔNG (role này không được cấp permission trên) -> ẩn nút để tránh 403.
-    const canAddExternalParticipant = canAddParticipants
-        && (isHost || isOrganizer || hasPermission('meeting.participant.add.external'));
     const hostParticipant = meeting.participants?.find((participant) =>
         participant.id === (meeting.host_id || meeting.hostId)
         || participant.userId === (meeting.host_id || meeting.hostId)
@@ -875,8 +875,7 @@ const EmployeeMeetingDetail = () => {
             avatarUrl: meeting.hostAvatarUrl || meeting.host_avatar_url,
         });
     const hostName = hostUser?.fullName || hostUser?.full_name || meeting.hostName || meeting.host_name || 'Host';
-    const canJoin = meeting.status === 'scheduled' || meeting.status === 'in_progress';
-    const isCompleted = meeting.status === 'completed';
+    const rawStatus = meeting.status;
 
     const meetingStartTime = meeting.startTime || meeting.start_time;
     const meetingEndTime = meeting.endTime || meeting.end_time;
@@ -974,7 +973,7 @@ const EmployeeMeetingDetail = () => {
     if (meeting?.start_time || meeting?.startTime) {
         const startVal = meeting.start_time || meeting.startTime;
         const startDate = new Date(startVal);
-        const diffMs = startDate.getTime() - new Date().getTime();
+        const diffMs = startDate.getTime() - nowTs;
         if (diffMs > 15 * 60 * 1000) {
             isBefore15Min = true;
         }
@@ -982,10 +981,18 @@ const EmployeeMeetingDetail = () => {
     if (meeting?.end_time || meeting?.endTime) {
         const endVal = meeting.end_time || meeting.endTime;
         const endDate = new Date(endVal);
-        if (endDate.getTime() < new Date().getTime()) {
+        if (endDate.getTime() < nowTs) {
             isEnded = true;
         }
     }
+    const effectiveStatus = rawStatus === 'in_progress' && isEnded ? 'completed' : rawStatus;
+    const canJoin = (effectiveStatus === 'scheduled' || effectiveStatus === 'in_progress') && !isEnded;
+    const isCompleted = effectiveStatus === 'completed';
+    // BE chỉ cho thêm người tham dự khi status là 'scheduled' hoặc 'in_progress'.
+    // Nếu giờ kết thúc đã qua nhưng DB chưa kịp cron update, FE vẫn khóa thao tác theo effectiveStatus.
+    const canAddParticipants = canManage && (effectiveStatus === 'scheduled' || effectiveStatus === 'in_progress');
+    const canAddExternalParticipant = canAddParticipants
+        && (isHost || isOrganizer || hasPermission('meeting.participant.add.external'));
 
     const videoMedia = mediaFiles.find(m => m.type === 'VIDEO');
     const transcriptMedia = mediaFiles.find(m => m.type === 'TRANSCRIPT');
@@ -1047,7 +1054,7 @@ const EmployeeMeetingDetail = () => {
             <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up">
                 {/* Header / Actions */}
                 <div className="flex justify-end gap-2 w-full">
-                    {canManage && meeting.status !== 'cancelled' && meeting.status !== 'completed' && !isEnded && (
+                    {canManage && effectiveStatus !== 'cancelled' && effectiveStatus !== 'completed' && !isEnded && (
                         <>
                             <button
                                 onClick={() => setIsEditModalOpen(true)}
@@ -1057,7 +1064,7 @@ const EmployeeMeetingDetail = () => {
                             </button>
                             {/* BE (meetings.service.ts) chỉ cho hủy meeting đang ở status 'scheduled' —
                                 pending_approval/draft/in_progress sẽ luôn bị BE từ chối 409, nên ẩn nút. */}
-                            {meeting.status === 'scheduled' && (
+                            {effectiveStatus === 'scheduled' && (
                                 <button
                                     onClick={() => setIsCancelConfirmOpen(true)}
                                     className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-bold transition-all"
@@ -1067,7 +1074,14 @@ const EmployeeMeetingDetail = () => {
                             )}
                         </>
                     )}
-                    {meeting.status === 'completed' ? null : meeting.status === 'cancelled' ? (
+                    {effectiveStatus === 'completed' ? (
+                        <button
+                            disabled
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-xs font-extrabold shadow-sm transition-all bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300"
+                        >
+                            Cuộc họp đã kết thúc
+                        </button>
+                    ) : effectiveStatus === 'cancelled' ? (
                         <button
                             disabled
                             className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl text-xs font-extrabold shadow-sm transition-all bg-red-50 text-red-400 cursor-not-allowed border border-red-200"
@@ -1112,10 +1126,10 @@ const EmployeeMeetingDetail = () => {
                     <div className="flex flex-col md:flex-row justify-between items-start gap-6 pb-6 border-b border-platinum-tint/60 relative z-10">
                         <div className="space-y-4 w-full">
                             <div className="flex flex-wrap items-center gap-3">
-                                <span className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider shadow-sm flex items-center gap-1.5 ${(STATUS_BADGE[meeting.status] || STATUS_BADGE.cancelled).className
+                                <span className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider shadow-sm flex items-center gap-1.5 ${(STATUS_BADGE[effectiveStatus] || STATUS_BADGE.cancelled).className
                                     }`}>
-                                    <div className={`w-1.5 h-1.5 rounded-full ${meeting.status === 'in_progress' ? 'bg-emerald-500 animate-pulse' : 'bg-current'}`} />
-                                    {(STATUS_BADGE[meeting.status] || { label: meeting.status }).label}
+                                    <div className={`w-1.5 h-1.5 rounded-full ${effectiveStatus === 'in_progress' ? 'bg-emerald-500 animate-pulse' : 'bg-current'}`} />
+                                    {(STATUS_BADGE[effectiveStatus] || { label: effectiveStatus }).label}
                                 </span>
                                 {meeting.recordingEnabled && (
                                     <span className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-100 flex items-center gap-1.5 shadow-sm">
@@ -1214,7 +1228,7 @@ const EmployeeMeetingDetail = () => {
                                     <List className="w-4.5 h-4.5 text-action-blue" />
                                     Chương trình làm việc ({meeting.agenda?.length || 0})
                                 </h3>
-                                {canManage && meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
+                                {canManage && effectiveStatus !== 'cancelled' && effectiveStatus !== 'completed' && (
                                     <button
                                         onClick={() => setIsAgendaModalOpen(true)}
                                         className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 border border-action-blue/20 bg-blue-50 text-action-blue hover:bg-blue-100 rounded-md text-[11px] font-bold transition-all shadow-sm shrink-0"
@@ -1348,7 +1362,7 @@ const EmployeeMeetingDetail = () => {
                                                                     <span className="text-xs font-bold text-midnight-indigo block truncate">{p.fullName || p.full_name}</span>
                                                                 </div>
                                                             </div>
-                                                            {canManage && meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
+                                                            {canManage && effectiveStatus !== 'cancelled' && effectiveStatus !== 'completed' && (
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); handleRemoveInternalParticipant(p); }}
                                                                     className="p-1.5 text-slate-blue hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all shrink-0"
@@ -1406,7 +1420,7 @@ const EmployeeMeetingDetail = () => {
                                                                 <span className="text-[10px] text-slate-blue block truncate">{p.email}</span>
                                                             </div>
                                                         </div>
-                                                        {canManage && meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
+                                                        {canManage && effectiveStatus !== 'cancelled' && effectiveStatus !== 'completed' && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleRemoveExternalParticipant(p); }}
                                                                 className="p-1.5 text-slate-blue hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all shrink-0"
