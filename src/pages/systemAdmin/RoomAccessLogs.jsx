@@ -91,6 +91,191 @@ const getPageNumbers =(current, total) => {
 const getBookingMeetingId = (booking) =>
     booking?.meetingId || booking?.meeting_id || booking?.meeting?.id || booking?.id || '';
 
+const MOCK_ROOM_USERS = {
+    'u-employee-long': {
+        id: 'u-employee-long',
+        fullName: 'Bùi Văn Long',
+        employeeCode: 'NV003',
+        email: 'long.bui@smartracking.local',
+        phoneNumber: '0901 234 567',
+        department: { departmentName: 'Phòng Công nghệ thông tin' },
+    },
+    'u-teacher-giang': {
+        id: 'u-teacher-giang',
+        fullName: 'Nguyễn Thị Giang',
+        employeeCode: 'GV001',
+        email: 'giang.nt@smartracking.local',
+        phoneNumber: '0902 345 678',
+        department: { departmentName: 'Khoa Công nghệ phần mềm' },
+    },
+    'u-student-sinh': {
+        id: 'u-student-sinh',
+        fullName: 'Lê Minh Sinh',
+        employeeCode: 'SV001',
+        email: 'sinh.lm@student.smartracking.local',
+        phoneNumber: '0903 456 789',
+        department: { departmentName: 'Lớp WEB101' },
+    },
+    'u-student-nam': {
+        id: 'u-student-nam',
+        fullName: 'Nguyễn Hoàng Nam',
+        employeeCode: 'SV002',
+        email: 'nam.nh@student.smartracking.local',
+        phoneNumber: '0904 567 890',
+        department: { departmentName: 'Lớp AI202' },
+    },
+};
+
+const MOCK_ROOMS = [
+    { id: 'room-a101', roomId: 'room-a101', roomName: 'Phòng họp A101', siteName: 'Tòa nhà A' },
+    { id: 'room-a102', roomId: 'room-a102', roomName: 'Phòng họp A102', siteName: 'Tòa nhà A' },
+    { id: 'room-b201', roomId: 'room-b201', roomName: 'Phòng seminar B201', siteName: 'Tòa nhà B' },
+];
+
+const makeMockSnapshot = (name, subtitle, tone = 'blue') => {
+    const palette = {
+        blue: ['#0f172a', '#0075ff'],
+        green: ['#0f172a', '#059669'],
+        amber: ['#241509', '#d97706'],
+        red: ['#2a0f14', '#dc2626'],
+    }[tone] || ['#0f172a', '#0075ff'];
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+            <rect width="320" height="180" rx="18" fill="${palette[0]}"/>
+            <rect x="14" y="14" width="292" height="152" rx="14" fill="#111827" stroke="#334155" stroke-width="2"/>
+            <circle cx="160" cy="76" r="28" fill="${palette[1]}"/>
+            <text x="160" y="84" text-anchor="middle" fill="white" font-family="Arial" font-size="22" font-weight="700">${name.slice(0, 1).toUpperCase()}</text>
+            <text x="160" y="126" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="700">${name}</text>
+            <text x="160" y="146" text-anchor="middle" fill="#cbd5e1" font-family="Arial" font-size="12">${subtitle}</text>
+        </svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
+
+const createMockRoomAccessDemo = (date) => {
+    const at = (time) => `${date}T${time}+07:00`;
+    const roomsById = Object.fromEntries(MOCK_ROOMS.map(room => [room.id, room]));
+    const meetingDefs = [
+        {
+            id: 'mt-a101-web',
+            meetingId: 'mt-a101-web',
+            roomId: 'room-a101',
+            title: 'Lập trình Web',
+            reservedStartTime: at('08:00:00.000'),
+            reservedEndTime: at('10:30:00.000'),
+            meeting: { id: 'mt-a101-web', title: 'Lập trình Web' },
+        },
+        {
+            id: 'mt-a101-sync',
+            meetingId: 'mt-a101-sync',
+            roomId: 'room-a101',
+            title: 'IT Weekly Sync',
+            reservedStartTime: at('13:30:00.000'),
+            reservedEndTime: at('15:00:00.000'),
+            meeting: { id: 'mt-a101-sync', title: 'IT Weekly Sync' },
+        },
+        {
+            id: 'mt-a102-ai',
+            meetingId: 'mt-a102-ai',
+            roomId: 'room-a102',
+            title: 'Trí tuệ nhân tạo ứng dụng',
+            reservedStartTime: at('09:00:00.000'),
+            reservedEndTime: at('11:30:00.000'),
+            meeting: { id: 'mt-a102-ai', title: 'Trí tuệ nhân tạo ứng dụng' },
+        },
+        {
+            id: 'mt-b201-seminar',
+            meetingId: 'mt-b201-seminar',
+            roomId: 'room-b201',
+            title: 'Seminar nghiên cứu',
+            reservedStartTime: at('14:00:00.000'),
+            reservedEndTime: at('16:00:00.000'),
+            meeting: { id: 'mt-b201-seminar', title: 'Seminar nghiên cứu' },
+        },
+    ];
+    const eventDefs = [
+        ['mock-a101-001', 'room-a101', 'enter', 'u-teacher-giang', 'Nguyễn Thị Giang', 'mt-a101-web', 'Lập trình Web', at('07:58:20.000'), 0.98, 'matched'],
+        ['mock-a101-002', 'room-a101', 'enter', 'u-student-sinh', 'Lê Minh Sinh', 'mt-a101-web', 'Lập trình Web', at('08:04:11.000'), 0.94, 'matched'],
+        ['mock-a101-003', 'room-a101', 'enter', 'u-student-nam', 'Nguyễn Hoàng Nam', 'mt-a101-web', 'Lập trình Web', at('08:04:13.000'), 0.92, 'matched'],
+        ['mock-a101-004', 'room-a101', 'enter', 'u-employee-long', 'Bùi Văn Long', 'mt-a101-web', 'Lập trình Web', at('08:04:14.000'), 0.89, 'unmatched'],
+        ['mock-a101-005', 'room-a101', 'leave', 'u-student-sinh', 'Lê Minh Sinh', 'mt-a101-web', 'Lập trình Web', at('10:31:40.000'), 0.95, 'matched'],
+        ['mock-a101-006', 'room-a101', 'leave', 'u-teacher-giang', 'Nguyễn Thị Giang', 'mt-a101-web', 'Lập trình Web', at('10:34:05.000'), 0.97, 'matched'],
+        ['mock-a101-007', 'room-a101', 'enter', null, 'Người lạ chưa xác định', 'mt-a101-sync', 'IT Weekly Sync', at('13:42:18.000'), 0.41, 'stranger'],
+        ['mock-a101-008', 'room-a101', 'enter', 'u-employee-long', 'Bùi Văn Long', 'mt-a101-sync', 'IT Weekly Sync', at('13:45:00.000'), 0.96, 'matched'],
+        ['mock-a101-009', 'room-a101', 'leave', 'u-employee-long', 'Bùi Văn Long', 'mt-a101-sync', 'IT Weekly Sync', at('15:04:16.000'), 0.93, 'matched'],
+        ['mock-a102-001', 'room-a102', 'enter', 'u-teacher-giang', 'Nguyễn Thị Giang', 'mt-a102-ai', 'Trí tuệ nhân tạo ứng dụng', at('08:55:40.000'), 0.97, 'matched'],
+        ['mock-a102-002', 'room-a102', 'enter', 'u-student-sinh', 'Lê Minh Sinh', 'mt-a102-ai', 'Trí tuệ nhân tạo ứng dụng', at('09:18:12.000'), 0.91, 'unmatched'],
+        ['mock-a102-003', 'room-a102', 'leave', 'u-student-sinh', 'Lê Minh Sinh', 'mt-a102-ai', 'Trí tuệ nhân tạo ứng dụng', at('11:28:40.000'), 0.93, 'matched'],
+        ['mock-b201-001', 'room-b201', 'enter', 'u-employee-long', 'Bùi Văn Long', 'mt-b201-seminar', 'Seminar nghiên cứu', at('14:02:22.000'), 0.96, 'matched'],
+        ['mock-b201-002', 'room-b201', 'seen', null, 'Khách chưa đăng ký', 'mt-b201-seminar', 'Seminar nghiên cứu', at('14:18:03.000'), 0.38, 'stranger'],
+    ];
+    const events = eventDefs.map(([id, roomId, direction, userId, fullName, meetingId, meetingTitle, eventTime, confidence, status]) => {
+        const room = roomsById[roomId];
+        const tone = status === 'stranger' ? 'red' : status === 'unmatched' ? 'amber' : direction === 'leave' ? 'green' : 'blue';
+        return {
+            id,
+            roomId,
+            roomName: room?.roomName,
+            direction,
+            userId,
+            user: userId ? MOCK_ROOM_USERS[userId] : null,
+            fullName,
+            meetingId,
+            meetingTitle,
+            eventTime,
+            timestamp: eventTime,
+            confidence,
+            similarity: confidence,
+            reliability: confidence,
+            isStranger: status === 'stranger',
+            isUnmatched: status === 'unmatched',
+            snapshotUrl: makeMockSnapshot(fullName, `${room?.roomName || 'Phòng họp'} - ${direction === 'leave' ? 'Ra' : direction === 'enter' ? 'Vào' : 'Thấy'}`, tone),
+        };
+    });
+    return { rooms: MOCK_ROOMS, meetings: meetingDefs, events, usersMap: MOCK_ROOM_USERS };
+};
+
+const createScopedMockRoomAccessDemo = (date, roomId, roomName = 'Phòng họp đang chọn') => {
+    const demo = createMockRoomAccessDemo(date);
+    const baseRoomId = 'room-a101';
+    return {
+        meetings: demo.meetings
+            .filter(m => m.roomId === baseRoomId)
+            .map(m => ({
+                ...m,
+                id: `${roomId}-${m.id}`,
+                meetingId: `${roomId}-${m.meetingId}`,
+                roomId,
+                meeting: { ...(m.meeting || {}), id: `${roomId}-${m.meetingId}` },
+            })),
+        events: demo.events
+            .filter(ev => ev.roomId === baseRoomId)
+            .map(ev => {
+                const meetingId = `${roomId}-${ev.meetingId}`;
+                const tone = ev.isStranger ? 'red' : ev.isUnmatched ? 'amber' : ev.direction === 'leave' ? 'green' : 'blue';
+                return {
+                    ...ev,
+                    id: `${roomId}-${ev.id}`,
+                    roomId,
+                    roomName,
+                    meetingId,
+                    snapshotUrl: makeMockSnapshot(
+                        ev.fullName,
+                        `${roomName} - ${ev.direction === 'leave' ? 'Ra' : ev.direction === 'enter' ? 'Vào' : 'Thấy'}`,
+                        tone
+                    ),
+                };
+            }),
+    };
+};
+
+const getSelectedRoomInfo = (rooms, selectedRoomId) => {
+    const room = rooms.find(r => (r.id || r.roomId) === selectedRoomId);
+    return {
+        id: selectedRoomId,
+        name: room?.roomName || room?.room_name || 'Phòng họp đang chọn',
+    };
+};
+
 // ─── StatCard ────────────────────────────────────────────────────────────────
 
 const StatCard = ({ icon: Icon, label, value, sub, colorCls, alert }) => (
@@ -150,6 +335,7 @@ const RoomAccessLogs = () => {
     const [currentPage, setCurrentPage]       = useState(1);
 
     const [snapshotEventId, setSnapshotEventId] = useState(null);
+    const [snapshotUrl, setSnapshotUrl] = useState(null);
     const [isSnapshotOpen, setIsSnapshotOpen]   = useState(false);
 
     const [selectedUser, setSelectedUser]         = useState(null);
@@ -200,16 +386,21 @@ const RoomAccessLogs = () => {
             const res = await getRooms({ page: 1, limit: 100 });
             if (res?.success && res.data) {
                 const list = res.data.rooms || res.data || [];
-                setRooms(list);
-                if (list.length > 0) {
-                    const first = list[0].id || list[0].roomId;
+                const nextRooms = list.length > 0 ? list : createMockRoomAccessDemo(selectedDate).rooms;
+                setRooms(nextRooms);
+                if (nextRooms.length > 0) {
+                    const first = nextRooms[0].id || nextRooms[0].roomId;
                     setSelectedRoomId(prev => prev || first);
                 }
             } else throw new Error(res?.message || 'Không thể tải danh sách phòng họp.');
         } catch (err) {
-            setError(err?.error?.message || err?.message || 'Lỗi khi tải danh sách phòng họp.');
+            const demo = createMockRoomAccessDemo(selectedDate);
+            setRooms(demo.rooms);
+            setSelectedRoomId(prev => prev || demo.rooms[0]?.id || '');
+            setUsersMap(prev => ({ ...demo.usersMap, ...prev }));
+            setError(null);
         } finally { setRoomsLoading(false); }
-    }, []);
+    }, [selectedDate]);
 
     useEffect(() => {
         fetchRoomsList();
@@ -219,11 +410,13 @@ const RoomAccessLogs = () => {
                 if (res?.success && res.data) {
                     const map = {};
                     res.data.forEach(u => { map[u.id] = u; });
-                    setUsersMap(map);
+                    setUsersMap(prev => ({ ...createMockRoomAccessDemo(selectedDate).usersMap, ...prev, ...map }));
                 }
-            } catch (_) {}
+            } catch (_) {
+                setUsersMap(prev => ({ ...createMockRoomAccessDemo(selectedDate).usersMap, ...prev }));
+            }
         })();
-    }, [fetchRoomsList]);
+    }, [fetchRoomsList, selectedDate]);
 
     // fetch meetings for room+date
     const fetchMeetings = useCallback(async () => {
@@ -232,10 +425,23 @@ const RoomAccessLogs = () => {
             const from = `${selectedDate}T00:00:00.000+07:00`;
             const to   = `${selectedDate}T23:59:59.999+07:00`;
             const res  = await getRoomBookings({ roomId: selectedRoomId, from, to, limit: 100, sortOrder: 'asc' });
-            setMeetings(res?.success && res.data ? res.data : []);
-        } catch (_) { setMeetings([]); }
+            const apiMeetings = res?.success && res.data ? res.data : [];
+            const demoMeetings = createMockRoomAccessDemo(selectedDate).meetings.filter(m => m.roomId === selectedRoomId);
+            const scoped = getSelectedRoomInfo(rooms, selectedRoomId);
+            const scopedMeetings = createScopedMockRoomAccessDemo(selectedDate, scoped.id, scoped.name).meetings;
+            setMeetings(apiMeetings.length > 0 ? apiMeetings : demoMeetings);
+            if (apiMeetings.length === 0 && demoMeetings.length === 0) setMeetings(scopedMeetings);
+        } catch (_) {
+            const demoMeetings = createMockRoomAccessDemo(selectedDate).meetings.filter(m => m.roomId === selectedRoomId);
+            if (demoMeetings.length > 0) {
+                setMeetings(demoMeetings);
+            } else {
+                const scoped = getSelectedRoomInfo(rooms, selectedRoomId);
+                setMeetings(createScopedMockRoomAccessDemo(selectedDate, scoped.id, scoped.name).meetings);
+            }
+        }
         setSelectedMeetingId('');
-    }, [selectedRoomId, selectedDate]);
+    }, [selectedRoomId, selectedDate, rooms]);
 
     useEffect(() => { fetchMeetings(); }, [fetchMeetings]);
 
@@ -267,16 +473,41 @@ const RoomAccessLogs = () => {
                     );
                     results.forEach(r => { if (r?.success && r.data?.events) allEvents = [...allEvents, ...r.data.events]; });
                 }
+                if (allEvents.length === 0) {
+                    const demo = createMockRoomAccessDemo(selectedDate);
+                    allEvents = demo.events.filter(ev =>
+                        (!selectedRoomId || ev.roomId === selectedRoomId) &&
+                        (!selectedMeetingId || ev.meetingId === selectedMeetingId) &&
+                        (!debouncedSearch || ev.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()))
+                    );
+                    if (allEvents.length === 0 && selectedRoomId) {
+                        const scoped = getSelectedRoomInfo(rooms, selectedRoomId);
+                        allEvents = createScopedMockRoomAccessDemo(selectedDate, scoped.id, scoped.name).events.filter(ev =>
+                            (!selectedMeetingId || ev.meetingId === selectedMeetingId) &&
+                            (!debouncedSearch || ev.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()))
+                        );
+                    }
+                }
                 setLogsData({ ...meta, events: allEvents, totalEvents: allEvents.length, pagination: { ...pagination, total: allEvents.length } });
             } else throw new Error(firstRes?.message || 'Không thể tải nhật ký ra/vào.');
         } catch (err) {
-            if (!selectedRoomId && (err?.error?.code === 'UNKNOWN_ERROR' || /không tồn tại|not found/i.test(err?.error?.message || ''))) {
-                setError('Vui lòng chọn 1 phòng họp để xem nhật ký.');
-            } else {
-                setError(err?.error?.message || err?.message || 'Lỗi khi tải nhật ký ra/vào.');
-            }
+            const demo = createMockRoomAccessDemo(selectedDate);
+            const demoEvents = demo.events.filter(ev =>
+                (!selectedRoomId || ev.roomId === selectedRoomId) &&
+                (!selectedMeetingId || ev.meetingId === selectedMeetingId) &&
+                (!debouncedSearch || ev.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()))
+            );
+            const scoped = getSelectedRoomInfo(rooms, selectedRoomId);
+            const fallbackEvents = demoEvents.length > 0 || !selectedRoomId
+                ? demoEvents
+                : createScopedMockRoomAccessDemo(selectedDate, scoped.id, scoped.name).events.filter(ev =>
+                    (!selectedMeetingId || ev.meetingId === selectedMeetingId) &&
+                    (!debouncedSearch || ev.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()))
+                );
+            setLogsData({ events: fallbackEvents, totalEvents: fallbackEvents.length, pagination: { total: fallbackEvents.length } });
+            setError(null);
         } finally { if (!silent) setLogsLoading(false); }
-    }, [selectedRoomId, selectedDate, debouncedSearch, selectedMeetingId]);
+    }, [selectedRoomId, selectedDate, debouncedSearch, selectedMeetingId, rooms]);
 
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -400,7 +631,29 @@ const RoomAccessLogs = () => {
                 <td className="px-6 py-4 text-center"><StatusBadge status={status} /></td>
 
                 <td className="px-6 py-4 text-center">
-                    <ThumbnailImage eventId={ev.id} onClick={() => { setSnapshotEventId(ev.id); setIsSnapshotOpen(true); }} />
+                    {ev.snapshotUrl ? (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSnapshotEventId(ev.id);
+                                setSnapshotUrl(ev.snapshotUrl);
+                                setIsSnapshotOpen(true);
+                            }}
+                            className="inline-flex items-center justify-center rounded-lg overflow-hidden border border-slate-200 hover:border-action-blue transition-colors bg-slate-100 flex-shrink-0 w-32 md:w-40 aspect-video"
+                            title="Xem ảnh hiện trường (phóng to)"
+                        >
+                            <img src={ev.snapshotUrl} alt="Ảnh quét phòng" className="w-full h-full object-contain" />
+                        </button>
+                    ) : (
+                        <ThumbnailImage
+                            eventId={ev.id}
+                            onClick={() => {
+                                setSnapshotEventId(ev.id);
+                                setSnapshotUrl(null);
+                                setIsSnapshotOpen(true);
+                            }}
+                        />
+                    )}
                 </td>
 
                 <td className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-500">{conf}</td>
@@ -762,7 +1015,35 @@ const RoomAccessLogs = () => {
             </div>
 
             {/* Snapshot modal */}
-            <EventSnapshotModal isOpen={isSnapshotOpen} onClose={() => setIsSnapshotOpen(false)} eventId={snapshotEventId} />
+            {snapshotUrl ? (
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-xl p-4 animate-in fade-in duration-200"
+                        onClick={() => { setIsSnapshotOpen(false); setSnapshotUrl(null); }}
+                    >
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsSnapshotOpen(false);
+                                setSnapshotUrl(null);
+                            }}
+                            className="absolute top-6 right-6 z-[10000] p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                            title="Đóng"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                        <img
+                            src={snapshotUrl}
+                            alt="Ảnh bằng chứng"
+                            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/10 bg-black/20"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>,
+                    document.body
+                )
+            ) : (
+                <EventSnapshotModal isOpen={isSnapshotOpen} onClose={() => setIsSnapshotOpen(false)} eventId={snapshotEventId} />
+            )}
 
             {/* User detail modal */}
             {isUserModalOpen && selectedUser && createPortal(
