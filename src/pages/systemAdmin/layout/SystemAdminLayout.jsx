@@ -9,7 +9,7 @@ import {
     RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiLayoutMasonryLine, RiFilmLine,
     RiBarChartBoxLine, RiFileChartLine,
     RiUserReceivedLine, RiContactsBookLine, RiServiceLine,
-    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine
+    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -56,6 +56,7 @@ const STATIC_NAVIGATION_ITEMS = [
         icon: RiShieldUserLine,
         children: [
             { label: 'Kiểm soát ra vào cổng',         to: '/system-admin/anpr-management',      icon: RiCameraLine },
+            { label: 'Hiện diện khuôn viên',          to: '/system-admin/gate-presence',        icon: RiTimeLine },
             { label: 'Danh sách biển số giám sát',    to: '/system-admin/vehicle-control-list', icon: RiCarLine },
             { label: 'Người lạ',                      to: '/system-admin/strangers',            icon: RiUserUnfollowLine },
             { label: 'Danh sách người giám sát',      to: '/system-admin/person-control-list',  icon: RiShieldUserLine },

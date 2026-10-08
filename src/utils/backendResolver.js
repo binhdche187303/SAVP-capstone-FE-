@@ -3,10 +3,14 @@
 // request.js và socket.js đều đọc URL đã resolve từ đây để REST và WebSocket
 // luôn trỏ cùng một domain, không bao giờ lệch nhau.
 
-const PRIMARY_API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://api.smartracking.io.vn/api/v1';
-const BACKUP_API_BASE_URL = process.env.REACT_APP_API_BASE_URL_BACKUP || 'https://api-backup.smartracking.io.vn/api/v1';
-const PRIMARY_WS_URL = process.env.REACT_APP_WS_URL || 'https://api.smartracking.io.vn';
-const BACKUP_WS_URL = process.env.REACT_APP_WS_URL_BACKUP || 'https://api-backup.smartracking.io.vn';
+const isDevelopment = process.env.NODE_ENV === 'development';
+const DEFAULT_API_BASE_URL = isDevelopment ? 'http://localhost:3000/api/v1' : 'https://api.smartracking.io.vn/api/v1';
+const DEFAULT_WS_URL = isDevelopment ? 'http://localhost:3000' : 'https://api.smartracking.io.vn';
+
+const PRIMARY_API_BASE_URL = process.env.REACT_APP_API_BASE_URL || DEFAULT_API_BASE_URL;
+const BACKUP_API_BASE_URL = process.env.REACT_APP_API_BASE_URL_BACKUP || DEFAULT_API_BASE_URL;
+const PRIMARY_WS_URL = process.env.REACT_APP_WS_URL || DEFAULT_WS_URL;
+const BACKUP_WS_URL = process.env.REACT_APP_WS_URL_BACKUP || DEFAULT_WS_URL;
 
 const HEALTH_CHECK_TIMEOUT_MS = 4000;
 const RECHECK_INTERVAL_MS = 2 * 60 * 1000;

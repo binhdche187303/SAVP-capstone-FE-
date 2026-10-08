@@ -93,6 +93,14 @@ export const getUnknownVehicles = async (params = {}) => {
     return await get(`/anpr/admin/unknown-vehicles${query ? `?${query}` : ''}`);
 };
 
+export const setupMockAnprCamera = async (data = {}) => {
+    return await post('/dev/mock-anpr-setup', data);
+};
+
+export const mockAnprVehicleEvent = async (data = {}) => {
+    return await post('/dev/mock-anpr-event', data);
+};
+
 // ============================================================
 // M4: Vehicle Control List (Blocklist / Watchlist)
 // ============================================================

@@ -1,5 +1,5 @@
 import { AlertTriangle, Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight, Clock, Filter, Grid, Info, List, MapPin, User, XCircle } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { getMySchedule } from '../../service/employeeServices';
@@ -14,12 +14,22 @@ const STATUS_CONFIG = {
     cancelled: { label: 'Đã huỷ', bg: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500', icon: XCircle }
 };
 
+const getEffectiveStatus = (meeting, nowTs = Date.now()) => {
+    const status = (meeting?.status || '').toLowerCase();
+    const endTime = meeting?.endTime || meeting?.end_time;
+    if (['scheduled', 'in_progress'].includes(status) && endTime && new Date(endTime).getTime() < nowTs) {
+        return 'completed';
+    }
+    return status || 'scheduled';
+};
+
 const PersonalCalendar = () => {
     const navigate = useNavigate();
     const [viewMode, setViewMode] = useState('month'); // 'month' | 'week'
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [meetings, setMeetings] = useState([]);
+    const [nowTs, setNowTs] = useState(Date.now());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [statusFilter, setStatusFilter] = useState(''); // all, scheduled, in_progress, cancelled
@@ -40,7 +50,6 @@ const PersonalCalendar = () => {
             // Fetch meetings for the current month context
             const year = currentDate.getFullYear();
             const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const from = `${year}-${month}-01`;
             // Calculate last day of month
             const lastDay = new Date(year, currentDate.getMonth() + 1, 0).getDate();
 
@@ -88,6 +97,20 @@ const PersonalCalendar = () => {
     useEffect(() => {
         fetchSchedule();
     }, [fetchSchedule]);
+
+    useEffect(() => {
+        const timer = setInterval(() => setNowTs(Date.now()), 30000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const effectiveMeetings = useMemo(
+        () => meetings.map((meeting) => ({
+            ...meeting,
+            rawStatus: meeting.rawStatus || meeting.status,
+            status: getEffectiveStatus(meeting, nowTs),
+        })),
+        [meetings, nowTs],
+    );
 
     // Calendar generation helpers
     const getDaysInMonth = (date) => {
@@ -149,7 +172,7 @@ const PersonalCalendar = () => {
 
     // Filters meetings by day
     const getMeetingsForDay = (day) => {
-        return meetings.filter(m => isSameDay(new Date(m.startTime), day));
+        return effectiveMeetings.filter(m => isSameDay(new Date(m.startTime), day));
     };
 
     const handlePrev = () => {

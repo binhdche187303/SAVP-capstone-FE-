@@ -18,11 +18,13 @@ import { PERMISSION_DEPENDENCIES } from '../../config/permissionDependencies';
 const MODULE_TRANSLATIONS = {
     'system_management': 'Quản trị hệ thống',
     'gate_access': 'Kiểm soát ra vào',
+    'GATE_ACCESS': 'Kiểm soát ra vào',
     'user_management': 'Quản lý người dùng',
     'device_management': 'Quản lý thiết bị',
     'role_management': 'Quản lý phân quyền',
     'attendance_management': 'Quản lý điểm danh',
     'meeting_management': 'Quản lý phòng họp',
+    'CLASSROOM': 'Lớp học',
     'zone_management': 'Quản lý khu vực',
     'iot': 'Thiết bị IoT / Camera',
     'ivss': 'Hệ thống Camera (IVSS)',
@@ -62,11 +64,35 @@ const MODULE_TRANSLATIONS = {
     'system': 'Hệ thống'
 };
 
+const PERMISSION_NAME_TRANSLATIONS = {
+    'gate.access.alert.handle': 'Xử lý cảnh báo ra vào cổng',
+    'gate.access.monitor': 'Trực giám sát cổng ra vào',
+    'gate.access.read': 'Xem nhật ký ra vào cổng',
+    'gate_access.stats.read': 'Xem thống kê lưu lượng phương tiện',
+    'gate_access.history.read_all': 'Xem lịch sử ra vào cổng của nhân sự khác',
+    'class.attendance.stats.read': 'Xem thống kê chuyên cần lớp học',
+    'class.attendance.manage': 'Quản lý điểm danh lớp học',
+    'class.attendance.export': 'Xuất bảng chuyên cần lớp học',
+    'class.attendance.read.self': 'Xem chuyên cần cá nhân'
+};
+
 const ROLE_TRANSLATIONS = {
     'SYSTEM_ADMIN': 'Quản trị hệ thống',
     'BUSINESS_ADMIN': 'Quản trị doanh nghiệp',
     'MANAGER': 'Quản lý',
-    'EMPLOYEE': 'Nhân viên'
+    'EMPLOYEE': 'Nhân viên',
+    'TEACHER': 'Giảng viên',
+    'STUDENT': 'Sinh viên',
+    'GUARD': 'Bảo vệ'
+};
+
+const getDisplayRoleName = (role) => {
+    const roleCode = (role?.roleCode || role?.role_code || '').toUpperCase();
+    return ROLE_TRANSLATIONS[roleCode] || role?.roleName || role?.role_name || role?.name || roleCode || 'Vai trò';
+};
+
+const getDisplayPermissionName = (permission) => {
+    return PERMISSION_NAME_TRANSLATIONS[permission?.permissionCode] || permission?.permissionName || permission?.permissionCode || 'Quyền';
 };
 
 const RolePermissionManagement = () => {
@@ -167,7 +193,7 @@ const RolePermissionManagement = () => {
                 .filter(id => id && !rolePermissions.includes(id));
             if (depIds.length > 0) {
                 setError(null);
-                setSuccessMessage(`Đã tự động thêm ${depIds.length} quyền xem cần thiết cho "${target.permissionName}".`);
+                setSuccessMessage(`Đã tự động thêm ${depIds.length} quyền xem cần thiết cho "${getDisplayPermissionName(target)}".`);
             }
             setRolePermissions(prev => [...prev, permissionId, ...depIds]);
             return;
@@ -179,7 +205,7 @@ const RolePermissionManagement = () => {
             .find(p => p && PERMISSION_DEPENDENCIES[p.permissionCode]?.includes(target.permissionCode));
         if (blockedBy) {
             setSuccessMessage(null);
-            setError(`Không thể gỡ "${target.permissionName}" vì "${blockedBy.permissionName}" đang được chọn và cần quyền này. Hãy gỡ "${blockedBy.permissionName}" trước.`);
+            setError(`Không thể gỡ "${getDisplayPermissionName(target)}" vì "${getDisplayPermissionName(blockedBy)}" đang được chọn và cần quyền này. Hãy gỡ "${getDisplayPermissionName(blockedBy)}" trước.`);
             return;
         }
 
@@ -231,7 +257,7 @@ const RolePermissionManagement = () => {
                     .join('; ');
                 setError(`Đã lưu một phần. Không thể gỡ ${failedRevokes.length} quyền: ${messages}`);
             } else {
-                setSuccessMessage(`Đã cập nhật quyền cho vai trò ${selectedRole.roleName}.`);
+                setSuccessMessage(`Đã cập nhật quyền cho vai trò ${getDisplayRoleName(selectedRole)}.`);
             }
         } catch (err) {
             setError(err?.error?.message || err?.message || 'Lỗi khi lưu phân quyền.');
@@ -275,7 +301,7 @@ const RolePermissionManagement = () => {
         try {
             const res = await deleteRole(roleToDelete.id);
             if (res?.success) {
-                setSuccessMessage(`Đã xoá vai trò ${roleToDelete.roleName} thành công.`);
+                setSuccessMessage(`Đã xoá vai trò ${getDisplayRoleName(roleToDelete)} thành công.`);
                 setIsDeleteModalOpen(false);
                 if (selectedRole?.id === roleToDelete.id) {
                     setSelectedRole(null);
@@ -305,7 +331,7 @@ const RolePermissionManagement = () => {
     const filteredModules = Object.keys(groupedPermissions).filter(module => {
         if (!searchTerm) return true;
         return groupedPermissions[module].some(p => 
-            p.permissionName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            getDisplayPermissionName(p).toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.permissionCode.toLowerCase().includes(searchTerm.toLowerCase())
         );
     });
@@ -363,7 +389,7 @@ const RolePermissionManagement = () => {
                             <div className="text-center py-8 text-slate-blue text-sm">Chưa có vai trò nào.</div>
                         ) : (
                             roles.map(role => {
-                                const displayRoleName = ROLE_TRANSLATIONS[role.roleCode] || role.roleName;
+                                const displayRoleName = getDisplayRoleName(role);
                                 return (
                                 <div 
                                     key={role.id}
@@ -408,7 +434,7 @@ const RolePermissionManagement = () => {
                                 <div>
                                     <h2 className="font-bold text-midnight-indigo flex items-center">
                                         <Key className="w-5 h-5 mr-2 text-action-blue" />
-                                        Phân quyền: {ROLE_TRANSLATIONS[selectedRole.roleCode] || selectedRole.roleName}
+                                        Phân quyền: {getDisplayRoleName(selectedRole)}
                                     </h2>
                                     <p className="text-xs text-slate-blue mt-1">Cấu hình các quyền thao tác cho vai trò này</p>
                                 </div>
@@ -452,7 +478,7 @@ const RolePermissionManagement = () => {
                                                 </div>
                                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {groupedPermissions[module]
-                                                        .filter(p => !searchTerm || p.permissionName.toLowerCase().includes(searchTerm.toLowerCase()) || p.permissionCode.toLowerCase().includes(searchTerm.toLowerCase()))
+                                                        .filter(p => !searchTerm || getDisplayPermissionName(p).toLowerCase().includes(searchTerm.toLowerCase()) || p.permissionCode.toLowerCase().includes(searchTerm.toLowerCase()))
                                                         .map(p => {
                                                         const moduleStatus = PERMISSION_MODULE_STATUS[p.moduleCode];
                                                         return (
@@ -467,7 +493,7 @@ const RolePermissionManagement = () => {
                                                             </div>
                                                             <div>
                                                                 <p className="text-sm font-semibold text-midnight-indigo group-hover:text-action-blue transition-colors flex items-center gap-1.5">
-                                                                    {p.permissionName}
+                                                                    {getDisplayPermissionName(p)}
                                                                     {moduleStatus && (
                                                                         <AlertTriangle
                                                                             className="w-3.5 h-3.5 text-amber-500 flex-shrink-0"
@@ -563,7 +589,7 @@ const RolePermissionManagement = () => {
                             </div>
                             <h3 className="text-lg font-bold text-midnight-indigo mb-2">Xác nhận xoá vai trò</h3>
                             <p className="text-sm text-slate-blue mb-1">
-                                Bạn có chắc chắn muốn xoá vai trò <span className="font-bold text-midnight-indigo">{roleToDelete.roleName}</span>?
+                                Bạn có chắc chắn muốn xoá vai trò <span className="font-bold text-midnight-indigo">{getDisplayRoleName(roleToDelete)}</span>?
                             </p>
                             <p className="text-[11px] text-red-500 bg-red-50 p-2 rounded-lg mt-3 text-left">
                                 Lưu ý: Thao tác này không thể hoàn tác. Người dùng đang có vai trò này có thể sẽ bị mất quyền truy cập.

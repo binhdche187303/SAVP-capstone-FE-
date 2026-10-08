@@ -19,6 +19,7 @@ import {
     Clock,
     Fingerprint,
     Flame,
+    GraduationCap,
     Map as MapIcon,
     FileBarChart,
     UserCheck,
@@ -72,6 +73,7 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Bản đồ khuôn viên', to: '/business-admin/campus-map', icon: MapIcon },
             { label: 'Tỷ lệ đúng giờ', to: '/business-admin/attendance-analytics', icon: Clock },
             { label: 'Chuyên cần phòng ban', to: '/business-admin/meeting-attendance', icon: Activity },
+            { label: 'Chuyên cần lớp học', to: '/business-admin/class-attendance', icon: GraduationCap },
         ],
     },
 ];

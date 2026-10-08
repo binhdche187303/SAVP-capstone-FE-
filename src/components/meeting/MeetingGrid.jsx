@@ -134,6 +134,7 @@ const MeetingTile = ({
     participant: p,
     isSelf,
     isHost,
+    localVideoStream,
     onMuteToggle,
     onRename,
     reactionEmoji,
@@ -142,6 +143,8 @@ const MeetingTile = ({
     const isActuallySpeaking = p.isSpeaking && !p.isMuted;
     const showMicBadge = p.isMuted || isActuallySpeaking;
     const [audioLevel, setAudioLevel] = useState(0);
+    const localVideoRef = useRef(null);
+    const showLocalVideo = isSelf && localVideoStream;
 
     useEffect(() => {
         let interval;
@@ -155,6 +158,11 @@ const MeetingTile = ({
         }
         return () => clearInterval(interval);
     }, [isActuallySpeaking]);
+
+    useEffect(() => {
+        if (!localVideoRef.current) return;
+        localVideoRef.current.srcObject = localVideoStream || null;
+    }, [localVideoStream]);
 
     // Kích thước avatar
     const avatarSize = large ? 'w-32 h-32 text-4xl' : 'w-20 h-20 text-2xl';
@@ -174,9 +182,18 @@ const MeetingTile = ({
         >
             {/* Background & Avatar Container */}
             <div className="absolute inset-0 flex items-center justify-center">
+                {showLocalVideo && (
+                    <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="absolute inset-0 w-full h-full object-cover"
+                    />
+                )}
                 
                 {/* Hiệu ứng âm thanh bao quanh Avatar */}
-                {isActuallySpeaking && (
+                {isActuallySpeaking && !showLocalVideo && (
                     <>
                         <div 
                             className="absolute rounded-full bg-emerald-500 pointer-events-none transition-all duration-100 ease-linear z-0"
@@ -199,11 +216,13 @@ const MeetingTile = ({
                     </>
                 )}
 
-                <UserAvatar
-                    user={p}
-                    imageClassName="object-cover rounded-full"
-                    className={`rounded-full shadow-xl border-4 ${isActuallySpeaking ? 'border-emerald-500' : 'border-slate-800'} z-10 transition-colors duration-200 ${avatarSize}`}
-                />
+                {!showLocalVideo && (
+                    <UserAvatar
+                        user={p}
+                        imageClassName="object-cover rounded-full"
+                        className={`rounded-full shadow-xl border-4 ${isActuallySpeaking ? 'border-emerald-500' : 'border-slate-800'} z-10 transition-colors duration-200 ${avatarSize}`}
+                    />
+                )}
             </div>
 
             {/* Mic badge */}
@@ -279,7 +298,7 @@ const MeetingGrid = ({
     participants = [],
     myParticipantId,
     isHost,
-    isVideoOn,
+    localVideoStream,
     onHostMuteToggle,
     onRename,
     reactionsByParticipantId = {},
@@ -308,6 +327,7 @@ const MeetingGrid = ({
                             participant={sortedParticipants[0]}
                             isSelf={sortedParticipants[0].id === myParticipantId}
                             isHost={isHost}
+                            localVideoStream={sortedParticipants[0].id === myParticipantId ? localVideoStream : null}
                             onMuteToggle={onHostMuteToggle}
                             onRename={onRename}
                             reactionEmoji={reactionsByParticipantId[sortedParticipants[0].id]}
@@ -341,7 +361,7 @@ const MeetingGrid = ({
                                 participant={p}
                                 isSelf={p.id === myParticipantId}
                                 isHost={isHost}
-                                isVideoOn={isVideoOn}
+                                localVideoStream={p.id === myParticipantId ? localVideoStream : null}
                                 onMuteToggle={onHostMuteToggle}
                                 onRename={onRename}
                                 reactionEmoji={reactionsByParticipantId[p.id]}

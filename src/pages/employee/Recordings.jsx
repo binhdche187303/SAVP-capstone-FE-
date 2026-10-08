@@ -37,6 +37,12 @@ const fmtDate = (iso) =>
 const fmtTime = (iso) =>
     iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : '';
 
+const isEffectivelyCompleted = (meeting, nowTs = Date.now()) => {
+    const status = String(meeting?.status || '').toLowerCase();
+    const endTime = meeting?.endTime || meeting?.end_time || meeting?.scheduledEnd || meeting?.scheduled_end;
+    return status === 'completed' || (['scheduled', 'in_progress'].includes(status) && endTime && new Date(endTime).getTime() < nowTs);
+};
+
 // ─── Pagination control ───────────────────────────────────────────────────────
 
 const Pagination = ({ current, total, onChange }) => {
@@ -123,14 +129,15 @@ const EmployeeRecordings = () => {
             const historyParams = {
                 from: fromStr,
                 to: toStr,
-                status: ['completed'],
+                status: ['completed', 'scheduled', 'in_progress'],
                 limit: 100,
             };
 
             const firstRes = await getMyMeetingHistory(historyParams);
             if (!firstRes?.success) throw new Error(firstRes?.message || 'Lỗi khi tải lịch sử cuộc họp');
 
-            let meetings = firstRes.data?.items || firstRes.data || [];
+            let meetings = (firstRes.data?.items || firstRes.data || [])
+                .filter((meeting) => isEffectivelyCompleted(meeting));
 
             if (!meetings.length) { setRecordings([]); return; }
 
@@ -146,8 +153,6 @@ const EmployeeRecordings = () => {
                     const mediaFiles          = mediaRes?.success  ? (mediaRes.data  || []) : [];
                     const minutesList         = minutesRes?.success ? (minutesRes.data || []) : [];
                     const hasPublishedMinutes = minutesList[0]?.status === 'published';
-
-                    if (!mediaFiles.length && !hasPublishedMinutes) return null;
 
                     return {
                         meetingId: mid,

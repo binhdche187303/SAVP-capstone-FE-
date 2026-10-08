@@ -1,10 +1,11 @@
-import { Settings, Camera, Plus, Trash2, Pencil, X } from 'lucide-react';
+import { Settings, Camera, GraduationCap, Plus, Trash2, Pencil, X } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Pagination from '../../components/common/Pagination';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 import { getSystemConfigs, updateSystemConfig, getChannelMaps, updateChannelMap, getRooms, getZones, getNoShowConfig, updateNoShowConfig, getSecurityAlertsConfig, updateSecurityAlertsConfig } from '../../service/sysAdminServices';
+import { DEFAULT_CLASS_ATTENDANCE_SETTINGS, getClassAttendanceSettings, mockClassrooms, saveClassAttendanceSettings } from '../../service/classAttendanceService';
 
 /**
  * SystemSettings Component
@@ -59,6 +60,8 @@ const SystemSettings = () => {
     // Cấu hình Security Alerts (nguồn riêng: GET/PUT /security-alerts-config)
     const [securityAlertsConfig, setSecurityAlertsConfig] = useState({ autoResolveTimeoutMinutes: 15 });
     const [dbSecurityAlertsConfig, setDbSecurityAlertsConfig] = useState({ autoResolveTimeoutMinutes: 15 });
+    const [selectedClassAttendanceClassId, setSelectedClassAttendanceClassId] = useState(mockClassrooms[0]?.id || '');
+    const [classAttendanceConfig, setClassAttendanceConfig] = useState(DEFAULT_CLASS_ATTENDANCE_SETTINGS);
 
     // Config Values State — chỉ còn phục vụ 2 tab đang ẩn (Ghi hình & Riêng tư / Tham số hệ thống)
     const [configs, setConfigs] = useState({
@@ -234,6 +237,10 @@ const SystemSettings = () => {
         fetchConfigs();
     }, [fetchConfigs]);
 
+    useEffect(() => {
+        setClassAttendanceConfig(getClassAttendanceSettings(selectedClassAttendanceClassId));
+    }, [selectedClassAttendanceClassId]);
+
     // Auto-hide alert messages
     useEffect(() => {
         if (successMessage) {
@@ -268,6 +275,28 @@ const SystemSettings = () => {
     // Form validation check
     const handleSecurityAlertsChange = (value) => {
         setSecurityAlertsConfig({ autoResolveTimeoutMinutes: value });
+    };
+
+    const handleClassAttendanceChange = (key, value) => {
+        setClassAttendanceConfig(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleSaveClassAttendanceConfig = () => {
+        if (Number(classAttendanceConfig.lateThresholdMinutes) < 0) {
+            setError('Ngưỡng đi muộn không được âm.');
+            return;
+        }
+        if (Number(classAttendanceConfig.autoScanIntervalSeconds) < 2) {
+            setError('Chu kỳ quét tự động tối thiểu là 2 giây.');
+            return;
+        }
+        saveClassAttendanceSettings({
+            ...classAttendanceConfig,
+            lateThresholdMinutes: Number(classAttendanceConfig.lateThresholdMinutes),
+            autoScanIntervalSeconds: Number(classAttendanceConfig.autoScanIntervalSeconds)
+        }, selectedClassAttendanceClassId);
+        const selectedClass = mockClassrooms.find(item => item.id === selectedClassAttendanceClassId);
+        setSuccessMessage(`Đã lưu cấu hình điểm danh cho ${selectedClass?.subject || 'lớp học'}.`);
     };
 
     const validateConfigs = (noShow, data) => {
@@ -386,6 +415,7 @@ const SystemSettings = () => {
         setSecurityAlertsConfig({ ...dbSecurityAlertsConfig });
         setConfigs({ ...dbConfigs });
         setChannelMaps({ ...dbChannelMaps });
+        setClassAttendanceConfig(getClassAttendanceSettings(selectedClassAttendanceClassId));
         setChannelEditor(emptyChannelEditor);
     };
 
@@ -762,6 +792,16 @@ const SystemSettings = () => {
                 >
                     Cấu hình Camera & Cảm biến
                 </button>
+                <button
+                    onClick={() => setActiveTab('classroom')}
+                    className={`whitespace-nowrap px-4 py-2.5 text-sm font-bold border-b-2 transition-all ${
+                        activeTab === 'classroom'
+                            ? 'border-action-blue text-action-blue'
+                            : 'border-transparent text-slate-blue hover:text-midnight-indigo'
+                    }`}
+                >
+                    Cấu hình lớp học
+                </button>
             </div>
 
             {/* Tab Contents */}
@@ -947,6 +987,98 @@ const SystemSettings = () => {
                                 </div>
                             </div>
 
+                        </div>
+                    )}
+
+                    {/* TAB: CLASSROOM ATTENDANCE */}
+                    {activeTab === 'classroom' && (
+                        <div className="space-y-8">
+                            <div className="border-b border-platinum-tint/60 pb-3">
+                                <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
+                                    <GraduationCap className="w-5 h-5 text-action-blue" />
+                                    Cấu hình điểm danh lớp học
+                                </h2>
+                                <p className="text-xs text-slate-blue mt-1">
+                                    Thiết lập giờ bắt đầu vào học, ngưỡng đi muộn và chu kỳ quét FaceID tự động theo từng lớp, từng môn học.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="md:col-span-3 p-4 bg-cloud-mist/50 border border-platinum-tint/70 rounded-xl flex flex-col h-full">
+                                    <label className="block text-xs font-bold text-slate-blue uppercase">Lớp / môn học áp dụng</label>
+                                    <span className="text-xs text-steel-gray mt-1 block">
+                                        Chọn lớp và môn học cần cấu hình giờ vào học, ngưỡng đi muộn và chu kỳ quét FaceID tự động.
+                                    </span>
+                                    <select
+                                        value={selectedClassAttendanceClassId}
+                                        onChange={(e) => setSelectedClassAttendanceClassId(e.target.value)}
+                                        className="mt-3 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
+                                    >
+                                        {mockClassrooms.map(item => (
+                                            <option key={item.id} value={item.id}>
+                                                {item.code} - {item.subject} ({item.room})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
+                                    <label className="block text-xs font-bold text-slate-blue uppercase">Giờ bắt đầu vào học</label>
+                                    <span className="text-xs text-steel-gray mt-1 block flex-1">
+                                        Thời điểm chuẩn để hệ thống bắt đầu xét sinh viên đúng giờ hoặc đi muộn.
+                                    </span>
+                                    <input
+                                        type="time"
+                                        value={classAttendanceConfig.classStartTime}
+                                        onChange={(e) => handleClassAttendanceChange('classStartTime', e.target.value)}
+                                        className="mt-3 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                    />
+                                </div>
+                                <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
+                                    <label className="block text-xs font-bold text-slate-blue uppercase">Ngưỡng đi muộn</label>
+                                    <span className="text-xs text-steel-gray mt-1 block flex-1">
+                                        Số phút cho phép sau giờ bắt đầu trước khi đánh dấu sinh viên đi muộn.
+                                    </span>
+                                    <div className="mt-3 relative">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="120"
+                                            value={classAttendanceConfig.lateThresholdMinutes}
+                                            onChange={(e) => handleClassAttendanceChange('lateThresholdMinutes', Number(e.target.value))}
+                                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                        />
+                                        <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">phút</span>
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
+                                    <label className="block text-xs font-bold text-slate-blue uppercase">Chu kỳ quét tự động</label>
+                                    <span className="text-xs text-steel-gray mt-1 block flex-1">
+                                        Khoảng cách giữa mỗi lần camera FaceID tự kiểm tra sinh viên trong lớp.
+                                    </span>
+                                    <div className="mt-3 relative">
+                                        <input
+                                            type="number"
+                                            min="2"
+                                            max="60"
+                                            value={classAttendanceConfig.autoScanIntervalSeconds}
+                                            onChange={(e) => handleClassAttendanceChange('autoScanIntervalSeconds', Number(e.target.value))}
+                                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                        />
+                                        <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">giây</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={handleSaveClassAttendanceConfig}
+                                    className="px-4 py-2 bg-action-blue text-white hover:bg-glacier-blue rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
+                                >
+                                    Lưu cấu hình lớp học
+                                </button>
+                            </div>
                         </div>
                     )}
 

@@ -273,6 +273,17 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
         (s.text || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
         (s.speakerLabel || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
+    const transcriptWarnings = Array.isArray(transcript?.warnings) ? transcript.warnings : [];
+    const rawConfidenceScore = Number(transcript?.confidenceScore);
+    const normalizedConfidenceScore = Number.isFinite(rawConfidenceScore)
+        ? (rawConfidenceScore > 1 ? rawConfidenceScore / 100 : rawConfidenceScore)
+        : null;
+    const hasTranscriptSegments = (transcript?.segments || []).length > 0;
+    const passesDisplayThreshold = normalizedConfidenceScore !== null && normalizedConfidenceScore > 0.6;
+    const hasUnreliableSpeechWarning = transcriptWarnings.includes('no_reliable_speech_detected');
+    const isUnreliableTranscript = hasUnreliableSpeechWarning && !passesDisplayThreshold;
+    const shouldShowQualityWarning = hasUnreliableSpeechWarning && passesDisplayThreshold;
+    const shouldShowConfidenceScore = normalizedConfidenceScore !== null && (hasTranscriptSegments || normalizedConfidenceScore > 0);
 
     // Renders
     if (status === 'processing') {
@@ -334,9 +345,11 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                             }`}>
                                 {transcript?.status || 'Bản nháp'}
                             </span>
-                            {transcript?.confidenceScore && (
-                                <span className="text-[10px] text-slate-blue font-medium">Độ chính xác: {(transcript.confidenceScore * 100).toFixed(0)}%</span>
-                            )}
+                            {shouldShowConfidenceScore ? (
+                                <span className="text-[10px] text-slate-blue font-medium">Độ chính xác: {(normalizedConfidenceScore * 100).toFixed(0)}%</span>
+                            ) : hasUnreliableSpeechWarning ? (
+                                <span className="text-[10px] text-amber-600 font-bold">Không đủ dữ liệu phiên âm</span>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -392,7 +405,24 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
 
             {/* Content list */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin bg-cloud-mist/10">
-                {filteredSegments.map((segment) => {
+                {shouldShowQualityWarning && (
+                    <div className="p-3 rounded-2xl border border-amber-200 bg-amber-50 text-amber-800 text-xs flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <p className="leading-relaxed">
+                            Âm thanh có cảnh báo chất lượng, nhưng độ chính xác trên 60% nên hệ thống vẫn hiển thị transcript để kiểm tra và chỉnh sửa.
+                        </p>
+                    </div>
+                )}
+                {isUnreliableTranscript && (
+                    <div className="text-center py-12 px-4">
+                        <AlertTriangle className="w-9 h-9 text-amber-500 mx-auto mb-3" />
+                        <h4 className="text-sm font-bold text-midnight-indigo">Âm thanh không đủ rõ để phiên âm</h4>
+                        <p className="text-xs text-slate-blue mt-2 max-w-md mx-auto leading-relaxed">
+                            AI không tạo được đoạn lời nói đáng tin cậy từ file này nên độ chính xác được ghi nhận là 0%. Vui lòng kiểm tra lại âm lượng, tiếng ồn, thời lượng nói hoặc tải lên bản ghi rõ hơn.
+                        </p>
+                    </div>
+                )}
+                {!isUnreliableTranscript && filteredSegments.map((segment) => {
                     const isLowConfidence = segment.lowConfidence || segment.manualReviewRequired;
                     const isEditing = editingSegmentId === segment.segmentId;
                     
@@ -506,7 +536,7 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                         </motion.div>
                     );
                 })}
-                {filteredSegments.length === 0 && (
+                {!isUnreliableTranscript && filteredSegments.length === 0 && (
                     <div className="text-center py-10">
                         <Search className="w-8 h-8 text-platinum-tint mx-auto mb-2" />
                         <p className="text-xs text-slate-blue italic">Không tìm thấy nội dung phù hợp.</p>

@@ -69,6 +69,26 @@ const SEVERITY_LABEL  = { critical: 'Nguy cấp', high: 'Cao', medium: 'Trung b�
 const ALERT_TYPE_KEYS   = ['intrusion', 'stranger', 'crowd', 'vehicle_control_match'];
 const ALERT_TYPE_LABELS = ['Xâm nhập', 'Khuôn mặt lạ', 'Tụ tập', 'Xe kiểm soát'];
 const ALERT_TYPE_COLORS = ['#ef4444', '#f97316', '#ffa600', '#006BFF'];
+
+const formatTrafficBucket = (bucket) => {
+    if (!bucket) return '—';
+    const text = String(bucket);
+    const hourMatch = text.match(/(\d{2}):00$/);
+    if (hourMatch) return `${hourMatch[1]}:00`;
+    return text.length >= 10 ? text.slice(5).replace('-', '/') : text;
+};
+
+const mapVehicleTrafficSeries = (payload) => {
+    const data = payload?.data?.data || payload?.data || {};
+    const rows = data.series || data.buckets || [];
+    return rows
+        .map((b) => ({
+            hour: formatTrafficBucket(b.bucket || b.period),
+            'Vào': b.enter ?? b.total_enter ?? 0,
+            'Ra': b.leave ?? b.total_leave ?? 0,
+        }))
+        .filter((b) => b['Vào'] > 0 || b['Ra'] > 0);
+};
 const STATUS_COLORS = ['#006BFF', '#7F3DFF', '#FFAE00', '#FF3B30'];
 
 // BE tra ve status dang enum tieng Anh -> hien thi nhan tieng Viet cho nguoi dung.
@@ -414,8 +434,9 @@ const DashBoard = () => {
 
         // Traffic
         if (trafficRes.status === 'fulfilled' && trafficRes.value?.success) {
-            const buckets = trafficRes.value.data?.buckets || trafficRes.value.data?.data?.buckets || [];
-            setTrafficData(buckets.map(b => ({ hour: b.period, 'Vào': b.total_enter || 0, 'Ra': b.total_leave || 0 })));
+            setTrafficData(mapVehicleTrafficSeries(trafficRes.value));
+        } else {
+            setTrafficData([]);
         }
 
         // Blocklist

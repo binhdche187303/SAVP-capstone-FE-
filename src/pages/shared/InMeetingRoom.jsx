@@ -2,11 +2,11 @@ import {
     AlertTriangle, Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
     ClipboardList, Clock, Cpu, Download, ExternalLink, Eye, FileText, Film, Loader, Mail, Mic, MicOff,
     MonitorUp, Play, Plus, RefreshCw, Shield, Smile,
-    StickyNote, Timer, UserCheck, UserX, Users, Video as VideoIcon,
+    StickyNote, Timer, UserCheck, UserX, Users, Video as VideoIcon, VideoOff,
     VolumeX, X, Edit2
 } from 'lucide-react';
 import { IoMic, IoMicOff, IoHandLeft, IoVolumeHigh, IoHappy, IoTime, IoCall, IoArrowBack } from 'react-icons/io5';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { renderAsync as renderDocxAsync } from 'docx-preview';
 import { PPTXViewer } from 'pptxviewjs';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -26,6 +26,7 @@ import {
     pauseVideoRecording as pauseEmployeeVideoRecording,
     resumeVideoRecording as resumeEmployeeVideoRecording,
     stopVideoRecording as stopEmployeeVideoRecording,
+    createMockCamera as createEmployeeMockCamera,
     getRecordingStatus as getEmployeeRecordingStatus,
     getMeetingMediaFiles as getEmployeeMediaFiles,
     getRecordingSessions as getEmployeeRecordingSessions,
@@ -45,6 +46,7 @@ import {
     pauseVideoRecording as pauseManagerVideoRecording,
     resumeVideoRecording as resumeManagerVideoRecording,
     stopVideoRecording as stopManagerVideoRecording,
+    createMockCamera as createManagerMockCamera,
     getRecordingStatus as getManagerRecordingStatus,
     getMeetingMediaFiles as getManagerMediaFiles,
     manualAttendanceCheckIn,
@@ -63,6 +65,7 @@ import GuestPanel from '../../components/meeting/GuestPanel';
 import RecordingsTab from '../../components/meeting/RecordingsTab';
 import { startRecordingMarker, createLiveSpeakerTag } from '../../service/transcriptionServices';
 import { LIVE_SPEAKER_TAGGING_ENABLED } from '../../config/featureFlags';
+import useFaceGuidance from '../../hooks/useFaceGuidance';
 
 const customStyles = `
 @keyframes floatUp {
@@ -240,6 +243,13 @@ const InMeetingRoom = ({ isPublic = false }) => {
 
     // Local settings
     const [isMicOn, setIsMicOn] = useState(true);
+    const [isCamOn, setIsCamOn] = useState(false);
+    const [localVideoStream, setLocalVideoStream] = useState(null);
+    const [autoFaceCameraStream, setAutoFaceCameraStream] = useState(null);
+    const [autoFaceCameraError, setAutoFaceCameraError] = useState('');
+    const [autoFaceScanLoading, setAutoFaceScanLoading] = useState(false);
+    const [lastAutoFaceScan, setLastAutoFaceScan] = useState(null);
+    const [autoFaceScanDirection, setAutoFaceScanDirection] = useState('in');
     const [localName, setLocalName] = useState('');
     const [isLobbyReady, setIsLobbyReady] = useState(false);
     const [activeChatTab, setActiveChatTab] = useState('');
@@ -263,6 +273,77 @@ const InMeetingRoom = ({ isPublic = false }) => {
     const [isResizingSidebar, setIsResizingSidebar] = useState(false);
     const meetingLayoutRef = useRef(null);
     const isResizingSidebarRef = useRef(false);
+    const localVideoStreamRef = useRef(null);
+    const autoFaceCameraStreamRef = useRef(null);
+    const autoFaceVideoRef = useRef(null);
+    const autoFaceScanLockRef = useRef(false);
+    const autoEndMeetingTriggeredRef = useRef(false);
+
+    const stopLocalCamera = () => {
+        if (localVideoStreamRef.current) {
+            localVideoStreamRef.current.getTracks().forEach(track => track.stop());
+            localVideoStreamRef.current = null;
+        }
+        setLocalVideoStream(null);
+        setIsCamOn(false);
+    };
+
+    const startLocalCamera = async () => {
+        if (!navigator?.mediaDevices?.getUserMedia) {
+            showToast('Trình duyệt không hỗ trợ camera.', 'error');
+            return false;
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user',
+                },
+                audio: false,
+            });
+            if (localVideoStreamRef.current) {
+                localVideoStreamRef.current.getTracks().forEach(track => track.stop());
+            }
+            localVideoStreamRef.current = stream;
+            setLocalVideoStream(stream);
+            setIsCamOn(true);
+            showToast('Đã bật camera', 'success');
+            return true;
+        } catch (err) {
+            const denied = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
+            showToast(denied ? 'Bạn cần cấp quyền camera cho trình duyệt.' : 'Không thể mở camera trên thiết bị này.', 'error');
+            setIsCamOn(false);
+            setLocalVideoStream(null);
+            return false;
+        }
+    };
+
+    const handleCamToggle = async () => {
+        if (localVideoStreamRef.current) {
+            stopLocalCamera();
+            showToast('Đã tắt camera', 'info');
+            return;
+        }
+        await startLocalCamera();
+    };
+
+    useEffect(() => {
+        return () => {
+            if (localVideoStreamRef.current) {
+                localVideoStreamRef.current.getTracks().forEach(track => track.stop());
+            }
+            if (autoFaceCameraStreamRef.current) {
+                autoFaceCameraStreamRef.current.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (autoFaceVideoRef.current) {
+            autoFaceVideoRef.current.srcObject = autoFaceCameraStream || null;
+        }
+    }, [autoFaceCameraStream]);
 
     useEffect(() => {
         const handlePointerMove = (e) => {
@@ -461,6 +542,49 @@ const InMeetingRoom = ({ isPublic = false }) => {
     const removeToast = (id) => {
         setToasts(prev => prev.filter(t => t.id !== id));
     };
+
+    const stopAutoFaceCamera = useCallback(() => {
+        if (autoFaceCameraStreamRef.current) {
+            autoFaceCameraStreamRef.current.getTracks().forEach(track => track.stop());
+            autoFaceCameraStreamRef.current = null;
+        }
+        setAutoFaceCameraStream(null);
+        setAutoFaceCameraError('');
+    }, []);
+
+    const startAutoFaceCamera = useCallback(async () => {
+        if (!navigator?.mediaDevices?.getUserMedia) {
+            setAutoFaceCameraError('Trình duyệt không hỗ trợ camera.');
+            return false;
+        }
+        setAutoFaceCameraError('');
+        setLastAutoFaceScan(null);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                },
+                audio: false,
+            });
+            if (autoFaceCameraStreamRef.current) {
+                autoFaceCameraStreamRef.current.getTracks().forEach(track => track.stop());
+            }
+            autoFaceCameraStreamRef.current = stream;
+            setAutoFaceCameraStream(stream);
+            showToast('Đã bật camera tự quét FaceID.', 'success');
+            return true;
+        } catch (err) {
+            const denied = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
+            const message = denied
+                ? 'Bạn cần cấp quyền camera để test điểm danh FaceID.'
+                : 'Không mở được camera trên thiết bị này.';
+            setAutoFaceCameraError(message);
+            showToast(message, 'error');
+            return false;
+        }
+    }, []);
 
     // ─── Data Loading ──────────────────────────────────────────────────
     const initMeetingState = async () => {
@@ -668,7 +792,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
         } catch (err) { }
     };
 
-    const loadAttendance = async () => {
+    const loadAttendance = useCallback(async () => {
         if (attendanceErrorRef.current) return;
         try {
             const res = await callWithFallback(getEmployeeAttendance, getManagerAttendance, id);
@@ -681,20 +805,24 @@ const InMeetingRoom = ({ isPublic = false }) => {
                 attendanceErrorRef.current = true;
             }
         }
-    };
+    }, [id]);
 
-    const loadRoomDevices = async (roomId) => {
-        if (!roomId || devicesErrorRef.current) return;
+    const loadRoomDevices = async (roomId, options = {}) => {
+        if (!roomId || (devicesErrorRef.current && !options.force)) return [];
         try {
             const res = await callWithFallback(getEmployeeRoomDevices, getManagerRoomDevices, roomId);
             if (res?.success) {
-                setRoomDevices(Array.isArray(res.data) ? res.data : (res.data?.items || []));
+                const items = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+                setRoomDevices(items);
+                devicesErrorRef.current = false;
+                return items;
             }
         } catch (err) {
             if (err?.status === 403 || err?.status === 409 || err?.status === 404) {
                 devicesErrorRef.current = true;
             }
         }
+        return [];
     };
 
     const fetchMediaFiles = async () => {
@@ -702,6 +830,26 @@ const InMeetingRoom = ({ isPublic = false }) => {
             const res = await callWithFallback(getEmployeeMediaFiles, getManagerMediaFiles, id);
             if (res?.success) setMediaFiles(res.data || []);
         } catch (e) { }
+    };
+
+    const fetchRecordingSessions = async () => {
+        try {
+            const res = await callWithFallback(getEmployeeRecordingSessions, getManagerRecordingSessions, id);
+            if (res?.success) setRecordingSessions(res.data || []);
+        } catch (e) { }
+    };
+
+    const isRecordingNotActiveError = (err) => {
+        const code = err?.error?.code || err?.code;
+        const message = String(err?.error?.message || err?.message || '').toLowerCase();
+        return code === 'RECORDING_NOT_ACTIVE' || message.includes('recording session is not active');
+    };
+
+    const markRecordingInactive = async () => {
+        setRecordingStatus('inactive');
+        setRecordingSessionId(null);
+        setRecordingStartedAt(null);
+        await Promise.all([fetchMediaFiles(), fetchRecordingSessions()]);
     };
 
     const handleRenameMedia = async (fileId) => {
@@ -743,11 +891,13 @@ const InMeetingRoom = ({ isPublic = false }) => {
                     if (res?.success) {
                         const newStatus = res.data?.status?.toLowerCase() || 'inactive';
                         if (newStatus !== recordingStatus) {
-                            setRecordingStatus(newStatus);
                             if (newStatus === 'stopped') {
-                                showToast('Ghi hình đã hoàn tất, đang xử lý video.', 'success');
-                                fetchMediaFiles();
-                            } else if (newStatus === 'failed') {
+                                await markRecordingInactive();
+                                showToast('Ghi hình đã hoàn tất.', 'success');
+                                return;
+                            }
+                            setRecordingStatus(newStatus);
+                            if (newStatus === 'failed') {
                                 showToast('Ghi hình đã dừng do lỗi — vui lòng kiểm tra camera.', 'error');
                             }
                         }
@@ -906,8 +1056,9 @@ const InMeetingRoom = ({ isPublic = false }) => {
             loadNotes();
             loadAttendance();
             fetchMediaFiles();
+            fetchRecordingSessions();
             const roomId = meetingState?.room?.id || meetingState?.room?.room_id;
-            if (roomId && meetingState?.hostId === myParticipantId) loadRoomDevices(roomId);
+            if (roomId) loadRoomDevices(roomId);
             attendanceInterval = setInterval(loadAttendance, 15000);
         }
         return () => { if (attendanceInterval) clearInterval(attendanceInterval); };
@@ -1045,12 +1196,148 @@ const InMeetingRoom = ({ isPublic = false }) => {
         return ['present', 'late', 'checked_in', 'maybe_present'].includes(status);
     };
 
+    const isCheckedOut = (p) => {
+        const record = getAttendanceRecord(p);
+        return !!(record?.checkOutTime || record?.check_out_time);
+    };
+
     const getPresenceStatus = (p) => {
         const record = getAttendanceRecord(p);
         return record ? (record.presenceStatus || record.attendanceStatus || 'unknown') : 'unknown';
     };
 
+    const getDeviceType = (device) => device?.device_type || device?.deviceType || device?.type;
+    const isRecordingCamera = (device) => ['room_camera', 'ip_camera'].includes(getDeviceType(device));
+    const pickRecordingCamera = () =>
+        roomDevices.find(d => isRecordingCamera(d) && getDeviceType(d) === 'room_camera')
+        || roomDevices.find(d => isRecordingCamera(d) && getDeviceType(d) === 'ip_camera');
+
     const checkedInCount = meetingState?.participants?.filter(p => isCheckedIn(p)).length || 0;
+    const uncheckedAttendanceParticipants = (meetingState?.participants || []).filter(p => !isCheckedIn(p));
+    const hasUncheckedAttendanceParticipants = uncheckedAttendanceParticipants.length > 0;
+    const pendingExitParticipants = (meetingState?.participants || []).filter(p => isCheckedIn(p) && !isCheckedOut(p));
+    const hasAutoFaceScanTargets = autoFaceScanDirection === 'out'
+        ? pendingExitParticipants.length > 0
+        : hasUncheckedAttendanceParticipants;
+
+    const captureAutoFaceSnapshot = useCallback(() => {
+        const video = autoFaceVideoRef.current;
+        if (!video || !video.videoWidth || !video.videoHeight) return null;
+        try {
+            const canvas = document.createElement('canvas');
+            const width = Math.min(video.videoWidth, 640);
+            const height = Math.round((video.videoHeight / video.videoWidth) * width);
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return null;
+            ctx.drawImage(video, 0, 0, width, height);
+            return canvas.toDataURL('image/jpeg', 0.82);
+        } catch (_) {
+            return null;
+        }
+    }, []);
+
+    const handleAutoFaceScan = useCallback(async () => {
+        if (!id || !hasAutoFaceScanTargets || autoFaceScanLoading || autoFaceScanLockRef.current) return;
+        autoFaceScanLockRef.current = true;
+        setAutoFaceScanLoading(true);
+        setAutoFaceCameraError('');
+        try {
+            const snapshotImageBase64 = captureAutoFaceSnapshot();
+            const res = await request('/dev/mock-camera-face-scan', {
+                method: 'POST',
+                body: { meetingId: id, direction: autoFaceScanDirection, snapshotImageBase64 }
+            });
+            if (!res?.success) {
+                throw new Error(res?.error?.message || res?.message || 'Camera API không xử lý được lượt quét.');
+            }
+
+            const data = res.data || {};
+            setLastAutoFaceScan({
+                at: new Date().toISOString(),
+                matched: data.matched === true,
+                skipped: data.skipped === true,
+                userName: data.fullName || data.userName || '',
+                note: data.note || '',
+                hasSnapshot: !!snapshotImageBase64,
+                direction: data.direction || autoFaceScanDirection
+            });
+
+            await loadAttendance();
+            if (data.skipped) {
+                showToast(autoFaceScanDirection === 'out'
+                    ? 'Người này đã có lượt ra, hệ thống bỏ qua lượt quét lặp.'
+                    : 'Người này đã được điểm danh, hệ thống bỏ qua lượt quét lặp.', 'info');
+            } else if (data.matched) {
+                showToast(`${autoFaceScanDirection === 'out' ? 'Đã ghi nhận ra khỏi phòng' : 'Đã tự động điểm danh vào phòng'}${data.fullName ? `: ${data.fullName}` : ''}.`, 'success');
+            } else {
+                showToast('Không khớp FaceID đã đăng ký, đã ghi nhận cảnh báo.', 'warning');
+            }
+        } catch (err) {
+            const message = err?.error?.message || err?.message || 'Không xử lý được lượt quét từ camera.';
+            setAutoFaceCameraError(message);
+            showToast(message, 'error');
+        } finally {
+            setAutoFaceScanLoading(false);
+            setTimeout(() => { autoFaceScanLockRef.current = false; }, 4500);
+        }
+    }, [autoFaceScanDirection, autoFaceScanLoading, captureAutoFaceSnapshot, hasAutoFaceScanTargets, id, loadAttendance]);
+
+    const { guidance: autoFaceGuidance, modelError: autoFaceModelError } = useFaceGuidance({
+        videoRef: autoFaceVideoRef,
+        active: !!autoFaceCameraStream && hasAutoFaceScanTargets && !autoFaceScanLoading,
+        onStable: handleAutoFaceScan,
+        stableFramesRequired: 8,
+        intervalMs: 180
+    });
+
+    useEffect(() => {
+        if (!autoFaceCameraStream || hasAutoFaceScanTargets) return;
+        setLastAutoFaceScan(prev => prev || {
+            at: new Date().toISOString(),
+            matched: true,
+            skipped: true,
+            userName: '',
+            note: autoFaceScanDirection === 'out'
+                ? 'Tất cả người đã vào phòng đều đã có lượt ra.'
+                : 'Tất cả người tham gia đã được điểm danh.'
+        });
+    }, [autoFaceCameraStream, autoFaceScanDirection, hasAutoFaceScanTargets]);
+
+    const handleEndMeeting = useCallback(async (options = {}) => {
+        if (!isHost) return;
+        const isAuto = options?.auto === true;
+        setActionLoading(true);
+        try {
+            const res = await callWithFallback(endEmployee, endManager, id);
+            if (res?.success) {
+                setMeetingState(prev => {
+                    const next = { ...prev, status: 'completed' };
+                    localStorage.setItem(`meeting_state_${id}`, JSON.stringify(next));
+                    return next;
+                });
+                showToast(isAuto ? 'Cuộc họp đã hết giờ và được tự động kết thúc.' : 'Cuộc họp đã kết thúc', 'info');
+                setTimeout(() => navigate(isPublic ? '/' : '/employee'), 1200);
+            } else {
+                autoEndMeetingTriggeredRef.current = false;
+                showToast(res?.message || res?.error?.message || 'Lỗi khi kết thúc', 'error');
+            }
+        } catch (err) {
+            autoEndMeetingTriggeredRef.current = false;
+            showToast(err?.error?.message || err?.message || 'Lỗi kết nối', 'error');
+        } finally {
+            setActionLoading(false);
+            setConfirmLeaveModal(false);
+        }
+    }, [id, isHost, isPublic, navigate]);
+
+    useEffect(() => {
+        if (!isHost || !meetingOverdue || meetingState?.status !== 'in_progress') return;
+        if (actionLoading || autoEndMeetingTriggeredRef.current) return;
+        autoEndMeetingTriggeredRef.current = true;
+        handleEndMeeting({ auto: true });
+    }, [actionLoading, handleEndMeeting, isHost, meetingOverdue, meetingState?.status]);
 
     if (loadError) {
         return (
@@ -1129,37 +1416,40 @@ const InMeetingRoom = ({ isPublic = false }) => {
         }
     };
 
-    const handleEndMeeting = async () => {
-        if (!isHost) return;
-        setActionLoading(true);
-        try {
-            const res = await callWithFallback(endEmployee, endManager, id);
-            if (res?.success) {
-                setMeetingState(prev => {
-                    const next = { ...prev, status: 'completed' };
-                    localStorage.setItem(`meeting_state_${id}`, JSON.stringify(next));
-                    return next;
-                });
-                showToast('Cuộc họp đã kết thúc', 'info');
-                setTimeout(() => navigate(isPublic ? '/' : '/employee'), 1200);
-            } else {
-                showToast(res?.message || res?.error?.message || 'Lỗi khi kết thúc', 'error');
-            }
-        } catch (err) {
-            showToast('Lỗi kết nối', 'error');
-        } finally {
-            setActionLoading(false);
-            setConfirmLeaveModal(false);
-        }
-    };
-
     const handleStartRecording = async () => {
         if (!isHost) return;
 
-        const camera = roomDevices.find(d => d.device_type === 'ip_camera');
+        let camera = pickRecordingCamera();
+        const roomId = meetingState?.room?.id || meetingState?.room?.room_id;
         if (!camera) {
-            showToast('Phòng chưa có camera ghi hình được cấu hình', 'error');
-            return;
+            const latestDevices = await loadRoomDevices(roomId, { force: true });
+            camera = latestDevices.find(d => isRecordingCamera(d) && getDeviceType(d) === 'room_camera')
+                || latestDevices.find(d => isRecordingCamera(d) && getDeviceType(d) === 'ip_camera');
+        }
+
+        if (!camera) {
+            if (!roomId) {
+                showToast('Cuộc họp chưa có phòng để tạo camera ảo.', 'error');
+                return;
+            }
+            setActionLoading(true);
+            try {
+                const res = await callWithFallback(createEmployeeMockCamera, createManagerMockCamera, {
+                    roomId,
+                    deviceName: `Camera ảo - ${meetingState?.roomName || meetingState?.room?.name || 'Phòng họp'}`,
+                });
+                if (!res?.success || !res.data?.id) {
+                    showToast(res?.message || 'Không thể tạo camera ảo cho phòng.', 'error');
+                    return;
+                }
+                camera = res.data;
+                setRoomDevices(prev => [camera, ...prev.filter(d => d.id !== camera.id)]);
+                showToast('Đã tạo camera phòng ảo. Đang khởi động ghi hình...', 'info');
+            } catch (err) {
+                showToast(err?.error?.message || err?.message || 'Không thể tạo camera ảo cho phòng.', 'error');
+                setActionLoading(false);
+                return;
+            }
         }
 
         setActionLoading(true);
@@ -1183,7 +1473,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                 showToast('Lỗi khi bắt đầu ghi hình', 'error');
             }
         } catch (err) {
-            showToast('Lỗi kết nối server camera', 'error');
+            showToast(err?.error?.message || err?.message || 'Lỗi kết nối server camera', 'error');
         } finally {
             setActionLoading(false);
         }
@@ -1234,11 +1524,22 @@ const InMeetingRoom = ({ isPublic = false }) => {
 
     const handleStopRecording = async () => {
         if (!isHost || !recordingSessionId) return;
+        if (!['recording', 'paused', 'starting'].includes(recordingStatus)) return;
         setActionLoading(true);
         try {
             const res = await callWithFallback(stopEmployeeVideoRecording, stopManagerVideoRecording, id, recordingSessionId);
-            if (res?.success) { setRecordingStatus('stopping'); showToast('Đang dừng và lưu video...', 'info'); }
-        } catch (err) { showToast('Lỗi kết nối', 'error'); } finally { setActionLoading(false); }
+            if (res?.success) {
+                await markRecordingInactive();
+                showToast('Ghi hình đã hoàn tất.', 'success');
+            }
+        } catch (err) {
+            if (isRecordingNotActiveError(err)) {
+                await markRecordingInactive();
+                showToast('Phiên ghi hình đã được dừng trước đó.', 'info');
+                return;
+            }
+            showToast(err?.error?.message || err?.message || 'Lỗi kết nối', 'error');
+        } finally { setActionLoading(false); }
     };
 
     const handleAddNote = async (e) => {
@@ -1999,7 +2300,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                         participants={activeGridParticipants}
                                         myParticipantId={myParticipantId}
                                         isHost={isHost}
-                                        isVideoOn={false}
+                                        localVideoStream={localVideoStream}
                                         onHostMuteToggle={handleHostMuteToggle}
                                         onRename={(pId, currentName, isSelf) => {
                                             if (isSelf) handleRenameSelf();
@@ -2026,6 +2327,16 @@ const InMeetingRoom = ({ isPublic = false }) => {
                             >
                                 {isMicOn ? <IoMic className="w-5 h-5" /> : <IoMicOff className="w-5 h-5" />}
                                 <span className="text-[9px] font-extrabold uppercase tracking-widest">{isMicOn ? 'Mic bật' : 'Mic tắt'}</span>
+                            </button>
+
+                            {/* Webcam */}
+                            <button
+                                onClick={handleCamToggle}
+                                className={`flex flex-col items-center gap-1 px-4 py-2.5 rounded-2xl transition-all text-white shadow-sm ${isCamOn ? 'bg-white/10 hover:bg-white/20' : 'bg-red-600/90 hover:bg-red-600 shadow-red-900/20'}`}
+                                title={isCamOn ? 'Tắt webcam' : 'Bật webcam'}
+                            >
+                                {isCamOn ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                                <span className="text-[9px] font-extrabold uppercase tracking-widest">{isCamOn ? 'Cam bật' : 'Cam tắt'}</span>
                             </button>
 
                             <div className="w-px h-10 bg-white/10 mx-1" />
@@ -2184,6 +2495,93 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     </div>
                                 )}
 
+                                {/* Điểm danh camera AI */}
+	                                <div className="bg-white border border-platinum-tint rounded-xl overflow-hidden">
+	                                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-platinum-tint bg-cloud-mist">
+	                                        <h4 className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
+	                                            <VideoIcon className="w-3.5 h-3.5 text-action-blue" /> Camera AI ra/vào
+	                                        </h4>
+	                                        <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${hasAutoFaceScanTargets ? 'bg-blue-50 text-action-blue' : 'bg-emerald-50 text-emerald-700'}`}>
+	                                            Vào {checkedInCount}/{meetingState.participants?.length || 0} · Ra {pendingExitParticipants.length}
+	                                        </span>
+	                                    </div>
+	                                    <div className="p-3 space-y-3">
+                                            <div className="grid grid-cols-2 gap-1 rounded-lg border border-platinum-tint bg-cloud-mist p-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setAutoFaceScanDirection('in'); setLastAutoFaceScan(null); }}
+                                                    className={`py-1.5 rounded-md text-[10px] font-extrabold transition-colors ${autoFaceScanDirection === 'in' ? 'bg-white text-action-blue shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
+                                                >
+                                                    Quét vào phòng
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setAutoFaceScanDirection('out'); setLastAutoFaceScan(null); }}
+                                                    className={`py-1.5 rounded-md text-[10px] font-extrabold transition-colors ${autoFaceScanDirection === 'out' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
+                                                >
+                                                    Quét ra khỏi phòng
+                                                </button>
+                                            </div>
+
+	                                        {autoFaceCameraStream && (
+	                                            <div className="relative aspect-video overflow-hidden rounded-lg border border-platinum-tint bg-slate-950">
+	                                                <video
+                                                    ref={autoFaceVideoRef}
+                                                    autoPlay
+                                                    muted
+                                                    playsInline
+                                                    className="w-full h-full object-cover scale-x-[-1]"
+                                                />
+	                                                <span className={`absolute left-2 top-2 px-2 py-0.5 rounded-full text-[9px] font-extrabold ${autoFaceGuidance.state === 'perfect' ? 'bg-emerald-500 text-white' : 'bg-black/60 text-white'}`}>
+	                                                    {autoFaceScanLoading ? 'Đang xử lý' : autoFaceGuidance.state === 'perfect' ? 'Đã thấy mặt' : autoFaceScanDirection === 'out' ? 'Đang quét ra' : 'Đang quét vào'}
+	                                                </span>
+	                                            </div>
+	                                        )}
+
+                                        <div className="flex gap-2">
+                                            {autoFaceCameraStream ? (
+                                                <button
+                                                    onClick={stopAutoFaceCamera}
+                                                    className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all"
+                                                >
+                                                    <VideoOff className="w-3.5 h-3.5" /> Tắt camera
+                                                </button>
+                                            ) : (
+	                                                <button
+	                                                    onClick={startAutoFaceCamera}
+	                                                    disabled={!hasAutoFaceScanTargets}
+	                                                    className="flex-1 py-2 bg-blue-50 hover:bg-blue-100 text-action-blue border border-blue-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+	                                                >
+	                                                    <VideoIcon className="w-3.5 h-3.5" /> Bật tự quét
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={loadAttendance}
+                                                className="px-3 py-2 bg-white hover:bg-cloud-mist text-slate-blue border border-platinum-tint rounded-lg text-[10px] font-bold flex items-center justify-center transition-all"
+                                                title="Làm mới điểm danh"
+                                            >
+                                                <RefreshCw className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+
+                                        <p className={`text-[10px] font-semibold leading-relaxed ${autoFaceCameraError || autoFaceModelError ? 'text-red-600' : hasUncheckedAttendanceParticipants ? 'text-slate-blue' : 'text-emerald-700'}`}>
+	                                            {autoFaceCameraError
+	                                                || autoFaceModelError
+	                                                || (lastAutoFaceScan?.skipped
+	                                                    ? (autoFaceScanDirection === 'out' ? 'Đã ghi nhận lượt ra rồi, hệ thống bỏ qua lượt quét lặp.' : 'Đã điểm danh rồi, hệ thống bỏ qua lượt quét lặp.')
+	                                                    : lastAutoFaceScan?.matched
+	                                                        ? `${lastAutoFaceScan.direction === 'out' ? 'Đã ghi nhận ra khỏi phòng' : 'Đã tự động điểm danh vào phòng'}${lastAutoFaceScan.userName ? ` ${lastAutoFaceScan.userName}` : ''}${lastAutoFaceScan.hasSnapshot ? ', đã lưu ảnh bằng chứng' : ''}.`
+	                                                        : autoFaceCameraStream
+	                                                            ? `Camera đang tự quét ${autoFaceScanDirection === 'out' ? 'lượt ra khỏi phòng' : 'lượt vào phòng'}. Khi khuôn mặt ổn định, hệ thống sẽ tự kiểm tra FaceID.`
+	                                                            : hasAutoFaceScanTargets
+	                                                                ? `Bật camera để test luồng API camera nhận diện FaceID tự động cho lượt ${autoFaceScanDirection === 'out' ? 'ra khỏi phòng' : 'vào phòng'}.`
+	                                                                : autoFaceScanDirection === 'out'
+	                                                                    ? 'Chưa có ai đang ở trong phòng cần ghi nhận ra.'
+	                                                                    : 'Tất cả người tham gia đã được điểm danh vào phòng.')}
+	                                        </p>
+                                    </div>
+                                </div>
+
                                 {/* Điểm danh thủ công */}
                                 <div className="bg-white border border-platinum-tint rounded-xl overflow-hidden">
                                     <div className="flex items-center justify-between px-3 py-2.5 border-b border-platinum-tint bg-cloud-mist">
@@ -2294,13 +2692,15 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     </div>
                                     <div className="p-3 space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <span className={`text-xs font-semibold ${recordingStatus === 'failed' ? 'text-red-600' : 'text-midnight-indigo'}`}>
-                                                {recordingStatus === 'inactive' ? 'Chưa ghi hình' :
-                                                    recordingStatus === 'recording' ? 'Đang ghi hình' :
-                                                        recordingStatus === 'paused' ? 'Đã tạm dừng' :
-                                                            recordingStatus === 'failed' ? 'Đã dừng do lỗi' :
-                                                                'Đang xử lý...'}
-                                            </span>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className={`text-xs font-semibold ${recordingStatus === 'failed' ? 'text-red-600' : 'text-midnight-indigo'}`}>
+                                                    {recordingStatus === 'inactive' ? 'Chưa ghi hình' :
+                                                        recordingStatus === 'recording' ? 'Đang ghi hình' :
+                                                            recordingStatus === 'paused' ? 'Đã tạm dừng' :
+                                                                recordingStatus === 'failed' ? 'Đã dừng do lỗi' :
+                                                                    'Đang xử lý...'}
+                                                </span>
+                                            </div>
                                             <button
                                                 type="button"
                                                 disabled={actionLoading || recordingStatus === 'starting' || recordingStatus === 'stopping'}
@@ -2381,7 +2781,10 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                             <div className="divide-y divide-platinum-tint max-h-[200px] overflow-y-auto">
                                                 {roomDevices.map((device, idx) => (
                                                     <div key={device.id || idx} className="flex items-center justify-between px-3 py-2 hover:bg-cloud-mist/30 transition-colors">
-                                                        <span className="text-xs text-midnight-indigo font-semibold truncate pr-2">{device.device_name || device.name || device.deviceName || `Thiết bị ${idx + 1}`}</span>
+                                                        <span className="text-xs text-midnight-indigo font-semibold truncate pr-2">
+                                                            {device.device_name || device.name || device.deviceName || `Thiết bị ${idx + 1}`}
+                                                            {isRecordingCamera(device) && <span className="ml-1 text-[9px] text-action-blue">(camera)</span>}
+                                                        </span>
                                                         <span className={`text-[9px] px-2 py-0.5 rounded font-bold border shrink-0 ${device.status === 'online' || device.isOnline
                                                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                             : 'bg-red-50 text-red-600 border-red-200'

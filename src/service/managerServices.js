@@ -392,6 +392,16 @@ export const stopVideoRecording = async (meetingId, sessionId) => {
     return await post(`/live-meetings/${meetingId}/recording/${sessionId}/stop-video`);
 };
 
+export const uploadVideoRecording = async (meetingId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return await post(`/meetings/${meetingId}/recording-sessions/video-upload`, formData);
+};
+
+export const createMockCamera = async (data) => {
+    return await post('/dev/mock-camera', data);
+};
+
 export const getRoomDevices = async (roomId) => {
     return await get(`/iot-devices?room_id=${roomId}`);
 };

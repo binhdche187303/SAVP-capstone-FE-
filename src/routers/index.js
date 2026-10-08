@@ -12,6 +12,16 @@ import ZoneTrafficAnalytics from '../pages/shared/ZoneTrafficAnalytics';
 import CampusMap from '../pages/shared/CampusMap';
 import EmployeeOnTimeAnalytics from '../pages/shared/EmployeeOnTimeAnalytics';
 import MeetingAttendanceAdmin from '../pages/shared/MeetingAttendanceAdmin';
+import LearningLayout from '../pages/classroom/LearningLayout';
+import ClassAttendanceDashboard from '../pages/classroom/ClassAttendanceDashboard';
+import TeacherHome from '../pages/classroom/TeacherHome';
+import TeacherSchedule from '../pages/classroom/TeacherSchedule';
+import StudentClassDashboard from '../pages/classroom/StudentClassDashboard';
+import StudentHome from '../pages/classroom/StudentHome';
+import StudentSchedule from '../pages/classroom/StudentSchedule';
+import ClassAttendanceAnalytics from '../pages/classroom/ClassAttendanceAnalytics';
+import GuardLayout from '../pages/guard/GuardLayout';
+import GuardDashboard from '../pages/guard/GuardDashboard';
 
 // SystemAdmin Layout + Pages
 import SystemAdminLayout from '../pages/systemAdmin/layout/SystemAdminLayout';
@@ -34,6 +44,7 @@ import PersonControlList from '../pages/systemAdmin/PersonControlList';
 import Strangers from '../pages/systemAdmin/Strangers';
 import VehicleRegistrations from '../pages/systemAdmin/VehicleRegistrations';
 import RoomAccessLogs from '../pages/systemAdmin/RoomAccessLogs';
+import GatePresenceManagement from '../pages/systemAdmin/GatePresenceManagement';
 import UserJourney from '../pages/shared/UserJourney';
 import AuditLogs from '../pages/systemAdmin/AuditLogs';
 // BusinessAdmin Layout + Pages
@@ -192,6 +203,10 @@ export const router = [
                 element: <ANPRManagement />
             },
             {
+                path: 'gate-presence',
+                element: <GatePresenceManagement />
+            },
+            {
                 path: 'vehicle-control-list',
                 element: <VehicleControlList />
             },
@@ -326,6 +341,10 @@ export const router = [
             {
                 path: 'meeting-attendance',
                 element: <MeetingAttendanceAdmin />
+            },
+            {
+                path: 'class-attendance',
+                element: <ClassAttendanceAnalytics />
             },
             {
                 path: 'reports/:type',
@@ -466,6 +485,98 @@ export const router = [
             {
                 path: 'legal',
                 element: <LegalAndSupport />
+            }
+        ]
+    },
+
+    // ========== Guard Routes (protected) ==========
+    {
+        path: '/guard',
+        element: (
+            <ProtectedRoute allowedRoles={['GUARD']}>
+                <GuardLayout />
+            </ProtectedRoute>
+        ),
+        children: [
+            {
+                index: true,
+                element: <GuardDashboard />
+            },
+            {
+                path: 'profile',
+                element: <Profile />
+            },
+            {
+                path: 'notifications',
+                element: <Notifications />
+            }
+        ]
+    },
+
+    // ========== Teacher Routes (protected) ==========
+    {
+        path: '/teacher',
+        element: (
+            <ProtectedRoute allowedRoles={['TEACHER']}>
+                <LearningLayout role="teacher" />
+            </ProtectedRoute>
+        ),
+        children: [
+            {
+                index: true,
+                element: <TeacherHome />
+            },
+            {
+                path: 'attendance',
+                element: <ClassAttendanceDashboard mode="teacher" />
+            },
+            {
+                path: 'attendance-report',
+                element: <ClassAttendanceAnalytics mode="teacher" />
+            },
+            {
+                path: 'schedule',
+                element: <TeacherSchedule />
+            },
+            {
+                path: 'profile',
+                element: <Profile />
+            },
+            {
+                path: 'notifications',
+                element: <Notifications />
+            }
+        ]
+    },
+
+    // ========== Student Routes (protected) ==========
+    {
+        path: '/student',
+        element: (
+            <ProtectedRoute allowedRoles={['STUDENT']}>
+                <LearningLayout role="student" />
+            </ProtectedRoute>
+        ),
+        children: [
+            {
+                index: true,
+                element: <StudentHome />
+            },
+            {
+                path: 'attendance',
+                element: <StudentClassDashboard />
+            },
+            {
+                path: 'schedule',
+                element: <StudentSchedule />
+            },
+            {
+                path: 'profile',
+                element: <Profile />
+            },
+            {
+                path: 'notifications',
+                element: <Notifications />
             }
         ]
     },

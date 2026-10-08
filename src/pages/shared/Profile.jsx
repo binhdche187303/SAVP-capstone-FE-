@@ -47,6 +47,24 @@ const Profile = () => {
         defaultMockCode = "NV002";
         defaultMockEmail = "manager@smartracking.com";
         defaultMockTitle = "Trưởng phòng Phát triển";
+    } else if (path.startsWith("/guard")) {
+        rolePath = "/guard";
+        roleLabel = "Bảo vệ";
+        defaultMockCode = "BV001";
+        defaultMockEmail = "guard@smartracking.com";
+        defaultMockTitle = "Nhân viên bảo vệ";
+    } else if (path.startsWith("/teacher")) {
+        rolePath = "/teacher";
+        roleLabel = "Giảng viên";
+        defaultMockCode = "GV001";
+        defaultMockEmail = "teacher@smartracking.com";
+        defaultMockTitle = "Giảng viên";
+    } else if (path.startsWith("/student")) {
+        rolePath = "/student";
+        roleLabel = "Sinh viên";
+        defaultMockCode = "SV001";
+        defaultMockEmail = "student@smartracking.com";
+        defaultMockTitle = "Sinh viên";
     } else if (path.startsWith("/employee")) {
         rolePath = "/employee";
         roleLabel = "Nhân viên";
