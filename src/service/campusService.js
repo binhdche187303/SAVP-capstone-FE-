@@ -51,6 +51,26 @@ export const getBusinessAdminSummary = async () => {
 };
 
 /**
+ * CDB-001 / UC-126: Hiện diện hiện tại theo tòa nhà → tầng → khu
+ * GET /campus-dashboard/overview (SYSTEM_ADMIN, BUSINESS_ADMIN, MANAGER — campus_dashboard.overview.read)
+ * @param {object} params - { building?, floor? }
+ * @returns {Promise<object>} { success, data: { generatedAt, buildings: [{ building, floors: [{ floor, zones: [{ zoneId, zoneCode, zoneName, zoneType, occupancy: {status, count}, gateTraffic: {entriesToday, exitsToday}, cameraStatus: {online, offline, disabled, maintenance, overall} }] }] }] } }
+ */
+export const getCampusOverview = async (params = {}, options = {}) => {
+    const query = buildQuery(params);
+    return await get(`/campus-dashboard/overview${query}`, options);
+};
+
+/**
+ * 2.12: Nhân sự đang có mặt theo phòng ban (log cổng cuối hôm nay là 'enter')
+ * GET /campus-dashboard/presence-by-department (campus_dashboard.overview.read)
+ * @returns {Promise<object>} { success, data: { generatedAt, totalPresent, departments: [{ departmentId, departmentCode, departmentName, presentCount, totalStaff }] } }
+ */
+export const getPresenceByDepartment = async (options = {}) => {
+    return await get('/campus-dashboard/presence-by-department', options);
+};
+
+/**
  * ZTH-001 / UC-120: Lưu lượng người + heatmap theo khu vực công cộng
  * GET /campus-dashboard/zones/traffic (SYSTEM_ADMIN, BUSINESS_ADMIN, MANAGER — campus_dashboard.traffic.read)
  * @param {object} params - { from, to (ISO, tối đa 31 ngày), building?, floor? }
@@ -59,4 +79,15 @@ export const getBusinessAdminSummary = async () => {
 export const getZoneTraffic = async (params = {}) => {
     const query = buildQuery(params);
     return await get(`/campus-dashboard/zones/traffic${query}`);
+};
+
+/**
+ * GIS: Bản đồ khuôn viên — vị trí zone (GPS) kèm camera và cảnh báo an ninh gần đây
+ * GET /campus-dashboard/map (campus_dashboard.overview.read)
+ * @param {object} params - { hours? (1–168, mặc định 24), building? }
+ * @returns {Promise<object>} { success, data: { generatedAt, hours, since, summary: {totalZones, zonesWithCoordinates, totalCameras, camerasOnline, alertsInWindow, openAlertsInWindow, unlocatedAlertsInWindow}, zones: [{ zoneId, zoneCode, zoneName, zoneType, building, floor, status, coordinates: {lat, lng} | null, occupancy, cameraStatus, cameras: [...], alerts: {total, open, topOpenSeverity, latest: [...]} }] } }
+ */
+export const getCampusMap = async (params = {}, options = {}) => {
+    const query = buildQuery(params);
+    return await get(`/campus-dashboard/map${query}`, options);
 };

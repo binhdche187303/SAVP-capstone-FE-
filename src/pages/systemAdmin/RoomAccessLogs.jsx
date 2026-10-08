@@ -2,11 +2,11 @@ import {
     AlertTriangle, ArrowUpDown, Briefcase, Building, Calendar,
     Clock, DoorOpen, Eye, Filter,
     LogIn, LogOut, Mail, Phone, RefreshCw, RotateCw,
-    Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users,
-    X, ChevronDown,
+    Route, Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users, X, ChevronDown,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
@@ -24,6 +24,8 @@ import { getUsers } from '../../service/employeeServices';
 // ─── constants ──────────────────────────────────────────────────────────────
 
 const LOGS_PER_PAGE = 10;
+// Các lượt cùng phòng + cùng hướng cách nhau ≤ 3s = camera bắt được nhiều người trong cùng khung hình.
+const GROUP_WINDOW_MS = 3000;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -52,7 +54,25 @@ const getIdentityStatus = (ev) => {
     return 'matched';
 };
 
-const getPageNumbers = (current, total) => {
+const getEventTs = (ev) => new Date(ev.eventTime || ev.timestamp).getTime();
+
+// Gom các lượt liền kề (đã sort) cùng phòng + cùng hướng, lệch ≤ GROUP_WINDOW_MS so với lượt đầu nhóm.
+const groupSimultaneous = (sorted) => {
+    const groups = [];
+    sorted.forEach(ev => {
+        const last = groups[groups.length - 1];
+        const head = last?.events[0];
+        if (head && head.roomId === ev.roomId && head.direction === ev.direction
+            && Math.abs(getEventTs(head) - getEventTs(ev)) <= GROUP_WINDOW_MS) {
+            last.events.push(ev);
+        } else {
+            groups.push({ key: ev.id, events: [ev] });
+        }
+    });
+    return groups;
+};
+
+const getPageNumbers =(current, total) => {
     const delta = 1, pages = [];
     for (let i = 1; i <= total; i++) {
         if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) pages.push(i);
@@ -138,6 +158,7 @@ const RoomAccessLogs = () => {
     const [isUserModalOpen, setIsUserModalOpen]   = useState(false);
 
     const [usersMap, setUsersMap] = useState({});
+    const [collapsedGroups, setCollapsedGroups] = useState({});
 
     // auto-update date when page becomes visible again (e.g. left open overnight)
     const autoDateRef = useRef(getTodayVNString());
@@ -269,7 +290,8 @@ const RoomAccessLogs = () => {
     const handleUserClick = useCallback(async (ev) => {
         if (!ev.userId) return;
         const base = usersMap[ev.userId] || { fullName: ev.fullName, id: ev.userId };
-        setSelectedUser(base); setUserDetail(null); setIsUserModalOpen(true); setUserDetailLoading(true);
+        const ts = getEventTs(ev);
+        setSelectedUser({ ...base, id: base.id || ev.userId, journeyDate: ts ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(ts)) : null }); setUserDetail(null); setIsUserModalOpen(true); setUserDetailLoading(true);
         try {
             const res = await getUserById(ev.userId);
             if (res?.success && res.data) setUserDetail(res.data);
@@ -298,19 +320,149 @@ const RoomAccessLogs = () => {
         (!statusFilter || getIdentityStatus(ev) === statusFilter)
     );
 
-    const allSorted = [...filteredEvents].sort((a, b) => {
-        const tA = new Date(a.eventTime || a.timestamp).getTime();
-        const tB = new Date(b.eventTime || b.timestamp).getTime();
-        return sortOrder === 'desc' ? tB - tA : tA - tB;
-    });
+    const allSorted = [...filteredEvents].sort((a, b) =>
+        sortOrder === 'desc' ? getEventTs(b) - getEventTs(a) : getEventTs(a) - getEventTs(b)
+    );
 
+    // Phân trang theo nhóm (1 nhóm nhiều người = 1 dòng) để nhóm không bị cắt giữa 2 trang.
+    const allGroups   = groupSimultaneous(allSorted);
+    const multiGroupCount = allGroups.filter(g => g.events.length > 1).length;
     const totalItems  = allSorted.length;
-    const totalPages  = Math.max(1, Math.ceil(totalItems / LOGS_PER_PAGE));
-    const rangeStart  = totalItems === 0 ? 0 : (currentPage - 1) * LOGS_PER_PAGE + 1;
-    const rangeEnd    = Math.min(currentPage * LOGS_PER_PAGE, totalItems);
-    const sortedEvents = allSorted.slice((currentPage - 1) * LOGS_PER_PAGE, currentPage * LOGS_PER_PAGE);
+    const totalGroups = allGroups.length;
+    const totalPages  = Math.max(1, Math.ceil(totalGroups / LOGS_PER_PAGE));
+    const rangeStart  = totalGroups === 0 ? 0 : (currentPage - 1) * LOGS_PER_PAGE + 1;
+    const rangeEnd    = Math.min(currentPage * LOGS_PER_PAGE, totalGroups);
+    const pageGroups  = allGroups.slice((currentPage - 1) * LOGS_PER_PAGE, currentPage * LOGS_PER_PAGE);
+    const toggleGroup = (key) => setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
     const showRoomColumn = !selectedRoomId;
+
+    const renderEventRow = (ev, idx, nested = false) => {
+        const status   = getIdentityStatus(ev);
+        const { date, time } = formatVN(ev.eventTime || ev.timestamp);
+        const name     = ev.fullName || 'Không nhận diện được';
+        const rowCls   = status === 'stranger'
+            ? 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-500'
+            : status === 'unmatched'
+                ? 'bg-amber-50/60 hover:bg-amber-100/60 border-l-4 border-l-amber-400'
+                : 'hover:bg-cloud-mist/30';
+        // Dòng con trong nhóm "nhiều người cùng lúc": nền nhạt + thụt lề, ẩn ngày/giờ (đã có ở dòng nhóm).
+        const nestedCls = nested && status === 'matched' ? 'bg-slate-50/60' : '';
+
+        const conf = (() => {
+            let c = ev.similarity ?? ev.reliability ?? ev.confidence;
+            if (c == null) return '—';
+            if (c <= 1) c = c * 100;
+            return `${c.toFixed(0)}%`;
+        })();
+
+        const meetingLabel = (() => {
+            if (!ev.meetingId) return null;
+            let t = ev.meetingTitle || ev.meetingName || ev.meeting_title || ev.meeting?.title;
+            if (!t) { const m = meetings.find(x => (x.meetingId || x.meeting_id || x.id) === ev.meetingId); if (m) t = m.meeting?.title || m.title; }
+            return t || ev.meetingId.substring(0, 8);
+        })();
+
+        return (
+            <motion.tr key={ev.id}
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.025, duration: 0.18 }}
+                className={`transition-colors ${rowCls} ${nestedCls}`}
+            >
+                <td className="px-6 py-4 text-sm font-bold text-midnight-indigo whitespace-nowrap">{nested ? '' : date}</td>
+                <td className="px-6 py-4 text-[11px] text-slate-blue whitespace-nowrap font-mono">{nested ? '' : time}</td>
+
+                {/* Người */}
+                <td className={nested ? 'pl-12 pr-6 py-3' : 'px-6 py-4'}>
+                    <div
+                        className={`flex items-center gap-3 w-fit ${ev.userId ? 'cursor-pointer group' : ''}`}
+                        onClick={ev.userId ? () => handleUserClick(ev) : undefined}
+                        title={ev.userId ? 'Xem chi tiết người dùng' : undefined}
+                    >
+                        <UserAvatar
+                            user={ev.user || (ev.userId ? usersMap[ev.userId] : null)}
+                            name={name}
+                            className={`w-8 h-8 rounded-full border flex-shrink-0 text-[10px] font-bold shadow-sm transition-all ${
+                                status === 'stranger' ? 'border-red-300' : status === 'unmatched' ? 'border-amber-300' : 'border-platinum-tint group-hover:border-action-blue'
+                            }`}
+                        />
+                        <div>
+                            <p className={`font-bold text-sm group-hover:text-action-blue transition-colors ${status === 'stranger' ? 'text-red-700' : status === 'unmatched' ? 'text-amber-700' : 'text-midnight-indigo'}`}>
+                                {name}
+                            </p>
+                        </div>
+                    </div>
+                </td>
+
+                {showRoomColumn && <td className="px-6 py-4 text-xs font-semibold text-slate-700">{ev.roomName || '—'}</td>}
+
+                <td className="px-6 py-4 text-center"><DirectionBadge direction={ev.direction} /></td>
+                <td className="px-6 py-4 text-center"><StatusBadge status={status} /></td>
+
+                <td className="px-6 py-4 text-center">
+                    <ThumbnailImage eventId={ev.id} onClick={() => { setSnapshotEventId(ev.id); setIsSnapshotOpen(true); }} />
+                </td>
+
+                <td className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-500">{conf}</td>
+
+                <td className="px-6 py-4 text-xs">
+                    {meetingLabel
+                        ? <span className="text-midnight-indigo font-semibold">{meetingLabel}</span>
+                        : <span className="text-slate-300">—</span>
+                    }
+                </td>
+            </motion.tr>
+        );
+    };
+
+    const renderGroup = (g, gIdx) => {
+        if (g.events.length === 1) return [renderEventRow(g.events[0], gIdx)];
+        const head = g.events[0];
+        const { date, time } = formatVN(head.eventTime || head.timestamp);
+        const hasStranger  = g.events.some(ev => getIdentityStatus(ev) === 'stranger');
+        const hasUnmatched = g.events.some(ev => getIdentityStatus(ev) === 'unmatched');
+        const collapsed = !!collapsedGroups[g.key];
+        const headerRow = (
+            <motion.tr key={`grp-${g.key}`}
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: gIdx * 0.025, duration: 0.18 }}
+                onClick={() => toggleGroup(g.key)}
+                className={`cursor-pointer transition-colors border-l-4 ${hasStranger ? 'bg-amber-50 hover:bg-amber-100 border-l-amber-500' : 'bg-blue-50/50 hover:bg-blue-50 border-l-action-blue'}`}
+            >
+                <td className="px-6 py-4 text-sm font-bold text-midnight-indigo whitespace-nowrap">{date}</td>
+                <td className="px-6 py-4 text-[11px] text-slate-blue whitespace-nowrap font-mono">{time}</td>
+                <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex -space-x-2">
+                            {g.events.slice(0, 3).map(ev => (
+                                <UserAvatar key={ev.id}
+                                    user={ev.user || (ev.userId ? usersMap[ev.userId] : null)}
+                                    name={ev.fullName || '?'}
+                                    className="w-7 h-7 rounded-full border-2 border-white text-[9px] font-bold shadow-sm" />
+                            ))}
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-action-blue">
+                            <Users className="w-4 h-4" /> {g.events.length} người cùng lúc
+                        </span>
+                        <ChevronDown className={`w-4 h-4 text-slate-blue transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+                    </div>
+                </td>
+                {showRoomColumn && <td className="px-6 py-4 text-xs font-semibold text-slate-700">{head.roomName || '—'}</td>}
+                <td className="px-6 py-4 text-center"><DirectionBadge direction={head.direction} /></td>
+                <td className="px-6 py-4 text-center">
+                    {hasStranger
+                        ? <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-red-700 bg-red-50 border-red-200"><AlertTriangle className="w-3 h-3" />Có người lạ</span>
+                        : hasUnmatched
+                            ? <StatusBadge status="unmatched" />
+                            : <StatusBadge status="matched" />}
+                </td>
+                <td className="px-6 py-4 text-center text-slate-300">—</td>
+                <td className="px-6 py-4 text-center text-slate-300">—</td>
+                <td className="px-6 py-4 text-xs text-slate-400">Bấm để {collapsed ? 'mở' : 'thu gọn'}</td>
+            </motion.tr>
+        );
+        return collapsed ? [headerRow] : [headerRow, ...g.events.map((ev, i) => renderEventRow(ev, gIdx + i, true))];
+    };
 
     // ── render ──────────────────────────────────────────────────────────────
 
@@ -560,7 +712,7 @@ const RoomAccessLogs = () => {
                                         <td className="px-6 py-4"><div className="h-3.5 bg-gray-200 rounded w-24" /></td>
                                     </tr>
                                 ))
-                            ) : sortedEvents.length === 0 ? (
+                            ) : pageGroups.length === 0 ? (
                                 <tr>
                                     <td colSpan={showRoomColumn ? 9 : 8} className="px-6 py-16 text-center">
                                         <div className="flex flex-col items-center gap-3">
@@ -574,81 +726,7 @@ const RoomAccessLogs = () => {
                                 </tr>
                             ) : (
                                 <AnimatePresence initial={false}>
-                                    {sortedEvents.map((ev, idx) => {
-                                        const status   = getIdentityStatus(ev);
-                                        const { date, time } = formatVN(ev.eventTime || ev.timestamp);
-                                        const name     = ev.fullName || 'Không nhận diện được';
-                                        const rowCls   = status === 'stranger'
-                                            ? 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-500'
-                                            : status === 'unmatched'
-                                                ? 'bg-amber-50/60 hover:bg-amber-100/60 border-l-4 border-l-amber-400'
-                                                : 'hover:bg-cloud-mist/30';
-
-                                        const conf = (() => {
-                                            let c = ev.similarity ?? ev.reliability ?? ev.confidence;
-                                            if (c == null) return '—';
-                                            if (c <= 1) c = c * 100;
-                                            return `${c.toFixed(0)}%`;
-                                        })();
-
-                                        const meetingLabel = (() => {
-                                            if (!ev.meetingId) return null;
-                                            let t = ev.meetingTitle || ev.meetingName || ev.meeting_title || ev.meeting?.title;
-                                            if (!t) { const m = meetings.find(x => getBookingMeetingId(x) === ev.meetingId); if (m) t = m.meeting?.title || m.title; }
-                                            return t || ev.meetingId.substring(0, 8);
-                                        })();
-
-                                        return (
-                                            <motion.tr key={ev.id}
-                                                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: idx * 0.025, duration: 0.18 }}
-                                                className={`transition-colors ${rowCls}`}
-                                            >
-                                                <td className="px-6 py-4 text-sm font-bold text-midnight-indigo whitespace-nowrap">{date}</td>
-                                                <td className="px-6 py-4 text-[11px] text-slate-blue whitespace-nowrap font-mono">{time}</td>
-
-                                                {/* Người */}
-                                                <td className="px-6 py-4">
-                                                    <div
-                                                        className={`flex items-center gap-3 w-fit ${ev.userId ? 'cursor-pointer group' : ''}`}
-                                                        onClick={ev.userId ? () => handleUserClick(ev) : undefined}
-                                                        title={ev.userId ? 'Xem chi tiết người dùng' : undefined}
-                                                    >
-                                                        <UserAvatar
-                                                            user={ev.user || (ev.userId ? usersMap[ev.userId] : null)}
-                                                            name={name}
-                                                            className={`w-8 h-8 rounded-full border flex-shrink-0 text-[10px] font-bold shadow-sm transition-all ${
-                                                                status === 'stranger' ? 'border-red-300' : status === 'unmatched' ? 'border-amber-300' : 'border-platinum-tint group-hover:border-action-blue'
-                                                            }`}
-                                                        />
-                                                        <div>
-                                                            <p className={`font-bold text-sm group-hover:text-action-blue transition-colors ${status === 'stranger' ? 'text-red-700' : status === 'unmatched' ? 'text-amber-700' : 'text-midnight-indigo'}`}>
-                                                                {name}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                {showRoomColumn && <td className="px-6 py-4 text-xs font-semibold text-slate-700">{ev.roomName || '—'}</td>}
-
-                                                <td className="px-6 py-4 text-center"><DirectionBadge direction={ev.direction} /></td>
-                                                <td className="px-6 py-4 text-center"><StatusBadge status={status} /></td>
-
-                                                <td className="px-6 py-4 text-center">
-                                                    <ThumbnailImage eventId={ev.id} onClick={() => { setSnapshotEventId(ev.id); setIsSnapshotOpen(true); }} />
-                                                </td>
-
-                                                <td className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-500">{conf}</td>
-
-                                                <td className="px-6 py-4 text-xs">
-                                                    {meetingLabel
-                                                        ? <span className="text-midnight-indigo font-semibold">{meetingLabel}</span>
-                                                        : <span className="text-slate-300">—</span>
-                                                    }
-                                                </td>
-                                            </motion.tr>
-                                        );
-                                    })}
+                                    {pageGroups.flatMap((g, gIdx) => renderGroup(g, gIdx))}
                                 </AnimatePresence>
                             )}
                         </tbody>
@@ -659,7 +737,7 @@ const RoomAccessLogs = () => {
                 {!logsLoading && totalItems > 0 && (
                     <div className="px-6 py-4 bg-cloud-mist/30 border-t border-platinum-tint flex flex-col sm:flex-row items-center justify-between gap-3">
                         <span className="text-xs font-medium text-slate-blue">
-                            {rangeStart}–{rangeEnd} / {totalItems} lượt nhật ký
+                            {rangeStart}–{rangeEnd} / {totalGroups} dòng · {totalItems} lượt nhật ký{multiGroupCount > 0 ? ` · ${multiGroupCount} nhóm nhiều người` : ''}
                         </span>
                         {totalPages > 1 && (
                             <div className="flex items-center gap-1.5">
@@ -740,6 +818,11 @@ const RoomAccessLogs = () => {
                                                 </div>
                                             ))}
                                         </div>
+                                        <Link
+                                            to={`/system-admin/user-journey?userId=${selectedUser.id}${selectedUser.journeyDate ? `&date=${selectedUser.journeyDate}` : ''}`}
+                                            className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-action-blue hover:bg-blue-700 text-white text-sm font-bold transition-colors">
+                                            <Route className="w-4 h-4" /> Xem hành trình ngày này
+                                        </Link>
                                     </div>
                                 );
                             })()}

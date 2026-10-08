@@ -3,10 +3,13 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import {
     RiHome4Line,
     RiSettings3Line, RiShieldLine, RiSettings2Line,
-    RiCpuLine, RiHardDriveLine, RiMapLine,
+    RiCpuLine, RiHardDriveLine, RiMapLine, RiUserUnfollowLine,
     RiLoginBoxLine, RiCameraLine, RiCarLine, RiMapPinLine,
-    RiAlertLine, RiEqualizerLine, RiShieldUserLine,
-    RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiTimeLine
+    RiAlertLine, RiMapPin2Line, RiEqualizerLine, RiShieldUserLine,
+    RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiLayoutMasonryLine, RiFilmLine,
+    RiBarChartBoxLine, RiFileChartLine,
+    RiUserReceivedLine, RiContactsBookLine, RiServiceLine,
+    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -40,6 +43,8 @@ const STATIC_NAVIGATION_ITEMS = [
         icon: RiCpuLine,
         children: [
             { label: 'Thiết bị IoT',                  to: '/system-admin/devices',              icon: RiHardDriveLine },
+            { label: 'Sơ đồ lắp đặt camera',          to: '/system-admin/camera-layout',        icon: RiLayoutMasonryLine },
+            { label: 'Ghi hình & lưu trữ',            to: '/system-admin/camera-recording',     icon: RiFilmLine },
             { label: 'Khu vực giám sát',              to: '/system-admin/zones',                icon: RiMapLine },
             { label: 'Lưu lượng & Heatmap',           to: '/system-admin/zone-traffic',         icon: RiFireLine },
             { label: 'Nhật ký ra/vào phòng',          to: '/system-admin/room-access-logs',     icon: RiLoginBoxLine },
@@ -53,9 +58,33 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Kiểm soát ra vào cổng',         to: '/system-admin/anpr-management',      icon: RiCameraLine },
             { label: 'Hiện diện khuôn viên',          to: '/system-admin/gate-presence',        icon: RiTimeLine },
             { label: 'Danh sách biển số giám sát',    to: '/system-admin/vehicle-control-list', icon: RiCarLine },
+            { label: 'Người lạ',                      to: '/system-admin/strangers',            icon: RiUserUnfollowLine },
+            { label: 'Danh sách người giám sát',      to: '/system-admin/person-control-list',  icon: RiShieldUserLine },
             { label: 'Đăng ký phương tiện',           to: '/system-admin/vehicle-registrations',icon: RiFileTextLine },
             { label: 'Hành trình khuôn viên',         to: '/system-admin/user-journey',         icon: RiMapPinLine },
             { label: 'Cảnh báo an ninh',              to: '/system-admin/security-alerts',      icon: RiAlertLine },
+            { label: 'Bản đồ khuôn viên',             to: '/system-admin/campus-map',           icon: RiMapPin2Line },
+        ],
+    },
+    {
+        label: 'Khách',
+        isDropdown: true,
+        icon: RiUserReceivedLine,
+        children: [
+            { label: 'Quầy lễ tân',                   to: '/system-admin/visitors/desk',        icon: RiServiceLine },
+            { label: 'Quản lý khách',                 to: '/system-admin/visitors', end: true,  icon: RiContactsBookLine },
+            { label: 'Lịch sử khách',                 to: '/system-admin/visitors/history',     icon: RiHistoryLine },
+            { label: 'Thống kê khách',                to: '/system-admin/visitors/stats',       icon: RiPieChartLine },
+        ],
+    },
+    {
+        label: 'Báo cáo',
+        isDropdown: true,
+        icon: RiBarChartBoxLine,
+        children: [
+            { label: 'Trung tâm báo cáo',             to: '/system-admin/reports',              icon: RiFileChartLine },
+            { label: 'Lịch gửi báo cáo',              to: '/system-admin/report-schedules', end: true, icon: RiCalendarScheduleLine },
+            { label: 'Lịch sử gửi',                   to: '/system-admin/report-schedules/runs', icon: RiMailSendLine },
         ],
     },
 ];

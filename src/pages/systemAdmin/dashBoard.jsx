@@ -19,6 +19,7 @@ import {
 import { getSecurityAlerts } from '../../service/securityAlertService';
 import { getBusinessAdminSummary } from '../../service/campusService';
 import { getAlertTypeLabel } from '../../constants/alertType';
+import ZonePresenceTable from '../../components/campus/ZonePresenceTable';
 
 // ─── Design tokens (DESIGN.md — Sky Blueprint / Light Theme) ─────────────────
 
@@ -786,6 +787,9 @@ const DashBoard = () => {
                     iconColor={kpi.vehicleHitsToday > 0 ? D.amber : D.muted2}
                     subColor={kpi.vehicleHitsToday > 0 ? '#B45309' : D.muted} />
             </div>
+
+            {/* ── Hiện diện theo khu vực (2.12) ─────────────────────────────── */}
+            <ZonePresenceTable />
 
             {/* ── Row 1: Severity donut + Traffic area ──────────────────────── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

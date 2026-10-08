@@ -20,3 +20,10 @@
  * hoàn toàn với mốc live ở trên và vẫn hoạt động bình thường.
  */
 export const LIVE_SPEAKER_TAGGING_ENABLED = false;
+
+/**
+ * Phân hệ Khách đến làm việc (2.10) + Trung tâm báo cáo (2.13): BE chưa có.
+ * BẬT (mặc định): `visitorService` và `reportCenterService` đọc dữ liệu giả ở
+ * `src/mocks/visitorReport`. Đặt REACT_APP_VISITOR_REPORT_MOCK=false để gọi API thật.
+ */
+export const VISITOR_REPORT_MOCK_ENABLED = process.env.REACT_APP_VISITOR_REPORT_MOCK !== 'false';

@@ -7,7 +7,7 @@ import {
 import { getZoneTraffic } from '../../service/campusService';
 
 // UC-120 (2.6): lưu lượng người + heatmap khu vực công cộng.
-// BE chưa trả toạ độ (coordinates = null) ⇒ heatmap dạng ma trận khu × giờ trong ngày.
+// Heatmap dạng ma trận khu × giờ trong ngày; vị trí GPS của khu vực xem ở trang Bản đồ khuôn viên.
 
 const LINE_COLORS = ['#1e90ff', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
 const HOURS = Array.from({ length: 24 }, (_, h) => h);

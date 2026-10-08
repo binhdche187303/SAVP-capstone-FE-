@@ -9,6 +9,7 @@ import Error500 from '../pages/Error/500';
 import ProtectedRoute from './ProtectedRoute';
 import RoomUsageAnalytics from '../pages/shared/RoomUsageAnalytics';
 import ZoneTrafficAnalytics from '../pages/shared/ZoneTrafficAnalytics';
+import CampusMap from '../pages/shared/CampusMap';
 import EmployeeOnTimeAnalytics from '../pages/shared/EmployeeOnTimeAnalytics';
 import MeetingAttendanceAdmin from '../pages/shared/MeetingAttendanceAdmin';
 import LearningLayout from '../pages/classroom/LearningLayout';
@@ -26,6 +27,8 @@ import GuardDashboard from '../pages/guard/GuardDashboard';
 import SystemAdminLayout from '../pages/systemAdmin/layout/SystemAdminLayout';
 import DashBoard from '../pages/systemAdmin/dashBoard';
 import DeviceManagement from '../pages/systemAdmin/DeviceManagement';
+import CameraLayout from '../pages/systemAdmin/CameraLayout';
+import CameraRecording from '../pages/systemAdmin/CameraRecording';
 import EquipmentManagement from '../pages/systemAdmin/EquipmentManagement';
 import ZoneManagement from '../pages/systemAdmin/ZoneManagement';
 import RolePermissionManagement from '../pages/systemAdmin/RolePermissionManagement';
@@ -37,6 +40,8 @@ import MyVehicles from '../pages/shared/MyVehicles';
 import SecurityAlerts from '../pages/systemAdmin/SecurityAlerts';
 import AlertRules from '../pages/systemAdmin/AlertRules';
 import VehicleControlList from '../pages/systemAdmin/VehicleControlList';
+import PersonControlList from '../pages/systemAdmin/PersonControlList';
+import Strangers from '../pages/systemAdmin/Strangers';
 import VehicleRegistrations from '../pages/systemAdmin/VehicleRegistrations';
 import RoomAccessLogs from '../pages/systemAdmin/RoomAccessLogs';
 import GatePresenceManagement from '../pages/systemAdmin/GatePresenceManagement';
@@ -70,6 +75,18 @@ import InMeetingRoom from '../pages/shared/InMeetingRoom';
 import LegalAndSupport from '../pages/public/LegalAndSupport';
 import GuestJoin from '../pages/guest/GuestJoin';
 import GuestMeeting from '../pages/guest/GuestMeeting';
+import VisitorGate from '../pages/public/VisitorGate';
+import VisitorStatus from '../pages/public/VisitorStatus';
+import VisitorStats from '../pages/shared/visitors/VisitorStats';
+import VisitorHistory from '../pages/shared/visitors/VisitorHistory';
+import MyVisitors from '../pages/shared/visitors/MyVisitors';
+import ReportRuns from '../pages/shared/reports/ReportRuns';
+import ReportSchedules from '../pages/shared/reports/ReportSchedules';
+import VisitorDesk from '../pages/shared/visitors/VisitorDesk';
+import VisitorManagement from '../pages/shared/visitors/VisitorManagement';
+import VisitorRegister from '../pages/public/VisitorRegister';
+import ReportCenter from '../pages/shared/reports/ReportCenter';
+import ReportViewer from '../pages/shared/reports/ReportViewer';
 
 // Lazy-loaded to break circular dependency with minutesServices import chain
 const DocumentArchive = React.lazy(() => import('../pages/bussinessAdmin/DocumentArchive'));
@@ -104,6 +121,22 @@ export const router = [
         path: '/guest/meeting/:meetingId',
         element: <GuestMeeting />
     },
+    {
+        path: '/visitor/gate',
+        element: <VisitorGate />
+    },
+    {
+        path: '/visitor/status',
+        element: <VisitorStatus />
+    },
+    {
+        path: '/visitor/status/:code',
+        element: <VisitorStatus />
+    },
+    {
+        path: '/visitor/register',
+        element: <VisitorRegister />
+    },
     // ========== SystemAdmin Routes (protected) ==========
     {
         path: '/system-admin',
@@ -122,12 +155,24 @@ export const router = [
                 element: <DeviceManagement />
             },
             {
+                path: 'camera-layout',
+                element: <CameraLayout />
+            },
+            {
+                path: 'camera-recording',
+                element: <CameraRecording />
+            },
+            {
                 path: 'zones',
                 element: <ZoneManagement />
             },
             {
                 path: 'zone-traffic',
                 element: <ZoneTrafficAnalytics />
+            },
+            {
+                path: 'campus-map',
+                element: <CampusMap />
             },
             {
                 path: 'roles-permissions',
@@ -166,6 +211,14 @@ export const router = [
                 element: <VehicleControlList />
             },
             {
+                path: 'person-control-list',
+                element: <PersonControlList />
+            },
+            {
+                path: 'strangers',
+                element: <Strangers />
+            },
+            {
                 path: 'vehicle-registrations',
                 element: <VehicleRegistrations />
             },
@@ -180,6 +233,38 @@ export const router = [
             {
                 path: 'audit-logs',
                 element: <AuditLogs />
+            },
+            {
+                path: 'reports/:type',
+                element: <ReportViewer />
+            },
+            {
+                path: 'reports',
+                element: <ReportCenter />
+            },
+            {
+                path: 'visitors',
+                element: <VisitorManagement />
+            },
+            {
+                path: 'visitors/desk',
+                element: <VisitorDesk />
+            },
+            {
+                path: 'report-schedules',
+                element: <ReportSchedules />
+            },
+            {
+                path: 'report-schedules/runs',
+                element: <ReportRuns />
+            },
+            {
+                path: 'visitors/history',
+                element: <VisitorHistory />
+            },
+            {
+                path: 'visitors/stats',
+                element: <VisitorStats />
             },
             {
                 path: 'legal',
@@ -246,6 +331,10 @@ export const router = [
                 element: <ZoneTrafficAnalytics />
             },
             {
+                path: 'campus-map',
+                element: <CampusMap />
+            },
+            {
                 path: 'attendance-analytics',
                 element: <EmployeeOnTimeAnalytics />
             },
@@ -256,6 +345,38 @@ export const router = [
             {
                 path: 'class-attendance',
                 element: <ClassAttendanceAnalytics />
+            },
+            {
+                path: 'reports/:type',
+                element: <ReportViewer />
+            },
+            {
+                path: 'reports',
+                element: <ReportCenter />
+            },
+            {
+                path: 'visitors',
+                element: <VisitorManagement />
+            },
+            {
+                path: 'visitors/desk',
+                element: <VisitorDesk />
+            },
+            {
+                path: 'report-schedules',
+                element: <ReportSchedules />
+            },
+            {
+                path: 'report-schedules/runs',
+                element: <ReportRuns />
+            },
+            {
+                path: 'visitors/history',
+                element: <VisitorHistory />
+            },
+            {
+                path: 'visitors/stats',
+                element: <VisitorStats />
             },
             {
                 path: 'legal',
@@ -348,6 +469,18 @@ export const router = [
             {
                 path: 'my-vehicles',
                 element: <MyVehicles />
+            },
+            {
+                path: 'reports/:type',
+                element: <ReportViewer />
+            },
+            {
+                path: 'reports',
+                element: <ReportCenter />
+            },
+            {
+                path: 'my-visitors',
+                element: <MyVisitors />
             },
             {
                 path: 'legal',
@@ -516,6 +649,10 @@ export const router = [
             {
                 path: 'my-vehicles',
                 element: <MyVehicles />
+            },
+            {
+                path: 'my-visitors',
+                element: <MyVisitors />
             },
             {
                 path: 'legal',

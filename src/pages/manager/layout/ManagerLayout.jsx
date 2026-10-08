@@ -1,4 +1,4 @@
-import { Activity, Archive, BarChart2, Calendar, ChevronDown, Clock, Car, FileCheck, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, X } from 'lucide-react';
+import { Activity, Archive, BarChart2, Calendar, ChevronDown, Clock, Car, FileBarChart, FileCheck, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -70,10 +70,20 @@ const STATIC_NAVIGATION_ITEMS = [
         icon: MapPin,
     },
     {
+        label: 'Khách của tôi',
+        to: '/manager/my-visitors',
+        icon: UserCheck,
+    },
+    {
         label: 'Báo cáo',
         isDropdown: true,
         icon: BarChart2,
         children: [
+            {
+                label: 'Trung tâm báo cáo',
+                to: '/manager/reports',
+                icon: FileBarChart,
+            },
             {
                 label: 'Tỷ lệ đúng giờ',
                 to: '/manager/attendance-analytics',

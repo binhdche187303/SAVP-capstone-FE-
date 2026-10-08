@@ -1,4 +1,4 @@
-import { request, get, post, patch, dele, buildQuery, API_BASE_URL } from '../utils/request';
+import { request, get, post, patch, put, dele, buildQuery, API_BASE_URL } from '../utils/request';
 
 // ============================================================
 // DASHBOARD / ANALYTICS APIs (UC-RPT-01, UC-RPT-02, UC-RPT-03, UC-RPT-04)
@@ -725,8 +725,32 @@ export const getDeviceStatusSummary = async () => {
     return await get('/iot-devices/status-summary');
 };
 
+// GET /iot-devices/:id/connection-history?days= — lịch sử online/offline, uptime, sự cố.
+export const getDeviceConnectionHistory = async (deviceId, days = 30) => {
+    return await get(`/iot-devices/${deviceId}/connection-history${buildQuery({ days })}`);
+};
+
 export const updateDeviceAiConfig = async (deviceId, config) => {
     return await patch(`/iot-devices/${deviceId}/ai-config`, config);
+};
+
+// 2.2 Camera — cấu hình lưu trong metadata_json của thiết bị (layout / recording / recording_stats)
+export const getAnprStats = async (date) => {
+    return await get(`/iot-devices/anpr-stats${buildQuery({ date })}`);
+};
+
+export const getRecordingStorage = async () => {
+    return await get(`/iot-devices/recording-storage`);
+};
+
+// Body: { floor_key, positions: [{ device_id, x, y, angle }], reset? }
+export const saveCameraLayout = async (body) => {
+    return await put(`/iot-devices/layout`, body);
+};
+
+// Body: { mode, retention_days, bitrate_mbps, schedule: string[7] }
+export const updateRecordingPolicy = async (deviceId, body) => {
+    return await patch(`/iot-devices/${deviceId}/recording-policy`, body);
 };
 
 // UC-48: POST /iot-devices/:id/face-server/configure
