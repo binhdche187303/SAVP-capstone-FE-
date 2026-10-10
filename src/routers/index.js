@@ -27,6 +27,7 @@ import GuardDashboard from '../pages/guard/GuardDashboard';
 import SystemAdminLayout from '../pages/systemAdmin/layout/SystemAdminLayout';
 import DashBoard from '../pages/systemAdmin/dashBoard';
 import DeviceManagement from '../pages/systemAdmin/DeviceManagement';
+import CameraGroups from '../pages/systemAdmin/CameraGroups';
 import CameraLayout from '../pages/systemAdmin/CameraLayout';
 import CameraRecording from '../pages/systemAdmin/CameraRecording';
 import EquipmentManagement from '../pages/systemAdmin/EquipmentManagement';
@@ -161,6 +162,10 @@ export const router = [
             {
                 path: 'camera-layout',
                 element: <CameraLayout />
+            },
+            {
+                path: 'camera-groups',
+                element: <CameraGroups />
             },
             {
                 path: 'camera-recording',

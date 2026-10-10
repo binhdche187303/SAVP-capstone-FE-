@@ -9,6 +9,7 @@ export const ALERT_TYPE_VI = {
     unknown_vehicle: 'Xe lạ',
     vehicle_control_match: 'Biển số theo dõi',
     device_error: 'Lỗi thiết bị',
+    device_maintenance: 'Camera cần bảo trì',
     visitor_overstay: 'Khách quá giờ',
     visitor_must_leave: 'Khách phải rời',
     visitor_zone_violation: 'Khách vào sai khu vực',
