@@ -82,7 +82,8 @@ const isPublicEndpoint = (path) => {
     const publicPaths = [
         '/auth/login',
         '/auth/password-reset/request',
-        '/auth/password-reset/confirm'
+        '/auth/password-reset/confirm',
+        '/public/visitor-'
     ];
     // Normalize path (remove leading/trailing slashes for check)
     const normalizedPath = path.startsWith('/') ? path : '/' + path;

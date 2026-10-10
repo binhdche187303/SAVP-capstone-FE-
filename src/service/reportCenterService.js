@@ -2,15 +2,25 @@
 // Hợp đồng API Trung tâm báo cáo và lịch gửi (2.13) — spec §6.4.
 // Cờ mock bật: đọc dữ liệu giả. Cờ tắt: gọi BE thật qua utils/request.
 import { get, post, patch, dele, buildQuery } from '../utils/request';
-import { VISITOR_REPORT_MOCK_ENABLED } from '../config/featureFlags';
+import { REPORT_MOCK_ENABLED } from '../config/featureFlags';
 import * as mock from '../mocks/visitorReport/reportApi';
 import { runExport } from '../mocks/visitorReport/exporters';
 
 const delay = () =>
     new Promise((resolve) => setTimeout(resolve, process.env.NODE_ENV === 'test' ? 0 : 200 + Math.random() * 300));
 
+// BE thật: request() ném đối tượng lỗi khi HTTP ≥ 400 hoặc mất kết nối. Trang chỉ biết đọc { success, message },
+// nên quy về cùng dạng để hiện khối lỗi thay vì quay "Đang tải…" mãi.
+const safeReal = async (realFn) => {
+    try {
+        return await realFn();
+    } catch (error) {
+        return { success: false, message: error?.message || error?.error?.message || 'Không kết nối được máy chủ' };
+    }
+};
+
 const call = async (mockFn, realFn) => {
-    if (!VISITOR_REPORT_MOCK_ENABLED) return realFn();
+    if (!REPORT_MOCK_ENABLED) return safeReal(realFn);
     await delay();
     try {
         return { success: true, data: mockFn() };
@@ -50,10 +60,49 @@ const exportInBrowser = (prepared, format) => {
     return { fileName: prepared.fileName, format };
 };
 
+// Chế độ thật: tạo job (202) → hỏi /background-jobs/:id mỗi 2 giây (tối đa 2 phút) → mở liên kết tải đã ký.
+// Dùng chung luồng với ExportReportModal. Hàm chờ tách riêng, nhận `sleep` để test không phải đợi.
+const POLL_MS = 2000;
+const POLL_MAX_MS = 120000;
+const realSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export const waitForExportJob = async (jobId, { sleep = realSleep, intervalMs = POLL_MS, maxMs = POLL_MAX_MS } = {}) => {
+    for (let waited = 0; waited <= maxMs; waited += intervalMs) {
+        const res = await get(`/background-jobs/${jobId}`);
+        if (!res?.success) return res || { success: false, message: 'Không kiểm tra được tiến trình xuất báo cáo' };
+        if (res.data.status === 'completed') return { success: true, data: res.data };
+        if (res.data.status === 'failed') return { success: false, message: res.data.errorMessage || 'Xuất báo cáo thất bại' };
+        await sleep(intervalMs);
+    }
+    return { success: false, message: 'Quá thời gian chờ tạo file. Vui lòng thử lại hoặc thu hẹp kỳ báo cáo.' };
+};
+
+const openSignedUrl = (url) => {
+    if (typeof window !== 'undefined' && url) window.open(url, '_blank');
+};
+
+const realExport = async (type, params) => {
+    const created = await post(`/reports/center/${type}/exports`, params);
+    if (!created?.success) return created;
+    const job = await waitForExportJob(created.data.jobId);
+    if (!job.success) return job;
+    const file = await get(`/media-files/${job.data.outputFileId}`);
+    if (!file?.success || !file.data?.downloadUrl) return { success: false, message: file?.message || 'Không tạo được liên kết tải xuống' };
+    openSignedUrl(file.data.downloadUrl);
+    return { success: true, data: { fileName: job.data.result?.fileName || file.data.fileName || `${type}.${params?.format}`, format: params?.format } };
+};
+
 export const exportReport = (type, params) =>
-    call(() => exportInBrowser(mock.prepareExport(type, params), params?.format), () => post(`/reports/${type}/exports`, params));
+    call(() => exportInBrowser(mock.prepareExport(type, params), params?.format), () => realExport(type, params));
+
+const realDownloadRunFile = async (runId, format) => {
+    const res = await get(`/report-schedule-runs/${runId}/files/${format}`);
+    if (!res?.success) return res;
+    openSignedUrl(res.data.downloadUrl);
+    return { success: true, data: { fileName: res.data.fileName, format } };
+};
 
 export const downloadRunFile = (runId, format) =>
-    call(() => exportInBrowser(mock.prepareRunFile(runId, format), format), () => get(`/report-schedule-runs/${runId}/files/${format}`));
+    call(() => exportInBrowser(mock.prepareRunFile(runId, format), format), () => realDownloadRunFile(runId, format));
 
 export const getRecentExports = () => call(() => mock.getRecentExports(), () => get('/reports/exports/recent'));

@@ -4,6 +4,7 @@ import {
     getMyVisits, getMyNotifications, markMyNotificationsRead, approveVisit, rejectVisit, createVisit, getVisitorLookups,
 } from '../../../service/visitorService';
 import toast from '../../../utils/toast';
+import { VISITOR_MOCK_ENABLED } from '../../../config/featureFlags';
 import SimpleModal from '../../../components/common/SimpleModal';
 import VisitForm from '../../../components/visitor/VisitForm';
 import VisitDetailDrawer from '../../../components/visitor/VisitDetailDrawer';
@@ -12,8 +13,16 @@ import VisitStatusBadge from '../../../components/visitor/VisitStatusBadge';
 import { fmtDateTime, fmtTimeRange } from '../../../components/visitor/visitLabels';
 import { pageCls, cardCls, inputCls, btnPrimary, btnGhost, btnDanger, errorBoxCls, spinnerCls } from '../../../components/common/uiClasses';
 
-// Trong dữ liệu minh hoạ, người đang đăng nhập là cán bộ `host-me`.
-const MY_HOST_ID = 'host-me';
+// Dữ liệu minh hoạ: người đang đăng nhập là cán bộ `host-me`. BE thật: id của tài khoản đang đăng nhập.
+const myHostId = () => {
+    if (VISITOR_MOCK_ENABLED) return 'host-me';
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        return user?.id || user?.userId || '';
+    } catch {
+        return '';
+    }
+};
 
 // S5 (2.10): màn của người được gặp — duyệt khách xin gặp mình, mời khách, nhận thông báo.
 const REFRESH_MS = 20000;
@@ -122,7 +131,7 @@ const MyVisitors = () => {
 
     // Link đăng ký chọn sẵn mình là người cần gặp, để gửi cho khách qua email/Zalo.
     const copyInviteLink = async () => {
-        const link = `${window.location.origin}/visitor/register?host=${MY_HOST_ID}`;
+        const link = `${window.location.origin}/visitor/register?host=${myHostId()}`;
         setInviteLink(link);
         try {
             await navigator.clipboard.writeText(link);

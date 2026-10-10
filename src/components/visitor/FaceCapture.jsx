@@ -6,12 +6,23 @@ const WIDTH = 320;
 const HEIGHT = 240;
 const SHRINK_ABOVE_BYTES = 150 * 1024;
 
-const readFile = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-});
+// Không dùng FileReader: thư viện pptxviewjs (nạp ở InMeetingRoom) ghi đè window.FileReader toàn cục bằng bản
+// không có readAsDataURL, nên ở bản build mọi `new FileReader().readAsDataURL` đều hỏng.
+const readFile = async (file) => {
+    if (typeof file.arrayBuffer !== 'function') {
+        // Môi trường cũ (và jsdom khi chạy test) chưa có Blob.arrayBuffer: dùng FileReader gốc.
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return `data:${file.type || 'image/jpeg'};base64,${btoa(binary)}`;
+};
 
 // Thu nhỏ ảnh tải lên còn rộng tối đa 320 px để không làm đầy localStorage.
 const shrink = (dataUrl) => new Promise((resolve) => {

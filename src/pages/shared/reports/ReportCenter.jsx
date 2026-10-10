@@ -66,8 +66,9 @@ const ReportCenter = () => {
                 <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {catalog.map((item) => {
                         const Icon = getReportDefinition(item.type)?.icon || FileBarChart;
-                        return (
-                            <Link key={item.type} to={`${base}/reports/${item.type}`} className={`${cardCls} p-5 flex flex-col gap-3 hover:border-action-blue hover:shadow-sm-1 transition-all group`}>
+                        const unavailable = item.available === false;
+                        const body = (
+                            <>
                                 <div className="flex items-center gap-3">
                                     <span className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
                                         <Icon className="w-5 h-5 text-action-blue" />
@@ -75,14 +76,27 @@ const ReportCenter = () => {
                                     <h3 className="font-bold text-midnight-indigo text-sm">{item.title}</h3>
                                 </div>
                                 <p className="text-xs text-slate-blue flex-1">{item.description}</p>
-                                <div className="flex items-center justify-between text-[11px]">
-                                    <span className="inline-flex items-center gap-1 text-slate-blue">
-                                        <CalendarClock className="w-3.5 h-3.5" /> {item.activeSchedules} lịch gửi đang bật
-                                    </span>
-                                    <span className="inline-flex items-center gap-1 font-semibold text-action-blue group-hover:underline">
-                                        Xem báo cáo <ArrowRight className="w-3.5 h-3.5" />
-                                    </span>
-                                </div>
+                                {unavailable ? (
+                                    <p data-testid={`unavailable-${item.type}`} className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                        Chưa khả dụng{item.unavailableReason ? `: ${item.unavailableReason}` : ''}
+                                    </p>
+                                ) : (
+                                    <div className="flex items-center justify-between text-[11px]">
+                                        <span className="inline-flex items-center gap-1 text-slate-blue">
+                                            <CalendarClock className="w-3.5 h-3.5" /> {item.activeSchedules} lịch gửi đang bật
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 font-semibold text-action-blue group-hover:underline">
+                                            Xem báo cáo <ArrowRight className="w-3.5 h-3.5" />
+                                        </span>
+                                    </div>
+                                )}
+                            </>
+                        );
+                        return unavailable ? (
+                            <div key={item.type} className={`${cardCls} p-5 flex flex-col gap-3 opacity-80`}>{body}</div>
+                        ) : (
+                            <Link key={item.type} to={`${base}/reports/${item.type}`} className={`${cardCls} p-5 flex flex-col gap-3 hover:border-action-blue hover:shadow-sm-1 transition-all group`}>
+                                {body}
                             </Link>
                         );
                     })}

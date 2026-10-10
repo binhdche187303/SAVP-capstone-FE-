@@ -2,14 +2,24 @@
 // Hợp đồng API phân hệ Khách đến làm việc (2.10) — spec §6.4.
 // Cờ mock bật: đọc dữ liệu giả. Cờ tắt: gọi BE thật qua utils/request.
 import { get, post, buildQuery } from '../utils/request';
-import { VISITOR_REPORT_MOCK_ENABLED } from '../config/featureFlags';
+import { VISITOR_MOCK_ENABLED } from '../config/featureFlags';
 import * as mock from '../mocks/visitorReport/visitorApi';
 
 const delay = () =>
     new Promise((resolve) => setTimeout(resolve, process.env.NODE_ENV === 'test' ? 0 : 200 + Math.random() * 300));
 
+// BE thật: request() ném đối tượng lỗi khi HTTP ≥ 400 hoặc mất kết nối. Trang chỉ biết đọc { success, message },
+// nên quy về cùng dạng để hiện khối lỗi thay vì quay "Đang tải…" mãi.
+const safeReal = async (realFn) => {
+    try {
+        return await realFn();
+    } catch (error) {
+        return { success: false, message: error?.message || error?.error?.message || 'Không kết nối được máy chủ' };
+    }
+};
+
 const call = async (mockFn, realFn) => {
-    if (!VISITOR_REPORT_MOCK_ENABLED) return realFn();
+    if (!VISITOR_MOCK_ENABLED) return safeReal(realFn);
     await delay();
     try {
         return { success: true, data: mockFn() };
@@ -22,6 +32,8 @@ const call = async (mockFn, realFn) => {
 const qs = (params) => buildQuery(params || {});
 
 export const getVisitorLookups = () => call(() => mock.getVisitorLookups(), () => get('/visitors/lookups'));
+// Trang đăng ký công khai chưa có đăng nhập nên không được gọi /visitors/lookups (cần JWT).
+export const getPublicPurposes = () => call(() => ({ purposes: mock.getVisitorLookups().purposes }), () => get('/public/visitor-purposes'));
 export const searchHosts = (q) => call(() => mock.searchHosts(q), () => get(`/public/visitor-hosts${qs({ q })}`));
 export const getPublicHost = (id) => call(() => mock.getPublicHost(id), () => get(`/public/visitor-hosts/${encodeURIComponent(id)}`));
 export const createPublicRegistration = (payload) => call(() => mock.createPublicRegistration(payload), () => post('/public/visitor-registrations', payload));
@@ -36,11 +48,11 @@ export const cancelVisit = (id) => call(() => mock.cancelVisit(id), () => post(`
 export const revokeVisit = (id, body) => call(() => mock.revokeVisit(id, body), () => post(`/visitors/visits/${id}/revoke`, body));
 export const extendVisit = (id, body) => call(() => mock.extendVisit(id, body), () => post(`/visitors/visits/${id}/extend`, body));
 export const attachVisitorPhoto = (id, body) => call(() => mock.attachVisitorPhoto(id, body), () => post(`/visitors/visits/${id}/photo`, body));
-export const verifyFaceAtGate = (id, body) => call(() => mock.verifyFaceAtGate(id, body), () => post(`/visitors/visits/${id}/verify-face`, body));
+export const verifyFaceAtGate = (id, body) => call(() => mock.verifyFaceAtGate(id, body), () => Promise.resolve({ success: false, message: 'Nhận diện khuôn mặt do camera thực hiện, không gọi tay được' }));
 export const checkInVisit = (id, body) => call(() => mock.checkInVisit(id, body), () => post(`/visitors/visits/${id}/check-in`, body));
 export const checkOutVisit = (id) => call(() => mock.checkOutVisit(id), () => post(`/visitors/visits/${id}/check-out`));
 export const closeVisitManually = (id, body) => call(() => mock.closeVisitManually(id, body), () => post(`/visitors/visits/${id}/close-manual`, body));
-export const scanAtGate = (code, body) => call(() => mock.scanAtGate(code, body), () => post('/gate/visitor-scan', { ...body, code }));
+export const scanAtGate = (code, body) => call(() => mock.scanAtGate(code, body), () => post('/dev/mock-visitor-scan', { ...body, code }));
 export const getDeskToday = () => call(() => mock.getDeskToday(), () => get('/visitors/desk/today'));
 export const getMyVisits = () => call(() => mock.getMyVisits(), () => get('/visitors/my-visits'));
 export const getMyNotifications = () => call(() => mock.getMyNotifications(), () => get('/visitors/my-notifications'));
