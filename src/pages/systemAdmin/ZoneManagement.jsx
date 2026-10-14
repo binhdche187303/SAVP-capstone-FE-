@@ -581,6 +581,7 @@ const ZoneManagement = () => {
 
     // Modal states
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [zoneErrors, setZoneErrors] = useState({});
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [zoneToDelete, setZoneToDelete] = useState(null);
@@ -674,20 +675,26 @@ const ZoneManagement = () => {
         }
     };
 
+    // Lỗi trường bắt buộc hiển thị dưới ô nhập (thay tooltip mặc định tiếng Anh của trình duyệt).
+    const validateZoneRequired = (form) => {
+        const errors = {};
+        const code = form.zone_code.trim();
+        const name = form.zone_name.trim();
+        if (!code) errors.zone_code = 'Mã khu vực không được để trống';
+        else if (code.length > 80) errors.zone_code = 'Mã khu vực tối đa 80 ký tự';
+        if (!name) errors.zone_name = 'Tên khu vực không được để trống';
+        else if (name.length > 150) errors.zone_name = 'Tên khu vực tối đa 150 ký tự';
+        setZoneErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleCreateSubmit = async (e) => {
         e.preventDefault();
         setError(null);
         setSuccessMessage(null);
 
         // Client-side validations
-        if (createForm.zone_code.trim().length > 80) {
-            setError("Mã khu vực tối đa 80 ký tự.");
-            return;
-        }
-        if (createForm.zone_name.trim().length > 150) {
-            setError("Tên khu vực tối đa 150 ký tự.");
-            return;
-        }
+        if (!validateZoneRequired(createForm)) return;
         if (createForm.building && createForm.building.trim().length > 100) {
             setError("Tên tòa nhà tối đa 100 ký tự.");
             return;
@@ -765,6 +772,7 @@ const ZoneManagement = () => {
             longitude: zone.longitude != null ? String(zone.longitude) : ''
         });
         setSelectedZone(zone);
+        setZoneErrors({});
         setIsEditModalOpen(true);
     };
 
@@ -774,14 +782,7 @@ const ZoneManagement = () => {
         setSuccessMessage(null);
 
         // Client-side validations
-        if (editForm.zone_code.trim().length > 80) {
-            setError("Mã khu vực tối đa 80 ký tự.");
-            return;
-        }
-        if (editForm.zone_name.trim().length > 150) {
-            setError("Tên khu vực tối đa 150 ký tự.");
-            return;
-        }
+        if (!validateZoneRequired(editForm)) return;
         if (editForm.building && editForm.building.trim().length > 100) {
             setError("Tên tòa nhà tối đa 100 ký tự.");
             return;
@@ -891,7 +892,7 @@ const ZoneManagement = () => {
                         </p>
                     </div>
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={() => { setZoneErrors({}); setIsCreateModalOpen(true); }}
                         className="inline-flex items-center justify-center px-4 py-2 bg-action-blue text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-glacier-blue transition-all"
                     >
                         <Plus className="w-4 h-4 mr-2" />
@@ -1055,18 +1056,20 @@ const ZoneManagement = () => {
                                 <h3 className="font-bold text-midnight-indigo">Tạo khu vực mới</h3>
                                 <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">✕</button>
                             </div>
-                            <form onSubmit={handleCreateSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                            <form onSubmit={handleCreateSubmit} noValidate className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã khu vực <span className="text-red-500">*</span></label>
-                                    <input required type="text" value={createForm.zone_code} onChange={e => setCreateForm({ ...createForm, zone_code: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: ROOM-101" />
+                                    <input type="text" value={createForm.zone_code} onChange={e => setCreateForm({ ...createForm, zone_code: e.target.value })} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_code ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: ROOM-101" />
+                                    {zoneErrors.zone_code && <p className="text-red-500 text-xs mt-1">{zoneErrors.zone_code}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên khu vực <span className="text-red-500">*</span></label>
-                                    <input required type="text" value={createForm.zone_name} onChange={e => setCreateForm({ ...createForm, zone_name: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: Phòng họp 1" />
+                                    <input type="text" value={createForm.zone_name} onChange={e => setCreateForm({ ...createForm, zone_name: e.target.value })} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_name ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: Phòng họp 1" />
+                                    {zoneErrors.zone_name && <p className="text-red-500 text-xs mt-1">{zoneErrors.zone_name}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại khu vực <span className="text-red-500">*</span></label>
-                                    <select required value={createForm.zone_type} onChange={e => setCreateForm({ ...createForm, zone_type: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm">
+                                    <select value={createForm.zone_type} onChange={e => setCreateForm({ ...createForm, zone_type: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm">
                                         <option value="gate">Cổng ra vào</option>
                                         <option value="corridor">Hành lang</option>
                                         <option value="lobby">Sảnh bảo vệ</option>
@@ -1110,19 +1113,21 @@ const ZoneManagement = () => {
                                 <h3 className="font-bold text-midnight-indigo">Cập nhật khu vực</h3>
                                 <button onClick={() => setIsEditModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">✕</button>
                             </div>
-                            <form onSubmit={handleEditSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                            <form onSubmit={handleEditSubmit} noValidate className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã khu vực <span className="text-red-500">*</span></label>
-                                    <input required type="text" value={editForm.zone_code} onChange={e => setEditForm({ ...editForm, zone_code: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: ROOM-101" />
+                                    <input type="text" value={editForm.zone_code} onChange={e => setEditForm({ ...editForm, zone_code: e.target.value })} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_code ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: ROOM-101" />
+                                    {zoneErrors.zone_code && <p className="text-red-500 text-xs mt-1">{zoneErrors.zone_code}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên khu vực <span className="text-red-500">*</span></label>
-                                    <input required type="text" value={editForm.zone_name} onChange={e => setEditForm({ ...editForm, zone_name: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: Phòng họp 1" />
+                                    <input type="text" value={editForm.zone_name} onChange={e => setEditForm({ ...editForm, zone_name: e.target.value })} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_name ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: Phòng họp 1" />
+                                    {zoneErrors.zone_name && <p className="text-red-500 text-xs mt-1">{zoneErrors.zone_name}</p>}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại khu vực <span className="text-red-500">*</span></label>
-                                        <select required value={editForm.zone_type} onChange={e => setEditForm({ ...editForm, zone_type: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white">
+                                        <select value={editForm.zone_type} onChange={e => setEditForm({ ...editForm, zone_type: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white">
                                             <option value="gate">Cổng ra vào</option>
                                             <option value="corridor">Hành lang</option>
                                             <option value="lobby">Sảnh bảo vệ</option>
@@ -1132,7 +1137,7 @@ const ZoneManagement = () => {
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Trạng thái <span className="text-red-500">*</span></label>
-                                        <select required value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white">
+                                        <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white">
                                             <option value="active">Đang hoạt động</option>
                                             <option value="inactive">Không hoạt động</option>
                                         </select>

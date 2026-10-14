@@ -12,6 +12,42 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import Pagination from '../../components/common/Pagination';
 
+// Loại phương tiện (tùy chọn) — khớp CONTROL_LIST_VEHICLE_TYPES ở BE. Chỉ để mô tả/lọc,
+// KHÔNG dùng để kiểm tra định dạng biển số.
+const VEHICLE_TYPE_OPTIONS = [
+    { value: 'car', label: 'Ô tô' },
+    { value: 'motorbike', label: 'Xe máy' },
+    { value: 'truck', label: 'Xe tải' },
+    { value: 'bus', label: 'Xe buýt' },
+    { value: 'other', label: 'Khác' },
+];
+const getVehicleTypeLabel = (value) =>
+    VEHICLE_TYPE_OPTIONS.find((o) => o.value === value)?.label || 'Không xác định';
+
+// Bản sao quy tắc BE (capstone-be/src/modules/anpr/utils/plate-format.ts) để báo lỗi sớm:
+// ký tự cho phép trên giá trị gốc; sau chuẩn hóa dài 5–10, ≥1 chữ cái, ≥4 chữ số.
+const PLATE_ALLOWED_CHARS = /^[A-Za-z0-9 .-]+$/;
+const validatePlate = (raw) => {
+    const value = raw.trim();
+    if (!value) return 'Biển số xe không được để trống';
+    if (value.length > 20) return 'Biển số xe không được vượt quá 20 ký tự';
+    if (!PLATE_ALLOWED_CHARS.test(value)) {
+        return 'Biển số chỉ được chứa chữ, số, dấu cách, dấu gạch ngang (-) hoặc dấu chấm (.)';
+    }
+    const plate = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const digits = plate.replace(/[^0-9]/g, '').length;
+    if (plate.length < 5 || plate.length > 10 || !/[A-Z]/.test(plate) || digits < 4) {
+        return 'Biển số không đúng định dạng (ví dụ: 30F-256.58)';
+    }
+    return '';
+};
+
+// BE ValidationPipe trả message dạng mảng — lấy thông báo đầu tiên.
+const getErrorMessage = (res, fallback) => {
+    const msg = res?.message;
+    return (Array.isArray(msg) ? msg[0] : msg) || fallback;
+};
+
 const VehicleControlList = () => {
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,6 +61,7 @@ const VehicleControlList = () => {
         limit: 10,
         plate: '',
         list_type: '',
+        vehicle_type: '',
         active: ''
     });
     const [meta, setMeta] = useState(null);
@@ -37,6 +74,7 @@ const VehicleControlList = () => {
     const [formData, setFormData] = useState({
         plate_raw: '',
         list_type: 'blocklist',
+        vehicle_type: '',
         reason: '',
         active: true
     });
@@ -96,6 +134,7 @@ const VehicleControlList = () => {
         setFormData({
             plate_raw: '',
             list_type: 'blocklist',
+            vehicle_type: '',
             reason: '',
             active: true
         });
@@ -107,6 +146,7 @@ const VehicleControlList = () => {
         setFormData({
             plate_raw: item.plate_raw || item.plate_number || '', // Fallback to plate_number if raw is missing
             list_type: item.list_type || 'blocklist',
+            vehicle_type: item.vehicle_type || '',
             reason: item.reason || '',
             active: item.active !== false
         });
@@ -116,10 +156,10 @@ const VehicleControlList = () => {
 
     const validateForm = () => {
         const errors = {};
-        if (!formData.plate_raw.trim()) {
-            errors.plate_raw = 'Biển số xe không được để trống';
-        } else if (formData.plate_raw.length > 20) {
-            errors.plate_raw = 'Biển số xe không được vượt quá 20 ký tự';
+        // Biển số chỉ nhập khi tạo (không sửa được) — bản ghi cũ sai định dạng vẫn sửa được lý do/trạng thái.
+        if (modal.type === 'create') {
+            const plateError = validatePlate(formData.plate_raw);
+            if (plateError) errors.plate_raw = plateError;
         }
 
         if (formData.reason && formData.reason.length > 255) {
@@ -136,7 +176,8 @@ const VehicleControlList = () => {
 
         setActionLoading(true);
         try {
-            const payload = { ...formData };
+            const payload = { ...formData, plate_raw: formData.plate_raw.trim() };
+            if (!payload.vehicle_type) delete payload.vehicle_type;
 
             let res;
             if (modal.type === 'create') {
@@ -144,8 +185,9 @@ const VehicleControlList = () => {
             } else {
                 res = await updateVehicleControl(modal.data.id, {
                     reason: payload.reason,
-                    active: payload.active
-                }); // BE spec only allows updating reason and active
+                    active: payload.active,
+                    vehicle_type: formData.vehicle_type || null
+                }); // BE PATCH chỉ cho sửa reason, active, vehicle_type
             }
 
             if (res?.success) {
@@ -153,10 +195,10 @@ const VehicleControlList = () => {
                 setModal({ open: false, type: 'create', data: null });
                 fetchVehicles();
             } else {
-                setError(res?.message || 'Có lỗi xảy ra khi lưu.');
+                setError(getErrorMessage(res, 'Có lỗi xảy ra khi lưu.'));
             }
         } catch (err) {
-            setError(err?.message || 'Lỗi hệ thống.');
+            setError(getErrorMessage(err, 'Lỗi hệ thống.'));
         } finally {
             setActionLoading(false);
         }
@@ -274,6 +316,20 @@ const VehicleControlList = () => {
                     </div>
 
                     <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Loại xe</label>
+                        <select
+                            value={filters.vehicle_type}
+                            onChange={(e) => handleFilterChange('vehicle_type', e.target.value)}
+                            className="w-full p-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
+                        >
+                            <option value="">Tất cả loại xe</option>
+                            {VEHICLE_TYPE_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Trạng thái</label>
                         <select
                             value={filters.active}
@@ -297,6 +353,7 @@ const VehicleControlList = () => {
                                 <th className="px-6 py-4 font-extrabold text-xs text-slate-blue uppercase tracking-wider text-center">Biển số (Gốc)</th>
                                 <th className="px-6 py-4 font-extrabold text-xs text-slate-blue uppercase tracking-wider text-center">Biển số (Chuẩn hóa)</th>
                                 <th className="px-6 py-4 font-extrabold text-xs text-slate-blue uppercase tracking-wider text-center">Phân loại</th>
+                                <th className="px-6 py-4 font-extrabold text-xs text-slate-blue uppercase tracking-wider text-center">Loại xe</th>
                                 <th className="px-6 py-4 font-extrabold text-xs text-slate-blue uppercase tracking-wider text-left">Lý do</th>
                                 <th className="px-6 py-4 font-extrabold text-xs text-slate-blue uppercase tracking-wider text-center">Trạng thái</th>
                                 <th className="px-6 py-4 font-extrabold text-xs text-slate-blue uppercase tracking-wider text-right">Hành động</th>
@@ -309,6 +366,7 @@ const VehicleControlList = () => {
                                         <td className="px-6 py-4 text-center flex justify-center"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
                                         <td className="px-6 py-4 text-center flex justify-center"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
                                         <td className="px-6 py-4 text-center flex justify-center"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
+                                        <td className="px-6 py-4 text-center flex justify-center"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
                                         <td className="px-6 py-4 text-left"><div className="h-4 bg-gray-200 rounded w-48"></div></td>
                                         <td className="px-6 py-4 text-center flex justify-center"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
                                         <td className="px-6 py-4 text-right"><div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div></td>
@@ -316,7 +374,7 @@ const VehicleControlList = () => {
                                 ))
                             ) : vehicles.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-12 text-center">
+                                    <td colSpan="7" className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center">
                                             <div className="w-12 h-12 bg-cloud-mist rounded-full flex items-center justify-center mb-3">
                                                 <Car className="w-6 h-6 text-slate-blue" />
@@ -342,6 +400,9 @@ const VehicleControlList = () => {
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${listType.color}`}>
                                                     {listType.label}
                                                 </span>
+                                            </td>
+                                            <td className={`px-6 py-4 text-center text-xs ${vehicle.vehicle_type ? 'font-semibold text-midnight-indigo' : 'text-slate-400'}`}>
+                                                {getVehicleTypeLabel(vehicle.vehicle_type)}
                                             </td>
                                             <td className="px-6 py-4 text-xs text-slate-blue max-w-xs truncate text-left" title={vehicle.reason}>
                                                 {vehicle.reason || '-'}
@@ -417,9 +478,10 @@ const VehicleControlList = () => {
                                         type="text"
                                         placeholder="Nhập biển số xe (VD: 29A-12345)..."
                                         value={formData.plate_raw}
+                                        maxLength={20}
                                         onChange={(e) => setFormData({ ...formData, plate_raw: e.target.value })}
                                         disabled={modal.type === 'edit'} // BE spec doesn't allow editing plate_raw in PATCH
-                                        className={`w-full px-4 py-2.5 bg-slate-50 border font-mono rounded-xl text-sm focus:outline-none transition-colors disabled:opacity-60 disabled:bg-gray-100 ${formErrors.plate_raw ? 'border-red-500 focus:border-red-500' : 'border-platinum-tint focus:border-action-blue focus:bg-white'}`}
+                                        className={`w-full px-4 py-2.5 bg-slate-50 border font-mono rounded-xl text-sm focus:outline-none transition-colors disabled:opacity-60 disabled:bg-gray-100 ${formErrors.plate_raw ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue focus:bg-white'}`}
                                     />
                                     {formErrors.plate_raw && <p className="text-xs text-red-500 font-medium mt-1.5">{formErrors.plate_raw}</p>}
                                     {modal.type === 'edit' && <p className="text-[11px] text-slate-400 mt-1">Không thể thay đổi biển số xe sau khi tạo.</p>}
@@ -439,13 +501,27 @@ const VehicleControlList = () => {
                                 </div>
 
                                 <div>
+                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Loại phương tiện</label>
+                                    <select
+                                        value={formData.vehicle_type}
+                                        onChange={(e) => setFormData({ ...formData, vehicle_type: e.target.value })}
+                                        className="w-full px-4 py-2.5 bg-slate-50 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue focus:bg-white transition-colors"
+                                    >
+                                        <option value="">Không xác định</option>
+                                        {VEHICLE_TYPE_OPTIONS.map((o) => (
+                                            <option key={o.value} value={o.value}>{o.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Lý do / Ghi chú</label>
                                     <textarea
                                         rows={3}
                                         placeholder="Nhập lý do theo dõi..."
                                         value={formData.reason}
                                         onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                                        className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors resize-none ${formErrors.reason ? 'border-red-500 focus:border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
+                                        className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors resize-none ${formErrors.reason ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                     />
                                     {formErrors.reason && <p className="text-xs text-red-500 font-medium mt-1.5">{formErrors.reason}</p>}
                                 </div>

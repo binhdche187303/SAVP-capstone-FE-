@@ -1,8 +1,9 @@
 import { Activity } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 import { createPortal } from 'react-dom';
 import UserAvatar from '../../components/common/UserAvatar';
+import { formatAuditAction } from '../../constants/auditActionLabels';
 import { getAuditLogs, exportAuditLogs, getUserById, getAuditLogActionTypes } from '../../service/sysAdminServices';
 
 /**
@@ -10,50 +11,8 @@ import { getAuditLogs, exportAuditLogs, getUserById, getAuditLogActionTypes } fr
  * UC-CFG-02: System Activity Audit Logs
  * Displays security audit trails, sensitive actor actions, IP sources, and database entity transitions.
  */
-// Localization dictionaries for professional Vietnamese translation
-// [FIX] Key cũ toàn bộ SCREAMING_CASE — action_type thật ghi vào audit_logs KHÔNG đồng nhất
-// 1 kiểu case (đọc trực tiếp từ BE service ghi log, không đoán): 'login'/'logout' (lowercase,
-// auth-audit.repository.ts), 'ACCOUNT_CREATE'/'ACCOUNT_UPDATE'/'ACCOUNT_LOCK'/'ACCOUNT_UNLOCK'/
-// 'ACCOUNT_DELETE' (SCREAMING_CASE có tiền tố ACCOUNT_, users.service.ts — khớp ĐÚNG case gốc
-// vì đây là giá trị lưu thật trong DB, không tự ý hạ thường), 'export_users'
-// (reports/user-export.service.ts), 'system_config_update' (administration/system-config.service.ts).
-// BỎ 4 key không đổi được an toàn:
-// - LOGIN_FAILED: không tìm thấy nơi nào ghi audit_logs cho đăng nhập thất bại (AuthAuditRepository
-//   chỉ có logLoginSuccess/logLogoutSuccess) — không có giá trị thật để map, không đoán.
-// - REGISTER_DEVICE/UPDATE_DEVICE/REMOVE_DEVICE: giá trị thật ở iot-audit.repository.ts là verb
-//   CHUNG ('create'/'update'/'disable') — KHÔNG ring riêng cho thiết bị, cùng verb này còn được
-//   nhiều entity khác dùng (department/room/equipment/meeting đều có action_type='create'/'update').
-//   Thêm các key này sẽ dán nhầm nhãn "Đăng ký/Cập nhật/Vô hiệu hóa thiết bị" lên MỌI dòng log
-//   create/update/disable của bất kỳ entity nào khác — gây sai lệch mới còn tệ hơn hiện trạng
-//   (rơi vào formatter chung, không có nhãn sai). Giữ nguyên DEVICE_OFFLINE (map đúng
-//   'auto_offline' — action riêng cho thiết bị, an toàn).
-const ACTION_TRANSLATIONS = {
-    'login': 'Đăng nhập',
-    'logout': 'Đăng xuất',
-    'ACCOUNT_CREATE': 'Thêm tài khoản',
-    'ACCOUNT_UPDATE': 'Cập nhật tài khoản',
-    'ACCOUNT_LOCK': 'Khóa tài khoản',
-    'ACCOUNT_UNLOCK': 'Mở khóa tài khoản',
-    'ACCOUNT_DELETE': 'Xóa tài khoản',
-    'auto_offline': 'Thiết bị mất kết nối',
-    'export_users': 'Xuất tệp nhân viên',
-    'system_config_update': 'Cập nhật cấu hình hệ thống'
-};
-
-const formatActionName = (action) => {
-    if (!action) return '';
-    if (ACTION_TRANSLATIONS[action]) return ACTION_TRANSLATIONS[action];
-
-    let formatted = action.toLowerCase().replace(/_/g, ' ');
-    formatted = formatted.replace('view detail', 'Xem chi tiết')
-                         .replace('read analytics', 'Xem thống kê')
-                         .replace('meeting cancel rate', 'tỷ lệ hủy họp')
-                         .replace('create', 'Tạo mới')
-                         .replace('update', 'Cập nhật')
-                         .replace('delete', 'Xóa');
-
-    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-};
+// Nhãn hành động dùng chung với file Excel xuất từ BE — xem constants/auditActionLabels.js.
+const formatActionName = formatAuditAction;
 
 // [FIX] Đọc trực tiếp mọi giá trị entity_type thật đang được ghi vào audit_logs trên toàn BE
 // (grep entityType/entity_type qua tất cả module) — 2 key cũ SAI ĐỊNH DẠNG hoàn toàn
@@ -92,6 +51,12 @@ const ENTITY_TRANSLATIONS = {
     'audit_logs': 'Nhật ký hệ thống',
     'zones': 'Khu vực giám sát'
 };
+
+// So khớp không phân biệt hoa/thường và dấu tiếng Việt
+const normalizeText = (text) => String(text || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd');
 
 const TRANSLATED_KEYS = {
     browser: 'Trình duyệt Web',
@@ -192,6 +157,7 @@ const AuditLogs = () => {
 
     // Filters states
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [selectedAction, setSelectedAction] = useState('');
     const [selectedEntity, setSelectedEntity] = useState('');
     const [selectedSeverity, setSelectedSeverity] = useState('');
@@ -218,6 +184,26 @@ const AuditLogs = () => {
             .catch(() => {});
     }, []);
 
+    // Chờ người dùng ngừng gõ mới gọi API
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    // BE chỉ biết mã action/entity; nhãn tiếng Việt hiển thị nằm ở FE nên tự dò mã có nhãn khớp từ khóa
+    const searchParams = useMemo(() => {
+        if (!debouncedSearch) return {};
+        const keyword = normalizeText(debouncedSearch);
+        return {
+            search: debouncedSearch,
+            searchActionTypes: actionTypes
+                .map((at) => at.actionType)
+                .filter((code) => normalizeText(formatActionName(code)).includes(keyword)),
+            searchEntityTypes: Object.keys(ENTITY_TRANSLATIONS)
+                .filter((code) => normalizeText(ENTITY_TRANSLATIONS[code]).includes(keyword)),
+        };
+    }, [debouncedSearch, actionTypes]);
+
     // Load data
     const fetchLogs = useCallback(async (pageNumber = 1, pageLimit = 10) => {
         setLoading(true);
@@ -226,7 +212,7 @@ const AuditLogs = () => {
         const params = {
             page: pageNumber,
             limit: pageLimit,
-            search: search.trim() || undefined,
+            ...searchParams,
             action: selectedAction || undefined,
             entity: selectedEntity || undefined,
             severity: selectedSeverity || undefined,
@@ -248,7 +234,7 @@ const AuditLogs = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedAction, selectedEntity, selectedSeverity, startDate, endDate, search]);
+    }, [selectedAction, selectedEntity, selectedSeverity, startDate, endDate, searchParams]);
 
     useEffect(() => {
         fetchLogs(1, meta.limit);
@@ -269,8 +255,15 @@ const AuditLogs = () => {
         }
     }, [error]);
 
+    const handleApplyFilters = () => {
+        // Bỏ qua thời gian chờ gõ; nếu từ khóa đã khớp thì effect không chạy lại nên gọi trực tiếp
+        if (search.trim() !== debouncedSearch) setDebouncedSearch(search.trim());
+        else fetchLogs(1, meta.limit);
+    };
+
     const handleClearFilters = () => {
         setSearch('');
+        setDebouncedSearch('');
         setSelectedAction('');
         setSelectedEntity('');
         setSelectedSeverity('');
@@ -324,7 +317,8 @@ const AuditLogs = () => {
                 endDate,
                 action: selectedAction,
                 entity: selectedEntity,
-                severity: selectedSeverity
+                severity: selectedSeverity,
+                ...searchParams
             });
 
             if (res?.success && res?.isBlob) {
@@ -444,6 +438,8 @@ const AuditLogs = () => {
                             placeholder="Email, tên, hoặc mô tả..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilters(); }}
+                            maxLength={100}
                             className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                         />
                     </div>
@@ -532,7 +528,7 @@ const AuditLogs = () => {
                         </button>
                         <button
                             type="button"
-                            onClick={() => fetchLogs(1, meta.limit)}
+                            onClick={handleApplyFilters}
                             className="px-4 py-2 bg-cloud-mist hover:bg-platinum-tint text-midnight-indigo rounded-xl text-xs font-semibold transition-colors"
                         >
                             Áp dụng

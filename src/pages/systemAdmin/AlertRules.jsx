@@ -10,6 +10,7 @@ import {
     deleteAlertRule
 } from '../../service/alertRuleService';
 import { getZones } from '../../service/zoneServices';
+import { getAlertTypeLabel } from '../../constants/alertType';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AlertRules = () => {
@@ -230,8 +231,10 @@ const AlertRules = () => {
             if (modal.type === 'create') {
                 res = await createAlertRule(payload);
             } else {
-                // If editing, we shouldn't update alert_type, but let the backend handle it or just strip it if needed.
-                res = await updateAlertRule(modal.data.id, payload);
+                // Loại sự kiện bị khóa khi sửa — không gửi lại.
+                const updatePayload = { ...payload };
+                delete updatePayload.alert_type;
+                res = await updateAlertRule(modal.data.id, updatePayload);
             }
 
             if (res?.success) {
@@ -282,19 +285,6 @@ const AlertRules = () => {
         } finally {
             setActionLoading(false);
         }
-    };
-
-    const formatAlertType = (type) => {
-        const types = {
-            'stranger': 'Người lạ',
-            'crowd': 'Đám đông',
-            'intrusion': 'Xâm nhập',
-            'person_watchlist_match': 'Đối tượng theo dõi',
-            'unknown_vehicle': 'Xe lạ',
-            'vehicle_control_match': 'Biển số theo dõi',
-            'device_error': 'Lỗi thiết bị'
-        };
-        return types[type] || type.replace(/_/g, ' ');
     };
 
     return (
@@ -356,6 +346,7 @@ const AlertRules = () => {
                         <option value="intrusion">Xâm nhập</option>
                         <option value="person_watchlist_match">Đối tượng theo dõi</option>
                         <option value="unknown_vehicle">Xe lạ</option>
+                        <option value="vehicle_unauthorized">Xe không được phép</option>
                         <option value="vehicle_control_match">Biển số theo dõi</option>
                         <option value="device_error">Lỗi thiết bị</option>
                     </select>
@@ -429,7 +420,7 @@ const AlertRules = () => {
                                 rules.map(rule => (
                                     <tr key={rule.id} className="hover:bg-slate-50/50 transition-colors border-b border-platinum-tint/50 last:border-0">
                                         <td className="p-4">
-                                            <p className="text-sm font-bold text-midnight-indigo uppercase">{formatAlertType(rule.alert_type)}</p>
+                                            <p className="text-sm font-bold text-midnight-indigo uppercase">{getAlertTypeLabel(rule.alert_type)}</p>
                                         </td>
                                         <td className="p-4 text-sm text-midnight-indigo font-medium">
                                             {rule.zone_id ? (zones.find(z => z.id === rule.zone_id)?.zone_name || 'N/A') : <span className="text-slate-blue italic">Toàn hệ thống</span>}
@@ -538,7 +529,7 @@ const AlertRules = () => {
                         </div>
                         
                         <div className="p-6 overflow-y-auto">
-                            <form id="rule-form" onSubmit={handleSubmit} className="space-y-5">
+                            <form id="rule-form" onSubmit={handleSubmit} noValidate className="space-y-5">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Loại sự kiện <span className="text-red-500">*</span></label>
                                     <select 
@@ -546,7 +537,7 @@ const AlertRules = () => {
                                         disabled={modal.type === 'edit'}
                                         value={formData.alert_type} 
                                         onChange={(e) => handleFormChange('alert_type', e.target.value)}
-                                        className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors disabled:opacity-60 ${formErrors.alert_type ? 'border-red-500 focus:border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
+                                        className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors disabled:opacity-60 ${formErrors.alert_type ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                     >
                                         <option value="" disabled>-- Chọn sự kiện kích hoạt --</option>
                                         <option value="stranger">Người lạ</option>
@@ -554,6 +545,7 @@ const AlertRules = () => {
                                         <option value="intrusion">Xâm nhập</option>
                                         <option value="person_watchlist_match">Đối tượng theo dõi</option>
                                         <option value="unknown_vehicle">Xe lạ</option>
+                                        <option value="vehicle_unauthorized">Xe không được phép</option>
                                         <option value="vehicle_control_match">Biển số theo dõi</option>
                                         <option value="device_error">Lỗi thiết bị</option>
                                     </select>
@@ -570,7 +562,7 @@ const AlertRules = () => {
                                             value={formData.threshold}
                                             onChange={(e) => handleFormChange('threshold', e.target.value)}
                                             placeholder="Ví dụ: 10"
-                                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.threshold ? 'border-red-500 focus:border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
+                                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.threshold ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                         />
                                         {formErrors.threshold && <p className="text-red-500 text-xs mt-1.5">{formErrors.threshold}</p>}
                                     </div>
@@ -582,7 +574,7 @@ const AlertRules = () => {
                                         required
                                         value={formData.zone_id}
                                         onChange={(e) => handleFormChange('zone_id', e.target.value)}
-                                        className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.zone_id ? 'border-red-500 focus:border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
+                                        className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.zone_id ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                     >
                                         <option value="" disabled>-- Chọn khu vực áp dụng --</option>
                                         {(formData.alert_type === 'intrusion' ? intrusionZones : zones).map(z => (
@@ -605,7 +597,7 @@ const AlertRules = () => {
                                                 type="time" lang="en-GB" 
                                                 value={formData.allow_from}
                                                 onChange={(e) => handleFormChange('allow_from', e.target.value)}
-                                                className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.allow_from ? 'border-red-500 focus:border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
+                                                className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.allow_from ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                             />
                                             {formErrors.allow_from && <p className="text-red-500 text-xs mt-1.5">{formErrors.allow_from}</p>}
                                         </div>
@@ -615,7 +607,7 @@ const AlertRules = () => {
                                                 type="time" lang="en-GB" 
                                                 value={formData.allow_to}
                                                 onChange={(e) => handleFormChange('allow_to', e.target.value)}
-                                                className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.allow_to ? 'border-red-500 focus:border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
+                                                className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.allow_to ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                             />
                                             {formErrors.allow_to && <p className="text-red-500 text-xs mt-1.5">{formErrors.allow_to}</p>}
                                         </div>

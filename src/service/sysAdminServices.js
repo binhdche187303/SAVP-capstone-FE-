@@ -251,7 +251,12 @@ const mapAuditLogParams = (params) => {
     if (params.actionType) mapped.actionType = params.actionType;
     if (params.entityType) mapped.entityType = params.entityType;
     if (params.userId) mapped.userId = params.userId;
-    if (params.search) mapped.q = params.search;
+    if (params.search) {
+        mapped.search = params.search;
+        // Mã có nhãn tiếng Việt khớp từ khóa (nhãn chỉ có ở FE) — BE OR thêm vào điều kiện search
+        if (params.searchActionTypes?.length) mapped.searchActionTypes = params.searchActionTypes.join(',');
+        if (params.searchEntityTypes?.length) mapped.searchEntityTypes = params.searchEntityTypes.join(',');
+    }
 
     return mapped;
 };
