@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, CheckCircle2, Clock, Filter, TrendingUp, UserCheck, XCircle } from 'lucide-react';
-import { getClassAttendanceSettings, getStudentAttendanceReport } from '../../service/classAttendanceService';
+import {
+    fetchClassAttendanceSettings,
+    fetchStudentAttendanceReport,
+    getClassAttendanceSettings,
+    getStudentAttendanceReport
+} from '../../service/classAttendanceService';
 
 const RANGE_OPTIONS = [
     { value: 'day', label: 'Ngày' },
@@ -52,7 +57,7 @@ const StatCard = ({ icon: Icon, label, value, helper, tone = 'blue' }) => {
 };
 
 const StudentClassDashboard = () => {
-    const settings = getClassAttendanceSettings();
+    const [settings, setSettings] = useState(() => getClassAttendanceSettings());
     const [rangeMode, setRangeMode] = useState('week');
     const [anchorDate, setAnchorDate] = useState(() => new Date().toISOString().slice(0, 10));
     const [report, setReport] = useState(() => ({ period: { start: anchorDate, end: anchorDate }, entries: [], summary: {} }));
@@ -66,14 +71,34 @@ const StudentClassDashboard = () => {
     }, []);
 
     const refresh = useCallback(() => {
-        setReport(getStudentAttendanceReport({ studentId, mode: rangeMode, anchorDate }));
+        let cancelled = false;
+        Promise.all([
+            fetchStudentAttendanceReport({ studentId, mode: rangeMode, anchorDate, self: true }),
+            fetchClassAttendanceSettings().catch(() => getClassAttendanceSettings())
+        ])
+            .then(([data, apiSettings]) => {
+                if (!cancelled && data) setReport(data);
+                if (!cancelled) setSettings({ ...getClassAttendanceSettings(), ...apiSettings });
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setReport(getStudentAttendanceReport({ studentId, mode: rangeMode, anchorDate }));
+                    setSettings(getClassAttendanceSettings());
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
     }, [anchorDate, rangeMode, studentId]);
 
     useEffect(() => {
-        refresh();
+        const cleanup = refresh();
         const handler = () => refresh();
         window.addEventListener('class-attendance-updated', handler);
-        return () => window.removeEventListener('class-attendance-updated', handler);
+        return () => {
+            cleanup?.();
+            window.removeEventListener('class-attendance-updated', handler);
+        };
     }, [refresh]);
 
     const { summary = {}, entries = [], period } = report;

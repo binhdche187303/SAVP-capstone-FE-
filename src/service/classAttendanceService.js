@@ -1,3 +1,5 @@
+import { get, patch, post, buildQuery } from '../utils/request';
+
 const SETTINGS_KEY = 'camai.classAttendance.settings';
 const RECORDS_KEY = 'camai.classAttendance.records.v2';
 
@@ -148,6 +150,20 @@ export const saveClassAttendanceSettings = (settings, classId) => {
     const store = getClassAttendanceSettingsStore();
     writeJson(SETTINGS_KEY, { ...store, global: next });
     return next;
+};
+
+export const fetchClassAttendanceSettings = async () => {
+    const response = await get('/class-attendance/settings', { skipToast: true });
+    return response?.data || DEFAULT_CLASS_ATTENDANCE_SETTINGS;
+};
+
+export const updateClassAttendanceSettings = async (settings) => {
+    const response = await patch('/class-attendance/settings', {
+        classStartTime: settings.classStartTime,
+        lateThresholdMinutes: Number(settings.lateThresholdMinutes),
+        autoScanIntervalSeconds: Number(settings.autoScanIntervalSeconds)
+    });
+    return response?.data || settings;
 };
 
 const buildDateForWeekday = (weekday, weeksAgo = 0) => {
@@ -417,6 +433,35 @@ export const getClassAttendanceSummary = (classId = mockClassrooms[0].id, date =
     };
 };
 
+export const fetchClassAttendanceClasses = async () => {
+    const response = await get('/class-attendance/classes', { skipToast: true });
+    return response?.data || [];
+};
+
+export const fetchClassAttendanceRows = async (classId, date = todayKey()) => {
+    const response = await get(`/class-attendance/classes/${classId}/rows${buildQuery({ date })}`, { skipToast: true });
+    return response?.data || [];
+};
+
+export const fetchClassAttendanceSummary = async (classId, date = todayKey()) => {
+    const response = await get(`/class-attendance/classes/${classId}/summary${buildQuery({ date })}`, { skipToast: true });
+    return response?.data || null;
+};
+
+export const scanClassAttendance = async ({ classId, direction = 'in', snapshotImageBase64 } = {}) => {
+    const response = await post('/class-attendance/scan', {
+        classId,
+        direction,
+        snapshotImageBase64
+    }, { skipToast: true });
+    return {
+        success: response?.data?.operationSuccess !== false && response?.success !== false,
+        warning: Boolean(response?.data?.warning),
+        data: response?.data,
+        message: response?.message || response?.data?.message
+    };
+};
+
 export const mockClassFaceScan = ({ classId = mockClassrooms[0].id, direction = 'in', snapshotImageBase64 } = {}) => {
     const klass = mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
     const settings = getClassAttendanceSettings(klass.id);
@@ -534,10 +579,31 @@ export const exportClassAttendanceCsv = (classId = mockClassrooms[0].id, date = 
     URL.revokeObjectURL(url);
 };
 
-export const exportSemesterClassAttendanceCsv = ({
+const downloadCsvBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+};
+
+export const exportSemesterClassAttendanceCsv = async ({
     classId = 'all',
     semester = DEFAULT_CLASS_ATTENDANCE_SETTINGS.semester
 } = {}) => {
+    try {
+        const response = await get(`/class-attendance/export.csv${buildQuery({ classId, semester })}`, { skipToast: true });
+        if (response?.isBlob && response.data) {
+            const classPart = classId === 'all' ? 'tat-ca-mon' : classId;
+            const semesterPart = String(semester || 'tat-ca-hoc-ky').replace(/\s+/g, '-');
+            downloadCsvBlob(response.data, `bang-chuyen-can-${classPart}-${semesterPart}.csv`);
+            return true;
+        }
+    } catch {
+        // Local fallback keeps the demo usable when backend is offline.
+    }
+
     const classes = (classId === 'all' ? mockClassrooms : mockClassrooms.filter(item => item.id === classId))
         .filter(item => semester === 'all' || item.semester === semester);
     const savedRecords = getClassAttendanceRecords();
@@ -595,6 +661,26 @@ export const getBusinessClassAttendanceStats = () => {
     });
 };
 
+export const fetchBusinessClassAttendanceStats = async () => {
+    const response = await get('/class-attendance/stats', { skipToast: true });
+    return response?.data || [];
+};
+
+export const fetchTeacherClassAttendanceReport = async ({
+    classId = 'all',
+    semester = 'all',
+    mode = 'month',
+    anchorDate = todayKey()
+} = {}) => {
+    const response = await get(`/class-attendance/report${buildQuery({
+        classId,
+        semester,
+        mode,
+        anchorDate: anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate
+    })}`, { skipToast: true });
+    return response?.data;
+};
+
 export const getStudentAttendanceReport = ({ studentId = 'SV001', mode = 'day', anchorDate = new Date() } = {}) => {
     const { start, end } = getRangeBounds(mode, anchorDate);
     const startKey = toDateKey(start);
@@ -633,4 +719,11 @@ export const getStudentAttendanceReport = ({ studentId = 'SV001', mode = 'day', 
             attendanceRate: entries.length ? Math.round((attended / entries.length) * 100) : 0
         }
     };
+};
+
+export const fetchStudentAttendanceReport = async ({ studentId, mode = 'day', anchorDate = new Date(), self = false } = {}) => {
+    const dateValue = anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate;
+    const endpoint = self ? '/class-attendance/student/me' : '/class-attendance/student/report';
+    const response = await get(`${endpoint}${buildQuery({ studentId, mode, anchorDate: dateValue })}`, { skipToast: true });
+    return response?.data;
 };

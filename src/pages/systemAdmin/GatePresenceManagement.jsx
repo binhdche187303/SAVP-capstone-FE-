@@ -4,6 +4,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import {
     buildGuardSummary,
     exportGuardGateEventsCsv,
+    fetchGuardGateEvents,
     GUARD_GATE_EVENTS_STORAGE_KEY,
     getGuardGateEvents
 } from '../../service/guardAccessService';
@@ -64,6 +65,11 @@ const GatePresenceManagement = () => {
     const [pageSize, setPageSize] = useState(5);
 
     useEffect(() => {
+        fetchGuardGateEvents()
+            .then(apiEvents => {
+                if (apiEvents.length) setEvents(apiEvents);
+            })
+            .catch(() => {});
         const handler = () => {
             setEvents(getGuardGateEvents());
             setPage(1);

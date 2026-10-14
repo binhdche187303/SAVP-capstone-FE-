@@ -5,9 +5,11 @@ import {
     buildGuardSummary,
     clearGuardGateEvents,
     exportGuardGateEventsCsv,
+    fetchGuardGateEvents,
     getGuardGateEvents,
     guardGates,
-    mockGuardGateEvent
+    mockGuardGateEvent,
+    scanGuardGateEvent
 } from '../../service/guardAccessService';
 
 const statusClass = {
@@ -130,6 +132,11 @@ const GuardDashboard = () => {
     const lastWebcamFrameRef = useRef(null);
 
     useEffect(() => {
+        fetchGuardGateEvents()
+            .then(apiEvents => {
+                if (apiEvents.length) setEvents(apiEvents);
+            })
+            .catch(() => {});
         const handler = () => {
             setEvents(getGuardGateEvents());
             setPage(1);
@@ -204,7 +211,7 @@ const GuardDashboard = () => {
         }
     };
 
-    const handleMock = useCallback(() => {
+    const handleScan = useCallback(async () => {
         const snapshotImageBase64 = captureFrame(videoRef) || lastWebcamFrameRef.current;
         if (webcamEnabled && !snapshotImageBase64) {
             const nextNotice = {
@@ -215,8 +222,21 @@ const GuardDashboard = () => {
             return;
         }
 
-        const result = mockGuardGateEvent({ gateId: selectedGateId, scenario, snapshotImageBase64 });
-        setEvents(getGuardGateEvents());
+        let result;
+        let source = 'backend';
+        try {
+            result = await scanGuardGateEvent({ gateId: selectedGateId, scenario, snapshotImageBase64 });
+            const apiEvents = await fetchGuardGateEvents();
+            if (apiEvents.length) {
+                setEvents(apiEvents);
+            } else if (result.event) {
+                setEvents(current => [result.event, ...current].slice(0, 80));
+            }
+        } catch {
+            source = 'local';
+            result = mockGuardGateEvent({ gateId: selectedGateId, scenario, snapshotImageBase64 });
+            setEvents(getGuardGateEvents());
+        }
         setPage(1);
         if (!result.success) {
             const nextNotice = {
@@ -233,17 +253,17 @@ const GuardDashboard = () => {
         const nextNotice = {
             type: isOk ? 'success' : 'error',
             message: `${event.personName} ${event.direction === 'in' ? 'vào cổng' : 'ra cổng'}: ${event.statusLabel}.`,
-            detail: `${event.reason} Biển số: ${event.plateNumber || '--'}. Ảnh bằng chứng lấy từ ${snapshotImageBase64 ? 'webcam' : 'cam ảo'}.`
+            detail: `${event.reason} Biển số: ${event.plateNumber || '--'}. Dữ liệu đã ${source === 'backend' ? 'ghi vào backend' : 'ghi local fallback'}. Ảnh bằng chứng lấy từ ${snapshotImageBase64 ? 'webcam' : 'cam ảo'}.`
         };
         setScanNotice(nextNotice);
     }, [scenario, selectedGateId, webcamEnabled]);
 
     useEffect(() => {
         if (!autoScan) return undefined;
-        handleMock();
-        const timer = setInterval(handleMock, 4000);
+        handleScan();
+        const timer = setInterval(handleScan, 4000);
         return () => clearInterval(timer);
-    }, [autoScan, handleMock]);
+    }, [autoScan, handleScan]);
 
     useEffect(() => {
         if (!scanNotice || scanNotice.type === 'warning' || scanNotice.type === 'error') return undefined;
@@ -327,9 +347,9 @@ const GuardDashboard = () => {
                         <button type="button" onClick={toggleWebcam} className="px-4 py-2 rounded-xl border border-platinum-tint bg-white text-xs font-bold text-midnight-indigo">
                             {webcamEnabled ? 'Tắt webcam' : 'Bật webcam'}
                         </button>
-                        <button type="button" onClick={handleMock} className="px-4 py-2 rounded-xl bg-midnight-indigo text-white text-xs font-bold flex items-center gap-2">
+                        <button type="button" onClick={handleScan} className="px-4 py-2 rounded-xl bg-midnight-indigo text-white text-xs font-bold flex items-center gap-2">
                             {selectedGate.direction === 'in' ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
-                            Mô phỏng người qua cổng
+                            Quét người qua cổng
                         </button>
                         <button type="button" onClick={() => setAutoScan(v => !v)} className={`px-4 py-2 rounded-xl text-xs font-bold ${autoScan ? 'bg-red-600 text-white' : 'bg-action-blue text-white'}`}>
                             {autoScan ? 'Dừng tự động' : 'Bật tự động quét'}
@@ -364,7 +384,7 @@ const GuardDashboard = () => {
                 <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10 flex items-center justify-between gap-3">
                     <div>
                         <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">Nhật ký ra/vào khuôn viên</h2>
-                        <p className="text-xs text-slate-blue mt-1">Mock camera ảo hiện tại. Khi có API camera thật, thay provider ở service là giữ nguyên màn này.</p>
+                        <p className="text-xs text-slate-blue mt-1">Dữ liệu lấy từ backend. Cam ảo chỉ dùng để sinh ảnh test khi chưa có camera thật.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button type="button" onClick={() => { setEvents(getGuardGateEvents()); setPage(1); }} className="px-3 py-2 rounded-xl border border-platinum-tint text-slate-blue bg-white text-xs font-bold flex items-center gap-2">

@@ -339,6 +339,10 @@ export const createMockCamera = async (data) => {
     return await post('/dev/mock-camera', data);
 };
 
+export const scanMeetingAttendance = async (meetingId, data) => {
+    return await post(`/live-meetings/${meetingId}/attendance/scan`, data);
+};
+
 export const getRoomDevices = async (roomId) => {
     return await get(`/iot-devices?room_id=${roomId}`);
 };

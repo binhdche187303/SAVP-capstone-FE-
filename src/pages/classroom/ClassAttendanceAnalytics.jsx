@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, CalendarDays, Download, Filter, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { exportSemesterClassAttendanceCsv, getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
+import { exportSemesterClassAttendanceCsv, fetchBusinessClassAttendanceStats, fetchTeacherClassAttendanceReport, getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
 
 const RANGE_OPTIONS = [
     { value: 'day', label: 'Ngày' },
@@ -140,6 +140,8 @@ const StatCard = ({ label, value, helper }) => (
 const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const canExport = mode === 'teacher';
     const [currentUser, setCurrentUser] = useState(() => getStoredUser());
+    const [apiStats, setApiStats] = useState([]);
+    const [apiReport, setApiReport] = useState(null);
     const [selectedClassId, setSelectedClassId] = useState(canExport ? mockClassrooms[0]?.id : 'all');
     const [selectedSemester, setSelectedSemester] = useState('all');
     const [rangeMode, setRangeMode] = useState('month');
@@ -149,14 +151,47 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
         setCurrentUser(getStoredUser());
     }, []);
 
+    useEffect(() => {
+        let cancelled = false;
+        const loader = canExport
+            ? fetchTeacherClassAttendanceReport({
+                classId: selectedClassId,
+                semester: selectedSemester,
+                mode: rangeMode,
+                anchorDate
+            })
+            : fetchBusinessClassAttendanceStats();
+        loader
+            .then(data => {
+                if (cancelled) return;
+                if (canExport) {
+                    setApiReport(data || null);
+                    setApiStats([]);
+                    return;
+                }
+                setApiStats(Array.isArray(data) ? data : []);
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setApiReport(null);
+                    setApiStats([]);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [anchorDate, canExport, rangeMode, selectedClassId, selectedSemester]);
+
     const teacherClassrooms = useMemo(() => {
+        if (apiReport?.rows?.length) return apiReport.rows;
+        if (apiStats.length) return apiStats;
         if (!canExport) return mockClassrooms;
 
         const teacherName = normalizeText(currentUser?.fullName || currentUser?.full_name || currentUser?.name);
         const ownedClasses = mockClassrooms.filter(item => normalizeText(item.teacher) === teacherName);
 
         return ownedClasses.length > 0 ? ownedClasses : mockClassrooms;
-    }, [canExport, currentUser]);
+    }, [apiReport, apiStats, canExport, currentUser]);
 
     const semesters = useMemo(() => Array.from(new Set(teacherClassrooms.map(item => item.semester))), [teacherClassrooms]);
 
@@ -168,14 +203,46 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     }, [canExport, selectedClassId, teacherClassrooms]);
 
     const report = useMemo(
-        () => buildClassReport({
+        () => {
+            if (apiReport?.rows) return apiReport;
+            if (apiStats.length) {
+                const rows = teacherClassrooms
+                    .filter(item => selectedClassId === 'all' || item.id === selectedClassId)
+                    .filter(item => selectedSemester === 'all' || item.semester === selectedSemester)
+                    .map(item => ({
+                        ...item,
+                        totalSessions: item.total || 0,
+                        attended: item.checkedIn || 0,
+                        onTime: Math.max(0, (item.checkedIn || 0) - (item.late || 0)),
+                        late: item.late || 0,
+                        absent: item.missing || 0,
+                        rate: item.rate || 0
+                    }));
+                const totals = rows.reduce((acc, item) => ({
+                    totalSessions: acc.totalSessions + item.totalSessions,
+                    attended: acc.attended + item.attended,
+                    onTime: acc.onTime + item.onTime,
+                    late: acc.late + item.late,
+                    absent: acc.absent + item.absent
+                }), { totalSessions: 0, attended: 0, onTime: 0, late: 0, absent: 0 });
+                return {
+                    rows,
+                    period: { start: anchorDate, end: anchorDate },
+                    totals: {
+                        ...totals,
+                        rate: totals.totalSessions ? Math.round((totals.attended / totals.totalSessions) * 100) : 0
+                    }
+                };
+            }
+            return buildClassReport({
             selectedClassId,
             selectedSemester,
             rangeMode,
             anchorDate,
             classrooms: teacherClassrooms
-        }),
-        [anchorDate, rangeMode, selectedClassId, selectedSemester, teacherClassrooms]
+            });
+        },
+        [apiReport, apiStats.length, anchorDate, rangeMode, selectedClassId, selectedSemester, teacherClassrooms]
     );
 
     const pieData = [

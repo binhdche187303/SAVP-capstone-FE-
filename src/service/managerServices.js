@@ -398,6 +398,10 @@ export const uploadVideoRecording = async (meetingId, file) => {
     return await post(`/meetings/${meetingId}/recording-sessions/video-upload`, formData);
 };
 
+export const scanMeetingAttendance = async (meetingId, data) => {
+    return await post(`/live-meetings/${meetingId}/attendance/scan`, data);
+};
+
 export const createMockCamera = async (data) => {
     return await post('/dev/mock-camera', data);
 };

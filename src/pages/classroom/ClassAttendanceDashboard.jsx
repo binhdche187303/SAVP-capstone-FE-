@@ -5,8 +5,13 @@ import {
     buildClassAttendanceRows,
     clearClassAttendanceRecords,
     exportClassAttendanceCsv,
+    fetchClassAttendanceClasses,
+    fetchClassAttendanceRows,
+    fetchClassAttendanceSettings,
+    fetchClassAttendanceSummary,
     getClassAttendanceSettings,
     getClassAttendanceSummary,
+    scanClassAttendance,
     mockClassFaceScan,
     mockClassrooms
 } from '../../service/classAttendanceService';
@@ -109,6 +114,7 @@ const StatCard = ({ label, value, helper }) => (
 );
 
 const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
+    const [classrooms, setClassrooms] = useState(mockClassrooms);
     const [selectedClassId, setSelectedClassId] = useState(mockClassrooms[0].id);
     const [rows, setRows] = useState([]);
     const [summary, setSummary] = useState(getClassAttendanceSummary(selectedClassId));
@@ -122,21 +128,52 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     const lastWebcamFrameRef = useRef(null);
 
     const selectedClass = useMemo(
-        () => mockClassrooms.find(item => item.id === selectedClassId) || mockClassrooms[0],
-        [selectedClassId]
+        () => classrooms.find(item => item.id === selectedClassId) || classrooms[0] || mockClassrooms[0],
+        [classrooms, selectedClassId]
     );
 
     const refresh = useCallback(() => {
-        setRows(buildClassAttendanceRows(selectedClassId));
-        setSummary(getClassAttendanceSummary(selectedClassId));
-        setSettings(getClassAttendanceSettings(selectedClassId));
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const apiClasses = await fetchClassAttendanceClasses();
+                const nextClasses = apiClasses.length ? apiClasses : mockClassrooms;
+                const nextClassId = nextClasses.some(item => item.id === selectedClassId)
+                    ? selectedClassId
+                    : nextClasses[0]?.id || mockClassrooms[0].id;
+                const [apiRows, apiSummary, apiSettings] = await Promise.all([
+                    fetchClassAttendanceRows(nextClassId),
+                    fetchClassAttendanceSummary(nextClassId),
+                    fetchClassAttendanceSettings().catch(() => getClassAttendanceSettings(nextClassId))
+                ]);
+                if (cancelled) return;
+                setClassrooms(nextClasses);
+                if (nextClassId !== selectedClassId) setSelectedClassId(nextClassId);
+                setRows(apiRows.length ? apiRows : buildClassAttendanceRows(nextClassId));
+                setSummary(apiSummary || getClassAttendanceSummary(nextClassId));
+                setSettings({ ...getClassAttendanceSettings(nextClassId), ...apiSettings });
+            } catch {
+                if (cancelled) return;
+                setClassrooms(mockClassrooms);
+                setRows(buildClassAttendanceRows(selectedClassId));
+                setSummary(getClassAttendanceSummary(selectedClassId));
+                setSettings(getClassAttendanceSettings(selectedClassId));
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
     }, [selectedClassId]);
 
     useEffect(() => {
-        refresh();
+        const cleanup = refresh();
         const handler = () => refresh();
         window.addEventListener('class-attendance-updated', handler);
-        return () => window.removeEventListener('class-attendance-updated', handler);
+        return () => {
+            cleanup?.();
+            window.removeEventListener('class-attendance-updated', handler);
+        };
     }, [refresh]);
 
     useEffect(() => () => {
@@ -200,7 +237,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         }
     };
 
-    const performScan = useCallback(() => {
+    const performScan = useCallback(async () => {
         const snapshotImageBase64 = captureFrame(videoRef) || lastWebcamFrameRef.current;
         if (webcamEnabled && !snapshotImageBase64) {
             const nextNotice = {
@@ -211,7 +248,12 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
             return;
         }
 
-        const result = mockClassFaceScan({ classId: selectedClassId, direction: scanDirection, snapshotImageBase64 });
+        let result;
+        try {
+            result = await scanClassAttendance({ classId: selectedClassId, direction: scanDirection, snapshotImageBase64 });
+        } catch {
+            result = mockClassFaceScan({ classId: selectedClassId, direction: scanDirection, snapshotImageBase64 });
+        }
         const nextMessage = result?.data?.message || result.message || 'Đã xử lý lượt quét.';
         const nextNotice = {
             type: result.success ? 'success' : (result.warning ? 'warning' : 'error'),
@@ -262,7 +304,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         onChange={(e) => setSelectedClassId(e.target.value)}
                         className="px-4 py-2.5 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
                     >
-                        {mockClassrooms.map(item => (
+                        {classrooms.map(item => (
                             <option key={item.id} value={item.id}>{item.code} - {item.subject}</option>
                         ))}
                     </select>
