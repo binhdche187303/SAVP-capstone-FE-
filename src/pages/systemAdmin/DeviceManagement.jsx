@@ -58,6 +58,9 @@ const timeAgo = (iso, now) => {
  * 2. Visual Map View detailing rooms and their active device health status
  * 3. Validation for IP address inputs
  */
+// Lỗi validate hiển thị dưới từng trường (thay tooltip mặc định tiếng Anh của trình duyệt).
+const FieldError = ({ msg }) => (msg ? <p className="text-red-500 text-xs mt-1">{msg}</p> : null);
+
 const DeviceManagement = () => {
     // States
     const [devicesList, setDevicesList] = useState([]);
@@ -71,6 +74,7 @@ const DeviceManagement = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState({});
 
     // FE-5: Assign Room Modal
     const [isAssignRoomModalOpen, setIsAssignRoomModalOpen] = useState(false);
@@ -233,8 +237,25 @@ const DeviceManagement = () => {
         return ipPattern.test(ip);
     };
 
+    // IP bắt buộc với mọi loại trừ face_server (khớp dấu * trên form); chỉ check định dạng khi có nhập.
+    const validateDeviceForm = (isCreate) => {
+        const errors = {};
+        if (isCreate && !formData.deviceCode.trim()) errors.deviceCode = 'Mã thiết bị không được để trống';
+        if (!formData.deviceName.trim()) errors.deviceName = 'Tên thiết bị không được để trống';
+        const ip = formData.ipAddress.trim();
+        if (!ip && formData.deviceType !== 'face_server') errors.ipAddress = 'Địa chỉ IP không được để trống';
+        else if (ip && !validateIP(ip)) errors.ipAddress = 'Địa chỉ IP không đúng định dạng. Ví dụ: 192.168.1.10';
+        setFieldErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+    const setField = (key, value) => {
+        setFormData({ ...formData, [key]: value });
+        if (fieldErrors[key]) setFieldErrors({ ...fieldErrors, [key]: undefined });
+    };
+
     // Form handlers
     const openRegisterModal = () => {
+        setFieldErrors({});
         setFormData({
             deviceCode: '',
             deviceName: '',
@@ -248,6 +269,7 @@ const DeviceManagement = () => {
 
     const openEditModal = (device) => {
         setSelectedDevice(device);
+        setFieldErrors({});
         setFormData({
             deviceCode: device.device_code || '',
             deviceName: device.device_name || '',
@@ -268,15 +290,12 @@ const DeviceManagement = () => {
         // đặc biệt face_server thường KHÔNG có IP (dùng base_url riêng, cấu hình sau qua modal
         // Face Server). Trước đây bắt buộc nhập IP hợp lệ cho MỌI loại thiết bị nên không thể
         // đăng ký face_server không IP — chỉ validate định dạng khi người dùng CÓ nhập.
-        if (formData.ipAddress.trim() && !validateIP(formData.ipAddress.trim())) {
-            setError('Địa chỉ IP không đúng định dạng. Ví dụ: 192.168.1.10');
-            return;
-        }
+        if (!validateDeviceForm(true)) return;
         setSubmitting(true);
         try {
             const payload = {
-                device_code: formData.deviceCode,
-                device_name: formData.deviceName,
+                device_code: formData.deviceCode.trim(),
+                device_name: formData.deviceName.trim(),
                 device_type: formData.deviceType,
                 ip_address: formData.ipAddress.trim() || undefined,
                 metadata_json: {
@@ -307,14 +326,11 @@ const DeviceManagement = () => {
         setError(null);
         setSuccessMessage(null);
 
-        if (formData.ipAddress.trim() && !validateIP(formData.ipAddress.trim())) {
-            setError('Địa chỉ IP không đúng định dạng. Ví dụ: 192.168.1.10');
-            return;
-        }
+        if (!validateDeviceForm(false)) return;
         setSubmitting(true);
         try {
             const updatePayload = {
-                device_name: formData.deviceName,
+                device_name: formData.deviceName.trim(),
                 ip_address: formData.ipAddress.trim() || undefined,
             };
             const res = await updateDevice(selectedDevice.id, updatePayload);
@@ -492,7 +508,14 @@ const DeviceManagement = () => {
     // FE-5: RTSP Config handler
     const handleRtspConfig = async (e) => {
         e.preventDefault();
-        if (!rtspDeviceId || !rtspConfig.rtsp_host.trim() || !rtspConfig.rtsp_path.trim()) return;
+        if (!rtspDeviceId) return;
+        const errors = {};
+        if (!rtspConfig.rtsp_host.trim()) errors.rtsp_host = 'Host không được để trống';
+        if (!rtspConfig.rtsp_path.trim()) errors.rtsp_path = 'Path không được để trống';
+        const port = rtspConfig.rtsp_port;
+        if (port && (!/^\d+$/.test(String(port)) || +port < 1 || +port > 65535)) errors.rtsp_port = 'Port phải từ 1 đến 65535';
+        setFieldErrors(errors);
+        if (Object.keys(errors).length > 0) return;
         setSubmitting(true);
         try {
             const payload = {
@@ -1101,6 +1124,7 @@ const DeviceManagement = () => {
                                                                         rtsp_username: saved.rtsp_username || '',
                                                                         rtsp_password: ''
                                                                     });
+                                                                    setFieldErrors({});
                                                                     setIsRtspModalOpen(true);
                                                                 }}
                                                                 title="Cấu hình RTSP"
@@ -1197,28 +1221,28 @@ const DeviceManagement = () => {
                                 </svg>
                             </button>
                         </div>
-                        <form onSubmit={handleRegisterSubmit} className="p-6 space-y-4">
+                        <form onSubmit={handleRegisterSubmit} noValidate className="p-6 space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã thiết bị</label>
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã thiết bị <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
-                                    required
                                     value={formData.deviceCode}
-                                    onChange={(e) => setFormData({...formData, deviceCode: e.target.value})}
+                                    onChange={(e) => setField('deviceCode', e.target.value)}
                                     placeholder="Ví dụ: CAM-ROOM-101"
-                                    className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
+                                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none ${fieldErrors.deviceCode ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                 />
+                                <FieldError msg={fieldErrors.deviceCode} />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên thiết bị</label>
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên thiết bị <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
-                                    required
                                     value={formData.deviceName}
-                                    onChange={(e) => setFormData({...formData, deviceName: e.target.value})}
+                                    onChange={(e) => setField('deviceName', e.target.value)}
                                     placeholder="Ví dụ: Camera chính Phòng 101"
-                                    className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
+                                    className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none ${fieldErrors.deviceName ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                 />
+                                <FieldError msg={fieldErrors.deviceName} />
                             </div>
                             <p className="text-[10px] text-slate-blue">Sau khi đăng ký, dùng nút bút chì tím để cấu hình RTSP cho camera.</p>
                             <div className="grid grid-cols-2 gap-4">
@@ -1226,7 +1250,7 @@ const DeviceManagement = () => {
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại thiết bị</label>
                                     <select
                                         value={formData.deviceType}
-                                        onChange={(e) => setFormData({...formData, deviceType: e.target.value})}
+                                        onChange={(e) => { setFormData({...formData, deviceType: e.target.value}); setFieldErrors({ ...fieldErrors, ipAddress: undefined }); }}
                                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
                                     >
                                         <option value="ip_camera">Camera AI</option>
@@ -1261,12 +1285,12 @@ const DeviceManagement = () => {
                                     </label>
                                     <input
                                         type="text"
-                                        required={formData.deviceType !== 'face_server'}
                                         value={formData.ipAddress}
-                                        onChange={(e) => setFormData({...formData, ipAddress: e.target.value})}
+                                        onChange={(e) => setField('ipAddress', e.target.value)}
                                         placeholder={formData.deviceType === 'face_server' ? '192.168.1.50 (tuỳ chọn — có thể để trống, cấu hình base_url riêng sau)' : '192.168.1.50'}
-                                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
+                                        className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none ${fieldErrors.ipAddress ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                     />
+                                    <FieldError msg={fieldErrors.ipAddress} />
                                 </div>
                             </div>
                             <div className="pt-4 flex justify-end gap-3 border-t border-platinum-tint mt-4">
@@ -1303,14 +1327,15 @@ const DeviceManagement = () => {
                                 </svg>
                             </button>
                         </div>
-                        <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                        <form onSubmit={handleEditSubmit} noValidate className="p-6 space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã thiết bị (Read-only)</label>
                                 <input type="text" disabled value={formData.deviceCode} className="w-full px-3 py-2 border border-platinum-tint bg-cloud-mist rounded-xl text-sm text-steel-gray focus:outline-none cursor-not-allowed" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên thiết bị</label>
-                                <input type="text" required value={formData.deviceName} onChange={(e) => setFormData({...formData, deviceName: e.target.value})} placeholder="Ví dụ: Camera chính Phòng 101" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue" />
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên thiết bị <span className="text-red-500">*</span></label>
+                                <input type="text" value={formData.deviceName} onChange={(e) => setField('deviceName', e.target.value)} placeholder="Ví dụ: Camera chính Phòng 101" className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none ${fieldErrors.deviceName ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`} />
+                                <FieldError msg={fieldErrors.deviceName} />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại thiết bị</label>
@@ -1323,7 +1348,8 @@ const DeviceManagement = () => {
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">
                                     Địa chỉ IP {formData.deviceType !== 'face_server' && <span className="text-red-500">*</span>}
                                 </label>
-                                <input type="text" required={formData.deviceType !== 'face_server'} value={formData.ipAddress} onChange={(e) => setFormData({...formData, ipAddress: e.target.value})} placeholder="192.168.1.50" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue" />
+                                <input type="text" value={formData.ipAddress} onChange={(e) => setField('ipAddress', e.target.value)} placeholder="192.168.1.50" className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none ${fieldErrors.ipAddress ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`} />
+                                <FieldError msg={fieldErrors.ipAddress} />
                             </div>
                             <div className="pt-4 flex justify-end gap-3 border-t border-platinum-tint mt-4">
                                 <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-sm font-semibold transition-colors">Hủy</button>
@@ -1345,10 +1371,10 @@ const DeviceManagement = () => {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
-                        <form onSubmit={handleAssignRoom} className="p-6 space-y-4">
+                        <form onSubmit={handleAssignRoom} noValidate className="p-6 space-y-4">
                             <div>
                                 <label htmlFor="assign-room-select" className="block text-xs font-bold text-slate-blue uppercase mb-1">Chọn phòng họp</label>
-                                <select id="assign-room-select" value={assignRoomValue} onChange={(e) => setAssignRoomValue(e.target.value)} required className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white">
+                                <select id="assign-room-select" value={assignRoomValue} onChange={(e) => setAssignRoomValue(e.target.value)} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white">
                                     <option value="">-- Chọn phòng --</option>
                                     {rooms.map(room => (<option key={room.roomId} value={room.roomId}>{room.roomName}</option>))}
                                 </select>
@@ -1373,7 +1399,7 @@ const DeviceManagement = () => {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
-                        <form onSubmit={handleRtspConfig} className="p-6 space-y-4">
+                        <form onSubmit={handleRtspConfig} noValidate className="p-6 space-y-4">
                             <div className="grid grid-cols-3 gap-3">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Protocol</label>
@@ -1384,17 +1410,20 @@ const DeviceManagement = () => {
                                 </div>
                                 <div className="col-span-2">
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Host <span className="text-red-500">*</span></label>
-                                    <input type="text" required value={rtspConfig.rtsp_host} onChange={(e) => setRtspConfig({...rtspConfig, rtsp_host: e.target.value})} placeholder="192.168.1.50" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-mono focus:outline-none focus:border-action-blue" />
+                                    <input type="text" value={rtspConfig.rtsp_host} onChange={(e) => setRtspConfig({...rtspConfig, rtsp_host: e.target.value})} placeholder="192.168.1.50" className={`w-full px-3 py-2 border rounded-xl text-sm font-mono focus:outline-none ${fieldErrors.rtsp_host ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`} />
+                                    <FieldError msg={fieldErrors.rtsp_host} />
                                 </div>
                             </div>
                             <div className="grid grid-cols-3 gap-3">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Port</label>
-                                    <input type="number" min="1" max="65535" value={rtspConfig.rtsp_port} onChange={(e) => setRtspConfig({...rtspConfig, rtsp_port: e.target.value})} placeholder="554" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-mono focus:outline-none focus:border-action-blue" />
+                                    <input type="number" min="1" max="65535" value={rtspConfig.rtsp_port} onChange={(e) => setRtspConfig({...rtspConfig, rtsp_port: e.target.value})} placeholder="554" className={`w-full px-3 py-2 border rounded-xl text-sm font-mono focus:outline-none ${fieldErrors.rtsp_port ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`} />
+                                    <FieldError msg={fieldErrors.rtsp_port} />
                                 </div>
                                 <div className="col-span-2">
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Path <span className="text-red-500">*</span></label>
-                                    <input type="text" required value={rtspConfig.rtsp_path} onChange={(e) => setRtspConfig({...rtspConfig, rtsp_path: e.target.value})} placeholder="/live/main" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-mono focus:outline-none focus:border-action-blue" />
+                                    <input type="text" value={rtspConfig.rtsp_path} onChange={(e) => setRtspConfig({...rtspConfig, rtsp_path: e.target.value})} placeholder="/live/main" className={`w-full px-3 py-2 border rounded-xl text-sm font-mono focus:outline-none ${fieldErrors.rtsp_path ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`} />
+                                    <FieldError msg={fieldErrors.rtsp_path} />
                                     <p className="text-[10px] text-slate-blue mt-1">Bắt đầu bằng /</p>
                                 </div>
                             </div>
@@ -1528,7 +1557,7 @@ const DeviceManagement = () => {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
-                        <form onSubmit={handleFaceConfigSubmit} className="flex flex-col flex-1 min-h-0">
+                        <form onSubmit={handleFaceConfigSubmit} noValidate className="flex flex-col flex-1 min-h-0">
                         <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
                             {faceConfigDevice.metadata_json?.face_server_config && (
                                 <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -1583,10 +1612,9 @@ const DeviceManagement = () => {
                                         { label: 'Stranger Path', key: 'stranger_path' },
                                     ].map(({ label, key }) => (
                                         <div key={key}>
-                                            <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1">{label} <span className="text-red-500">*</span></label>
+                                            <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1">{label}</label>
                                             <input
                                                 type="text"
-                                                required
                                                 value={faceConfigForm[key]}
                                                 onChange={(e) => setFaceConfigForm(f => ({ ...f, [key]: e.target.value }))}
                                                 placeholder="/path"

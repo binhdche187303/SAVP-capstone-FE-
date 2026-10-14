@@ -33,7 +33,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Vai trò & Phân quyền',  to: '/system-admin/roles-permissions', icon: RiShieldLine },
             { label: 'Cấu hình hệ thống',     to: '/system-admin/settings',           icon: RiSettings2Line },
-            { label: 'Nhật ký kiểm toán',     to: '/system-admin/audit-logs',         icon: RiFileListLine },
+            { label: 'Nhật ký hệ thống',      to: '/system-admin/audit-logs',         icon: RiFileListLine },
             { label: 'Quy tắc cảnh báo',      to: '/system-admin/alert-rules',        icon: RiEqualizerLine },
         ],
     },

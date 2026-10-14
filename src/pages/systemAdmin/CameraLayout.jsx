@@ -389,7 +389,12 @@ const CameraLayout = () => {
           ) : (
             <button
               onClick={() => setEditMode(true)}
-              disabled={!current}
+              disabled={!current || placed.length === 0}
+              title={
+                current && placed.length === 0
+                  ? "Tầng này chưa có camera để chỉnh vị trí"
+                  : undefined
+              }
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-action-blue border border-action-blue/30 hover:bg-blue-50 disabled:opacity-50"
             >
               <Move className="w-3.5 h-3.5" /> Chỉnh vị trí
@@ -584,15 +589,43 @@ const CameraLayout = () => {
                 Camera biển số
               </span>
               <span className="ml-auto text-steel-gray">
-                {editMode
-                  ? "Kéo camera để đổi vị trí, chỉnh hướng ở khung bên phải."
-                  : "Bấm vào camera để xem chi tiết."}
+                {placed.length === 0
+                  ? "Chưa có camera trên tầng này."
+                  : editMode
+                    ? "Kéo camera để đổi vị trí, chỉnh hướng ở khung bên phải."
+                    : "Bấm vào camera để xem chi tiết."}
               </span>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 p-4 h-fit">
-            {!selected ? (
+            {placed.length === 0 ? (
+              // Camera chỉ lên sơ đồ khi được gán vào khu vực (campus map) hoặc phòng của tầng.
+              <div className="space-y-3">
+                <p className="text-sm font-bold text-midnight-indigo">
+                  Tầng này chưa có camera
+                </p>
+                <p className="text-xs text-steel-gray">
+                  Camera sẽ hiện trên sơ đồ khi được gán vào một khu vực hoặc
+                  phòng thuộc tầng này. Sau đó bấm "Chỉnh vị trí" để đặt đúng
+                  vị trí và hướng nhìn.
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  <Link
+                    to="/system-admin/zones"
+                    className="text-center px-3 py-2 rounded-xl text-xs font-semibold text-action-blue border border-action-blue/30 hover:bg-blue-50"
+                  >
+                    Gán camera vào khu vực
+                  </Link>
+                  <Link
+                    to="/system-admin/devices"
+                    className="text-center px-3 py-2 rounded-xl text-xs font-semibold text-slate-blue hover:bg-cloud-mist"
+                  >
+                    Gán camera vào phòng
+                  </Link>
+                </div>
+              </div>
+            ) : !selected ? (
               <p className="text-xs text-steel-gray">
                 {placed.length} camera trên tầng này. Chọn 1 camera trên sơ đồ
                 để xem trạng thái.
