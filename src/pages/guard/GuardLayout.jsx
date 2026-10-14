@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, KeyRound, LogOut, Shield, User } from 'lucide-react';
+import { Bell, Car, ChevronDown, KeyRound, LogOut, Shield, ShieldAlert, User, UserCheck } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import UserAvatar from '../../components/common/UserAvatar';
 import NotificationBell from '../../components/common/NotificationBell';
 import ChangePasswordModal from '../../components/auth/ChangePasswordModal';
 import BiometricReminderModal from '../../components/biometric/BiometricReminderModal';
 import { getCurrentUser, logout } from '../../service/authService';
+
+const NAV_ITEMS = [
+    { to: '/guard', label: 'Trực cổng', icon: Shield, end: true },
+    { to: '/guard/security-alerts', label: 'Cảnh báo an ninh', icon: ShieldAlert },
+    { to: '/guard/anpr', label: 'Xe vào ra', icon: Car },
+    { to: '/guard/visitors/desk', label: 'Khách tại cổng', icon: UserCheck },
+];
 
 const GuardLayout = () => {
     const navigate = useNavigate();
@@ -59,14 +66,17 @@ const GuardLayout = () => {
                             <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden sm:block">SmarTracking</span>
                         </NavLink>
                         <nav className="hidden md:flex items-center gap-1">
-                            <NavLink
-                                to="/guard"
-                                end
-                                className={({ isActive }) => `px-3.5 py-2 rounded-xl text-sm no-underline flex items-center gap-2 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`}
-                            >
-                                <Shield className="w-4 h-4" />
-                                Trực cổng
-                            </NavLink>
+                            {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+                                <NavLink
+                                    key={to}
+                                    to={to}
+                                    end={end}
+                                    className={({ isActive }) => `px-3.5 py-2 rounded-xl text-sm no-underline flex items-center gap-2 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`}
+                                >
+                                    <Icon className="w-4 h-4" />
+                                    {label}
+                                </NavLink>
+                            ))}
                         </nav>
                     </div>
                     <div className="flex items-center gap-3">
@@ -77,7 +87,7 @@ const GuardLayout = () => {
                                     <p className="text-sm font-semibold text-midnight-indigo leading-tight">{displayName}</p>
                                     <p className="text-xs text-slate-blue leading-tight">Bảo vệ</p>
                                 </div>
-                                <UserAvatar user={currentUser} size="md" />
+                                <UserAvatar user={currentUser} name={displayName} className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20" />
                                 <ChevronDown className={`w-4 h-4 text-slate-blue transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {isProfileMenuOpen && (
