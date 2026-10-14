@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Info, RotateCcw } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
-import { VISITOR_REPORT_MOCK_ENABLED } from '../../config/featureFlags';
+import { ANY_DEMO_DATA } from '../../config/featureFlags';
 import { resetDemoData } from '../../service/visitorService';
 import toast from '../../utils/toast';
 
 // Dải báo "đang dùng dữ liệu minh hoạ" của phân hệ Khách và Báo cáo; ẩn khi đã nối BE thật.
 const DemoDataBanner = ({ onReset }) => {
     const [confirming, setConfirming] = useState(false);
-    if (!VISITOR_REPORT_MOCK_ENABLED) return null;
+    if (!ANY_DEMO_DATA) return null;
 
     const reset = async () => {
         setConfirming(false);

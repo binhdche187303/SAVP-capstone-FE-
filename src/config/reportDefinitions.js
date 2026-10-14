@@ -171,6 +171,8 @@ export const REPORT_DEFINITIONS = {
                 ['stranger', 'Người lạ'], ['watchlist_person', 'Người thuộc danh sách kiểm soát'],
                 ['vehicle', 'Phương tiện bất thường'], ['intrusion', 'Xâm nhập khu vực cấm'],
                 ['crowd', 'Tụ tập đông người'], ['camera_offline', 'Camera mất tín hiệu'],
+                ['visitor_overstay', 'Khách quá giờ'], ['visitor_must_leave', 'Khách phải rời'],
+                ['visitor_zone_violation', 'Khách vào sai khu vực'],
             ]),
             options('severity', 'Mức độ', [['low', 'Thấp'], ['medium', 'Trung bình'], ['high', 'Cao'], ['critical', 'Nghiêm trọng']]),
             lookup('zoneId', 'Khu vực', 'zones'),
