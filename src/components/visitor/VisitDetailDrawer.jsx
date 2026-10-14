@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import {
     getVisit, approveVisit, rejectVisit, cancelVisit, revokeVisit, extendVisit,
-    attachVisitorPhoto, checkInVisit, checkOutVisit, closeVisitManually,
+    attachVisitorPhoto, checkInVisit, checkOutVisit, closeVisitManually, reassignVisitHost, searchHosts,
 } from '../../service/visitorService';
 import toast from '../../utils/toast';
 import { inputCls, labelCls, btnPrimary, btnGhost, btnDanger, errorBoxCls, spinnerCls } from '../common/uiClasses';
@@ -38,7 +38,9 @@ const TEXT_ACTIONS = {
 };
 
 // Ngăn chi tiết một lượt khách + mọi thao tác trên lượt (S3, dùng lại ở S4–S6).
-const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged }) => {
+// deskMode: màn chốt bảo vệ — mới có check-in / check-out / chụp ảnh (BE: visitor.desk.use).
+// canReassign: màn quản lý của admin — chuyển người duyệt cho lượt đang chờ duyệt.
+const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode = false, canReassign = false }) => {
     const [visit, setVisit] = useState(null);
     const [loadError, setLoadError] = useState(null);
     const [action, setAction] = useState(null);
@@ -49,6 +51,9 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged }) => {
     const [closeForm, setCloseForm] = useState({ reason: '', exitAt: '', note: '' });
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [hostQuery, setHostQuery] = useState('');
+    const [hostOptions, setHostOptions] = useState([]);
+    const [newHostId, setNewHostId] = useState('');
 
     const load = useCallback(async () => {
         const res = await getVisit(visitId);
@@ -74,8 +79,15 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged }) => {
         setPhoto(null);
         if (name === 'approve') setAccess({ ...visit.access });
         if (name === 'extend') setExtendTo(toLocalInput(visit.access.validTo));
+        if (name === 'reassign') { setHostQuery(''); setNewHostId(''); findHosts(''); }
         if (name === 'close') setCloseForm({ reason: '', exitAt: toLocalInput(new Date().toISOString()), note: '' });
         setAction(name);
+    };
+
+    const findHosts = async (q) => {
+        setHostQuery(q);
+        const res = await searchHosts(q);
+        setHostOptions(res?.success ? (res.data?.items || res.data || []).filter((h) => h.id !== visit?.hostId).slice(0, 8) : []);
     };
 
     const perform = async (call, doneMessage) => {
@@ -93,9 +105,14 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged }) => {
         onChanged?.();
     };
 
-    const can = (name) => visit?.availableActions.includes(name);
+    // Duyệt / từ chối: chỉ chính người được gặp (BE cũng chặn) — admin, bảo vệ không duyệt thay.
+    const isHost = (() => { try { return visit?.hostId === JSON.parse(localStorage.getItem('user') || '{}').id; } catch { return false; } })();
+    const DESK_ACTIONS = ['check_in', 'check_out'];
+    const can = (name) => visit?.availableActions.includes(name)
+        && (!['approve', 'reject'].includes(name) || isHost)
+        && (!DESK_ACTIONS.includes(name) || deskMode);
     const canExtend = visit && ['approved', 'checked_in'].includes(visit.status);
-    const needsPhoto = visit && visit.visitor.hasPhoto === false && ['approved', 'pending_approval'].includes(visit.status);
+    const needsPhoto = deskMode && visit && visit.visitor.hasPhoto === false && ['approved', 'pending_approval'].includes(visit.status);
     const textAction = TEXT_ACTIONS[action];
 
     return createPortal(
@@ -143,6 +160,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged }) => {
                                 {can('close_manual') && <button type="button" className={btnGhost} onClick={() => open('close')}>Đóng lượt thủ công</button>}
                                 {canExtend && <button type="button" className={btnGhost} onClick={() => open('extend')}>Gia hạn</button>}
                                 {needsPhoto && <button type="button" className={btnGhost} onClick={() => open('photo')}>Chụp bổ sung ảnh</button>}
+                                {canReassign && visit.status === 'pending_approval' && <button type="button" className={btnGhost} onClick={() => open('reassign')}>Chuyển người duyệt</button>}
                                 {can('revoke') && <button type="button" className={btnGhost} onClick={() => open('revoke')}>Thu hồi quyền</button>}
                                 {can('cancel') && <button type="button" className={btnGhost} disabled={busy} onClick={() => perform(() => cancelVisit(visit.id), 'Đã hủy lượt khách')}>Hủy lượt</button>}
                             </div>
@@ -165,6 +183,24 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged }) => {
                                         <div className="space-y-1">
                                             <label className={labelCls} htmlFor="visit-extend-to">Hiệu lực mới đến</label>
                                             <input id="visit-extend-to" type="datetime-local" className={`${inputCls} w-full`} value={extendTo} onChange={(e) => setExtendTo(e.target.value)} />
+                                        </div>
+                                    )}
+                                    {action === 'reassign' && (
+                                        <div className="space-y-2">
+                                            <p className="text-xs font-semibold text-midnight-indigo">Người được gặp vắng / chưa phản hồi — chọn người khác duyệt thay.</p>
+                                            <label className={labelCls} htmlFor="visit-reassign-q">Tìm người duyệt mới</label>
+                                            <input id="visit-reassign-q" className={`${inputCls} w-full`} placeholder="Tên hoặc phòng ban" value={hostQuery} onChange={(e) => findHosts(e.target.value)} />
+                                            <div className="max-h-40 overflow-y-auto space-y-1">
+                                                {hostOptions.map((h) => (
+                                                    <label key={h.id} className="flex items-center gap-2 text-xs text-midnight-indigo">
+                                                        <input type="radio" name="reassign-host" checked={newHostId === h.id} onChange={() => setNewHostId(h.id)} />
+                                                        {h.fullName}{h.departmentName ? ` · ${h.departmentName}` : ''}
+                                                    </label>
+                                                ))}
+                                                {hostOptions.length === 0 && <p className="text-xs text-slate-blue">Không tìm thấy người phù hợp</p>}
+                                            </div>
+                                            <label className={labelCls} htmlFor="visit-reassign-reason">Lý do chuyển</label>
+                                            <textarea id="visit-reassign-reason" rows={2} className={`${inputCls} w-full`} value={text} onChange={(e) => setText(e.target.value)} />
                                         </div>
                                     )}
                                     {action === 'photo' && <FaceCapture value={photo} onChange={setPhoto} />}
@@ -197,6 +233,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged }) => {
                                         {textAction && <button type="button" className={textAction.danger ? btnDanger : btnPrimary} disabled={busy} onClick={() => perform(() => textAction.run(visit.id, text), textAction.done)}>{textAction.confirm}</button>}
                                         {action === 'extend' && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => extendVisit(visit.id, { validTo: fromLocalInput(extendTo) }), 'Đã gia hạn quyền ra vào')}>Xác nhận gia hạn</button>}
                                         {action === 'close' && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => closeVisitManually(visit.id, { reason: closeForm.reason, exitAt: closeForm.reason === 'left_unrecorded' ? fromLocalInput(closeForm.exitAt) : undefined, note: closeForm.note }), 'Đã đóng lượt khách')}>Xác nhận đóng lượt</button>}
+                                        {action === 'reassign' && <button type="button" className={btnPrimary} disabled={busy || !newHostId} onClick={() => perform(() => reassignVisitHost(visit.id, { hostId: newHostId, reason: text }), 'Đã chuyển người duyệt')}>Xác nhận chuyển</button>}
                                         {action === 'photo' && <button type="button" className={btnPrimary} disabled={busy || !photo} onClick={() => perform(() => attachVisitorPhoto(visit.id, { photo }), 'Đã bổ sung ảnh khuôn mặt')}>Lưu ảnh</button>}
                                     </div>
                                 </div>

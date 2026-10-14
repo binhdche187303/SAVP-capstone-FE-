@@ -6,12 +6,13 @@ const WIDTH = 320;
 const HEIGHT = 240;
 const SHRINK_ABOVE_BYTES = 150 * 1024;
 
-const readFile = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-});
+// Không dùng FileReader toàn cục: thư viện pptxviewjs ghi đè window.FileReader bằng lớp không có readAsDataURL.
+const readFile = async (file) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return `data:${file.type};base64,${btoa(binary)}`;
+};
 
 // Thu nhỏ ảnh tải lên còn rộng tối đa 320 px để không làm đầy localStorage.
 const shrink = (dataUrl) => new Promise((resolve) => {

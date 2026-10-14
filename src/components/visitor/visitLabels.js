@@ -16,7 +16,7 @@ export const VISIT_STATUS_META = {
 export const VISIT_CHANNEL_LABELS = {
     online: 'Tự đăng ký trực tuyến',
     host_invite: 'Cán bộ mời',
-    walk_in: 'Lễ tân nhập',
+    walk_in: 'Bảo vệ nhập',
 };
 
 export const VISIT_EVENT_LABELS = {
@@ -28,7 +28,7 @@ export const VISIT_EVENT_LABELS = {
     extended: 'Gia hạn quyền ra vào',
     photo_added: 'Bổ sung ảnh khuôn mặt',
     face_verified: 'Xác thực khuôn mặt thành công',
-    manual_review: 'Cần lễ tân xác minh',
+    manual_review: 'Cần bảo vệ xác minh',
     access_denied: 'Từ chối ra vào',
     check_in: 'Vào khuôn viên',
     check_out: 'Rời khuôn viên',
@@ -38,6 +38,7 @@ export const VISIT_EVENT_LABELS = {
     host_notified: 'Đã thông báo người được gặp',
     security_notified: 'Đã báo bảo vệ',
     manual_close: 'Đóng lượt thủ công',
+    host_reassigned: 'Chuyển người duyệt',
     exit_unrecorded: 'Chưa ghi nhận giờ ra',
 };
 

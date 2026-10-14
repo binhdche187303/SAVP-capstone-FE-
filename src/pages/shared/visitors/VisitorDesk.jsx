@@ -12,7 +12,7 @@ import RegistrationQrCard from '../../../components/visitor/RegistrationQrCard';
 import { VISIT_EVENT_LABELS, fmtDateTime, fmtTimeRange, fmtLastSeen } from '../../../components/visitor/visitLabels';
 import { pageCls, cardCls, btnPrimary, btnGhost, errorBoxCls, spinnerCls } from '../../../components/common/uiClasses';
 
-// S4 (2.10, spec §12.2): màn xử lý ngoại lệ của lễ tân/bảo vệ. Khách đã đăng ký, đã duyệt và có ảnh
+// S4 (2.10, spec §12.2): màn xử lý ngoại lệ của bảo vệ/bảo vệ. Khách đã đăng ký, đã duyệt và có ảnh
 // được camera tại cổng tự cho vào; màn này chỉ gom những trường hợp cần người xử lý.
 const REFRESH_MS = 30000;
 const MINUTE = 60 * 1000;
@@ -60,7 +60,7 @@ const VisitorDesk = () => {
             setDesk(res.data);
             setError(null);
         } else {
-            setError(res?.message || 'Không tải được dữ liệu quầy lễ tân');
+            setError(res?.message || 'Không tải được dữ liệu chốt bảo vệ');
         }
     }, []);
 
@@ -92,11 +92,11 @@ const VisitorDesk = () => {
                 <div>
                     <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <ConciergeBell className="w-6 h-6 text-action-blue" />
-                        Quầy lễ tân
+                        Chốt bảo vệ
                     </h2>
                     <p className="text-xs text-slate-blue mt-1 max-w-2xl">
                         Khách đã đăng ký, đã duyệt và có ảnh sẽ được camera tại cổng tự cho vào, không cần người trực.
-                        Màn này chỉ gom các trường hợp cần lễ tân hoặc bảo vệ xử lý.
+                        Màn này chỉ gom các trường hợp cần bảo vệ hoặc bảo vệ xử lý.
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -231,7 +231,7 @@ const VisitorDesk = () => {
             </SimpleModal>
 
             {detailId && (
-                <VisitDetailDrawer visitId={detailId} zones={lookups.zones} onClose={() => setDetailId(null)} onChanged={load} />
+                <VisitDetailDrawer deskMode visitId={detailId} zones={lookups.zones} onClose={() => setDetailId(null)} onChanged={load} />
             )}
         </div>
     );
