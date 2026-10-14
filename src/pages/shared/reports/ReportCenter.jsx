@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarClock, FileBarChart } from 'lucide-react';
 import { getReportDefinition } from '../../../config/reportDefinitions';
-import { getReportCatalog, getRecentExports, exportReport } from '../../../service/reportCenterService';
+import { getReportCatalog, getRecentExports, exportReport, getExportDownloadUrl } from '../../../service/reportCenterService';
 import { formatDateTime } from '../../../utils/reportFormat';
 import toast from '../../../utils/toast';
 import useAreaBase from '../../../hooks/useAreaBase';
@@ -37,12 +37,23 @@ const ReportCenter = () => {
         setBusyId(item.id);
         const res = await exportReport(item.reportType, { format: item.format, from: item.from, to: item.to });
         if (res?.success) {
-            toast.success(`Đã xuất ${res.data.fileName}`);
+            toast.success(res.data?.fileName ? `Đã xuất ${res.data.fileName}` : 'Đã tạo yêu cầu xuất mới');
             load();
         } else {
             toast.error(res?.message || 'Không xuất được báo cáo');
         }
         setBusyId(null);
+    };
+
+    const download = async (item) => {
+        const res = await getExportDownloadUrl(item.id);
+        if (res?.success && res.data?.downloadUrl) {
+            const a = document.createElement('a');
+            a.href = res.data.downloadUrl;
+            a.download = res.data.fileName || '';
+            a.click();
+            toast.success(`Đang tải ${res.data.fileName || 'file báo cáo'}`);
+        } else toast.error(res?.message || 'File chưa sẵn sàng để tải');
     };
 
     return (
@@ -112,6 +123,11 @@ const ReportCenter = () => {
                                         <td className={`${tdCls} text-slate-blue`}>{item.fileName}</td>
                                         <td className={tdCls}>{formatDateTime(item.createdAt)}</td>
                                         <td className={`${tdCls} text-right`}>
+                                            {item.status === 'completed' && item.outputFileId && (
+                                                <button type="button" onClick={() => download(item)} className="text-action-blue font-semibold hover:underline mr-3">
+                                                    Tải xuống
+                                                </button>
+                                            )}
                                             <button type="button" disabled={busyId === item.id} onClick={() => exportAgain(item)} className="text-action-blue font-semibold hover:underline disabled:opacity-50">
                                                 Xuất lại
                                             </button>

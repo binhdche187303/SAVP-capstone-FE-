@@ -103,7 +103,7 @@ const ReportViewer = () => {
     const handleExport = async (format) => {
         setBusyFormat(format);
         const res = await exportReport(type, { ...toParams(applied), format });
-        if (res?.success) toast.success(`Đã xuất ${res.data.fileName}`);
+        if (res?.success) toast.success(res.data?.fileName ? `Đã xuất ${res.data.fileName}` : 'Đã tạo yêu cầu xuất, file sẽ có trong mục File xuất gần đây');
         else toast.error(res?.message || 'Không xuất được báo cáo');
         setBusyFormat(null);
     };

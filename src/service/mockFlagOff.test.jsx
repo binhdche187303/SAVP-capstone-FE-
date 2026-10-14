@@ -42,7 +42,7 @@ test('service báo cáo gọi đúng endpoint thật', async () => {
     await reportService.getReportPreview('visitor', { from: '2026-10-01', to: '2026-10-07', page: 1 });
     expect(get).toHaveBeenLastCalledWith('/reports/visitor/preview?from=2026-10-01&to=2026-10-07&page=1');
     await reportService.exportReport('vehicle', { format: 'pdf', from: '2026-10-01', to: '2026-10-07' });
-    expect(post).toHaveBeenLastCalledWith('/reports/vehicle/exports', { format: 'pdf', from: '2026-10-01', to: '2026-10-07' });
+    expect(post).toHaveBeenLastCalledWith('/reports/center/vehicle/exports', { format: 'pdf', from: '2026-10-01', to: '2026-10-07' });
     await reportService.toggleSchedule('sch-1', false);
     expect(patch).toHaveBeenLastCalledWith('/report-schedules/sch-1', { enabled: false });
     await reportService.deleteSchedule('sch-1');
@@ -63,7 +63,7 @@ test('BE chưa có: màn mới hiện khối lỗi, không còn dải dữ liệ
     expect(screen.queryByText(/dữ liệu minh họa/)).not.toBeInTheDocument();
 });
 
-test('BE chưa có: quầy lễ tân hiện khối lỗi', async () => {
+test('BE chưa có: chốt bảo vệ hiện khối lỗi', async () => {
     render(
         <MemoryRouter initialEntries={['/business-admin/visitors/desk']}>
             <Routes>

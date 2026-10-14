@@ -51,9 +51,11 @@ const exportInBrowser = (prepared, format) => {
 };
 
 export const exportReport = (type, params) =>
-    call(() => exportInBrowser(mock.prepareExport(type, params), params?.format), () => post(`/reports/${type}/exports`, params));
+    call(() => exportInBrowser(mock.prepareExport(type, params), params?.format), () => post(`/reports/center/${type}/exports`, params));
 
 export const downloadRunFile = (runId, format) =>
     call(() => exportInBrowser(mock.prepareRunFile(runId, format), format), () => get(`/report-schedule-runs/${runId}/files/${format}`));
 
 export const getRecentExports = () => call(() => mock.getRecentExports(), () => get('/reports/exports/recent'));
+
+export const getExportDownloadUrl = (jobId) => get(`/reports/exports/${jobId}/download-url`);
