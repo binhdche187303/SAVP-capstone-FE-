@@ -35,7 +35,6 @@ export const getVisitorLookups = () => call(() => mock.getVisitorLookups(), () =
 // Trang đăng ký công khai chưa có đăng nhập nên không được gọi /visitors/lookups (cần JWT).
 export const getPublicPurposes = () => call(() => ({ purposes: mock.getVisitorLookups().purposes }), () => get('/public/visitor-purposes'));
 export const searchHosts = (q) => call(() => mock.searchHosts(q), () => get(`/public/visitor-hosts${qs({ q })}`));
-export const getPublicPurposes = () => call(() => ({ purposes: mock.getVisitorLookups().purposes }), () => get('/public/visitor-purposes'));
 export const getPublicHost = (id) => call(() => mock.getPublicHost(id), () => get(`/public/visitor-hosts/${encodeURIComponent(id)}`));
 export const createPublicRegistration = (payload) => call(() => mock.createPublicRegistration(payload), () => post('/public/visitor-registrations', payload));
 export const getPublicRegistration = (code) => call(() => mock.getPublicRegistration(code), () => get(`/public/visitor-registrations/${encodeURIComponent(code)}`));
