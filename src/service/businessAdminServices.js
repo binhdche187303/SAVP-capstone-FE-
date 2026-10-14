@@ -72,6 +72,10 @@ export const getUsersForManagement = async (params = {}) => {
     return await get(`/users/manage${query}`);
 };
 
+export const getStudentAdministrativeClasses = async () => {
+    return await get('/users/student-classes');
+};
+
 export const getUserById = async (userId) => {
     return await get(`/users/${userId}`);
 };

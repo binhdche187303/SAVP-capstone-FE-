@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Activity, BookOpen, CalendarDays, ChevronDown, KeyRound, LogOut, Menu, User, UserCheck, X } from 'lucide-react';
+import { Activity, BookOpen, CalendarDays, ChevronDown, KeyRound, LogOut, Film, Menu, ScanFace, User, UserCheck, X } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import { getCurrentUser, logout } from '../../service/authService';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -67,45 +67,49 @@ const LearningLayout = ({ role = 'teacher' }) => {
     const navItems = [
         { label: 'Trang chủ', to: basePath, end: true, icon: BookOpen },
         { label: role === 'student' ? 'Chuyên cần' : 'Điểm danh lớp', to: `${basePath}/attendance`, icon: UserCheck },
-        ...(role === 'teacher' ? [{ label: 'Bảng chuyên cần', to: `${basePath}/attendance-report`, icon: Activity }] : []),
-        { label: 'Lịch học', to: `${basePath}/schedule`, icon: CalendarDays }
+        ...(role === 'teacher' ? [
+            { label: 'Bảng chuyên cần', to: `${basePath}/attendance-report`, icon: Activity },
+            { label: 'Ghi hình', to: `${basePath}/recordings`, icon: Film },
+        ] : []),
+        { label: role === 'teacher' ? 'Lịch dạy' : 'Lịch học', to: `${basePath}/schedule`, icon: CalendarDays },
+        { label: 'Đăng ký khuôn mặt', to: `${basePath}/face-register`, icon: ScanFace }
     ];
     const displayName = currentUser?.fullName || currentUser?.full_name || displayRole;
 
     return (
         <div className="min-h-screen bg-cloud-mist flex flex-col">
             <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-platinum-tint">
-                <div className="max-w-[1440px] mx-auto h-16 px-6 lg:px-12 flex items-center justify-between">
-                    <div className="flex items-center gap-10">
-                        <NavLink to={basePath} className="flex items-center gap-2 no-underline">
+                <div className="max-w-[1440px] mx-auto h-16 px-4 lg:px-8 xl:px-12 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 lg:gap-8 min-w-0 flex-1">
+                        <NavLink to={basePath} className="flex items-center gap-2 no-underline shrink-0">
                             <div className="w-12 h-12 bg-white flex items-center justify-center shrink-0">
                                 <img src={logo} alt="SmarTracking" className="w-full h-full object-contain scale-[1.3]" />
                             </div>
-                            <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden sm:block">SmarTracking</span>
+                            <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden xl:block">SmarTracking</span>
                         </NavLink>
-                        <nav className="hidden md:flex items-center gap-1">
+                        <nav className="hidden md:flex items-center gap-1 min-w-0 flex-nowrap">
                             {navItems.map(item => (
                                 <NavLink
                                     key={item.to}
                                     to={item.to}
                                     end={item.end}
-                                    className={({ isActive }) => `px-3.5 py-2 rounded-xl text-sm no-underline flex items-center gap-2 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`}
+                                    className={({ isActive }) => `px-2.5 xl:px-3.5 py-2 rounded-xl text-xs xl:text-sm no-underline flex items-center gap-1.5 xl:gap-2 whitespace-nowrap shrink-0 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`}
                                 >
-                                    <item.icon className="w-4 h-4" />
+                                    <item.icon className="w-4 h-4 shrink-0" />
                                     {item.label}
                                 </NavLink>
                             ))}
                         </nav>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 lg:gap-3 shrink-0">
                         <NotificationBell basePath={basePath} />
                         <div className="relative" ref={profileMenuRef}>
                             <button type="button" onClick={() => setIsProfileMenuOpen(v => !v)} className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-cloud-mist">
-                                <div className="text-right hidden sm:block">
-                                    <p className="text-sm font-semibold text-midnight-indigo leading-tight">{displayName}</p>
+                                <div className="text-right hidden sm:block max-w-[150px] lg:max-w-[190px]">
+                                    <p className="text-sm font-semibold text-midnight-indigo leading-tight truncate">{displayName}</p>
                                     <p className="text-xs text-slate-blue leading-tight">{displayRole}</p>
                                 </div>
-                                <UserAvatar user={currentUser} size="md" />
+                                <UserAvatar user={currentUser} className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20" />
                                 <ChevronDown className={`w-4 h-4 text-slate-blue transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {isProfileMenuOpen && (

@@ -8,13 +8,13 @@ import { get, post } from '../utils/request';
  * Lấy danh sách cảnh báo an ninh
  * GET /security-alerts
  */
-export const getSecurityAlerts = async (params = {}) => {
+export const getSecurityAlerts = async (params = {}, options = {}) => {
     // Lọc bỏ các param rỗng để tránh lỗi 400 Bad Request từ BE
     const cleanParams = Object.fromEntries(
         Object.entries(params).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
     );
     const query = new URLSearchParams(cleanParams).toString();
-    return await get(`/security-alerts${query ? `?${query}` : ''}`);
+    return await get(`/security-alerts${query ? `?${query}` : ''}`, options);
 };
 
 /**

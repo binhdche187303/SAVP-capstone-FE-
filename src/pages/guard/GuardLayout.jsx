@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, KeyRound, LogOut, Shield, User } from 'lucide-react';
+import { Bell, Car, ChevronDown, KeyRound, LogOut, Shield, ShieldAlert, User, UserCheck } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import UserAvatar from '../../components/common/UserAvatar';
 import NotificationBell from '../../components/common/NotificationBell';
 import ChangePasswordModal from '../../components/auth/ChangePasswordModal';
 import BiometricReminderModal from '../../components/biometric/BiometricReminderModal';
 import { getCurrentUser, logout } from '../../service/authService';
+
+const NAV_ITEMS = [
+    { to: '/guard', label: 'Trực cổng', icon: Shield, end: true },
+    { to: '/guard/security-alerts', label: 'Cảnh báo an ninh', icon: ShieldAlert },
+    { to: '/guard/anpr', label: 'Xe vào ra', icon: Car },
+    { to: '/guard/visitors/desk', label: 'Khách tại cổng', icon: UserCheck },
+];
+
+const footerLinks = [
+    { label: 'Hỗ trợ', to: 'legal?tab=support' },
+    { label: 'Tài liệu', to: 'legal?tab=docs-user' },
+    { label: 'Quyền riêng tư', to: 'legal?tab=privacy' },
+];
 
 const GuardLayout = () => {
     const navigate = useNavigate();
@@ -59,14 +72,17 @@ const GuardLayout = () => {
                             <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden sm:block">SmarTracking</span>
                         </NavLink>
                         <nav className="hidden md:flex items-center gap-1">
-                            <NavLink
-                                to="/guard"
-                                end
-                                className={({ isActive }) => `px-3.5 py-2 rounded-xl text-sm no-underline flex items-center gap-2 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`}
-                            >
-                                <Shield className="w-4 h-4" />
-                                Trực cổng
-                            </NavLink>
+                            {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+                                <NavLink
+                                    key={to}
+                                    to={to}
+                                    end={end}
+                                    className={({ isActive }) => `px-3.5 py-2 rounded-xl text-sm no-underline flex items-center gap-2 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`}
+                                >
+                                    <Icon className="w-4 h-4" />
+                                    {label}
+                                </NavLink>
+                            ))}
                         </nav>
                     </div>
                     <div className="flex items-center gap-3">
@@ -77,7 +93,7 @@ const GuardLayout = () => {
                                     <p className="text-sm font-semibold text-midnight-indigo leading-tight">{displayName}</p>
                                     <p className="text-xs text-slate-blue leading-tight">Bảo vệ</p>
                                 </div>
-                                <UserAvatar user={currentUser} size="md" />
+                                <UserAvatar user={currentUser} name={displayName} className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20" />
                                 <ChevronDown className={`w-4 h-4 text-slate-blue transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {isProfileMenuOpen && (
@@ -110,8 +126,25 @@ const GuardLayout = () => {
             </main>
             <footer className="w-full bg-white border-t border-platinum-tint">
                 <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 px-6 lg:px-12 py-5">
-                    <span className="text-sm font-bold text-midnight-indigo">SmarTracking</span>
-                    <span className="text-xs font-semibold text-action-blue">Guard Console</span>
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm font-bold text-midnight-indigo">SmarTracking</span>
+                        <span className="text-xs text-slate-blue">© 2026 Trung tâm Điều hành Thông minh SmarTracking. Trạng thái: Hoạt động.</span>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                        <span className="text-xs font-semibold text-action-blue">v2.0.0-beta</span>
+                        <nav aria-label="Footer links" className="flex items-center gap-4">
+                            {footerLinks.map((link) => (
+                                <a
+                                    key={link.label}
+                                    href={link.to}
+                                    className="text-xs font-medium text-slate-blue hover:text-action-blue transition-colors duration-200 no-underline"
+                                >
+                                    {link.label}
+                                </a>
+                            ))}
+                        </nav>
+                    </div>
                 </div>
             </footer>
         </div>

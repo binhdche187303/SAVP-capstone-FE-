@@ -22,7 +22,7 @@ const SCENARIOS = [
 const RESULT_VIEW = {
     checked_in: { cls: 'bg-green-600', icon: CheckCircle2, title: 'Cho phép vào' },
     checked_out: { cls: 'bg-sky-600', icon: LogOut, title: 'Đã ghi nhận khách ra' },
-    manual_review: { cls: 'bg-amber-500', icon: AlertTriangle, title: 'Vui lòng đến quầy lễ tân' },
+    manual_review: { cls: 'bg-amber-500', icon: AlertTriangle, title: 'Vui lòng đến chốt bảo vệ' },
     access_denied: { cls: 'bg-red-600', icon: XCircle, title: 'Từ chối' },
 };
 
@@ -160,7 +160,7 @@ const VisitorGate = () => {
                             {result.reason && <p className="text-lg font-semibold">{GATE_REASON_LABELS[result.reason]}</p>}
                             {result.outcome === 'checked_in' && <p className="text-sm text-white/90">Đã báo {result.visit.hostName} · {result.visit.departmentName}</p>}
                             {result.outcome === 'access_denied' && result.reason === 'access_revoked' && <p className="text-sm text-white/90">Vui lòng rời khuôn viên. Chọn "Chiều ra" để ra cổng.</p>}
-                            {result.outcome === 'manual_review' && <p className="text-sm text-white/90">Lễ tân sẽ xác minh và cho bạn vào.</p>}
+                            {result.outcome === 'manual_review' && <p className="text-sm text-white/90">Bảo vệ sẽ xác minh và cho bạn vào.</p>}
                             <div className="flex items-center gap-5 mt-2 bg-black/20 rounded-2xl px-5 py-3">
                                 <div className="text-center space-y-1">
                                     <VisitorAvatar visitor={result.visit.visitor} size={64} />

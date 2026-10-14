@@ -1,6 +1,7 @@
 import { buildQuery, get, post } from '../utils/request';
+import GUARD_DEMO_FACES from '../assets/guardDemoFaces';
 
-export const GUARD_GATE_EVENTS_STORAGE_KEY = 'smartracking_guard_gate_events_v8';
+export const GUARD_GATE_EVENTS_STORAGE_KEY = 'smartracking_guard_gate_events_v9';
 
 export const guardGates = [
     { id: 'main-in', name: 'Cổng chính', direction: 'in', cameraName: 'Camera cổng chính - vào' },
@@ -202,13 +203,18 @@ const formatDuration = (minutes) => {
 const buildSnapshot = (person, gate, status, plateNumber = person.plateNumber) => {
     const color = status === 'authorized' ? '#059669' : '#dc2626';
     const initial = (person.name || '?').trim().charAt(0).toUpperCase();
+    const face = GUARD_DEMO_FACES[person.id];
     const svg = `
         <svg xmlns="http://www.w3.org/2000/svg" width="360" height="210" viewBox="0 0 360 210">
             <rect width="360" height="210" rx="16" fill="#101827"/>
             <rect x="16" y="16" width="328" height="178" rx="12" fill="#1f2937" stroke="#334155"/>
             <text x="180" y="34" text-anchor="middle" font-family="Arial" font-size="10" font-weight="700" fill="#93c5fd">CAMAI GATE FACEID</text>
-            <circle cx="180" cy="94" r="34" fill="${color}"/>
-            <text x="180" y="105" text-anchor="middle" font-family="Arial" font-size="32" font-weight="700" fill="#fff">${initial}</text>
+            ${face
+                ? `<defs><clipPath id="faceClip"><circle cx="180" cy="94" r="32"/></clipPath></defs>
+            <image href="${face}" x="148" y="62" width="64" height="64" preserveAspectRatio="xMidYMid slice" clip-path="url(#faceClip)"/>
+            <circle cx="180" cy="94" r="34" fill="none" stroke="${color}" stroke-width="3"/>`
+                : `<circle cx="180" cy="94" r="34" fill="${color}"/>
+            <text x="180" y="105" text-anchor="middle" font-family="Arial" font-size="32" font-weight="700" fill="#fff">${initial}</text>`}
             <text x="180" y="145" text-anchor="middle" font-family="Arial" font-size="18" font-weight="700" fill="#fff">${person.code}</text>
             <text x="180" y="164" text-anchor="middle" font-family="Arial" font-size="13" font-weight="700" fill="#bfdbfe">${plateNumber || '--'}</text>
             <text x="180" y="181" text-anchor="middle" font-family="Arial" font-size="11" fill="#cbd5e1">${gate.name} - ${gate.direction === 'in' ? 'VÀO' : 'RA'}</text>
@@ -354,6 +360,9 @@ export const scanGuardGateEvent = async ({ gateId = 'main-in', scenario = 'autho
         return {
             success: response?.success !== false,
             warning: Boolean(response?.data?.warning),
+            duplicate: Boolean(response?.data?.duplicate),
+            duplicateReason: response?.data?.duplicateReason,
+            retryAfterSeconds: response?.data?.retryAfterSeconds,
             message: response?.message || response?.data?.message
         };
     }
@@ -383,6 +392,7 @@ export const scanGuardGateEvent = async ({ gateId = 'main-in', scenario = 'autho
             plateNumber: event.plate_number || null,
             plateStatus: meta.scenario === 'plate_mismatch' ? 'mismatch' : event.plate_number ? 'matched' : 'unknown',
             snapshot: meta.snapshotImageBase64 || snapshotImageBase64 || buildSnapshot({ name: event.person_name || 'Người dùng', code: event.person_code || '--' }, gate, status, event.plate_number),
+            recognitionProvider: meta.recognitionProvider || 'demo-fallback',
             source: snapshotImageBase64 ? 'webcam' : 'backend-camera',
             presenceDurationMinutes: null,
             presenceDurationText: '--'

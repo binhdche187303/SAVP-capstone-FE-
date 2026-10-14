@@ -156,6 +156,9 @@ const AlertImagesStack = ({ alert, onClick }) => {
     );
 };
 
+const VEHICLE_ALERT_TYPES = ['vehicle_control_match', 'unknown_vehicle', 'vehicle_unauthorized'];
+const VEHICLE_DECISIONS = { allow: 'Cho xe qua', block: 'Chặn xe' };
+
 /** Cảnh báo "Người lạ" đã có lượt được bảo vệ chuyển theo dõi (payload_json.watchlistConversions, BE giữ alert_type gốc). */
 const getConversions = (alert) => alert?.payload_json?.watchlistConversions || [];
 const getTypeDisplay = (alert) => getConversions(alert).length ? 'Đối tượng theo dõi' : getAlertTypeLabel(alert?.alert_type);
@@ -174,7 +177,7 @@ const SecurityAlerts = () => {
     const [filters, setFilters] = useState({
         page: 1,
         limit: PAGE_SIZE,
-        status: '',
+        status: searchParams.get('status') || '',
         alert_type: '',
         // Bản đồ khuôn viên mở trang này kèm ?zone_id=… để lọc sẵn theo khu vực.
         zone_id: searchParams.get('zone_id') || ''
@@ -188,6 +191,8 @@ const SecurityAlerts = () => {
     // Modals
     const [resolveModal, setResolveModal] = useState({ open: false, alert: null });
     const [resolutionNote, setResolutionNote] = useState('');
+    // Quyết định với cảnh báo xe (bảo vệ tại cổng): ghi vào đầu resolution_note — BE không có cột riêng.
+    const [vehicleDecision, setVehicleDecision] = useState('');
 
     const [snapshotEventId, setSnapshotEventId] = useState(null);
     const [snapshotEventIds, setSnapshotEventIds] = useState([]);
@@ -367,6 +372,7 @@ const SecurityAlerts = () => {
     const openResolveModal = (alert) => {
         setResolveModal({ open: true, alert });
         setResolutionNote('');
+        setVehicleDecision('');
         resolveUserName(alert.acknowledged_by);
     };
 
@@ -378,13 +384,19 @@ const SecurityAlerts = () => {
 
     const handleResolve = async (e) => {
         e.preventDefault();
+        const isVehicle = VEHICLE_ALERT_TYPES.includes(resolveModal.alert?.alert_type);
+        if (isVehicle && !vehicleDecision) {
+            setError('Vui lòng chọn Cho xe qua hoặc Chặn xe.');
+            return;
+        }
         if (!resolutionNote.trim()) {
             setError('Vui lòng nhập ghi chú xử lý.');
             return;
         }
+        const note = isVehicle ? `[${VEHICLE_DECISIONS[vehicleDecision]}] ${resolutionNote.trim()}` : resolutionNote;
         setActionLoading(true);
         try {
-            const res = await resolveSecurityAlert(resolveModal.alert.id, { resolution_note: resolutionNote });
+            const res = await resolveSecurityAlert(resolveModal.alert.id, { resolution_note: note });
             if (res?.success) {
                 setSuccessMessage('Đã xử lý cảnh báo thành công.');
                 setResolveModal({ open: false, alert: null });
@@ -583,6 +595,7 @@ const SecurityAlerts = () => {
                         <option value="unknown_vehicle">Xe lạ</option>
                         <option value="vehicle_control_match">Biển số theo dõi</option>
                         <option value="device_error">Lỗi thiết bị</option>
+                        <option value="device_maintenance">Camera cần bảo trì</option>
                     </select>
                 </div>
                 <div className="relative">
@@ -875,7 +888,7 @@ const SecurityAlerts = () => {
                                     </p>
                                 </div>
                             )}
-                            {resolveModal.alert?.alert_type === 'vehicle_control_match' && getAlertPlateNumber(resolveModal.alert) && (
+                            {VEHICLE_ALERT_TYPES.includes(resolveModal.alert?.alert_type) && getAlertPlateNumber(resolveModal.alert) && (
                                 <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                     <p className="text-xs text-slate-blue font-bold uppercase mb-1 flex items-center gap-1.5">
                                         <Car className="w-3.5 h-3.5" />
@@ -884,6 +897,27 @@ const SecurityAlerts = () => {
                                     <span className="inline-flex px-2.5 py-1 bg-slate-900 text-white font-mono text-sm font-bold rounded uppercase tracking-wider shadow-sm border border-slate-950">
                                         {getAlertPlateNumber(resolveModal.alert)}
                                     </span>
+                                </div>
+                            )}
+                            {VEHICLE_ALERT_TYPES.includes(resolveModal.alert?.alert_type) && (
+                                <div className="mb-4">
+                                    <label className="block text-sm font-bold text-midnight-indigo mb-2">
+                                        Quyết định tại cổng <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {Object.entries(VEHICLE_DECISIONS).map(([value, label]) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                onClick={() => setVehicleDecision(value)}
+                                                className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors ${vehicleDecision === value
+                                                    ? (value === 'allow' ? 'bg-green-600 text-white border-green-600' : 'bg-red-600 text-white border-red-600')
+                                                    : 'bg-white text-slate-600 border-platinum-tint hover:bg-slate-50'}`}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                             <div className="mb-4">

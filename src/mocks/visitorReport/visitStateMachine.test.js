@@ -85,10 +85,10 @@ describe('nhận diện tại cổng', () => {
     test('đúng ngưỡng 0.80 vẫn qua', () => {
         expect(evaluateGateAttempt(visit(), { ...inWindow, score: 0.8 }).outcome).toBe('checked_in');
     });
-    test('dưới ngưỡng → lễ tân xác minh', () => {
+    test('dưới ngưỡng → bảo vệ xác minh', () => {
         expect(evaluateGateAttempt(visit(), { ...inWindow, score: 0.79 })).toEqual({ outcome: 'manual_review', reason: 'low_score' });
     });
-    test('chưa có ảnh → lễ tân xác minh', () => {
+    test('chưa có ảnh → bảo vệ xác minh', () => {
         expect(evaluateGateAttempt(visit({ visitor: { hasPhoto: false } }), inWindow)).toEqual({ outcome: 'manual_review', reason: 'no_photo' });
     });
     test('ngoài khung giờ → chặn', () => {

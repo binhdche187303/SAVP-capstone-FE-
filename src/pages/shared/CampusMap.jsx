@@ -142,7 +142,8 @@ const ZonePopup = ({ zone, alertsLink }) => (
 const CampusMap = () => {
     const { pathname } = useLocation();
     // Chỉ SA có trang Cảnh báo an ninh.
-    const alertsLink = pathname.startsWith('/system-admin') ? '/system-admin/security-alerts' : null;
+    const area = '/' + pathname.split('/')[1];
+    const alertsLink = ['/system-admin', '/business-admin'].includes(area) ? `${area}/security-alerts` : null;
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);

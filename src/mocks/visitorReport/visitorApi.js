@@ -244,11 +244,11 @@ export const createVisit = (payload) =>
         if (channel !== 'walk_in' && channel !== 'host_invite') fail('Kênh đăng ký không hợp lệ');
         validateVisitPayload(payload, channel, state, now);
         const visit = createVisitRecord(state, now, payload, channel, 'approved');
-        const actor = channel === 'walk_in' ? 'Lễ tân' : getCurrentActor().fullName;
+        const actor = channel === 'walk_in' ? 'Bảo vệ' : getCurrentActor().fullName;
         addEvent(visit, 'registered', { actor });
         addEvent(visit, 'approved', { actor });
         if (visit.visitor.email) addEvent(visit, 'email_sent', { note: `Đã gửi email kèm mã lượt và QR tới ${visit.visitor.email}` });
-        if (channel === 'walk_in') notify(state, visit, 'visitor_registered', `Lễ tân đã đăng ký khách ${visit.visitor.fullName} đến gặp bạn`, now);
+        if (channel === 'walk_in') notify(state, visit, 'visitor_registered', `Bảo vệ đã đăng ký khách ${visit.visitor.fullName} đến gặp bạn`, now);
         return view(visit, state, now);
     });
 
@@ -297,6 +297,20 @@ export const cancelVisit = (id) =>
         addEvent(visit, 'cancelled', { actor: getCurrentActor().fullName });
     });
 
+// Người được gặp vắng: chuyển lượt chờ duyệt cho người khác duyệt (khớp BE POST /visits/:id/reassign-host).
+export const reassignVisitHost = (id, body = {}) =>
+    mutate(id, (visit, state, now) => {
+        if (visit.status !== 'pending_approval') fail('Chỉ chuyển người duyệt khi lượt khách đang chờ duyệt');
+        const reason = String(body.reason || '').trim();
+        if (!reason) fail('Vui lòng nhập lý do chuyển người duyệt');
+        const host = state.hosts.find((h) => h.id === body.hostId) || fail('Người duyệt mới không hợp lệ hoặc không còn hoạt động');
+        if (host.id === visit.hostId) fail('Người duyệt mới trùng người hiện tại');
+        visit.hostId = host.id;
+        visit.departmentId = host.departmentId;
+        addEvent(visit, 'host_reassigned', { note: reason, actor: getCurrentActor().fullName });
+        notify(state, visit, 'visitor_pending_approval', `Bạn được chuyển duyệt khách ${visit.visitor.fullName}`, now);
+    });
+
 export const revokeVisit = (id, body = {}) =>
     mutate(id, (visit, state, now) => {
         const to = nextStatus(visit.status, 'revoke');
@@ -330,7 +344,7 @@ export const attachVisitorPhoto = (id, body = {}) =>
         if (!/^data:image\//.test(String(body.photo || ''))) fail('Ảnh không hợp lệ');
         visit.visitor.photo = body.photo;
         visit.visitor.hasPhoto = true;
-        addEvent(visit, 'photo_added', { actor: 'Lễ tân' });
+        addEvent(visit, 'photo_added', { actor: 'Bảo vệ' });
     });
 
 const simulatedScore = (visit, scenario) => {
@@ -348,7 +362,7 @@ const simulatedArrival = (visit, scenario, now) => {
     return t < validFrom || t > validTo ? new Date(visit.scheduledFrom).getTime() : t;
 };
 
-// Một lượt camera chiều vào nhận diện khách (dùng chung cho quầy lễ tân và màn hình cổng).
+// Một lượt camera chiều vào nhận diện khách (dùng chung cho chốt bảo vệ và màn hình cổng).
 const runGateEntry = (visit, state, now, body = {}) => {
         const scenario = body.scenario || 'normal';
         const zoneId = body.zoneId || MAIN_GATE;
@@ -419,7 +433,7 @@ export const checkInVisit = (id, body = {}) =>
         visit.status = to;
         visit.checkInAt = now.toISOString();
         visit.lastSeen = { at: now.toISOString(), zoneId: MAIN_GATE };
-        addEvent(visit, 'check_in', { zoneId: MAIN_GATE, note, actor: 'Lễ tân' });
+        addEvent(visit, 'check_in', { zoneId: MAIN_GATE, note, actor: 'Bảo vệ' });
         addEvent(visit, 'host_notified', { note: 'Thông báo khách đã đến' });
         notify(state, visit, 'visitor_arrived', `${visit.visitor.fullName} đã đến ${zoneName(state, MAIN_GATE)}`, now);
     });
@@ -531,7 +545,7 @@ export const getPublicRegistration = (code) =>
         };
     });
 
-// Hàng "Cần xử lý" của quầy lễ tân: chỉ các ngoại lệ, đường thông thường không cần người trực.
+// Hàng "Cần xử lý" của chốt bảo vệ: chỉ các ngoại lệ, đường thông thường không cần người trực.
 const buildAttention = (state, now, today) => {
     const weekAgo = now.getTime() - 7 * DAY;
     const items = [];

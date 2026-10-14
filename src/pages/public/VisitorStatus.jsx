@@ -135,7 +135,7 @@ const VisitorStatus = () => {
                         <div className="flex flex-col sm:flex-row items-center gap-4">
                             <VisitQr code={visit.code} size={120} />
                             <p className="text-xs text-slate-blue">
-                                Khi đến cổng, nhìn vào camera để xác thực khuôn mặt. Nếu không qua được, liên hệ quầy lễ tân và đọc mã lượt.
+                                Khi đến cổng, nhìn vào camera để xác thực khuôn mặt. Nếu không qua được, liên hệ chốt bảo vệ và đọc mã lượt.
                             </p>
                         </div>
                     )}

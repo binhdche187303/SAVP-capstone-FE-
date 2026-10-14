@@ -1,182 +1,216 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Download, Info, LogIn, LogOut, RefreshCw, ShieldCheck, Trash2, Users, X } from 'lucide-react';
-import {
-    buildGuardSummary,
-    clearGuardGateEvents,
-    exportGuardGateEventsCsv,
-    fetchGuardGateEvents,
-    getGuardGateEvents,
-    guardGates,
-    mockGuardGateEvent,
-    scanGuardGateEvent
-} from '../../service/guardAccessService';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, Camera, Car, CheckCircle2, Clock, LogIn, LogOut, RefreshCw, ShieldAlert, UserCheck, XCircle } from 'lucide-react';
+import { getSecurityAlerts } from '../../service/securityAlertService';
+import { getAdminGateAccessLogs } from '../../service/sysAdminServices';
+import { getAlertTypeLabel } from '../../constants/alertType';
+import { subscribeToSecurityAlerts } from '../../utils/socket';
+import { fetchGuardGateEvents, guardGates, scanGuardGateEvent } from '../../service/guardAccessService';
+import useFaceGuidance from '../../hooks/useFaceGuidance';
 
-const statusClass = {
-    authorized: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    denied: 'bg-red-50 text-red-700 border-red-200'
+const REFRESH_MS = 15000;
+const AUTO_SCAN_COOLDOWN_MS = 4000;
+const MAX_SNAPSHOT_WIDTH = 640;
+const MAX_SNAPSHOT_HEIGHT = 480;
+const SNAPSHOT_JPEG_QUALITY = 0.82;
+const SEVERITY_CLS = {
+    critical: 'bg-red-50 text-red-700 border-red-200',
+    high: 'bg-orange-50 text-orange-700 border-orange-200',
+    medium: 'bg-yellow-50 text-yellow-700 border-yellow-200',
 };
 
-const popupTone = {
-    success: { background: '#059669', border: '#10b981', icon: Check },
-    warning: { background: '#d97706', border: '#f59e0b', icon: AlertTriangle },
-    error: { background: '#dc2626', border: '#ef4444', icon: X },
-    info: { background: '#003865', border: '#1d4ed8', icon: Info }
+const startOfToday = () => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
 };
 
-const GuardScanPopup = ({ notice, onClose }) => {
-    if (!notice) return null;
-    const tone = popupTone[notice.type] || popupTone.info;
-    const Icon = tone.icon;
-
-    return createPortal(
-        <div
-            role="status"
-            aria-live="polite"
-            style={{
-                position: 'fixed',
-                right: 24,
-                bottom: 24,
-                zIndex: 100000,
-                width: 'min(420px, calc(100vw - 32px))',
-                background: tone.background,
-                color: '#fff',
-                border: `1px solid ${tone.border}`,
-                borderRadius: 12,
-                boxShadow: '0 24px 64px rgba(15, 23, 42, 0.28)',
-                padding: '16px 18px',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 12
-            }}
-        >
-            <Icon style={{ width: 18, height: 18, flexShrink: 0, marginTop: 2 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.35, fontWeight: 800 }}>{notice.message}</p>
-                {notice.detail && (
-                    <p style={{ margin: '6px 0 0', fontSize: 12, lineHeight: 1.45, fontWeight: 600, opacity: 0.9 }}>{notice.detail}</p>
-                )}
-            </div>
-            <button
-                type="button"
-                onClick={onClose}
-                aria-label="Đóng thông báo"
-                style={{
-                    width: 28,
-                    height: 28,
-                    border: 0,
-                    borderRadius: 8,
-                    background: 'rgba(255,255,255,0.18)',
-                    color: '#fff',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    flexShrink: 0
-                }}
-            >
-                <X style={{ width: 15, height: 15 }} />
-            </button>
-        </div>,
-        document.body
-    );
-};
+const formatTime = (value) => (value ? new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--');
 
 const captureFrame = (videoRef) => {
     const video = videoRef.current;
-    if (!video || video.readyState < 2) return null;
-    const width = video.videoWidth || video.clientWidth || 640;
-    const height = video.videoHeight || video.clientHeight || 360;
-    if (!width || !height) return null;
+    if (!video || !video.videoWidth || !video.videoHeight) return null;
+    const scale = Math.min(
+        1,
+        MAX_SNAPSHOT_WIDTH / video.videoWidth,
+        MAX_SNAPSHOT_HEIGHT / video.videoHeight
+    );
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    try {
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL('image/jpeg', 0.86);
-    } catch {
-        return null;
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', SNAPSHOT_JPEG_QUALITY);
+};
+
+const getErrorMessage = (error) => error?.error?.message
+    || error?.message
+    || 'Không kết nối được backend hoặc backend từ chối thao tác.';
+
+const getFaceGuidanceLabel = (guidance) => {
+    switch (guidance?.state) {
+        case 'perfect': return 'Đã thấy mặt';
+        case 'no_face': return 'Chưa thấy khuôn mặt';
+        case 'low_light': return 'Cần thêm ánh sáng';
+        case 'too_far': return 'Đưa khuôn mặt lại gần';
+        case 'too_close': return 'Đưa khuôn mặt ra xa';
+        case 'off_center': return 'Đưa khuôn mặt vào giữa khung hình';
+        default: return 'Đang tải nhận diện khuôn mặt';
     }
 };
 
-const StatCard = ({ icon: Icon, label, value, helper, tone = 'blue' }) => {
-    const colors = {
-        blue: 'bg-blue-50 text-action-blue',
-        green: 'bg-emerald-50 text-emerald-600',
-        amber: 'bg-amber-50 text-amber-600',
-        red: 'bg-red-50 text-red-600'
-    };
-    return (
-        <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${colors[tone] || colors.blue}`}>
-                <Icon className="w-4 h-4" />
+const StatCard = ({ icon: Icon, label, value, tone, to }) => {
+    const body = (
+        <div className={`rounded-2xl border p-5 bg-white shadow-sm-2 flex items-center gap-4 ${to ? 'hover:border-action-blue transition-colors' : ''}`}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tone}`}>
+                <Icon className="w-6 h-6" />
             </div>
-            <p className="text-2xl font-bold text-midnight-indigo mt-3">{value}</p>
-            <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">{label}</p>
-            {helper && <p className="text-xs text-steel-gray mt-1">{helper}</p>}
+            <div>
+                <p className="text-xs font-semibold text-slate-blue">{label}</p>
+                <p className="text-2xl font-bold text-midnight-indigo">{value ?? '--'}</p>
+            </div>
+        </div>
+    );
+    return to ? <Link to={to} className="no-underline">{body}</Link> : body;
+};
+
+const ScanNotice = ({ notice, onClose }) => {
+    if (!notice) return null;
+    const ok = notice.type === 'success';
+    const warn = notice.type === 'warning';
+    const color = ok
+        ? 'bg-emerald-600 text-white'
+        : warn
+            ? 'bg-amber-500 text-white'
+            : 'bg-red-600 text-white';
+    const Icon = ok ? CheckCircle2 : warn ? AlertTriangle : XCircle;
+    return (
+        <div className={`rounded-2xl p-4 shadow-lg ${color} flex items-start justify-between gap-4`}>
+            <div className="flex items-start gap-3">
+                <Icon className="w-5 h-5 mt-0.5 shrink-0" />
+                <div>
+                    <p className="font-bold text-sm">{notice.message}</p>
+                    {notice.detail && <p className="text-xs mt-1 opacity-90">{notice.detail}</p>}
+                </div>
+            </div>
+            <button type="button" onClick={onClose} className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 flex items-center justify-center">
+                ×
+            </button>
         </div>
     );
 };
 
 const GuardDashboard = () => {
-    const [events, setEvents] = useState(() => getGuardGateEvents());
-    const [selectedGateId, setSelectedGateId] = useState(guardGates[0].id);
+    const [alerts, setAlerts] = useState([]);
+    const [counts, setCounts] = useState({ new: null, acknowledged: null });
+    const [logs, setLogs] = useState([]);
+    const [traffic, setTraffic] = useState({ in: null, out: null });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const [selectedGateId, setSelectedGateId] = useState(guardGates[0]?.id || 'main-in');
     const [scenario, setScenario] = useState('authorized');
     const [webcamEnabled, setWebcamEnabled] = useState(false);
+    const [cameraReady, setCameraReady] = useState(false);
     const [autoScan, setAutoScan] = useState(false);
+    const [autoScanCooling, setAutoScanCooling] = useState(false);
+    const [waitingForFaceExit, setWaitingForFaceExit] = useState(false);
+    const [scanning, setScanning] = useState(false);
     const [scanNotice, setScanNotice] = useState(null);
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(8);
     const videoRef = useRef(null);
     const streamRef = useRef(null);
     const lastWebcamFrameRef = useRef(null);
+    const scanningRef = useRef(false);
+    const autoScanCooldownTimerRef = useRef(null);
 
-    useEffect(() => {
-        fetchGuardGateEvents()
-            .then(apiEvents => {
-                if (apiEvents.length) setEvents(apiEvents);
-            })
-            .catch(() => {});
-        const handler = () => {
-            setEvents(getGuardGateEvents());
-            setPage(1);
-        };
-        window.addEventListener('guard-gate-events-updated', handler);
-        return () => window.removeEventListener('guard-gate-events-updated', handler);
-    }, []);
-
-    const summary = useMemo(() => buildGuardSummary(events), [events]);
-    const latestAlert = events.find(item => item.status === 'denied');
     const selectedGate = useMemo(
         () => guardGates.find(item => item.id === selectedGateId) || guardGates[0],
         [selectedGateId]
     );
 
-    useEffect(() => () => {
-        streamRef.current?.getTracks?.().forEach(track => track.stop());
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError('');
+        const from = startOfToday();
+        try {
+            const [newRes, ackRes, logRes, inRes, outRes] = await Promise.all([
+                getSecurityAlerts({ status: 'new', page: 1, limit: 8 }),
+                getSecurityAlerts({ status: 'acknowledged', page: 1, limit: 8 }),
+                getAdminGateAccessLogs({ from, page: 1, limit: 15 }),
+                getAdminGateAccessLogs({ from, direction: 'enter', page: 1, limit: 1 }),
+                getAdminGateAccessLogs({ from, direction: 'leave', page: 1, limit: 1 }),
+            ]);
+            setAlerts([...(newRes?.data || []), ...(ackRes?.data || [])].slice(0, 8));
+            setCounts({ new: newRes?.meta?.total ?? 0, acknowledged: ackRes?.meta?.total ?? 0 });
+            setLogs(logRes?.data || []);
+            setTraffic({ in: inRes?.meta?.total ?? 0, out: outRes?.meta?.total ?? 0 });
+        } catch (err) {
+            setError(err?.message || 'Không tải được dữ liệu trực cổng.');
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
     useEffect(() => {
-        if (!webcamEnabled || !streamRef.current || !videoRef.current) return;
-        videoRef.current.srcObject = streamRef.current;
-        videoRef.current.play?.().catch(() => {});
-        const timer = setTimeout(() => {
-            const frame = captureFrame(videoRef);
-            if (frame) lastWebcamFrameRef.current = frame;
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [webcamEnabled]);
+        load();
+        const timer = setInterval(load, REFRESH_MS);
+        const unsubscribe = subscribeToSecurityAlerts(load, load);
+        return () => {
+            clearInterval(timer);
+            unsubscribe();
+        };
+    }, [load]);
+
+    useEffect(() => () => {
+        streamRef.current?.getTracks?.().forEach(track => track.stop());
+        if (autoScanCooldownTimerRef.current) clearTimeout(autoScanCooldownTimerRef.current);
+    }, []);
 
     useEffect(() => {
-        if (!webcamEnabled) {
-            lastWebcamFrameRef.current = null;
-            return undefined;
-        }
+        if (!webcamEnabled || !streamRef.current || !videoRef.current) return undefined;
+        const video = videoRef.current;
+        const stream = streamRef.current;
+        let readyAnnounced = false;
+        const markCameraReady = () => {
+            if (!video.videoWidth || !video.videoHeight) return;
+            setCameraReady(true);
+            const frame = captureFrame(videoRef);
+            if (frame) lastWebcamFrameRef.current = frame;
+            if (readyAnnounced) return;
+            readyAnnounced = true;
+            setScanNotice({
+                type: 'success',
+                message: 'Webcam đã sẵn sàng.',
+                detail: 'Bạn có thể quét thủ công hoặc bật tự động quét.'
+            });
+        };
+        const handleTrackEnded = () => {
+            setCameraReady(false);
+            setAutoScan(false);
+            setScanNotice({
+                type: 'warning',
+                message: 'Webcam đã ngắt kết nối.',
+                detail: 'Vui lòng bật lại webcam trước khi tiếp tục quét.'
+            });
+        };
+
+        setCameraReady(false);
+        video.srcObject = stream;
+        video.addEventListener('loadedmetadata', markCameraReady);
+        video.addEventListener('canplay', markCameraReady);
+        stream.getVideoTracks().forEach(track => track.addEventListener('ended', handleTrackEnded));
+        video.play?.().then(markCameraReady).catch(() => {});
         const timer = setInterval(() => {
             const frame = captureFrame(videoRef);
             if (frame) lastWebcamFrameRef.current = frame;
-        }, 400);
-        return () => clearInterval(timer);
+        }, 500);
+        return () => {
+            clearInterval(timer);
+            video.removeEventListener('loadedmetadata', markCameraReady);
+            video.removeEventListener('canplay', markCameraReady);
+            stream.getVideoTracks().forEach(track => track.removeEventListener('ended', handleTrackEnded));
+        };
     }, [webcamEnabled]);
 
     const toggleWebcam = async () => {
@@ -190,168 +224,194 @@ const GuardDashboard = () => {
                 videoRef.current.load();
             }
             lastWebcamFrameRef.current = null;
+            setCameraReady(false);
             setAutoScan(false);
+            setWaitingForFaceExit(false);
             setWebcamEnabled(false);
-            setScanNotice({ type: 'info', message: 'Đã tắt webcam.' });
+            setScanNotice({ type: 'warning', message: 'Đã tắt webcam.' });
             return;
         }
+
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width: { ideal: MAX_SNAPSHOT_WIDTH },
+                    height: { ideal: MAX_SNAPSHOT_HEIGHT }
+                },
+                audio: false
+            });
             streamRef.current = stream;
+            setCameraReady(false);
             setWebcamEnabled(true);
             setScanNotice({
-                type: 'info',
-                message: 'Đã bật webcam. Khi có lượt qua cổng, ảnh bằng chứng sẽ lấy từ khung hình tại thời điểm quét.'
+                type: 'warning',
+                message: 'Đang khởi động webcam...',
+                detail: 'Hệ thống sẽ mở chức năng quét khi camera có khung hình.'
             });
         } catch {
             setScanNotice({
                 type: 'warning',
-                message: 'Không mở được webcam. Hệ thống sẽ dùng cam ảo để test quét FaceID ra/vào cổng.'
+                message: 'Không mở được webcam.',
+                detail: 'Vui lòng cấp quyền camera rồi thử lại.'
             });
         }
     };
 
-    const handleScan = useCallback(async () => {
+    const handleScan = useCallback(async ({ automatic = false } = {}) => {
+        if (!webcamEnabled || !cameraReady) {
+            setScanNotice({
+                type: 'warning',
+                message: 'Webcam chưa sẵn sàng.',
+                detail: 'Vui lòng bật webcam và chờ camera hiển thị rõ rồi quét lại.'
+            });
+            return;
+        }
+        if (scanningRef.current) return;
+        scanningRef.current = true;
+        setScanning(true);
         const snapshotImageBase64 = captureFrame(videoRef) || lastWebcamFrameRef.current;
         if (webcamEnabled && !snapshotImageBase64) {
-            const nextNotice = {
+            setScanNotice({
                 type: 'warning',
-                message: 'Chưa chụp được ảnh từ webcam. Vui lòng chờ camera hiển thị rõ rồi quét lại.'
-            };
-            setScanNotice(nextNotice);
+                message: 'Chưa chụp được ảnh từ webcam.',
+                detail: 'Vui lòng chờ camera hiển thị rõ rồi quét lại.'
+            });
+            scanningRef.current = false;
+            setScanning(false);
             return;
         }
 
-        let result;
-        let source = 'backend';
         try {
-            result = await scanGuardGateEvent({ gateId: selectedGateId, scenario, snapshotImageBase64 });
-            const apiEvents = await fetchGuardGateEvents();
-            if (apiEvents.length) {
-                setEvents(apiEvents);
-            } else if (result.event) {
-                setEvents(current => [result.event, ...current].slice(0, 80));
+            const result = await scanGuardGateEvent({ gateId: selectedGateId, scenario, snapshotImageBase64 });
+            await load();
+            await fetchGuardGateEvents().catch(() => []);
+
+            if (!result.success || !result.event) {
+                setScanNotice({
+                    type: 'warning',
+                    message: result.message || 'Không tạo nhật ký ra/vào mới.',
+                    detail: result.duplicate
+                        ? result.duplicateReason === 'same_direction'
+                            ? `Hệ thống không ghi trùng. Hãy ghi nhận lượt ${selectedGate?.direction === 'in' ? 'ra' : 'vào'} trước khi quét lại chiều này.`
+                            : `Camera vẫn nhận diện cùng đối tượng; có thể quét lại sau ${result.retryAfterSeconds || 4} giây.`
+                        : 'Backend không trả event mới cho lượt quét này.'
+                });
+                return;
             }
-        } catch {
-            source = 'local';
-            result = mockGuardGateEvent({ gateId: selectedGateId, scenario, snapshotImageBase64 });
-            setEvents(getGuardGateEvents());
-        }
-        setPage(1);
-        if (!result.success) {
-            const nextNotice = {
-                type: 'warning',
-                message: result.message || 'Không tạo nhật ký ra/vào mới.',
-                detail: 'Hệ thống chỉ ghi nhận một lượt vào cho đến khi người đó được ghi nhận ra.'
-            };
-            setScanNotice(nextNotice);
-            return;
-        }
 
-        const event = result.event;
-        const isOk = event.status === 'authorized';
-        const nextNotice = {
-            type: isOk ? 'success' : 'error',
-            message: `${event.personName} ${event.direction === 'in' ? 'vào cổng' : 'ra cổng'}: ${event.statusLabel}.`,
-            detail: `${event.reason} Biển số: ${event.plateNumber || '--'}. Dữ liệu đã ${source === 'backend' ? 'ghi vào backend' : 'ghi local fallback'}. Ảnh bằng chứng lấy từ ${snapshotImageBase64 ? 'webcam' : 'cam ảo'}.`
-        };
-        setScanNotice(nextNotice);
-    }, [scenario, selectedGateId, webcamEnabled]);
+            const event = result.event;
+            const isOk = event.status === 'authorized';
+            setScanNotice({
+                type: isOk ? 'success' : 'error',
+                message: `${event.personName} ${event.direction === 'in' ? 'vào cổng' : 'ra cổng'}: ${event.statusLabel}.`,
+                detail: `${event.reason} Dữ liệu đã ghi vào backend. Ảnh bằng chứng lấy từ webcam. Kiểm tra: ${event.recognitionProvider === 'faceid-engine' ? 'đã đối chiếu đúng người có FaceID được duyệt' : 'dữ liệu mô phỏng'}.`
+            });
+        } catch (err) {
+            setScanNotice({
+                type: 'error',
+                message: 'Quét cổng thất bại.',
+                detail: getErrorMessage(err)
+            });
+        } finally {
+            scanningRef.current = false;
+            setScanning(false);
+            if (automatic) {
+                setWaitingForFaceExit(true);
+                setAutoScanCooling(true);
+                if (autoScanCooldownTimerRef.current) clearTimeout(autoScanCooldownTimerRef.current);
+                autoScanCooldownTimerRef.current = setTimeout(() => {
+                    setAutoScanCooling(false);
+                    autoScanCooldownTimerRef.current = null;
+                }, AUTO_SCAN_COOLDOWN_MS);
+            }
+        }
+    }, [cameraReady, load, scenario, selectedGate, selectedGateId, webcamEnabled]);
+
+    const handleStableFace = useCallback(() => {
+        if (!autoScan || autoScanCooling || waitingForFaceExit || scanningRef.current) return;
+        handleScan({ automatic: true });
+    }, [autoScan, autoScanCooling, handleScan, waitingForFaceExit]);
+
+    const { guidance: faceGuidance, modelError: faceModelError } = useFaceGuidance({
+        videoRef,
+        active: webcamEnabled && cameraReady && autoScan && !scanning,
+        onStable: handleStableFace,
+        stableFramesRequired: 8,
+        intervalMs: 180
+    });
 
     useEffect(() => {
-        if (!autoScan) return undefined;
-        handleScan();
-        const timer = setInterval(handleScan, 4000);
-        return () => clearInterval(timer);
-    }, [autoScan, handleScan]);
+        if (autoScan && waitingForFaceExit && faceGuidance.state === 'no_face') {
+            setWaitingForFaceExit(false);
+        }
+    }, [autoScan, faceGuidance.state, waitingForFaceExit]);
+
+    const toggleAutoScan = () => {
+        setWaitingForFaceExit(false);
+        setAutoScan(value => !value);
+    };
 
     useEffect(() => {
-        if (!scanNotice || scanNotice.type === 'warning' || scanNotice.type === 'error') return undefined;
+        if (!scanNotice || scanNotice.type !== 'success') return undefined;
         const timer = setTimeout(() => setScanNotice(null), 5000);
         return () => clearTimeout(timer);
     }, [scanNotice]);
 
-    const totalPages = Math.max(1, Math.ceil(events.length / pageSize));
-    const safePage = Math.min(page, totalPages);
-    const pageStart = (safePage - 1) * pageSize;
-    const paginatedEvents = events.slice(pageStart, pageStart + pageSize);
-    const pageEnd = Math.min(pageStart + paginatedEvents.length, events.length);
-
-    useEffect(() => {
-        if (page > totalPages) setPage(totalPages);
-    }, [page, totalPages]);
-
     return (
-        <div className="space-y-5 animate-fade-in-up">
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
-                        <ShieldCheck className="w-5 h-5 text-action-blue" />
-                        Dashboard trực cổng
-                    </h1>
-                    <p className="text-xs text-slate-blue mt-1">Tự động ghi nhận ra/vào bằng FaceID và biển số, không cần thẻ hoặc QR.</p>
+                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Trực cổng</h1>
+                    <p className="text-slate-blue text-sm mt-1">Cảnh báo cần xử lý, lượt ra vào cổng hôm nay và quét cổng bằng camera.</p>
                 </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-2 shadow-sm flex flex-wrap items-center gap-2">
-                    <select
-                        value={selectedGateId}
-                        onChange={(event) => setSelectedGateId(event.target.value)}
-                        className="px-3 py-2 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
-                    >
-                        {guardGates.map(gate => (
-                            <option key={gate.id} value={gate.id}>{gate.cameraName}</option>
-                        ))}
-                    </select>
-                    <select
-                        value={scenario}
-                        onChange={(event) => setScenario(event.target.value)}
-                        className="px-3 py-2 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
-                    >
-                        <option value="authorized">Hợp lệ</option>
-                        <option value="plate_mismatch">Sai biển số</option>
-                        <option value="unknown">Người lạ</option>
-                    </select>
-                </div>
+                <button
+                    type="button"
+                    onClick={load}
+                    disabled={loading}
+                    className="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl text-sm font-semibold disabled:opacity-60"
+                >
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Làm mới
+                </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <StatCard icon={Users} label="Đang có mặt" value={summary.present} helper="Ước tính từ log vào/ra" />
-                <StatCard icon={LogIn} label="Lượt vào hôm nay" value={summary.entries} helper="Tất cả cổng" tone="green" />
-                <StatCard icon={LogOut} label="Lượt ra hôm nay" value={summary.exits} helper="Tất cả cổng" tone="blue" />
-                <StatCard icon={AlertTriangle} label="Cảnh báo hôm nay" value={summary.alerts} helper="Người lạ/sai biển số" tone="red" />
+            {error && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
+            <ScanNotice notice={scanNotice} onClose={() => setScanNotice(null)} />
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard icon={AlertTriangle} label="Cảnh báo mới" value={counts.new} tone="bg-red-50 text-red-600" to="/guard/security-alerts?status=new" />
+                <StatCard icon={Clock} label="Đang xử lý" value={counts.acknowledged} tone="bg-yellow-50 text-yellow-700" to="/guard/security-alerts?status=acknowledged" />
+                <StatCard icon={LogIn} label="Lượt vào hôm nay" value={traffic.in} tone="bg-emerald-50 text-emerald-700" />
+                <StatCard icon={LogOut} label="Lượt ra hôm nay" value={traffic.out} tone="bg-blue-50 text-action-blue" />
             </div>
 
-            {latestAlert && (
-                <div className="rounded-2xl border p-4 flex flex-col lg:flex-row lg:items-center gap-4 bg-red-50 border-red-200">
-                    <img src={latestAlert.snapshot} alt="Ảnh cảnh báo cổng" className="w-36 h-20 object-cover rounded-xl border border-white/70" />
-                    <div className="flex-1">
-                        <p className="text-sm font-bold text-midnight-indigo">Cảnh báo mới nhất: {latestAlert.personName}</p>
-                        <p className="text-xs text-slate-blue mt-1">{latestAlert.reason}</p>
-                        <p className="text-xs text-slate-blue mt-1">{latestAlert.gateName} · {latestAlert.timeText} · Biển số {latestAlert.plateNumber || '--'}</p>
-                    </div>
-                    <span className={`inline-flex px-3 py-1 rounded-full border text-xs font-bold ${statusClass[latestAlert.status]}`}>
-                        {latestAlert.statusLabel}
-                    </span>
-                </div>
-            )}
-
-            <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
+            <section className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">
                 <div className="p-5 border-b border-platinum-tint flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     <div>
-                        <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide flex items-center gap-2">
-                            <Camera className="w-5 h-5 text-action-blue" />
-                            Camera FaceID cổng
+                        <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
+                            <Camera className="w-5 h-5 text-action-blue" /> Camera FaceID cổng
                         </h2>
-                        <p className="text-xs text-slate-blue mt-1">Bật webcam để test ảnh thật. Nếu không có webcam, lượt qua cổng sẽ dùng cam ảo.</p>
+                        <p className="text-xs text-slate-blue mt-1">Quét thử lượt qua cổng, BE ghi vào gate_access_logs.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        <select value={selectedGateId} onChange={(event) => setSelectedGateId(event.target.value)} className="px-3 py-2 rounded-xl border border-platinum-tint text-xs font-bold text-midnight-indigo bg-white">
+                            {guardGates.map(gate => (
+                                <option key={gate.id} value={gate.id}>{gate.name} - {gate.direction === 'in' ? 'Vào' : 'Ra'}</option>
+                            ))}
+                        </select>
+                        <select value={scenario} onChange={(event) => setScenario(event.target.value)} className="px-3 py-2 rounded-xl border border-platinum-tint text-xs font-bold text-midnight-indigo bg-white">
+                            <option value="authorized">Hợp lệ</option>
+                            <option value="plate_mismatch">Sai biển số</option>
+                            <option value="unknown">Người lạ</option>
+                        </select>
                         <button type="button" onClick={toggleWebcam} className="px-4 py-2 rounded-xl border border-platinum-tint bg-white text-xs font-bold text-midnight-indigo">
                             {webcamEnabled ? 'Tắt webcam' : 'Bật webcam'}
                         </button>
-                        <button type="button" onClick={handleScan} className="px-4 py-2 rounded-xl bg-midnight-indigo text-white text-xs font-bold flex items-center gap-2">
-                            {selectedGate.direction === 'in' ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
-                            Quét người qua cổng
+                        <button type="button" onClick={() => handleScan()} disabled={scanning || !webcamEnabled || !cameraReady} className="px-4 py-2 rounded-xl bg-midnight-indigo text-white text-xs font-bold flex items-center gap-2 disabled:opacity-60">
+                            {selectedGate?.direction === 'in' ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
+                            {scanning ? 'Đang quét...' : !webcamEnabled ? 'Bật webcam để quét' : !cameraReady ? 'Đang khởi động camera...' : 'Quét người qua cổng'}
                         </button>
-                        <button type="button" onClick={() => setAutoScan(v => !v)} className={`px-4 py-2 rounded-xl text-xs font-bold ${autoScan ? 'bg-red-600 text-white' : 'bg-action-blue text-white'}`}>
+                        <button type="button" onClick={toggleAutoScan} disabled={!webcamEnabled || !cameraReady} className={`px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-60 ${autoScan ? 'bg-red-600 text-white' : 'bg-action-blue text-white'}`}>
                             {autoScan ? 'Dừng tự động' : 'Bật tự động quét'}
                         </button>
                     </div>
@@ -359,144 +419,115 @@ const GuardDashboard = () => {
                 <div className="p-5 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5">
                     <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center text-white text-sm font-bold relative">
                         {webcamEnabled ? (
-                            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
                         ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-300">
                                 <Camera className="w-8 h-8 mb-2 text-blue-300" />
-                                <span>Cam ảo FaceID cổng</span>
+                                <span>Camera FaceID chưa bật</span>
                             </div>
                         )}
-                        {autoScan && <span className="absolute top-3 left-3 px-2 py-1 rounded-lg bg-white/90 text-midnight-indigo text-[11px]">Đang tự quét {selectedGate.direction === 'in' ? 'vào' : 'ra'}</span>}
+                        {webcamEnabled && !cameraReady && (
+                            <span className="absolute inset-x-3 bottom-3 px-2 py-1 rounded-lg bg-amber-500/90 text-white text-[11px] text-center">
+                                Đang chờ khung hình từ webcam...
+                            </span>
+                        )}
+                        {autoScan && cameraReady && (
+                            <span className={`absolute top-3 left-3 px-2 py-1 rounded-lg text-[11px] font-bold ${faceGuidance.state === 'perfect' && !autoScanCooling ? 'bg-emerald-500 text-white' : 'bg-black/60 text-white'}`}>
+                                {scanning
+                                    ? 'Đang xử lý FaceID'
+                                    : waitingForFaceExit
+                                        ? 'Vui lòng rời khỏi khung hình'
+                                        : autoScanCooling
+                                        ? 'Đang chờ lượt quét tiếp theo'
+                                        : getFaceGuidanceLabel(faceGuidance)}
+                            </span>
+                        )}
                     </div>
                     <div className="rounded-xl border border-platinum-tint bg-cloud-mist/40 p-4">
-                        <p className="text-sm font-bold text-midnight-indigo">{selectedGate.name}</p>
-                        <p className="text-xs text-slate-blue mt-1">{selectedGate.cameraName} · {selectedGate.direction === 'in' ? 'Lượt vào' : 'Lượt ra'}</p>
-                        <p className="mt-4 text-xs text-slate-blue">
-                            Khi có người đi qua cổng, hệ thống tự xác định cổng/camera, quét FaceID và biển số, sau đó chỉ hiển thị kết quả quyền ra/vào cho bảo vệ. Người hợp lệ chỉ được ghi nhận vào một lần cho đến khi có lượt ra.
-                        </p>
+                        <p className="text-sm font-bold text-midnight-indigo">{selectedGate?.name}</p>
+                        <p className="text-xs text-slate-blue mt-1">{selectedGate?.cameraName} · {selectedGate?.direction === 'in' ? 'Lượt vào' : 'Lượt ra'}</p>
+                        <p className="mt-4 text-xs text-slate-blue">Bảo vệ chỉ thao tác quét và xem kết quả. Cảnh báo phát sinh sẽ xử lý trong màn Cảnh báo an ninh.</p>
+                        {autoScan && (
+                            <p className="mt-3 text-xs text-slate-blue">
+                                Camera chỉ gửi ảnh khi khuôn mặt đủ sáng, đúng khoảng cách và ổn định. Sau mỗi lượt quét, hệ thống chờ 4 giây và yêu cầu người vừa quét rời khỏi khung hình.
+                            </p>
+                        )}
+                        {faceModelError && <p className="mt-3 text-xs font-semibold text-red-600">{faceModelError}</p>}
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <GuardScanPopup notice={scanNotice} onClose={() => setScanNotice(null)} />
-
-            <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10 flex items-center justify-between gap-3">
-                    <div>
-                        <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">Nhật ký ra/vào khuôn viên</h2>
-                        <p className="text-xs text-slate-blue mt-1">Dữ liệu lấy từ backend. Cam ảo chỉ dùng để sinh ảnh test khi chưa có camera thật.</p>
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+                <section className="xl:col-span-2 bg-white rounded-2xl border border-platinum-tint shadow-sm-2 p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
+                            <ShieldAlert className="w-5 h-5 text-red-500" /> Cảnh báo cần xử lý
+                        </h2>
+                        <Link to="/guard/security-alerts" className="text-xs font-bold text-action-blue no-underline">Xem tất cả →</Link>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => { setEvents(getGuardGateEvents()); setPage(1); }} className="px-3 py-2 rounded-xl border border-platinum-tint text-slate-blue bg-white text-xs font-bold flex items-center gap-2">
-                            <RefreshCw className="w-4 h-4" /> Làm mới
-                        </button>
-                        <button type="button" onClick={() => exportGuardGateEventsCsv(events)} className="px-3 py-2 rounded-xl border border-blue-200 text-action-blue bg-blue-50 text-xs font-bold flex items-center gap-2">
-                            <Download className="w-4 h-4" /> Xuất CSV
-                        </button>
-                        <button type="button" onClick={() => { setEvents(clearGuardGateEvents()); setPage(1); }} className="px-3 py-2 rounded-xl border border-red-200 text-red-600 bg-red-50 text-xs font-bold flex items-center gap-2">
-                            <Trash2 className="w-4 h-4" /> Reset mock
-                        </button>
-                    </div>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
-                            <tr>
-                                <th className="text-left px-5 py-4">Thời gian</th>
-                                <th className="text-left px-5 py-4">Người qua cổng</th>
-                                <th className="text-left px-5 py-4">Cổng / camera</th>
-                                <th className="text-left px-5 py-4">Biển số</th>
-                                <th className="text-left px-5 py-4">Hướng</th>
-                                <th className="text-left px-5 py-4">Đối chiếu</th>
-                                <th className="text-left px-5 py-4">Ảnh</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedEvents.map(event => (
-                                <tr key={event.id} className="border-t border-platinum-tint/70">
-                                    <td className="px-5 py-4">
-                                        <p className="font-bold text-midnight-indigo">{event.timeText}</p>
-                                        <p className="text-xs text-slate-blue">{event.dateText}</p>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <p className="font-bold text-midnight-indigo">{event.personName}</p>
-                                        <p className="text-xs text-slate-blue">{event.personRole} · {event.personCode}</p>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <p className="font-semibold text-midnight-indigo">{event.gateName}</p>
-                                        <p className="text-xs text-slate-blue">{event.cameraName}</p>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <span className={`inline-flex px-3 py-1 rounded-lg border text-xs font-bold ${event.plateStatus === 'matched' ? 'bg-blue-50 text-action-blue border-blue-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                            {event.plateNumber || '--'}
-                                        </span>
-                                        <p className="text-[11px] text-slate-blue mt-1">
-                                            {event.plateStatus === 'matched' ? 'Khớp hồ sơ' : event.plateStatus === 'mismatch' ? 'Không khớp' : 'Chưa xác minh'}
+                    {alerts.length === 0 ? (
+                        <p className="text-sm text-slate-blue py-8 text-center">Không có cảnh báo đang chờ.</p>
+                    ) : (
+                        <ul className="space-y-2">
+                            {alerts.map(alert => (
+                                <li key={alert.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-platinum-tint">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-midnight-indigo truncate">
+                                            {getAlertTypeLabel(alert.alert_type)}
+                                            {alert.payload_json?.plateNumber && <span className="ml-2 font-mono text-xs px-1.5 py-0.5 bg-slate-900 text-white rounded">{alert.payload_json.plateNumber}</span>}
                                         </p>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${event.direction === 'in' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-action-blue'}`}>
-                                            {event.direction === 'in' ? 'Vào' : 'Ra'}
-                                        </span>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <span className={`inline-flex px-3 py-1 rounded-full border text-xs font-bold ${statusClass[event.status] || statusClass.denied}`}>
-                                            {event.statusLabel}
-                                        </span>
-                                        <p className="text-xs text-slate-blue mt-1">{event.reason}</p>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <img src={event.snapshot} alt="Ảnh quét cổng" className="w-28 h-16 object-cover rounded-lg border border-platinum-tint" />
-                                    </td>
-                                </tr>
+                                        <p className="text-xs text-slate-blue">{formatTime(alert.triggered_at || alert.created_at)} · {alert.status === 'new' ? 'Mới' : 'Đã tiếp nhận'}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${SEVERITY_CLS[alert.severity] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{alert.severity || 'low'}</span>
+                                        <Link to="/guard/security-alerts" className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-xs font-bold no-underline">Xử lý</Link>
+                                    </div>
+                                </li>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="px-5 py-4 border-t border-platinum-tint bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-blue">
-                        <span>
-                            Hiển thị <b className="text-midnight-indigo">{events.length ? pageStart + 1 : 0}-{pageEnd}</b> / <b className="text-midnight-indigo">{events.length}</b> lượt
-                        </span>
-                        <label className="flex items-center gap-2">
-                            Số dòng
-                            <select
-                                value={pageSize}
-                                onChange={(event) => {
-                                    setPageSize(Number(event.target.value));
-                                    setPage(1);
-                                }}
-                                className="px-2 py-1.5 rounded-lg border border-platinum-tint bg-white text-xs font-bold text-midnight-indigo"
-                            >
-                                <option value={5}>5</option>
-                                <option value={8}>8</option>
-                                <option value={10}>10</option>
-                                <option value={15}>15</option>
-                            </select>
-                        </label>
+                        </ul>
+                    )}
+                </section>
+
+                <section className="xl:col-span-3 bg-white rounded-2xl border border-platinum-tint shadow-sm-2 p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
+                            <UserCheck className="w-5 h-5 text-action-blue" /> Ra vào cổng gần nhất
+                        </h2>
+                        <Link to="/guard/anpr" className="text-xs font-bold text-action-blue no-underline flex items-center gap-1">
+                            <Car className="w-3.5 h-3.5" /> Xe vào ra →
+                        </Link>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setPage(value => Math.max(1, value - 1))}
-                            disabled={safePage <= 1}
-                            className="w-9 h-9 rounded-xl border border-platinum-tint bg-white text-slate-blue disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span className="px-3 py-2 rounded-xl bg-cloud-mist text-xs font-bold text-midnight-indigo">
-                            Trang {safePage}/{totalPages}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => setPage(value => Math.min(totalPages, value + 1))}
-                            disabled={safePage >= totalPages}
-                            className="w-9 h-9 rounded-xl border border-platinum-tint bg-white text-slate-blue disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="text-left text-xs text-slate-blue border-b border-platinum-tint">
+                                    <th className="py-2 pr-3">Giờ</th>
+                                    <th className="py-2 pr-3">Hướng</th>
+                                    <th className="py-2 pr-3">Người</th>
+                                    <th className="py-2 pr-3">Biển số</th>
+                                    <th className="py-2">Cổng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {logs.length === 0 ? (
+                                    <tr><td colSpan={5} className="py-8 text-center text-slate-blue">Chưa có lượt ra vào hôm nay.</td></tr>
+                                ) : logs.map(log => (
+                                    <tr key={log.id} className="border-b border-platinum-tint/60 last:border-0">
+                                        <td className="py-2 pr-3 font-mono text-xs">{formatTime(log.access_time)}</td>
+                                        <td className="py-2 pr-3">
+                                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${log.direction === 'enter' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-action-blue'}`}>
+                                                {log.direction === 'enter' ? 'Vào' : 'Ra'}
+                                            </span>
+                                        </td>
+                                        <td className="py-2 pr-3 text-midnight-indigo font-semibold">{log.user?.full_name || <span className="text-slate-blue font-normal">Không xác định</span>}</td>
+                                        <td className="py-2 pr-3 font-mono text-xs">{log.plate_number || '--'}</td>
+                                        <td className="py-2 text-slate-blue">{log.zone_name || '--'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
-                </div>
+                </section>
             </div>
         </div>
     );

@@ -602,7 +602,7 @@ const ZoneManagement = () => {
     const ZONE_TYPE_LABELS = {
         gate: 'Cổng ra vào',
         corridor: 'Hành lang',
-        lobby: 'Sảnh lễ tân',
+        lobby: 'Sảnh bảo vệ',
         parking: 'Bãi đỗ xe',
         room: 'Phòng họp'
     };
@@ -1069,7 +1069,7 @@ const ZoneManagement = () => {
                                     <select required value={createForm.zone_type} onChange={e => setCreateForm({ ...createForm, zone_type: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm">
                                         <option value="gate">Cổng ra vào</option>
                                         <option value="corridor">Hành lang</option>
-                                        <option value="lobby">Sảnh lễ tân</option>
+                                        <option value="lobby">Sảnh bảo vệ</option>
                                         <option value="parking">Bãi đỗ xe</option>
                                     </select>
                                 </div>
@@ -1125,7 +1125,7 @@ const ZoneManagement = () => {
                                         <select required value={editForm.zone_type} onChange={e => setEditForm({ ...editForm, zone_type: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white">
                                             <option value="gate">Cổng ra vào</option>
                                             <option value="corridor">Hành lang</option>
-                                            <option value="lobby">Sảnh lễ tân</option>
+                                            <option value="lobby">Sảnh bảo vệ</option>
                                             <option value="parking">Bãi đỗ xe</option>
                                             <option value="room">Phòng họp</option>
                                         </select>

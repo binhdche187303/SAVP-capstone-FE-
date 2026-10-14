@@ -8,8 +8,8 @@ import {
     RiAlertLine, RiMapPin2Line, RiEqualizerLine, RiShieldUserLine,
     RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiLayoutMasonryLine, RiFilmLine,
     RiBarChartBoxLine, RiFileChartLine,
-    RiUserReceivedLine, RiContactsBookLine, RiServiceLine,
-    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine
+    RiUserReceivedLine, RiContactsBookLine,
+    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine, RiGroupLine
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -44,6 +44,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Thiết bị IoT',                  to: '/system-admin/devices',              icon: RiHardDriveLine },
             { label: 'Sơ đồ lắp đặt camera',          to: '/system-admin/camera-layout',        icon: RiLayoutMasonryLine },
+            { label: 'Nhóm camera',                  to: '/system-admin/camera-groups',        icon: RiGroupLine, requiredPermission: 'iot.camera_group.read' },
             { label: 'Ghi hình & lưu trữ',            to: '/system-admin/camera-recording',     icon: RiFilmLine },
             { label: 'Khu vực giám sát',              to: '/system-admin/zones',                icon: RiMapLine },
             { label: 'Lưu lượng & Heatmap',           to: '/system-admin/zone-traffic',         icon: RiFireLine },
@@ -71,7 +72,6 @@ const STATIC_NAVIGATION_ITEMS = [
         isDropdown: true,
         icon: RiUserReceivedLine,
         children: [
-            { label: 'Quầy lễ tân',                   to: '/system-admin/visitors/desk',        icon: RiServiceLine },
             { label: 'Quản lý khách',                 to: '/system-admin/visitors', end: true,  icon: RiContactsBookLine },
             { label: 'Lịch sử khách',                 to: '/system-admin/visitors/history',     icon: RiHistoryLine },
             { label: 'Thống kê khách',                to: '/system-admin/visitors/stats',       icon: RiPieChartLine },

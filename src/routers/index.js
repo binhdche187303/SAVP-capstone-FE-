@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom';
 import React, { Suspense } from 'react';
 import Login from '../pages/auth/login/login';
 import ForgotPassword from '../pages/auth/forgotpassword/forgotpassword';
@@ -27,6 +28,7 @@ import GuardDashboard from '../pages/guard/GuardDashboard';
 import SystemAdminLayout from '../pages/systemAdmin/layout/SystemAdminLayout';
 import DashBoard from '../pages/systemAdmin/dashBoard';
 import DeviceManagement from '../pages/systemAdmin/DeviceManagement';
+import CameraGroups from '../pages/systemAdmin/CameraGroups';
 import CameraLayout from '../pages/systemAdmin/CameraLayout';
 import CameraRecording from '../pages/systemAdmin/CameraRecording';
 import EquipmentManagement from '../pages/systemAdmin/EquipmentManagement';
@@ -70,12 +72,14 @@ import PersonalCalendar from '../pages/employee/PersonalCalendar';
 import EmployeeFaceRegistration from '../pages/employee/FaceRegistration';
 import EmployeeMeetingDetail from '../pages/employee/MeetingDetail';
 import EmployeeRecordings from '../pages/employee/Recordings';
+import TeacherRecordings from '../pages/classroom/TeacherRecordings';
 import EmployeeEquipmentReport from '../pages/employee/EquipmentReport';
 import InMeetingRoom from '../pages/shared/InMeetingRoom';
 import LegalAndSupport from '../pages/public/LegalAndSupport';
 import GuestJoin from '../pages/guest/GuestJoin';
 import GuestMeeting from '../pages/guest/GuestMeeting';
 import VisitorGate from '../pages/public/VisitorGate';
+import { VISITOR_MOCK_ENABLED } from '../config/featureFlags';
 import VisitorStatus from '../pages/public/VisitorStatus';
 import VisitorStats from '../pages/shared/visitors/VisitorStats';
 import VisitorHistory from '../pages/shared/visitors/VisitorHistory';
@@ -121,10 +125,13 @@ export const router = [
         path: '/guest/meeting/:meetingId',
         element: <GuestMeeting />
     },
-    {
-        path: '/visitor/gate',
-        element: <VisitorGate />
-    },
+    // Màn "Cổng" là bản mô phỏng camera (gọi /dev/mock-visitor-scan): bản production nối BE thật thì ẩn.
+    ...(process.env.NODE_ENV === 'production' && !VISITOR_MOCK_ENABLED
+        ? []
+        : [{
+            path: '/visitor/gate',
+            element: <VisitorGate />
+        }]),
     {
         path: '/visitor/status',
         element: <VisitorStatus />
@@ -157,6 +164,10 @@ export const router = [
             {
                 path: 'camera-layout',
                 element: <CameraLayout />
+            },
+            {
+                path: 'camera-groups',
+                element: <CameraGroups />
             },
             {
                 path: 'camera-recording',
@@ -248,7 +259,7 @@ export const router = [
             },
             {
                 path: 'visitors/desk',
-                element: <VisitorDesk />
+                element: <Navigate to="/system-admin/visitors" replace />
             },
             {
                 path: 'report-schedules',
@@ -360,7 +371,7 @@ export const router = [
             },
             {
                 path: 'visitors/desk',
-                element: <VisitorDesk />
+                element: <Navigate to="/business-admin/visitors" replace />
             },
             {
                 path: 'report-schedules',
@@ -503,6 +514,18 @@ export const router = [
                 element: <GuardDashboard />
             },
             {
+                path: 'security-alerts',
+                element: <SecurityAlerts />
+            },
+            {
+                path: 'anpr',
+                element: <ANPRManagement guardMode />
+            },
+            {
+                path: 'visitors/desk',
+                element: <VisitorDesk />
+            },
+            {
                 path: 'profile',
                 element: <Profile />
             },
@@ -535,8 +558,16 @@ export const router = [
                 element: <ClassAttendanceAnalytics mode="teacher" />
             },
             {
+                path: 'recordings',
+                element: <TeacherRecordings />
+            },
+            {
                 path: 'schedule',
                 element: <TeacherSchedule />
+            },
+            {
+                path: 'face-register',
+                element: <EmployeeFaceRegistration />
             },
             {
                 path: 'profile',
@@ -569,6 +600,10 @@ export const router = [
             {
                 path: 'schedule',
                 element: <StudentSchedule />
+            },
+            {
+                path: 'face-register',
+                element: <EmployeeFaceRegistration />
             },
             {
                 path: 'profile',

@@ -53,7 +53,7 @@ const TeacherHome = () => {
                 <div className="flex items-center justify-between gap-3">
                     <div>
                         <h2 className="text-sm font-bold text-midnight-indigo">Lớp học hôm nay</h2>
-                        <p className="text-xs text-slate-blue mt-1">Chọn lớp để mở màn điểm danh bằng camera FaceID.</p>
+                        <p className="text-xs text-slate-blue mt-1">Chọn lớp học phần để mở màn điểm danh bằng camera FaceID.</p>
                     </div>
                     <Link to="/teacher/attendance" className="px-4 py-2 rounded-xl bg-action-blue text-white text-xs font-bold no-underline">
                         Mở điểm danh
@@ -63,6 +63,7 @@ const TeacherHome = () => {
                     {summaries.map(klass => (
                         <div key={klass.id} className="rounded-xl border border-platinum-tint p-4">
                             <p className="text-sm font-bold text-midnight-indigo">{klass.subject}</p>
+                            <p className="text-xs text-slate-blue mt-1">Mã môn học: {klass.subjectCode}</p>
                             <p className="text-sm text-slate-blue mt-1">{klass.schedule} · {klass.room}</p>
                             <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
                                 <span className="px-2.5 py-1 rounded-full bg-blue-50 text-action-blue">Sĩ số {klass.summary.total}</span>

@@ -26,38 +26,23 @@ beforeEach(() => resetState());
 describe('VisitorManagement', () => {
     const route = <Route path="/business-admin/visitors" element={<VisitorManagement />} />;
 
-    test('tab Chờ duyệt: duyệt nhanh làm giảm số chờ, tăng số đã duyệt', async () => {
+    test('admin không duyệt thay: không có nút duyệt nhanh, ngăn chi tiết không có Duyệt / Từ chối', async () => {
         renderAt('/business-admin/visitors', route);
-        const quick = await screen.findAllByRole('button', { name: 'Duyệt nhanh' });
-        const pending = tabCount(/Chờ duyệt/);
-        const approved = tabCount(/Đã duyệt/);
-        expect(pending).toBeGreaterThanOrEqual(3);
-        fireEvent.click(quick[0]);
-        await waitFor(() => expect(tabCount(/Chờ duyệt/)).toBe(pending - 1));
-        expect(tabCount(/Đã duyệt/)).toBe(approved + 1);
-    });
-
-    test('ngăn chi tiết: từ chối bắt buộc có lý do', async () => {
-        renderAt('/business-admin/visitors', route);
-        await screen.findAllByRole('button', { name: 'Duyệt nhanh' });
+        await waitFor(() => expect(tabCount(/Chờ duyệt/)).toBeGreaterThanOrEqual(3));
+        await waitFor(() => expect(dataRows().length).toBeGreaterThan(0));
+        expect(screen.queryByRole('button', { name: 'Duyệt nhanh' })).not.toBeInTheDocument();
         fireEvent.click(within(dataRows()[0]).getAllByRole('cell')[0]);
         const drawer = await screen.findByRole('dialog', { name: 'Chi tiết lượt khách' });
         expect(await within(drawer).findByText('Quyền ra vào')).toBeInTheDocument();
-        fireEvent.click(within(drawer).getByRole('button', { name: 'Từ chối' }));
-        fireEvent.click(within(drawer).getByRole('button', { name: 'Xác nhận từ chối' }));
-        expect(await within(drawer).findByRole('alert')).toHaveTextContent('Vui lòng nhập lý do từ chối');
-        fireEvent.change(within(drawer).getByLabelText('Lý do từ chối'), { target: { value: 'Trùng lịch' } });
-        fireEvent.click(within(drawer).getByRole('button', { name: 'Xác nhận từ chối' }));
-        expect(await within(drawer).findByText('Bị từ chối')).toBeInTheDocument();
         expect(within(drawer).queryByRole('button', { name: 'Duyệt' })).not.toBeInTheDocument();
+        expect(within(drawer).queryByRole('button', { name: 'Từ chối' })).not.toBeInTheDocument();
     });
 
     test('ngăn chi tiết: gia hạn lùi giờ bị chặn', async () => {
         renderAt('/business-admin/visitors', route);
-        await screen.findAllByRole('button', { name: 'Duyệt nhanh' });
+        await waitFor(() => expect(tabCount(/Đã duyệt/)).toBeGreaterThan(0));
         fireEvent.click(screen.getByRole('tab', { name: /Đã duyệt/ }));
-        await waitFor(() => expect(screen.queryByRole('button', { name: 'Duyệt nhanh' })).not.toBeInTheDocument());
-        await waitFor(() => expect(dataRows().length).toBeGreaterThan(0));
+        await waitFor(() => expect(within(dataRows()[0]).queryByText('Chờ duyệt')).not.toBeInTheDocument());
         fireEvent.click(within(dataRows()[0]).getAllByRole('cell')[0]);
         const drawer = await screen.findByRole('dialog', { name: 'Chi tiết lượt khách' });
         fireEvent.click(await within(drawer).findByRole('button', { name: 'Gia hạn' }));
@@ -68,7 +53,7 @@ describe('VisitorManagement', () => {
 
     test('tìm kiếm không có kết quả hiện trạng thái rỗng', async () => {
         renderAt('/business-admin/visitors', route);
-        await screen.findAllByRole('button', { name: 'Duyệt nhanh' });
+        await waitFor(() => expect(dataRows().length).toBeGreaterThan(0));
         fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: 'zzz không có ai' } });
         expect(await screen.findByText('Không có lượt khách nào phù hợp')).toBeInTheDocument();
     });
@@ -205,7 +190,7 @@ describe('MyVisitors', () => {
         fireEvent.change(within(modal).getByLabelText(/Mục đích/), { target: { value: 'Hợp tác doanh nghiệp' } });
         fireEvent.click(within(modal).getByRole('button', { name: 'Gửi lời mời' }));
         expect(await screen.findByText(/Đã mời Lê Văn Mời · VS-\d{6}-\d{4}/)).toBeInTheDocument();
-        expect(screen.getByText(/lễ tân sẽ chụp khi khách đến/)).toBeInTheDocument();
+        expect(screen.getByText(/bảo vệ sẽ chụp khi khách đến/)).toBeInTheDocument();
         await waitFor(() => expect(count('upcoming')).toBe(upcoming + 1));
     });
 });

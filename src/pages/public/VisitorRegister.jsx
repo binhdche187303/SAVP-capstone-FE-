@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Check, CheckCircle2 } from 'lucide-react';
-import { getVisitorLookups, getPublicHost, createPublicRegistration } from '../../service/visitorService';
+import { getPublicPurposes, getPublicHost, createPublicRegistration } from '../../service/visitorService';
 import PublicShell from '../../components/visitor/PublicShell';
 import FaceCapture from '../../components/visitor/FaceCapture';
 import HostPicker from '../../components/visitor/HostPicker';
@@ -59,7 +59,7 @@ const VisitorRegister = () => {
     const invitedHostId = searchParams.get('host');
 
     useEffect(() => {
-        getVisitorLookups().then((res) => { if (res?.success) setPurposes(res.data.purposes); });
+        getPublicPurposes().then((res) => { if (res?.success) setPurposes(res.data.purposes); });
     }, []);
 
     // Link mời của người được gặp: chọn sẵn người cần gặp, khách vẫn đổi được.

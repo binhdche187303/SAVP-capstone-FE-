@@ -1,5 +1,5 @@
 import { CheckCircle, Briefcase, Mail, Phone, X } from 'lucide-react';
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,6 +36,16 @@ const ERROR_MAP = {
     BIOMETRIC_DELETE_FAILED: "Không thể xoá ảnh này. Vui lòng thử lại.",
     FORBIDDEN: "Bạn không có quyền thực hiện hành động này.",
 };
+
+const ROLE_OPTIONS = [
+    { value: "STUDENT", label: "Sinh viên" },
+    { value: "TEACHER", label: "Giảng viên" },
+    { value: "GUARD", label: "Bảo vệ" },
+    { value: "EMPLOYEE", label: "Nhân viên" },
+    { value: "MANAGER", label: "Quản lý" },
+    { value: "BUSINESS_ADMIN", label: "Business Admin" },
+    { value: "SYSTEM_ADMIN", label: "System Admin" },
+];
 
 const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComplete }) => {
     const [detail, setDetail] = useState(null);
@@ -248,7 +258,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
                                     <span className="font-semibold text-midnight-indigo">{detail.userEmail || detail.email || detail.user?.email || ""}</span>
                                 </div>
                                 <div>
-                                    <span className="text-xs text-slate-blue block">Mã nhân viên</span>
+                                    <span className="text-xs text-slate-blue block">Mã định danh</span>
                                     <span className="font-semibold text-midnight-indigo">{detail.employeeCode || ""}</span>
                                 </div>
                                 <div>
@@ -377,6 +387,8 @@ const BiometricSubmissionsReview = () => {
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("pending_review");
     const [deptFilter, setDeptFilter] = useState("");
+    const [roleFilter, setRoleFilter] = useState("");
+    const [classFilter, setClassFilter] = useState("");
 
     // Pagination
     const [page, setPage] = useState(1);
@@ -444,6 +456,8 @@ const BiometricSubmissionsReview = () => {
                 status: statusFilter || undefined,
                 q: debouncedSearch.trim().length >= 2 ? debouncedSearch.trim() : undefined,
                 departmentId: deptFilter || undefined,
+                role: roleFilter || undefined,
+                classId: classFilter || undefined,
             };
             const res = await getAvatarSubmissions(params);
             if (res?.success) {
@@ -456,7 +470,7 @@ const BiometricSubmissionsReview = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, limit, statusFilter, debouncedSearch, deptFilter]);
+    }, [page, limit, statusFilter, debouncedSearch, deptFilter, roleFilter, classFilter]);
 
     useEffect(() => {
         fetchSubmissions();
@@ -484,6 +498,21 @@ const BiometricSubmissionsReview = () => {
         setSuccessMessage("Thao tác thành công.");
         fetchSubmissions();
     };
+
+    const classOptions = useMemo(() => {
+        const map = new Map();
+        submissions.forEach((sub) => {
+            (sub.classSections || sub.user?.classSections || []).forEach((klass) => {
+                const value = klass.id || klass.code;
+                if (!value) return;
+                const label = [klass.code, klass.name].filter(Boolean).join(" - ");
+                map.set(value, label || value);
+            });
+        });
+        return Array.from(map.entries())
+            .map(([value, label]) => ({ value, label }))
+            .sort((a, b) => a.label.localeCompare(b.label, "vi"));
+    }, [submissions]);
 
     return (
         <div className="space-y-6 animate-fade-in-up">
@@ -545,6 +574,31 @@ const BiometricSubmissionsReview = () => {
                     ))}
                 </select>
 
+                <select
+                    value={roleFilter}
+                    onChange={(e) => {
+                        setRoleFilter(e.target.value);
+                        setPage(1);
+                    }}
+                    className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
+                >
+                    <option value="">Tất cả vai trò</option>
+                    {ROLE_OPTIONS.map((role) => (
+                        <option key={role.value} value={role.value}>{role.label}</option>
+                    ))}
+                </select>
+
+                <select
+                    value={classFilter}
+                    onChange={(e) => { setClassFilter(e.target.value); setPage(1); }}
+                    className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
+                >
+                    <option value="">Tất cả lớp</option>
+                    {classOptions.map((klass) => (
+                        <option key={klass.value} value={klass.value}>{klass.label}</option>
+                    ))}
+                </select>
+
                 <button
                     onClick={handleRefresh}
                     className="px-4 py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-semibold transition-all"
@@ -562,7 +616,7 @@ const BiometricSubmissionsReview = () => {
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Gương mặt</th>
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Họ tên</th>
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Email</th>
-                                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Mã NV</th>
+                                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Mã định danh</th>
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Phòng ban</th>
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Trạng thái</th>
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Ngày nộp</th>

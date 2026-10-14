@@ -178,12 +178,12 @@ describe('VisitorGate (màn hình cổng mô phỏng)', () => {
         expect(screen.getByText('Ngoài khung giờ được cấp')).toBeInTheDocument();
     });
 
-    test('độ khớp thấp: mời đến quầy lễ tân', async () => {
+    test('độ khớp thấp: mời đến chốt bảo vệ', async () => {
         const visit = await approvedVisit();
         renderAt(`/visitor/gate?code=${visit.code}`, route);
         fireEvent.change(screen.getByLabelText('Tình huống'), { target: { value: 'low_score' } });
         scan();
-        expect(await screen.findByText('Vui lòng đến quầy lễ tân')).toBeInTheDocument();
+        expect(await screen.findByText('Vui lòng đến chốt bảo vệ')).toBeInTheDocument();
         expect(screen.getByText('71%')).toBeInTheDocument();
     });
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, CalendarDays, Download, Filter, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { exportSemesterClassAttendanceCsv, fetchBusinessClassAttendanceStats, fetchTeacherClassAttendanceReport, getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
+import { exportSemesterClassAttendanceCsv, fetchClassAttendanceClasses, fetchTeacherClassAttendanceReport, getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
 
 const RANGE_OPTIONS = [
     { value: 'day', label: 'Ngày' },
@@ -76,15 +76,18 @@ const getStoredUser = () => {
     }
 };
 
-const buildClassReport = ({ selectedClassId, selectedSemester, rangeMode, anchorDate, classrooms = mockClassrooms }) => {
-    const classes = (selectedClassId === 'all'
-        ? classrooms
-        : classrooms.filter(item => item.id === selectedClassId))
+const buildClassReport = ({ selectedSubjectCode, selectedAdministrativeClass, selectedSemester, rangeMode, anchorDate, classrooms = mockClassrooms }) => {
+    const classes = classrooms
+        .filter(item => selectedSubjectCode === 'all' || (item.subjectCode || item.code) === selectedSubjectCode)
         .filter(item => selectedSemester === 'all' || item.semester === selectedSemester);
     let period = null;
 
     const rows = classes.map(klass => {
-        const entries = klass.students.flatMap(student => {
+        const students = (klass.students || []).filter(student => (
+            selectedAdministrativeClass === 'all'
+            || student.administrativeClass === selectedAdministrativeClass
+        ));
+        const entries = students.flatMap(student => {
             const report = getStudentAttendanceReport({
                 studentId: student.id,
                 mode: rangeMode,
@@ -140,9 +143,10 @@ const StatCard = ({ label, value, helper }) => (
 const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const canExport = mode === 'teacher';
     const [currentUser, setCurrentUser] = useState(() => getStoredUser());
-    const [apiStats, setApiStats] = useState([]);
+    const [classCatalog, setClassCatalog] = useState(mockClassrooms);
     const [apiReport, setApiReport] = useState(null);
-    const [selectedClassId, setSelectedClassId] = useState(canExport ? mockClassrooms[0]?.id : 'all');
+    const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
+    const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState('all');
     const [selectedSemester, setSelectedSemester] = useState('all');
     const [rangeMode, setRangeMode] = useState('month');
     const [anchorDate, setAnchorDate] = useState(() => todayKey());
@@ -153,96 +157,87 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
 
     useEffect(() => {
         let cancelled = false;
-        const loader = canExport
-            ? fetchTeacherClassAttendanceReport({
-                classId: selectedClassId,
-                semester: selectedSemester,
-                mode: rangeMode,
-                anchorDate
+        fetchClassAttendanceClasses()
+            .then(classes => {
+                if (!cancelled && classes?.length) setClassCatalog(classes);
             })
-            : fetchBusinessClassAttendanceStats();
-        loader
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchTeacherClassAttendanceReport({
+            classId: 'all',
+            subjectCode: selectedSubjectCode,
+            administrativeClass: selectedAdministrativeClass,
+            semester: selectedSemester,
+            mode: rangeMode,
+            anchorDate
+        })
             .then(data => {
                 if (cancelled) return;
-                if (canExport) {
-                    setApiReport(data || null);
-                    setApiStats([]);
-                    return;
-                }
-                setApiStats(Array.isArray(data) ? data : []);
+                setApiReport(data || null);
             })
             .catch(() => {
                 if (!cancelled) {
                     setApiReport(null);
-                    setApiStats([]);
                 }
             });
         return () => {
             cancelled = true;
         };
-    }, [anchorDate, canExport, rangeMode, selectedClassId, selectedSemester]);
+    }, [anchorDate, rangeMode, selectedAdministrativeClass, selectedSemester, selectedSubjectCode]);
 
     const teacherClassrooms = useMemo(() => {
-        if (apiReport?.rows?.length) return apiReport.rows;
-        if (apiStats.length) return apiStats;
-        if (!canExport) return mockClassrooms;
+        if (!canExport) return classCatalog;
 
         const teacherName = normalizeText(currentUser?.fullName || currentUser?.full_name || currentUser?.name);
-        const ownedClasses = mockClassrooms.filter(item => normalizeText(item.teacher) === teacherName);
+        const ownedClasses = classCatalog.filter(item => normalizeText(item.teacher) === teacherName);
 
-        return ownedClasses.length > 0 ? ownedClasses : mockClassrooms;
-    }, [apiReport, apiStats, canExport, currentUser]);
+        return ownedClasses.length > 0 ? ownedClasses : classCatalog;
+    }, [canExport, classCatalog, currentUser]);
+
+    const subjectOptions = useMemo(() => {
+        const options = new Map();
+        teacherClassrooms.forEach(item => {
+            const code = item.subjectCode || item.code;
+            if (!options.has(code)) options.set(code, { code, name: item.subject });
+        });
+        return [...options.values()];
+    }, [teacherClassrooms]);
+
+    const administrativeClassOptions = useMemo(() => {
+        const classes = teacherClassrooms
+            .filter(item => selectedSubjectCode === 'all' || (item.subjectCode || item.code) === selectedSubjectCode)
+            .flatMap(item => item.administrativeClasses || (item.students || []).map(student => student.administrativeClass))
+            .filter(Boolean);
+        return [...new Set(classes)].sort((a, b) => a.localeCompare(b, 'vi'));
+    }, [selectedSubjectCode, teacherClassrooms]);
 
     const semesters = useMemo(() => Array.from(new Set(teacherClassrooms.map(item => item.semester))), [teacherClassrooms]);
 
     useEffect(() => {
-        if (!canExport) return;
-        if (!teacherClassrooms.some(item => item.id === selectedClassId)) {
-            setSelectedClassId(teacherClassrooms[0]?.id || '');
+        if (selectedAdministrativeClass !== 'all' && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
+            setSelectedAdministrativeClass('all');
         }
-    }, [canExport, selectedClassId, teacherClassrooms]);
+    }, [administrativeClassOptions, selectedAdministrativeClass]);
 
     const report = useMemo(
         () => {
             if (apiReport?.rows) return apiReport;
-            if (apiStats.length) {
-                const rows = teacherClassrooms
-                    .filter(item => selectedClassId === 'all' || item.id === selectedClassId)
-                    .filter(item => selectedSemester === 'all' || item.semester === selectedSemester)
-                    .map(item => ({
-                        ...item,
-                        totalSessions: item.total || 0,
-                        attended: item.checkedIn || 0,
-                        onTime: Math.max(0, (item.checkedIn || 0) - (item.late || 0)),
-                        late: item.late || 0,
-                        absent: item.missing || 0,
-                        rate: item.rate || 0
-                    }));
-                const totals = rows.reduce((acc, item) => ({
-                    totalSessions: acc.totalSessions + item.totalSessions,
-                    attended: acc.attended + item.attended,
-                    onTime: acc.onTime + item.onTime,
-                    late: acc.late + item.late,
-                    absent: acc.absent + item.absent
-                }), { totalSessions: 0, attended: 0, onTime: 0, late: 0, absent: 0 });
-                return {
-                    rows,
-                    period: { start: anchorDate, end: anchorDate },
-                    totals: {
-                        ...totals,
-                        rate: totals.totalSessions ? Math.round((totals.attended / totals.totalSessions) * 100) : 0
-                    }
-                };
-            }
             return buildClassReport({
-            selectedClassId,
-            selectedSemester,
-            rangeMode,
-            anchorDate,
-            classrooms: teacherClassrooms
+                selectedSubjectCode,
+                selectedAdministrativeClass,
+                selectedSemester,
+                rangeMode,
+                anchorDate,
+                classrooms: teacherClassrooms
             });
         },
-        [apiReport, apiStats.length, anchorDate, rangeMode, selectedClassId, selectedSemester, teacherClassrooms]
+        [apiReport, anchorDate, rangeMode, selectedAdministrativeClass, selectedSemester, selectedSubjectCode, teacherClassrooms]
     );
 
     const pieData = [
@@ -252,7 +247,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     ];
     const hasPieData = pieData.some(item => item.value > 0);
     const barData = report.rows.map(item => ({
-        name: item.code,
+        name: item.subjectCode || item.code,
         subject: item.subject,
         'Đúng giờ': item.onTime,
         'Đi muộn': item.late,
@@ -284,21 +279,35 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
             </div>
 
             <div className="bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm flex flex-wrap gap-3 items-end">
-                <div className="flex flex-col gap-1 min-w-[260px]">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Lớp / môn học</label>
+                <div className="flex flex-col gap-1 min-w-[170px]">
+                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Lớp hành chính</label>
                     <div className="relative">
                         <Users className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
                         <select
-                            value={selectedClassId}
-                            onChange={(event) => setSelectedClassId(event.target.value)}
+                            value={selectedAdministrativeClass}
+                            onChange={(event) => setSelectedAdministrativeClass(event.target.value)}
                             className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
                         >
-                            {!canExport && <option value="all">Tất cả lớp / môn học</option>}
-                            {teacherClassrooms.map(item => (
-                                <option key={item.id} value={item.id}>{item.code} - {item.subject}</option>
+                            <option value="all">Tất cả lớp</option>
+                            {administrativeClassOptions.map(className => (
+                                <option key={className} value={className}>{className}</option>
                             ))}
                         </select>
                     </div>
+                </div>
+
+                <div className="flex flex-col gap-1 min-w-[240px]">
+                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Môn học</label>
+                    <select
+                        value={selectedSubjectCode}
+                        onChange={(event) => setSelectedSubjectCode(event.target.value)}
+                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
+                    >
+                        <option value="all">Tất cả môn học</option>
+                        {subjectOptions.map(subject => (
+                            <option key={subject.code} value={subject.code}>{subject.code} - {subject.name}</option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="flex flex-col gap-1 min-w-[180px]">
@@ -352,8 +361,10 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     <button
                         type="button"
                         onClick={() => exportSemesterClassAttendanceCsv({
-                            classId: selectedClassId,
-                            semester: selectedSemester
+                            classId: 'all',
+                            semester: selectedSemester,
+                            subjectCode: selectedSubjectCode,
+                            administrativeClass: selectedAdministrativeClass
                         })}
                         className="px-4 py-2 rounded-xl bg-action-blue text-white text-xs font-bold flex items-center gap-2 shadow-sm"
                     >
@@ -370,7 +381,9 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                 </div>
                 <div className="flex items-center gap-2 text-xs font-bold text-action-blue">
                     <CalendarDays className="w-4 h-4" />
-                    {selectedClassId === 'all' ? 'Toàn bộ lớp học' : teacherClassrooms.find(item => item.id === selectedClassId)?.subject}
+                    {selectedAdministrativeClass === 'all' ? 'Tất cả lớp' : selectedAdministrativeClass}
+                    {' · '}
+                    {selectedSubjectCode === 'all' ? 'Tất cả môn học' : subjectOptions.find(item => item.code === selectedSubjectCode)?.name}
                     {selectedSemester !== 'all' ? ` · ${selectedSemester}` : ''}
                 </div>
             </div>
@@ -412,7 +425,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                 </div>
 
                 <div className="bg-white rounded-2xl border border-platinum-tint p-5 shadow-sm">
-                    <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">So sánh theo lớp / môn học</h2>
+                    <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">So sánh theo môn học</h2>
                     <div className="h-80 mt-4">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={barData} margin={{ top: 8, right: 16, left: -18, bottom: 8 }}>
@@ -432,13 +445,14 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">
                 <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10">
                     <h3 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">
-                        Danh sách lớp / môn học
+                        Danh sách chuyên cần
                     </h3>
                 </div>
                 <table className="w-full text-sm">
                     <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
                         <tr>
-                            <th className="text-left px-5 py-4">Lớp / môn học</th>
+                            <th className="text-left px-5 py-4">Lớp hành chính</th>
+                            <th className="text-left px-5 py-4">Môn học</th>
                             <th className="text-left px-5 py-4">Học kỳ</th>
                             <th className="text-left px-5 py-4">Tổng buổi</th>
                             <th className="text-left px-5 py-4">Đã điểm danh</th>
@@ -451,8 +465,13 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                         {report.rows.map(item => (
                             <tr key={item.id} className="border-t border-platinum-tint/70">
                                 <td className="px-5 py-4">
+                                    <p className="font-bold text-midnight-indigo">
+                                        {item.administrativeClass || (item.administrativeClasses || []).join(', ') || 'Chưa xác định'}
+                                    </p>
+                                </td>
+                                <td className="px-5 py-4">
                                     <p className="font-bold text-midnight-indigo">{item.subject}</p>
-                                    <p className="text-xs text-slate-blue">{item.code} · {item.room}</p>
+                                    <p className="text-xs text-slate-blue">{item.subjectCode || item.code} · {item.room}</p>
                                 </td>
                                 <td className="px-5 py-4 text-slate-blue">{item.semester}</td>
                                 <td className="px-5 py-4 font-semibold text-midnight-indigo">{item.totalSessions}</td>
