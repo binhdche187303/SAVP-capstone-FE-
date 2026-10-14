@@ -593,6 +593,7 @@ const SecurityAlerts = () => {
                         <option value="intrusion">Xâm nhập</option>
                         <option value="person_watchlist_match">Đối tượng theo dõi</option>
                         <option value="unknown_vehicle">Xe lạ</option>
+                        <option value="vehicle_unauthorized">Xe không được phép</option>
                         <option value="vehicle_control_match">Biển số theo dõi</option>
                         <option value="device_error">Lỗi thiết bị</option>
                         <option value="device_maintenance">Camera cần bảo trì</option>

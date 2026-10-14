@@ -7,6 +7,8 @@ export const ALERT_TYPE_VI = {
     intrusion: 'Xâm nhập',
     person_watchlist_match: 'Đối tượng theo dõi',
     unknown_vehicle: 'Xe lạ',
+    // Biển số CÓ đăng ký nhưng đang chờ duyệt/bị từ chối — khác 'unknown_vehicle' (không có đăng ký nào).
+    vehicle_unauthorized: 'Xe không được phép',
     vehicle_control_match: 'Biển số theo dõi',
     device_error: 'Lỗi thiết bị',
     device_maintenance: 'Camera cần bảo trì',
@@ -15,7 +17,6 @@ export const ALERT_TYPE_VI = {
     visitor_zone_violation: 'Khách vào sai khu vực',
 };
 
-// Fallback cho giá trị alert_type chưa có trong bảng dịch (VD 'vehicle_unauthorized' —
-// BE ghi trực tiếp, không qua ALERT_TYPES DTO validate) — vẫn hiện được thay vì undefined.
+// Fallback cho giá trị alert_type chưa có trong bảng dịch — vẫn hiện được thay vì undefined.
 export const getAlertTypeLabel = (type) =>
     ALERT_TYPE_VI[type] || type?.replace(/_/g, ' ') || '—';
