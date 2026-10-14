@@ -1100,7 +1100,7 @@ const RoomAccessLogs = () => {
                                             ))}
                                         </div>
                                         <Link
-                                            to={`/system-admin/user-journey?userId=${selectedUser.id}${selectedUser.journeyDate ? `&date=${selectedUser.journeyDate}` : ''}`}
+                                            to={`/${window.location.pathname.split("/")[1]}/user-journey?userId=${selectedUser.id}${selectedUser.journeyDate ? `&date=${selectedUser.journeyDate}` : ''}`}
                                             className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-action-blue hover:bg-blue-700 text-white text-sm font-bold transition-colors">
                                             <Route className="w-4 h-4" /> Xem hành trình ngày này
                                         </Link>

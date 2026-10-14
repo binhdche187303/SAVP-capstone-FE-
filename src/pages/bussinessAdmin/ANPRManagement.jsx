@@ -30,7 +30,8 @@ const getVehicleTypeLabel = (type) => {
     return type || 'Chưa rõ';
 };
 
-const ANPRManagement = () => {
+// guardMode: bảo vệ trực cổng — chỉ xem luồng xe vào ra; xử lý xe lạ/xe kiểm soát ở trang Cảnh báo an ninh.
+const ANPRManagement = ({ guardMode = false }) => {
     const [activeTab, setActiveTab] = useState('history'); // 'history', 'register', 'unknown'
     const [loading, setLoading] = useState(false);
     const [isExportOpen, setIsExportOpen] = useState(false);
@@ -225,11 +226,14 @@ const ANPRManagement = () => {
                 </span>
                 <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Kiểm soát ra vào cổng</h1>
                 <p className="text-slate-blue text-sm mt-1">
-                    Theo dõi lịch sử vào ra, quản lý biển lạ và đăng ký phương tiện cho nhân sự.
+                    {guardMode
+                        ? 'Theo dõi xe vào ra theo thời gian thực. Xe lạ / xe trong danh sách kiểm soát được xử lý (Cho qua / Chặn) tại mục Cảnh báo an ninh.'
+                        : 'Theo dõi lịch sử vào ra, quản lý biển lạ và đăng ký phương tiện cho nhân sự.'}
                 </p>
             </div>
 
             {/* TABS NAVIGATION */}
+            {!guardMode && (
             <div className="flex bg-white rounded-2xl border border-platinum-tint p-1 shadow-sm-2">
                 <button
                     onClick={() => setActiveTab('history')}
@@ -253,6 +257,7 @@ const ANPRManagement = () => {
                     📝 Đăng ký xe nhân viên
                 </button>
             </div>
+            )}
 
             {/* TAB CONTENT: HISTORY */}
             {activeTab === 'history' && (
@@ -265,6 +270,7 @@ const ANPRManagement = () => {
                             <p className="text-xs text-slate-blue mt-0.5">Nhật ký nhận diện biển số qua camera ANPR · cập nhật mỗi giây</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
+                            {!guardMode && (
                             <div className="flex items-center gap-2 rounded-xl border border-dashed border-platinum-tint bg-slate-50 px-2 py-1.5">
                                 <span className="text-[11px] font-bold text-slate-blue whitespace-nowrap">Test xe</span>
                                 <input
@@ -304,6 +310,7 @@ const ANPRManagement = () => {
                                     Ra
                                 </button>
                             </div>
+                            )}
                             <button
                                 onClick={() => fetchHistory()}
                                 disabled={loading}
@@ -649,6 +656,7 @@ const ANPRManagement = () => {
             <EventSnapshotModal 
                 isOpen={isSnapshotOpen} 
                 eventId={snapshotEventId} 
+                showPlate
                 onClose={() => {
                     setIsSnapshotOpen(false);
                     setSnapshotEventId(null);

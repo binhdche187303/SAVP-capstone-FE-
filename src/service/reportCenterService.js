@@ -106,3 +106,5 @@ export const downloadRunFile = (runId, format) =>
     call(() => exportInBrowser(mock.prepareRunFile(runId, format), format), () => realDownloadRunFile(runId, format));
 
 export const getRecentExports = () => call(() => mock.getRecentExports(), () => get('/reports/exports/recent'));
+
+export const getExportDownloadUrl = (jobId) => get(`/reports/exports/${jobId}/download-url`);

@@ -188,7 +188,7 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
                                                     <p className="text-[11px] text-slate-blue">Mất kết nối {formatDuration(i.duration_seconds)}</p>
                                                 </div>
                                                 {i.alert_id && (
-                                                    <Link to="/system-admin/security-alerts" className="text-[11px] font-semibold text-action-blue hover:underline shrink-0">
+                                                    <Link to={`/${window.location.pathname.split("/")[1]}/security-alerts`} className="text-[11px] font-semibold text-action-blue hover:underline shrink-0">
                                                         Xem cảnh báo
                                                     </Link>
                                                 )}

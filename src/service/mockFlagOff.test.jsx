@@ -71,7 +71,7 @@ test('BE chưa có: màn mới hiện khối lỗi, không còn dải dữ liệ
     expect(screen.queryByText(/dữ liệu minh họa/)).not.toBeInTheDocument();
 });
 
-test('BE chưa có: quầy lễ tân hiện khối lỗi', async () => {
+test('BE chưa có: chốt bảo vệ hiện khối lỗi', async () => {
     render(
         <MemoryRouter initialEntries={['/business-admin/visitors/desk']}>
             <Routes>

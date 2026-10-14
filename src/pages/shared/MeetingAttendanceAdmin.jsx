@@ -25,6 +25,13 @@ const toLocalDateStr = (date) => {
 
 const ITEMS_PER_PAGE = 10;
 
+// Chế độ GIÁM SÁT (chỉ đọc): admin xem điểm danh cuộc họp đã kết thúc/đang diễn ra qua IVSS,
+// không mở trang chi tiết cuộc họp (biên bản, ghi chú riêng), không tham gia, không sửa.
+const STATUS_TABS = [
+    { value: 'completed', label: 'Đã kết thúc', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+    { value: 'in_progress', label: 'Đang diễn ra', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+];
+
 const MeetingAttendanceAdmin = () => {
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -42,6 +49,8 @@ const MeetingAttendanceAdmin = () => {
     const [selectedDeptId, setSelectedDeptId] = useState('');
 
     const [selectedMeeting, setSelectedMeeting] = useState(null);
+    const [statusFilter, setStatusFilter] = useState('completed');
+    const statusTab = STATUS_TABS.find(t => t.value === statusFilter);
 
     useEffect(() => {
         getDepartments({ limit: 100 }).then((res) => {
@@ -57,7 +66,7 @@ const MeetingAttendanceAdmin = () => {
         setError(null);
         try {
             const params = {
-                status: 'completed',
+                status: statusFilter,
                 page,
                 limit: ITEMS_PER_PAGE,
             };
@@ -84,7 +93,7 @@ const MeetingAttendanceAdmin = () => {
         } finally {
             setLoading(false);
         }
-    }, [fromDate, toDate, search, selectedDeptId, page]);
+    }, [fromDate, toDate, search, selectedDeptId, page, statusFilter]);
 
     useEffect(() => {
         fetchMeetings();
@@ -110,8 +119,8 @@ const MeetingAttendanceAdmin = () => {
                 <div className="bg-white rounded-2xl border border-platinum-tint p-5 shadow-sm-2">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
                         <h2 className="text-base font-bold text-midnight-indigo">{selectedMeeting.title || selectedMeeting.name || 'Cuộc họp'}</h2>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                            Đã kết thúc
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusTab.badge}`}>
+                            {statusTab.label}
                         </span>
                     </div>
                     <div className="flex flex-wrap gap-x-5 gap-y-1 mt-1 text-xs text-slate-blue">
@@ -156,6 +165,20 @@ const MeetingAttendanceAdmin = () => {
                     </h1>
                     <p className="text-xs text-slate-blue mt-0.5">Xem thời lượng tham dự thực tế của nhân viên theo từng cuộc họp</p>
                 </div>
+            </div>
+
+            <div className="flex gap-2">
+                {STATUS_TABS.map(t => (
+                    <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => { setStatusFilter(t.value); setPage(1); }}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold border ${statusFilter === t.value ? 'bg-action-blue text-white border-action-blue' : 'bg-white text-slate-blue border-platinum-tint hover:text-midnight-indigo'}`}
+                    >
+                        {t.label}
+                    </button>
+                ))}
+                <span className="self-center text-[11px] text-slate-blue ml-2">Chế độ giám sát — chỉ xem, không chỉnh sửa.</span>
             </div>
 
             {/* Filters */}
@@ -216,7 +239,7 @@ const MeetingAttendanceAdmin = () => {
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">
                 <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">
-                        Danh sách cuộc họp đã kết thúc
+                        Danh sách cuộc họp {statusTab.label.toLowerCase()}
                     </h3>
                     <button
                         onClick={() => { setPage(1); fetchMeetings(); }}
@@ -262,8 +285,8 @@ const MeetingAttendanceAdmin = () => {
                                             <p className="text-sm font-bold text-midnight-indigo leading-snug">
                                                 {m.title || m.name || 'Cuộc họp không tên'}
                                             </p>
-                                            <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                                                Đã kết thúc
+                                            <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusTab.badge}`}>
+                                                {statusTab.label}
                                             </span>
                                         </div>
 

@@ -8,7 +8,7 @@ import {
     RiAlertLine, RiMapPin2Line, RiEqualizerLine, RiShieldUserLine,
     RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiLayoutMasonryLine, RiFilmLine,
     RiBarChartBoxLine, RiFileChartLine,
-    RiUserReceivedLine, RiContactsBookLine, RiServiceLine,
+    RiUserReceivedLine, RiContactsBookLine,
     RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine, RiGroupLine
 } from 'react-icons/ri';
 
@@ -72,7 +72,6 @@ const STATIC_NAVIGATION_ITEMS = [
         isDropdown: true,
         icon: RiUserReceivedLine,
         children: [
-            { label: 'Quầy lễ tân',                   to: '/system-admin/visitors/desk',        icon: RiServiceLine },
             { label: 'Quản lý khách',                 to: '/system-admin/visitors', end: true,  icon: RiContactsBookLine },
             { label: 'Lịch sử khách',                 to: '/system-admin/visitors/history',     icon: RiHistoryLine },
             { label: 'Thống kê khách',                to: '/system-admin/visitors/stats',       icon: RiPieChartLine },

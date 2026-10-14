@@ -7,7 +7,7 @@ import HostPicker from './HostPicker';
 
 const ME_HOST_ID = 'host-me';
 
-// Form một trang cho lễ tân (walk_in) và người được gặp (host_invite).
+// Form một trang cho bảo vệ (walk_in) và người được gặp (host_invite).
 // onSubmit(payload) nhận đúng dạng payload tạo lượt của visitorService.createVisit.
 const VisitForm = ({ mode, lookups = {}, onSubmit, submitting, error }) => {
     const isWalkIn = mode === 'walk_in';
@@ -87,7 +87,7 @@ const VisitForm = ({ mode, lookups = {}, onSubmit, submitting, error }) => {
                     </label>
                 </>
             ) : (
-                <p className="text-[11px] text-slate-blue">Khách được mời chưa có ảnh khuôn mặt; lễ tân sẽ chụp bổ sung khi khách đến.</p>
+                <p className="text-[11px] text-slate-blue">Khách được mời chưa có ảnh khuôn mặt; bảo vệ sẽ chụp bổ sung khi khách đến.</p>
             )}
 
             {error && <p className="text-xs text-red-600" role="alert">{error}</p>}

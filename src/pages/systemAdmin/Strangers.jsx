@@ -157,7 +157,7 @@ const Strangers = () => {
                     </h1>
                     <p className="text-sm text-slate-blue mt-1">
                         Khuôn mặt camera không nhận ra, gom theo từng người. Thêm người đáng chú ý vào{' '}
-                        <Link to="/system-admin/person-control-list" className="text-action-blue font-semibold hover:underline">Danh sách người giám sát</Link>.
+                        <Link to={`/${window.location.pathname.split("/")[1]}/person-control-list`} className="text-action-blue font-semibold hover:underline">Danh sách người giám sát</Link>.
                     </p>
                 </div>
                 <button onClick={fetchData} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-platinum-tint text-sm font-semibold text-midnight-indigo hover:bg-cloud-mist">
@@ -336,7 +336,7 @@ const Strangers = () => {
             {toast && (
                 <div className="fixed bottom-6 right-6 z-[10000] px-4 py-3 rounded-xl bg-midnight-indigo text-white text-sm font-semibold shadow-lg">
                     {toast}{' '}
-                    {toast.startsWith('Đã thêm') && <Link to="/system-admin/person-control-list" className="underline ml-1">Xem danh sách</Link>}
+                    {toast.startsWith('Đã thêm') && <Link to={`/${window.location.pathname.split("/")[1]}/person-control-list`} className="underline ml-1">Xem danh sách</Link>}
                 </div>
             )}
         </div>

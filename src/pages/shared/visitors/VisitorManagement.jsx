@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ClipboardList, Search } from 'lucide-react';
-import { listVisits, getVisitorLookups, approveVisit } from '../../../service/visitorService';
-import toast from '../../../utils/toast';
+import { listVisits, getVisitorLookups } from '../../../service/visitorService';
 import Pagination from '../../../components/common/Pagination';
 import VisitDetailDrawer from '../../../components/visitor/VisitDetailDrawer';
 import VisitorAvatar from '../../../components/visitor/VisitorAvatar';
@@ -57,17 +56,6 @@ const VisitorManagement = () => {
     const changeFilter = (patch) => { setPage(1); setFilters((f) => ({ ...f, ...patch })); };
     const changeTab = (key) => { setPage(1); setTab(key); };
 
-    const quickApprove = async (event, visit) => {
-        event.stopPropagation();
-        const res = await approveVisit(visit.id, {});
-        if (res?.success) {
-            toast.success(`Đã duyệt ${visit.visitor.fullName} với quyền ra vào mặc định`);
-            load();
-        } else {
-            toast.error(res?.message || 'Không duyệt được lượt khách');
-        }
-    };
-
     const counts = data?.counts || {};
     const items = data?.items || [];
 
@@ -78,7 +66,7 @@ const VisitorManagement = () => {
                     <ClipboardList className="w-6 h-6 text-action-blue" />
                     Quản lý khách đến làm việc
                 </h2>
-                <p className="text-xs text-slate-blue mt-1">Duyệt đăng ký, cấp quyền ra vào theo thời gian và theo dõi trạng thái từng lượt khách.</p>
+                <p className="text-xs text-slate-blue mt-1">Theo dõi đăng ký (người được gặp tự duyệt), quyền ra vào theo thời gian và theo dõi trạng thái từng lượt khách.</p>
             </div>
 
             <div className="flex flex-wrap gap-2" role="tablist">
@@ -155,11 +143,6 @@ const VisitorManagement = () => {
                                     <td className={tdCls}>{VISIT_CHANNEL_LABELS[visit.channel]}</td>
                                     <td className={tdCls}><VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} /></td>
                                     <td className={`${tdCls} text-right`}>
-                                        {visit.status === 'pending_approval' && (
-                                            <button type="button" aria-label="Duyệt nhanh" onClick={(e) => quickApprove(e, visit)} className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-semibold hover:bg-glacier-blue">
-                                                Duyệt
-                                            </button>
-                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -173,7 +156,7 @@ const VisitorManagement = () => {
             </div>
 
             {selectedId && (
-                <VisitDetailDrawer visitId={selectedId} zones={lookups.zones} onClose={() => setSelectedId(null)} onChanged={load} />
+                <VisitDetailDrawer canReassign visitId={selectedId} zones={lookups.zones} onClose={() => setSelectedId(null)} onChanged={load} />
             )}
         </div>
     );

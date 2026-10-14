@@ -45,6 +45,7 @@ export const createVisit = (payload) => call(() => mock.createVisit(payload), ()
 export const approveVisit = (id, body) => call(() => mock.approveVisit(id, body), () => post(`/visitors/visits/${id}/approve`, body));
 export const rejectVisit = (id, body) => call(() => mock.rejectVisit(id, body), () => post(`/visitors/visits/${id}/reject`, body));
 export const cancelVisit = (id) => call(() => mock.cancelVisit(id), () => post(`/visitors/visits/${id}/cancel`));
+export const reassignVisitHost = (id, body) => call(() => mock.reassignVisitHost(id, body), () => post(`/visitors/visits/${id}/reassign-host`, body));
 export const revokeVisit = (id, body) => call(() => mock.revokeVisit(id, body), () => post(`/visitors/visits/${id}/revoke`, body));
 export const extendVisit = (id, body) => call(() => mock.extendVisit(id, body), () => post(`/visitors/visits/${id}/extend`, body));
 export const attachVisitorPhoto = (id, body) => call(() => mock.attachVisitorPhoto(id, body), () => post(`/visitors/visits/${id}/photo`, body));

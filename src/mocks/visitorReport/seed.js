@@ -131,7 +131,7 @@ const pickChannel = (rng) => {
     return 'walk_in';
 };
 
-const CHANNEL_ACTOR = { online: 'Khách', host_invite: 'Người được gặp', walk_in: 'Lễ tân' };
+const CHANNEL_ACTOR = { online: 'Khách', host_invite: 'Người được gặp', walk_in: 'Bảo vệ' };
 
 const buildEvents = (visit) => {
     const events = [];
@@ -156,14 +156,14 @@ const buildEvents = (visit) => {
     }
 
     const approvedAt = visit.channel === 'online' ? created + 30 * MIN : created;
-    add(approvedAt, 'approved', { actor: visit.channel === 'walk_in' ? 'Lễ tân' : 'Người được gặp' });
+    add(approvedAt, 'approved', { actor: visit.channel === 'walk_in' ? 'Bảo vệ' : 'Người được gặp' });
     if (email) add(approvedAt + MIN, 'email_sent', { note: `Đã gửi email kèm mã lượt và QR tới ${email}` });
 
     if (visit.checkInAt) {
         const at = new Date(visit.checkInAt).getTime();
         if (visit.faceScore < 0.8) {
             add(at - 2 * MIN, 'manual_review', { zoneId: gate, score: visit.faceScore, note: 'Độ khớp khuôn mặt dưới ngưỡng 80%' });
-            add(at, 'check_in', { zoneId: gate, actor: 'Lễ tân', note: 'Lễ tân xác minh thủ công, đã đối chiếu giấy tờ' });
+            add(at, 'check_in', { zoneId: gate, actor: 'Bảo vệ', note: 'Bảo vệ xác minh thủ công, đã đối chiếu giấy tờ' });
         } else {
             add(at, 'face_verified', { zoneId: gate, score: visit.faceScore });
             add(at, 'check_in', { zoneId: gate });

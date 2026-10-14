@@ -14,7 +14,7 @@ const PRINT_CSS = `
 
 export const registrationUrl = () => `${window.location.origin}/visitor/register`;
 
-// Mã QR dẫn tới trang đăng ký khách, để dán ở cổng và quầy lễ tân cho khách chưa đăng ký.
+// Mã QR dẫn tới trang đăng ký khách, để dán ở cổng và chốt bảo vệ cho khách chưa đăng ký.
 const RegistrationQrCard = () => {
     const [open, setOpen] = useState(false);
     const url = registrationUrl();

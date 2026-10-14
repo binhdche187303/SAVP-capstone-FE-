@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom';
 import React, { Suspense } from 'react';
 import Login from '../pages/auth/login/login';
 import ForgotPassword from '../pages/auth/forgotpassword/forgotpassword';
@@ -71,6 +72,7 @@ import PersonalCalendar from '../pages/employee/PersonalCalendar';
 import EmployeeFaceRegistration from '../pages/employee/FaceRegistration';
 import EmployeeMeetingDetail from '../pages/employee/MeetingDetail';
 import EmployeeRecordings from '../pages/employee/Recordings';
+import TeacherRecordings from '../pages/classroom/TeacherRecordings';
 import EmployeeEquipmentReport from '../pages/employee/EquipmentReport';
 import InMeetingRoom from '../pages/shared/InMeetingRoom';
 import LegalAndSupport from '../pages/public/LegalAndSupport';
@@ -257,7 +259,7 @@ export const router = [
             },
             {
                 path: 'visitors/desk',
-                element: <VisitorDesk />
+                element: <Navigate to="/system-admin/visitors" replace />
             },
             {
                 path: 'report-schedules',
@@ -369,7 +371,7 @@ export const router = [
             },
             {
                 path: 'visitors/desk',
-                element: <VisitorDesk />
+                element: <Navigate to="/business-admin/visitors" replace />
             },
             {
                 path: 'report-schedules',
@@ -512,6 +514,18 @@ export const router = [
                 element: <GuardDashboard />
             },
             {
+                path: 'security-alerts',
+                element: <SecurityAlerts />
+            },
+            {
+                path: 'anpr',
+                element: <ANPRManagement guardMode />
+            },
+            {
+                path: 'visitors/desk',
+                element: <VisitorDesk />
+            },
+            {
                 path: 'profile',
                 element: <Profile />
             },
@@ -544,8 +558,16 @@ export const router = [
                 element: <ClassAttendanceAnalytics mode="teacher" />
             },
             {
+                path: 'recordings',
+                element: <TeacherRecordings />
+            },
+            {
                 path: 'schedule',
                 element: <TeacherSchedule />
+            },
+            {
+                path: 'face-register',
+                element: <EmployeeFaceRegistration />
             },
             {
                 path: 'profile',
@@ -578,6 +600,10 @@ export const router = [
             {
                 path: 'schedule',
                 element: <StudentSchedule />
+            },
+            {
+                path: 'face-register',
+                element: <EmployeeFaceRegistration />
             },
             {
                 path: 'profile',

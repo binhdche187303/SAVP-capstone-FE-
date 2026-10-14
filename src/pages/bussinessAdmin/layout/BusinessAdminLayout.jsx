@@ -24,7 +24,6 @@ import {
     FileBarChart,
     UserCheck,
     ClipboardList,
-    ConciergeBell,
     CalendarClock,
     History,
     BarChart3,
@@ -54,7 +53,6 @@ const STATIC_NAVIGATION_ITEMS = [
         isDropdown: true,
         icon: UserCheck,
         children: [
-            { label: 'Quầy lễ tân', to: '/business-admin/visitors/desk', icon: ConciergeBell },
             { label: 'Quản lý khách', to: '/business-admin/visitors', end: true, icon: ClipboardList },
             { label: 'Lịch sử khách', to: '/business-admin/visitors/history', icon: History },
             { label: 'Thống kê khách', to: '/business-admin/visitors/stats', icon: BarChart3 },

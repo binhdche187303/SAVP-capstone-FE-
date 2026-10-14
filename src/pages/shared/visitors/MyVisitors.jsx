@@ -178,7 +178,7 @@ const MyVisitors = () => {
             {invited && (
                 <div className="px-4 py-3 rounded-2xl bg-green-50 border border-green-200 text-xs text-green-800 space-y-1">
                     <p className="font-semibold">Đã mời {invited.visitor.fullName} · {invited.code}</p>
-                    <p>Khách chưa có ảnh khuôn mặt, lễ tân sẽ chụp khi khách đến.</p>
+                    <p>Khách chưa có ảnh khuôn mặt, bảo vệ sẽ chụp khi khách đến.</p>
                 </div>
             )}
             {error && <div className={errorBoxCls}>{error}</div>}

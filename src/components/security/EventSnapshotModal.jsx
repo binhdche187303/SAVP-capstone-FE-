@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom';
 import { X, Image as ImageIcon, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/request';
 
-const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIndex = 0 }) => {
+// showPlate: hiện thêm ảnh cắt biển số (chỉ sự kiện HGVision có; sự kiện khác 404 → tự ẩn).
+const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIndex = 0, showPlate = false }) => {
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [notFound, setNotFound] = useState(false);
+    const [plateVisible, setPlateVisible] = useState(false);
     
     // Carousel state
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -43,6 +45,7 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
         setLoading(true);
         setNotFound(false);
         setErrorMsg('');
+        setPlateVisible(false);
     }, [isOpen, activeEventId]);
 
     // Handle Keyboard navigation
@@ -77,6 +80,7 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
 
     const token = localStorage.getItem('accessToken');
     const snapshotUrl = activeEventId ? `${API_BASE_URL}/ivss/device-events/${activeEventId}/snapshot?token=${token}` : null;
+    const plateUrl = showPlate && snapshotUrl ? `${snapshotUrl}&type=plate` : null;
 
     if (!isOpen) return null;
 
@@ -161,6 +165,21 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
                             setNotFound(true);
                         }}
                     />
+
+                    {/* Ảnh cắt biển số (HGVision) — góc trên trái, ẩn nếu không có */}
+                    {plateUrl && (
+                        <div className={`absolute top-4 left-4 bg-black/70 border border-white/20 rounded-lg p-2 shadow-2xl ${plateVisible ? 'block' : 'hidden'}`}>
+                            <div className="text-[11px] text-white/70 font-semibold mb-1">Biển số</div>
+                            <img
+                                key={plateUrl}
+                                src={plateUrl}
+                                alt="Plate crop"
+                                className="max-w-[320px] max-h-[160px] object-contain rounded"
+                                onLoad={() => setPlateVisible(true)}
+                                onError={() => setPlateVisible(false)}
+                            />
+                        </div>
+                    )}
 
                     {/* Image Counter Badge */}
                     {idsList.length > 1 && (

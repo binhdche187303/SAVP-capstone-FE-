@@ -61,7 +61,7 @@ test('ngoài khung giờ và sai khu vực bị chặn, lượt vẫn approved',
     expect((await ok(svc.getVisit(v.id))).status).toBe('approved');
 });
 
-test('độ khớp thấp → lễ tân check-in tay kèm ghi chú', async () => {
+test('độ khớp thấp → bảo vệ check-in tay kèm ghi chú', async () => {
     const v = await ok(svc.createVisit({ ...payload(), channel: 'walk_in' }));
     const low = await ok(svc.verifyFaceAtGate(v.id, { zoneId: 'zone-gate-main', scenario: 'low_score' }));
     expect(low).toMatchObject({ outcome: 'manual_review', reason: 'low_score' });
@@ -117,7 +117,7 @@ test('tra cứu công khai: ẩn dữ liệu cá nhân, mã sai trả lỗi', as
     expect(await svc.getPublicRegistration('VS-000000-0000')).toEqual({ success: false, message: 'Không tìm thấy lượt đăng ký với mã này' });
 });
 
-test('quầy lễ tân và thống kê đọc cùng kho dữ liệu', async () => {
+test('chốt bảo vệ và thống kê đọc cùng kho dữ liệu', async () => {
     const desk = await ok(svc.getDeskToday());
     // 14 lượt hẹn hôm nay, trừ 1 lượt bị từ chối không còn là "dự kiến".
     expect(desk.kpis.expected).toBeGreaterThanOrEqual(13);

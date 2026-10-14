@@ -1,6 +1,6 @@
 import { AlertCircle, Check, RefreshCw, ScanFace, Shield } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getUserById } from '../../service/employeeServices';
 import { submitBiometric, updateSelfAvatar } from '../../service/avatarService';
 
@@ -12,6 +12,8 @@ import useFaceGuidance from '../../hooks/useFaceGuidance';
  */
 const EmployeeFaceRegistration = () => {
     const navigate = useNavigate();
+    // Dùng chung cho EMPLOYEE / TEACHER / STUDENT — điều hướng về đúng khu vực đang đứng.
+    const basePath = '/' + useLocation().pathname.split('/')[1];
 
     // Steps: 'consent' | 'scanner' | 'submitting' | 'avatar_sync' | 'success'
     const [step, setStep] = useState('consent');
@@ -22,7 +24,7 @@ const EmployeeFaceRegistration = () => {
 
     // API and user details
     const [currentUser, setCurrentUser] = useState(null);
-    const [employeeCode, setEmployeeCode] = useState('NV003');
+    const [employeeCode, setEmployeeCode] = useState('--');
 
     // Webcam capture states
     const [cameraStream, setCameraStream] = useState(null);
@@ -46,7 +48,7 @@ const EmployeeFaceRegistration = () => {
                 setCurrentUser(userObj);
                 getUserById(userObj.id).then(res => {
                     if (res?.success && res.data) {
-                        setEmployeeCode(res.data.employeeCode || 'NV003');
+                        setEmployeeCode(res.data.employeeCode || res.data.studentCode || res.data.username || '--');
                     }
                 }).catch(() => {});
             } catch (e) {}
@@ -328,7 +330,7 @@ const EmployeeFaceRegistration = () => {
                     <div className="flex gap-3 pt-2">
                         <button
                             type="button"
-                            onClick={() => navigate('/employee/profile')}
+                            onClick={() => navigate(`${basePath}/profile`)}
                             className="flex-1 py-2.5 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-sm font-semibold transition-all"
                         >
                             Quay lại hồ sơ
@@ -573,14 +575,14 @@ const EmployeeFaceRegistration = () => {
                     <div className="flex gap-3 pt-2">
                         <button
                             type="button"
-                            onClick={() => navigate('/employee')}
+                            onClick={() => navigate(basePath)}
                             className="flex-1 py-2.5 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-sm font-semibold transition-all"
                         >
                             Về trang chủ
                         </button>
                         <button
                             type="button"
-                            onClick={() => navigate('/employee/profile')}
+                            onClick={() => navigate(`${basePath}/profile`)}
                             className="flex-1 py-2.5 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-sm font-bold shadow-sm transition-all"
                         >
                             Quay lại Hồ sơ

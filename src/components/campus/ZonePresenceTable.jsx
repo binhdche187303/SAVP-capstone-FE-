@@ -22,7 +22,7 @@ const C = {
 const ZONE_TYPE_LABELS = {
     gate: 'Cổng ra vào',
     corridor: 'Hành lang',
-    lobby: 'Sảnh lễ tân',
+    lobby: 'Sảnh bảo vệ',
     parking: 'Bãi đỗ xe',
     room: 'Phòng họp',
 };
