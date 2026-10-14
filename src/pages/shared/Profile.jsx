@@ -16,6 +16,29 @@ const STATUS_LABEL = {
     approved: { label: "Đã duyệt", badge: "bg-green-50 text-green-700 border border-green-200" },
 };
 
+const formatStudentClass = (studentProfile, profile) => {
+    if (studentProfile?.administrativeClass) return studentProfile.administrativeClass;
+    if (profile?.administrativeClass) return profile.administrativeClass;
+    if (profile?.className) return profile.className;
+
+    const firstClass = studentProfile?.classSections?.[0] || profile?.classSections?.[0];
+    if (firstClass?.code && firstClass?.name) return `${firstClass.code} - ${firstClass.name}`;
+    if (firstClass?.code) return firstClass.code;
+    if (firstClass?.name) return firstClass.name;
+    return "Chưa có";
+};
+
+const formatHomeroomTeacher = (studentProfile, profile) => {
+    const firstLecturer = studentProfile?.classSections?.find(item => item?.lecturerName)?.lecturerName
+        || profile?.classSections?.find(item => item?.lecturerName)?.lecturerName;
+    return profile?.homeroomTeacher?.fullName
+        || studentProfile?.homeroomTeacher?.fullName
+        || profile?.advisor?.fullName
+        || profile?.academicAdvisor?.fullName
+        || firstLecturer
+        || "Chưa có giáo viên chủ nhiệm";
+};
+
 const Profile = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -74,6 +97,8 @@ const Profile = () => {
         defaultMockTitle = "Chuyên viên kỹ thuật";
     }
 
+    const isStudentProfile = rolePath === "/student";
+
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -107,7 +132,11 @@ const Profile = () => {
             const localUserStr = localStorage.getItem("user");
             if (!localUserStr) throw new Error("Không tìm thấy thông tin phiên làm việc.");
             const localUser = JSON.parse(localUserStr);
-            const res = await get("/users/" + localUser.id);
+            const selfProfileRoles = ["/student", "/teacher", "/guard"];
+            const profileEndpoint = selfProfileRoles.includes(rolePath)
+                ? "/users/me"
+                : "/users/" + localUser.id;
+            const res = await get(profileEndpoint, { skipToast: true });
             if (res?.success && res.data) {
                 const data = res.data;
                 setProfile(data);
@@ -134,7 +163,7 @@ const Profile = () => {
         } finally {
             setLoading(false);
         }
-    }, [defaultMockEmail, defaultMockCode, defaultMockTitle, roleLabel]);
+    }, [defaultMockEmail, defaultMockCode, defaultMockTitle, roleLabel, rolePath]);
 
     const fetchBiometricStatus = useCallback(async () => {
         setBiometricStatusLoading(true);
@@ -265,6 +294,25 @@ const Profile = () => {
             });
         }
     };
+
+    const studentProfile = profile?.studentProfile;
+    const identityLabel = isStudentProfile ? "Mã sinh viên" : "Mã nhân viên";
+    const identityValue = isStudentProfile
+        ? (studentProfile?.studentCode || profile?.studentCode || profile?.employeeCode || "")
+        : (profile?.employeeCode || "");
+    const orgLabel = isStudentProfile ? "Lớp hành chính" : "Phòng ban";
+    const orgValue = isStudentProfile
+        ? formatStudentClass(studentProfile, profile)
+        : (profile?.department?.departmentName || profile?.department?.name || "Chưa có");
+    const managementOrgLabel = isStudentProfile ? "Lớp hành chính" : "Bộ phận trực thuộc";
+    const managerLabel = isStudentProfile ? "Giáo viên chủ nhiệm" : "Quản lý trực tiếp";
+    const managerValue = isStudentProfile
+        ? formatHomeroomTeacher(studentProfile, profile)
+        : (profile?.directManager?.fullName || "Không có quản lý");
+    const titleLabel = isStudentProfile ? "Ngành / Khóa" : "Chức vụ";
+    const titleValue = isStudentProfile
+        ? [studentProfile?.major || profile?.major, studentProfile?.cohort || profile?.cohort].filter(Boolean).join(" - ") || "Chưa có"
+        : (profile?.positionTitle || "Chưa có");
 
     if (loading) {
         return (
@@ -439,8 +487,8 @@ const Profile = () => {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                                 <div>
-                                    <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Mã nhân viên</span>
-                                    <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{profile?.employeeCode || ""}</span>
+                                    <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">{identityLabel}</span>
+                                    <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{identityValue}</span>
                                 </div>
                                 <div>
                                     <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Địa chỉ Email</span>
@@ -450,12 +498,12 @@ const Profile = () => {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                                 <div>
-                                    <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Phòng ban</span>
-                                    <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{profile?.department?.departmentName || profile?.department?.name || "Chưa có"}</span>
+                                    <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">{orgLabel}</span>
+                                    <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{orgValue}</span>
                                 </div>
                                 <div>
-                                    <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Chức vụ</span>
-                                    <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{profile?.positionTitle || "Chưa có"}</span>
+                                    <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">{titleLabel}</span>
+                                    <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{titleValue}</span>
                                 </div>
                             </div>
                         </form>
@@ -473,8 +521,8 @@ const Profile = () => {
                                     </svg>
                                 </div>
                                 <div>
-                                    <span className="block text-[11px] font-bold text-slate-blue/85 uppercase tracking-wider">Bộ phận trực thuộc</span>
-                                    <span className="text-sm font-bold text-midnight-indigo mt-1 block">{profile?.department?.departmentName || profile?.department?.name || "Chưa trực thuộc"}</span>
+                                    <span className="block text-[11px] font-bold text-slate-blue/85 uppercase tracking-wider">{managementOrgLabel}</span>
+                                    <span className="text-sm font-bold text-midnight-indigo mt-1 block">{orgValue}</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3.5 text-left">
@@ -484,8 +532,8 @@ const Profile = () => {
                                     </svg>
                                 </div>
                                 <div>
-                                    <span className="block text-[11px] font-bold text-slate-blue/85 uppercase tracking-wider">Quản lý trực tiếp</span>
-                                    <span className="text-sm font-bold text-midnight-indigo mt-1 block">{profile?.directManager?.fullName || "Không có quản lý"}</span>
+                                    <span className="block text-[11px] font-bold text-slate-blue/85 uppercase tracking-wider">{managerLabel}</span>
+                                    <span className="text-sm font-bold text-midnight-indigo mt-1 block">{managerValue}</span>
                                 </div>
                             </div>
                         </div>

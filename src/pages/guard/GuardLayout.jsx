@@ -15,6 +15,12 @@ const NAV_ITEMS = [
     { to: '/guard/visitors/desk', label: 'Khách tại cổng', icon: UserCheck },
 ];
 
+const footerLinks = [
+    { label: 'Hỗ trợ', to: 'legal?tab=support' },
+    { label: 'Tài liệu', to: 'legal?tab=docs-user' },
+    { label: 'Quyền riêng tư', to: 'legal?tab=privacy' },
+];
+
 const GuardLayout = () => {
     const navigate = useNavigate();
     const [currentUser, setCurrentUser] = useState(null);
@@ -120,8 +126,25 @@ const GuardLayout = () => {
             </main>
             <footer className="w-full bg-white border-t border-platinum-tint">
                 <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 px-6 lg:px-12 py-5">
-                    <span className="text-sm font-bold text-midnight-indigo">SmarTracking</span>
-                    <span className="text-xs font-semibold text-action-blue">Guard Console</span>
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm font-bold text-midnight-indigo">SmarTracking</span>
+                        <span className="text-xs text-slate-blue">© 2026 Trung tâm Điều hành Thông minh SmarTracking. Trạng thái: Hoạt động.</span>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                        <span className="text-xs font-semibold text-action-blue">v2.0.0-beta</span>
+                        <nav aria-label="Footer links" className="flex items-center gap-4">
+                            {footerLinks.map((link) => (
+                                <a
+                                    key={link.label}
+                                    href={link.to}
+                                    className="text-xs font-medium text-slate-blue hover:text-action-blue transition-colors duration-200 no-underline"
+                                >
+                                    {link.label}
+                                </a>
+                            ))}
+                        </nav>
+                    </div>
                 </div>
             </footer>
         </div>

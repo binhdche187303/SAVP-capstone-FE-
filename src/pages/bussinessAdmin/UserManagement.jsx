@@ -8,11 +8,11 @@ import { vi } from 'date-fns/locale/vi';
 import TimePicker from '../../components/common/TimePicker';
 
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import UserAvatar from '../../components/common/UserAvatar';
 import {
     getUsers,
     getUsersForManagement,
+    getStudentAdministrativeClasses,
     createUser,
     createPartnerUser,
     updateUser,
@@ -39,7 +39,33 @@ import {
     buildPartnerFormData,
 } from '../../constants/partnerAccount';
 
+const ROLE_LABELS = {
+    SYSTEM_ADMIN: 'Quản trị hệ thống',
+    BUSINESS_ADMIN: 'Quản trị nghiệp vụ',
+    MANAGER: 'Trưởng nhóm / Quản lý',
+    EMPLOYEE: 'Nhân viên',
+    TEACHER: 'Giảng viên',
+    STUDENT: 'Sinh viên',
+    GUARD: 'Bảo vệ',
+};
 
+const normalizeRoleCode = (role) => (
+    typeof role === 'string'
+        ? role
+        : (role?.roleCode || role?.role_code || role?.code || '')
+).toUpperCase();
+
+const formatRoleLabel = (role, roles = []) => {
+    const code = normalizeRoleCode(role);
+    if (ROLE_LABELS[code]) return ROLE_LABELS[code];
+
+    const roleIdOrCode = typeof role === 'string' ? role : role?.id || code;
+    const roleObj = roles.find((item) => item.id === roleIdOrCode || normalizeRoleCode(item) === code);
+    const fallbackName = typeof role === 'object' ? role?.roleName : null;
+    return ROLE_LABELS[normalizeRoleCode(roleObj)] || fallbackName || roleObj?.roleName || code || 'Chưa phân quyền';
+};
+
+const hasRole = (user, roleCode) => (user?.roles || []).some((role) => normalizeRoleCode(role) === roleCode);
 
 /**
  * UserManagement Component
@@ -47,7 +73,6 @@ import {
  */
 const UserManagement = ({ mode = 'business-admin' }) => {
     const isSystemAdminMode = mode === 'system-admin';
-    const navigate = useNavigate();
     // States
     const [usersList, setUsersList] = useState([]);
     const [departments, setDepartments] = useState([]);
@@ -83,8 +108,11 @@ const UserManagement = ({ mode = 'business-admin' }) => {
 
     // Filter & Search states
     const [search, setSearch] = useState('');
+    const [selectedAccountType, setSelectedAccountType] = useState('staff');
     const [selectedRole, setSelectedRole] = useState('');
     const [selectedDept, setSelectedDept] = useState('');
+    const [selectedClass, setSelectedClass] = useState('');
+    const [studentClassOptions, setStudentClassOptions] = useState([]);
     const [selectedStatus, setSelectedStatus] = useState(''); // ACTIVE, LOCKED
     const [page, setPage] = useState(1);
     const [limit] = useState(10);
@@ -124,6 +152,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
         fullName: '',
         phone: '',
         departmentId: '',
+        administrativeClass: '',
         roleIds: [],
         // Partner-only fields
         accountType: 'employee',
@@ -161,8 +190,10 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                 page,
                 limit,
                 search: search.trim() || undefined,
+                accountType: selectedAccountType,
                 roleId: selectedRole || undefined,
                 departmentId: selectedDept || undefined,
+                classId: selectedAccountType === 'student' ? selectedClass || undefined : undefined,
                 accountStatus: selectedStatus || undefined
             };
             const res = await getUsersForManagement(params);
@@ -180,7 +211,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
         } finally {
             setLoading(false);
         }
-    }, [page, limit, search, selectedRole, selectedDept, selectedStatus]);
+    }, [page, limit, search, selectedAccountType, selectedRole, selectedDept, selectedClass, selectedStatus]);
 
     useEffect(() => {
         loadFilterData();
@@ -189,6 +220,30 @@ const UserManagement = ({ mode = 'business-admin' }) => {
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
+
+    useEffect(() => {
+        const fetchStudentClasses = async () => {
+            try {
+                const response = await getStudentAdministrativeClasses();
+                const classes = response?.data || [];
+                setStudentClassOptions(
+                    (classes || []).sort((a, b) => (a.code || '').localeCompare(b.code || '', 'vi'))
+                );
+            } catch {
+                setStudentClassOptions([]);
+            }
+        };
+
+        fetchStudentClasses();
+    }, []);
+
+    const visibleRoles = roles.filter((role) => {
+        const code = normalizeRoleCode(role);
+        return selectedAccountType === 'student' ? code === 'STUDENT' : code !== 'STUDENT';
+    });
+    const isStudentList = selectedAccountType === 'student';
+    const studentRole = roles.find((role) => normalizeRoleCode(role) === 'STUDENT');
+    const isStudentRoleSelected = Boolean(studentRole && formData.roleIds.includes(studentRole.id));
 
     // Auto-hide success and error messages after 3 seconds
     useEffect(() => {
@@ -229,7 +284,11 @@ const UserManagement = ({ mode = 'business-admin' }) => {
         }
 
         if (!isPartner) {
-            if (!formData.departmentId) errors.departmentId = "Vui lòng chọn phòng ban";
+            if (isStudentRoleSelected) {
+                if (!formData.administrativeClass) errors.administrativeClass = "Vui lòng chọn lớp hành chính";
+            } else if (!formData.departmentId) {
+                errors.departmentId = "Vui lòng chọn phòng ban";
+            }
         } else {
             if (!formData.accountExpiresAt) {
                 errors.accountExpiresAt = "Vui lòng nhập ngày hết hạn";
@@ -284,7 +343,9 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                     email: formData.email,
                     fullName: formData.fullName,
                     phoneNumber: formData.phone,
-                    departmentId: formData.departmentId || null,
+                    accountType: isStudentRoleSelected ? 'student' : 'employee',
+                    departmentId: isStudentRoleSelected ? undefined : formData.departmentId || null,
+                    administrativeClass: isStudentRoleSelected ? formData.administrativeClass : undefined,
                     roleIds: formData.roleIds,
                 });
             }
@@ -426,7 +487,9 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                     phoneNumber: formData.phone,
                     departmentId: formData.departmentId || null
                 });
-            await updateUserRoles(selectedUser.id, { roleIds: formData.roleIds });
+            if (isSystemAdminMode) {
+                await updateUserRoles(selectedUser.id, { roleIds: formData.roleIds });
+            }
 
             if (isSystemAdminMode || res?.success) {
                 setSuccessMessage(isSystemAdminMode ? 'Cập nhật vai trò thành công!' : 'Cập nhật tài khoản thành công!');
@@ -501,7 +564,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
             if (status === 404 || err?.message?.includes('404')) {
                 setError('Người dùng chưa từng được đăng ký vào kho nhận diện thường trực.');
             } else if (status === 403 || err?.message?.includes('403')) {
-                setError('Tài khoản của bạn không có quyền đồng bộ thiết bị (403). Vui lòng liên hệ System Admin hoặc Backend.');
+                setError('Tài khoản của bạn không có quyền đồng bộ thiết bị (403). Vui lòng liên hệ Quản trị hệ thống hoặc bộ phận kỹ thuật.');
             } else {
                 setError(err?.message || err?.error?.message || 'Không thể đồng bộ lại. Vui lòng thử lại.');
             }
@@ -622,6 +685,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
             fullName: user.fullName,
             phone: user.phoneNumber || user.phone || '',
             departmentId: deptId,
+            administrativeClass: '',
             roleIds
         });
         setIsEditModalOpen(true);
@@ -633,6 +697,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
             fullName: '',
             phone: '',
             departmentId: '',
+            administrativeClass: '',
             roleIds: [],
             accountType: 'employee',
             accountExpiresAt: '',
@@ -654,7 +719,14 @@ const UserManagement = ({ mode = 'business-admin' }) => {
             const newRoles = exists
                 ? prev.roleIds.filter(r => r !== roleId)
                 : [...prev.roleIds, roleId];
-            return { ...prev, roleIds: newRoles };
+            const changedRole = roles.find((role) => role.id === roleId);
+            const changedStudentRole = normalizeRoleCode(changedRole) === 'STUDENT';
+            return {
+                ...prev,
+                roleIds: newRoles,
+                ...(changedStudentRole && !exists ? { departmentId: '' } : {}),
+                ...(changedStudentRole && exists ? { administrativeClass: '' } : {}),
+            };
         });
     };
 
@@ -750,35 +822,70 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                    {/* Role Filter */}
                     <select
-                        value={selectedRole}
-                        onChange={(e) => { setSelectedRole(e.target.value); setPage(1); }}
-                        className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue"
+                        value={selectedAccountType}
+                        onChange={(e) => {
+                            setSelectedAccountType(e.target.value);
+                            setSelectedRole('');
+                            setSelectedDept('');
+                            setSelectedClass('');
+                            setPage(1);
+                        }}
+                        className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
                     >
-                        <option value="">Tất cả vai trò</option>
-                        {roles.map(r => (
-                            <option key={r.id} value={r.id}>{r.roleName}</option>
-                        ))}
+                        <option value="staff">Nhân sự</option>
+                        <option value="student">Sinh viên</option>
                     </select>
 
+                    {/* Role Filter */}
+                    {!isStudentList && (
+                        <select
+                            value={selectedRole}
+                            onChange={(e) => { setSelectedRole(e.target.value); setPage(1); }}
+                            className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
+                        >
+                            <option value="">Tất cả vai trò</option>
+                            {visibleRoles.map(r => (
+                                <option key={r.id} value={r.id}>{formatRoleLabel(r, roles)}</option>
+                            ))}
+                        </select>
+                    )}
+
                     {/* Department Filter */}
-                    <select
-                        value={selectedDept}
-                        onChange={(e) => { setSelectedDept(e.target.value); setPage(1); }}
-                        className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue"
-                    >
-                        <option value="">Tất cả phòng ban</option>
-                        {departments.map(d => (
-                            <option key={d.id} value={d.id}>{d.departmentName}</option>
-                        ))}
-                    </select>
+                    {!isStudentList && (
+                        <select
+                            value={selectedDept}
+                            onChange={(e) => { setSelectedDept(e.target.value); setPage(1); }}
+                            className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
+                        >
+                            <option value="">Tất cả phòng ban</option>
+                            {departments.map(d => (
+                                <option key={d.id} value={d.id}>{d.departmentName}</option>
+                            ))}
+                        </select>
+                    )}
+
+                    {/* Class Filter */}
+                    {isStudentList && (
+                        <select
+                            value={selectedClass}
+                            onChange={(e) => { setSelectedClass(e.target.value); setPage(1); }}
+                            className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
+                        >
+                            <option value="">Tất cả lớp hành chính</option>
+                            {studentClassOptions.map((klass) => (
+                                <option key={klass.code} value={klass.code}>
+                                    {klass.code}
+                                </option>
+                            ))}
+                        </select>
+                    )}
 
                     {/* Status Filter */}
                     <select
                         value={selectedStatus}
                         onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
-                        className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue"
+                        className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
                     >
                         <option value="">Tất cả trạng thái</option>
                         <option value="active">Hoạt động</option>
@@ -803,9 +910,9 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/50">
                                     <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">Hồ sơ</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">Số điện thoại</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">Phòng ban</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">Vai trò (Role)</th>
+                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">{isStudentList ? 'Mã sinh viên' : 'Số điện thoại'}</th>
+                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">{isStudentList ? 'Lớp hành chính' : 'Phòng ban'}</th>
+                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">Vai trò</th>
                                     <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">Trạng thái</th>
                                     <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase text-right whitespace-nowrap">Hành động</th>
                                 </tr>
@@ -859,26 +966,27 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                     </div>
                                                 </td>
                                                 <td className="py-4 px-6 text-sm text-slate-blue whitespace-nowrap">
-                                                    {user.phoneNumber || user.phone || 'Chưa cung cấp'}
+                                                    {isStudentList
+                                                        ? (user.studentCode || user.employeeCode || 'Chưa có')
+                                                        : (user.phoneNumber || user.phone || 'Chưa cung cấp')}
                                                 </td>
                                                 <td className="py-4 px-6 text-sm text-midnight-indigo font-medium whitespace-nowrap">
-                                                    {(() => {
-                                                        const deptId = user.departmentId || (user.departments && user.departments[0]?.id) || (user.department?.id);
-                                                        const dept = departments.find(d => d.id === deptId || d.uuid === deptId);
-                                                        return dept ? dept.name || dept.roomName || dept.departmentName : 'Chưa phân bổ';
-                                                    })()}
+                                                    {isStudentList
+                                                        ? (user.administrativeClass || user.className || 'Chưa có lớp')
+                                                        : (() => {
+                                                            const deptId = user.departmentId || (user.departments && user.departments[0]?.id) || (user.department?.id);
+                                                            const dept = departments.find(d => d.id === deptId || d.uuid === deptId);
+                                                            return dept ? dept.name || dept.roomName || dept.departmentName : 'Chưa phân bổ';
+                                                        })()}
                                                 </td>
                                                 <td className="py-4 px-6 whitespace-nowrap">
                                                     <div className="flex flex-wrap gap-1">
                                                         {user.roles?.map((r, idx) => {
                                                             // user.roles có thể là string[] roleCode (ManageUserItemDto, danh sách)
                                                             // hoặc object[] {id, roleCode, roleName} (UserDetailResponseDto, chi tiết).
-                                                            const roleCode = typeof r === 'string' ? r : (r.roleCode || r.code);
-                                                            const roleObj = roles.find(role => role.roleCode === roleCode || role.id === roleCode);
-                                                            const roleName = (typeof r === 'object' && r.roleName) || roleObj?.roleName || roleCode;
                                                             return (
                                                                 <span key={idx} className="inline-flex text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
-                                                                    {roleName}
+                                                                    {formatRoleLabel(r, roles)}
                                                                 </span>
                                                             );
                                                         }) || <span className="text-xs text-steel-gray">Chưa phân quyền</span>}
@@ -1105,26 +1213,45 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                             className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                                         />
                                     </div>
-                                    <div>
-                                        <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.departmentId ? 'text-red-500' : 'text-slate-blue'}`}>Phòng ban</label>
-                                        <select
-                                            value={formData.departmentId}
-                                            onChange={(e) => { setFormData({ ...formData, departmentId: e.target.value }); setFormErrors({ ...formErrors, departmentId: '' }); }}
-                                            className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none bg-white ${formErrors.departmentId ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-platinum-tint focus:border-action-blue'}`}
-                                        >
-                                            <option value="">Chọn phòng ban...</option>
-                                            {departments.filter(d => d.id !== PARTNER_DEPARTMENT_ID).map(d => (
-                                                <option key={d.id} value={d.id}>{d.departmentName}</option>
-                                            ))}
-                                        </select>
-                                        {formErrors.departmentId && <p className="text-red-500 text-xs mt-1">{formErrors.departmentId}</p>}
-                                    </div>
+                                    {isStudentRoleSelected ? (
+                                        <div>
+                                            <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.administrativeClass ? 'text-red-500' : 'text-slate-blue'}`}>Lớp hành chính</label>
+                                            <select
+                                                value={formData.administrativeClass}
+                                                onChange={(e) => { setFormData({ ...formData, administrativeClass: e.target.value }); setFormErrors({ ...formErrors, administrativeClass: '' }); }}
+                                                className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none bg-white ${formErrors.administrativeClass ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-platinum-tint focus:border-action-blue'}`}
+                                            >
+                                                <option value="">Chọn lớp hành chính...</option>
+                                                {studentClassOptions.map((klass) => (
+                                                    <option key={klass.code} value={klass.code}>
+                                                        {klass.code}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {formErrors.administrativeClass && <p className="text-red-500 text-xs mt-1">{formErrors.administrativeClass}</p>}
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.departmentId ? 'text-red-500' : 'text-slate-blue'}`}>Phòng ban</label>
+                                            <select
+                                                value={formData.departmentId}
+                                                onChange={(e) => { setFormData({ ...formData, departmentId: e.target.value }); setFormErrors({ ...formErrors, departmentId: '' }); }}
+                                                className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none bg-white ${formErrors.departmentId ? 'border-red-500 focus:border-red-500 bg-red-50' : 'border-platinum-tint focus:border-action-blue'}`}
+                                            >
+                                                <option value="">Chọn phòng ban...</option>
+                                                {departments.filter(d => d.id !== PARTNER_DEPARTMENT_ID).map(d => (
+                                                    <option key={d.id} value={d.id}>{d.departmentName}</option>
+                                                ))}
+                                            </select>
+                                            {formErrors.departmentId && <p className="text-red-500 text-xs mt-1">{formErrors.departmentId}</p>}
+                                        </div>
+                                    )}
                                 </>
                             )}
 
                             {formData.accountType !== 'partner' && (
                                 <div>
-                                    <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.roleIds ? 'text-red-500' : 'text-slate-blue'}`}>Gán vai trò (Role)</label>
+                                    <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.roleIds ? 'text-red-500' : 'text-slate-blue'}`}>Gán vai trò</label>
                                     <div className="space-y-2 mt-1">
                                         {roles.map(r => (
                                             <label key={r.id} className="flex items-center gap-2 text-sm text-midnight-indigo font-medium cursor-pointer">
@@ -1134,7 +1261,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                     onChange={() => { handleRoleCheckboxChange(r.id); setFormErrors({ ...formErrors, roleIds: '' }); }}
                                                     className="rounded text-action-blue focus:ring-action-blue"
                                                 />
-                                                {r.roleName}
+                                                {formatRoleLabel(r, roles)}
                                             </label>
                                         ))}
                                     </div>
@@ -1387,22 +1514,24 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                     </div>
                                 </>
                             )}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Vai trò (Role)</label>
-                                <div className="space-y-2 mt-1">
-                                    {roles.map(r => (
-                                        <label key={r.id} className="flex items-center gap-2 text-sm text-midnight-indigo font-medium cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.roleIds.includes(r.id)}
-                                                onChange={() => handleRoleCheckboxChange(r.id)}
-                                                className="rounded text-action-blue focus:ring-action-blue"
-                                            />
-                                            {r.roleName}
-                                        </label>
-                                    ))}
+                            {isSystemAdminMode && (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Vai trò</label>
+                                    <div className="space-y-2 mt-1">
+                                        {roles.map(r => (
+                                            <label key={r.id} className="flex items-center gap-2 text-sm text-midnight-indigo font-medium cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.roleIds.includes(r.id)}
+                                                    onChange={() => handleRoleCheckboxChange(r.id)}
+                                                    className="rounded text-action-blue focus:ring-action-blue"
+                                                />
+                                                {formatRoleLabel(r, roles)}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div className="pt-4 flex justify-end gap-3 border-t border-platinum-tint mt-4">
                                 <button
@@ -1521,12 +1650,9 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                         <p className="text-sm text-slate-blue mt-0.5">{selectedUserDetail.email}</p>
                                         <div className="flex gap-1.5 mt-1 flex-wrap">
                                             {selectedUserDetail.roles?.map((r, idx) => {
-                                                const roleCode = typeof r === 'string' ? r : (r.roleCode || r.code);
-                                                const roleObj = roles.find(role => role.roleCode === roleCode || role.id === roleCode);
-                                                const roleName = (typeof r === 'object' && r.roleName) || roleObj?.roleName || roleCode;
                                                 return (
                                                     <span key={idx} className="text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
-                                                        {roleName}
+                                                        {formatRoleLabel(r, roles)}
                                                     </span>
                                                 );
                                             })}
@@ -1540,8 +1666,12 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                         <h4 className="text-xs font-bold text-midnight-indigo uppercase tracking-wider border-b border-platinum-tint/60 pb-1.5">Thông tin cá nhân</h4>
                                         <div className="space-y-2 text-sm">
                                             <div>
-                                                <span className="text-slate-blue block text-xs">Mã nhân viên:</span>
-                                                <span className="font-semibold text-midnight-indigo">{selectedUserDetail.employeeCode || 'Chưa thiết lập'}</span>
+                                                <span className="text-slate-blue block text-xs">{hasRole(selectedUserDetail, 'STUDENT') ? 'Mã sinh viên:' : 'Mã nhân viên:'}</span>
+                                                <span className="font-semibold text-midnight-indigo">
+                                                    {hasRole(selectedUserDetail, 'STUDENT')
+                                                        ? selectedUserDetail.studentProfile?.studentCode || selectedUserDetail.studentCode || selectedUserDetail.employeeCode || 'Chưa thiết lập'
+                                                        : selectedUserDetail.employeeCode || 'Chưa thiết lập'}
+                                                </span>
                                             </div>
                                             <div>
                                                 <span className="text-slate-blue block text-xs">Số điện thoại:</span>
@@ -1555,9 +1685,15 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                         <h4 className="text-xs font-bold text-midnight-indigo uppercase tracking-wider border-b border-platinum-tint/60 pb-1.5">Cấu trúc tổ chức</h4>
                                         <div className="space-y-2 text-sm">
                                             <div>
-                                                <span className="text-slate-blue block text-xs">Phòng ban:</span>
+                                                <span className="text-slate-blue block text-xs">{hasRole(selectedUserDetail, 'STUDENT') ? 'Lớp hành chính:' : 'Phòng ban:'}</span>
                                                 <span className="font-semibold text-midnight-indigo">
-                                                    {(() => {
+                                                    {hasRole(selectedUserDetail, 'STUDENT') ? (
+                                                        selectedUserDetail.studentProfile?.administrativeClass
+                                                        || selectedUserDetail.administrativeClass
+                                                        || selectedUserDetail.classSections?.[0]?.classCode
+                                                        || selectedUserDetail.studentProfile?.classSections?.[0]?.classCode
+                                                        || 'Chưa có lớp'
+                                                    ) : (() => {
                                                         const deptId = selectedUserDetail.departmentId || (selectedUserDetail.departments && selectedUserDetail.departments[0]?.id) || (selectedUserDetail.department?.id);
                                                         const dept = departments.find(d => d.id === deptId || d.uuid === deptId);
                                                         return dept ? dept.name || dept.roomName || dept.departmentName : 'Chưa phân bổ';
@@ -1565,12 +1701,26 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                 </span>
                                             </div>
                                             <div>
-                                                <span className="text-slate-blue block text-xs">Chức danh / Vị trí:</span>
-                                                <span className="font-semibold text-midnight-indigo">{selectedUserDetail.positionTitle || 'Chưa thiết lập'}</span>
+                                                <span className="text-slate-blue block text-xs">{hasRole(selectedUserDetail, 'STUDENT') ? 'Ngành / Khóa:' : 'Chức danh / Vị trí:'}</span>
+                                                <span className="font-semibold text-midnight-indigo">
+                                                    {hasRole(selectedUserDetail, 'STUDENT')
+                                                        ? [
+                                                            selectedUserDetail.studentProfile?.major || selectedUserDetail.major,
+                                                            selectedUserDetail.studentProfile?.cohort || selectedUserDetail.cohort,
+                                                        ].filter(Boolean).join(' - ') || 'Chưa thiết lập'
+                                                        : selectedUserDetail.positionTitle || 'Chưa thiết lập'}
+                                                </span>
                                             </div>
                                             <div>
-                                                <span className="text-slate-blue block text-xs">Quản lý trực tiếp:</span>
-                                                <span className="font-semibold text-midnight-indigo">{selectedUserDetail.directManager?.fullName || 'Không có'}</span>
+                                                <span className="text-slate-blue block text-xs">{hasRole(selectedUserDetail, 'STUDENT') ? 'Giáo viên chủ nhiệm:' : 'Quản lý trực tiếp:'}</span>
+                                                <span className="font-semibold text-midnight-indigo">
+                                                    {hasRole(selectedUserDetail, 'STUDENT')
+                                                        ? selectedUserDetail.studentProfile?.homeroomTeacher?.fullName
+                                                            || selectedUserDetail.studentProfile?.classSections?.find(item => item?.lecturerName)?.lecturerName
+                                                            || selectedUserDetail.classSections?.find(item => item?.lecturerName)?.lecturerName
+                                                            || 'Chưa phân công'
+                                                        : selectedUserDetail.directManager?.fullName || 'Không có'}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>

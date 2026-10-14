@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, CheckCircle2, Clock, Filter, TrendingUp, UserCheck, XCircle } from 'lucide-react';
-import { getClassAttendanceSettings, getStudentAttendanceReport } from '../../service/classAttendanceService';
+import {
+    fetchClassAttendanceClasses,
+    fetchClassAttendanceSettings,
+    fetchStudentAttendanceReport,
+    getClassAttendanceSettings,
+    getStudentAttendanceReport,
+    mockClassrooms
+} from '../../service/classAttendanceService';
 
 const RANGE_OPTIONS = [
     { value: 'day', label: 'Ngày' },
@@ -8,6 +15,13 @@ const RANGE_OPTIONS = [
     { value: 'month', label: 'Tháng' },
     { value: 'year', label: 'Năm' }
 ];
+
+const toLocalDateKey = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 const statusClass = {
     on_time: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -52,9 +66,11 @@ const StatCard = ({ icon: Icon, label, value, helper, tone = 'blue' }) => {
 };
 
 const StudentClassDashboard = () => {
-    const settings = getClassAttendanceSettings();
+    const [settings, setSettings] = useState(() => getClassAttendanceSettings());
     const [rangeMode, setRangeMode] = useState('week');
-    const [anchorDate, setAnchorDate] = useState(() => new Date().toISOString().slice(0, 10));
+    const [anchorDate, setAnchorDate] = useState(() => toLocalDateKey());
+    const [classrooms, setClassrooms] = useState(mockClassrooms);
+    const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [report, setReport] = useState(() => ({ period: { start: anchorDate, end: anchorDate }, entries: [], summary: {} }));
     const studentId = useMemo(() => {
         try {
@@ -65,15 +81,58 @@ const StudentClassDashboard = () => {
         }
     }, []);
 
+    const subjectOptions = useMemo(() => {
+        const subjects = new Map();
+        classrooms.forEach(klass => {
+            const code = klass.subjectCode || klass.code;
+            if (code && !subjects.has(code)) subjects.set(code, klass.subject);
+        });
+        return [...subjects.entries()].map(([code, name]) => ({ code, name }));
+    }, [classrooms]);
+
     const refresh = useCallback(() => {
-        setReport(getStudentAttendanceReport({ studentId, mode: rangeMode, anchorDate }));
-    }, [anchorDate, rangeMode, studentId]);
+        let cancelled = false;
+        Promise.all([
+            fetchStudentAttendanceReport({
+                studentId,
+                mode: rangeMode,
+                anchorDate,
+                subjectCode: selectedSubjectCode,
+                self: true
+            }),
+            fetchClassAttendanceSettings().catch(() => getClassAttendanceSettings()),
+            fetchClassAttendanceClasses().catch(() => [])
+        ])
+            .then(([data, apiSettings, apiClasses]) => {
+                if (!cancelled && data) setReport(data);
+                if (!cancelled) setSettings({ ...getClassAttendanceSettings(), ...apiSettings });
+                if (!cancelled && apiClasses?.length) setClassrooms(apiClasses);
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setReport(getStudentAttendanceReport({
+                        studentId,
+                        mode: rangeMode,
+                        anchorDate,
+                        subjectCode: selectedSubjectCode
+                    }));
+                    setSettings(getClassAttendanceSettings());
+                    setClassrooms(mockClassrooms);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [anchorDate, rangeMode, selectedSubjectCode, studentId]);
 
     useEffect(() => {
-        refresh();
+        const cleanup = refresh();
         const handler = () => refresh();
         window.addEventListener('class-attendance-updated', handler);
-        return () => window.removeEventListener('class-attendance-updated', handler);
+        return () => {
+            cleanup?.();
+            window.removeEventListener('class-attendance-updated', handler);
+        };
     }, [refresh]);
 
     const { summary = {}, entries = [], period } = report;
@@ -112,6 +171,19 @@ const StudentClassDashboard = () => {
                             className="bg-transparent outline-none"
                         />
                     </label>
+                    <select
+                        value={selectedSubjectCode}
+                        onChange={event => setSelectedSubjectCode(event.target.value)}
+                        aria-label="Lọc chuyên cần theo môn học"
+                        className="h-9 min-w-[230px] px-3 bg-white border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo outline-none focus:border-action-blue"
+                    >
+                        <option value="all">Tất cả môn học</option>
+                        {subjectOptions.map(subject => (
+                            <option key={subject.code} value={subject.code}>
+                                {subject.code} - {subject.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
             </div>
 

@@ -14,6 +14,29 @@ const EmployeeFaceRegistration = () => {
     const navigate = useNavigate();
     // Dùng chung cho EMPLOYEE / TEACHER / STUDENT — điều hướng về đúng khu vực đang đứng.
     const basePath = '/' + useLocation().pathname.split('/')[1];
+    const roleCopy = basePath === '/student'
+        ? {
+            roleLabel: 'Sinh viên',
+            codeLabel: 'Mã sinh viên',
+            purposeText: 'SmarTracking thu thập hình ảnh khuôn mặt của sinh viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh lớp học tự động, theo dõi chuyên cần và xác thực danh tính khi ra/vào khu vực học tập.',
+            revokeText: 'Bất cứ lúc nào, sinh viên có quyền yêu cầu xóa dữ liệu khuôn mặt và hủy liên kết FaceID thông qua bộ phận quản trị hệ thống hoặc đơn vị phụ trách học vụ.',
+            successText: 'Khuôn mặt của bạn đã được liên kết thành công vào tài khoản sinh viên. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh lớp học và xác thực ra/vào các khu vực được phép.'
+        }
+        : basePath === '/teacher'
+            ? {
+                roleLabel: 'Giảng viên',
+                codeLabel: 'Mã giảng viên',
+                purposeText: 'SmarTracking thu thập hình ảnh khuôn mặt của giảng viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh lớp học tự động, xác thực giảng viên phụ trách buổi học và kiểm soát ra/vào khu vực học tập.',
+                revokeText: 'Bất cứ lúc nào, giảng viên có quyền yêu cầu xóa dữ liệu khuôn mặt và hủy liên kết FaceID thông qua bộ phận quản trị hệ thống hoặc đơn vị phụ trách đào tạo.',
+                successText: 'Khuôn mặt của bạn đã được liên kết thành công vào tài khoản giảng viên. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh lớp học và xác thực ra/vào các khu vực được phép.'
+            }
+        : {
+            roleLabel: 'Nhân viên',
+            codeLabel: 'Mã nhân viên',
+            purposeText: 'SmarTracking thu thập hình ảnh khuôn mặt của nhân viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh tự động tại cửa phòng họp, kiểm soát ra vào bảo mật và chống giả mạo chấm công.',
+            revokeText: 'Bất cứ lúc nào, nhân viên có quyền yêu cầu xóa dữ liệu khuôn mặt và hủy liên kết FaceID thông qua bộ phận Quản lý tài nguyên hệ thống hoặc Phòng Nhân sự.',
+            successText: 'Khuôn mặt của bạn đã được liên kết thành công vào tài khoản nhân viên. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh ra vào các phòng họp SmarTracking.'
+        };
 
     // Steps: 'consent' | 'scanner' | 'submitting' | 'avatar_sync' | 'success'
     const [step, setStep] = useState('consent');
@@ -274,7 +297,7 @@ const EmployeeFaceRegistration = () => {
                     <ScanFace className="w-3.5 h-3.5" />
                     Sinh trắc học
                 </span>
-                <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Đăng ký dữ liệu khuôn mặt FaceID (Nhân viên)</h1>
+                <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Đăng ký dữ liệu khuôn mặt FaceID ({roleCopy.roleLabel})</h1>
                 <p className="text-slate-blue text-sm mt-1">
                     Liên kết khuôn mặt của bạn để sử dụng tính năng điểm danh và kiểm soát ra vào phòng họp.
                 </p>
@@ -303,7 +326,7 @@ const EmployeeFaceRegistration = () => {
                     <div className="p-4 bg-cloud-mist rounded-xl border border-outline-gray text-sm text-slate-blue leading-relaxed space-y-3 max-h-60 overflow-y-auto">
                         <p className="font-semibold text-midnight-indigo text-xs">1. Mục đích thu thập dữ liệu:</p>
                         <p className="text-xs">
-                            SmarTracking thu thập hình ảnh khuôn mặt của nhân viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh tự động tại cửa phòng họp, kiểm soát ra vào bảo mật và chống giả mạo chấm công.
+                            {roleCopy.purposeText}
                         </p>
                         <p className="font-semibold text-midnight-indigo text-xs">2. Bảo mật và lưu trữ:</p>
                         <p className="text-xs">
@@ -311,7 +334,7 @@ const EmployeeFaceRegistration = () => {
                         </p>
                         <p className="font-semibold text-midnight-indigo text-xs">3. Quyền rút lại sự đồng thuận:</p>
                         <p className="text-xs">
-                            Bất cứ lúc nào, nhân viên có quyền yêu cầu xóa dữ liệu khuôn mặt và hủy liên kết FaceID thông qua bộ phận Quản lý tài nguyên hệ thống hoặc Phòng Nhân sự.
+                            {roleCopy.revokeText}
                         </p>
                     </div>
 
@@ -549,13 +572,13 @@ const EmployeeFaceRegistration = () => {
                     <div className="space-y-2">
                         <h2 className="text-xl font-bold text-midnight-indigo">Đăng ký thành công FaceID</h2>
                         <p className="text-sm text-slate-blue max-md mx-auto leading-relaxed">
-                            Khuôn mặt của bạn đã được liên kết thành công vào tài khoản nhân viên. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh ra vào các phòng họp SmarTracking.
+                            {roleCopy.successText}
                         </p>
                     </div>
 
                     <div className="max-w-md mx-auto p-4 bg-cloud-mist rounded-xl border border-outline-gray/60 grid grid-cols-2 gap-4 text-left text-xs text-slate-blue">
                         <div>
-                            <span className="block font-bold text-midnight-indigo uppercase text-[10px]">Mã nhân viên</span>
+                            <span className="block font-bold text-midnight-indigo uppercase text-[10px]">{roleCopy.codeLabel}</span>
                             <span className="font-semibold text-sm mt-0.5 block">{employeeCode}</span>
                         </div>
                         <div>

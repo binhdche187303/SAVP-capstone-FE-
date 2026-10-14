@@ -5,8 +5,11 @@ import {
     buildClassAttendanceRows,
     clearClassAttendanceRecords,
     exportClassAttendanceCsv,
+    fetchClassAttendanceClasses,
+    fetchClassAttendanceRows,
+    fetchClassAttendanceSettings,
     getClassAttendanceSettings,
-    getClassAttendanceSummary,
+    scanClassAttendance,
     mockClassFaceScan,
     mockClassrooms
 } from '../../service/classAttendanceService';
@@ -108,10 +111,20 @@ const StatCard = ({ label, value, helper }) => (
     </div>
 );
 
+const getTodayKey = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
+    const [classrooms, setClassrooms] = useState(mockClassrooms);
     const [selectedClassId, setSelectedClassId] = useState(mockClassrooms[0].id);
+    const [selectedDate, setSelectedDate] = useState(getTodayKey);
+    const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState('');
     const [rows, setRows] = useState([]);
-    const [summary, setSummary] = useState(getClassAttendanceSummary(selectedClassId));
     const [settings, setSettings] = useState(getClassAttendanceSettings(selectedClassId));
     const [scanDirection, setScanDirection] = useState('in');
     const [autoScan, setAutoScan] = useState(false);
@@ -122,21 +135,84 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     const lastWebcamFrameRef = useRef(null);
 
     const selectedClass = useMemo(
-        () => mockClassrooms.find(item => item.id === selectedClassId) || mockClassrooms[0],
-        [selectedClassId]
+        () => classrooms.find(item => item.id === selectedClassId) || classrooms[0] || mockClassrooms[0],
+        [classrooms, selectedClassId]
     );
 
+    const subjectOptions = useMemo(() => {
+        const subjects = new Map();
+        classrooms.forEach((item) => {
+            const code = item.subjectCode || item.code;
+            if (!subjects.has(code)) subjects.set(code, { code, name: item.subject });
+        });
+        return [...subjects.values()];
+    }, [classrooms]);
+
+    const administrativeClassOptions = useMemo(
+        () => [...new Set(rows.map(row => row.administrativeClass).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')),
+        [rows]
+    );
+
+    const filteredRows = useMemo(
+        () => selectedAdministrativeClass
+            ? rows.filter(row => row.administrativeClass === selectedAdministrativeClass)
+            : rows,
+        [rows, selectedAdministrativeClass]
+    );
+
+    const filteredSummary = useMemo(() => ({
+        total: filteredRows.length,
+        checkedIn: filteredRows.filter(row => row.checkInAt).length,
+        late: filteredRows.filter(row => row.status === 'late').length,
+        left: filteredRows.filter(row => row.checkOutAt).length,
+        missing: filteredRows.filter(row => !row.checkInAt).length
+    }), [filteredRows]);
+
     const refresh = useCallback(() => {
-        setRows(buildClassAttendanceRows(selectedClassId));
-        setSummary(getClassAttendanceSummary(selectedClassId));
-        setSettings(getClassAttendanceSettings(selectedClassId));
-    }, [selectedClassId]);
+        let cancelled = false;
+        const load = async () => {
+            try {
+                const apiClasses = await fetchClassAttendanceClasses();
+                const nextClasses = apiClasses.length ? apiClasses : mockClassrooms;
+                const nextClassId = nextClasses.some(item => item.id === selectedClassId)
+                    ? selectedClassId
+                    : nextClasses[0]?.id || mockClassrooms[0].id;
+                const [apiRows, apiSettings] = await Promise.all([
+                    fetchClassAttendanceRows(nextClassId, selectedDate),
+                    fetchClassAttendanceSettings().catch(() => getClassAttendanceSettings(nextClassId))
+                ]);
+                if (cancelled) return;
+                setClassrooms(nextClasses);
+                if (nextClassId !== selectedClassId) setSelectedClassId(nextClassId);
+                setRows(apiRows.length ? apiRows : buildClassAttendanceRows(nextClassId, selectedDate));
+                setSettings({ ...getClassAttendanceSettings(nextClassId), ...apiSettings });
+            } catch {
+                if (cancelled) return;
+                setClassrooms(mockClassrooms);
+                setRows(buildClassAttendanceRows(selectedClassId, selectedDate));
+                setSettings(getClassAttendanceSettings(selectedClassId));
+            }
+        };
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedClassId, selectedDate]);
 
     useEffect(() => {
-        refresh();
+        if (selectedAdministrativeClass && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
+            setSelectedAdministrativeClass('');
+        }
+    }, [administrativeClassOptions, selectedAdministrativeClass]);
+
+    useEffect(() => {
+        const cleanup = refresh();
         const handler = () => refresh();
         window.addEventListener('class-attendance-updated', handler);
-        return () => window.removeEventListener('class-attendance-updated', handler);
+        return () => {
+            cleanup?.();
+            window.removeEventListener('class-attendance-updated', handler);
+        };
     }, [refresh]);
 
     useEffect(() => () => {
@@ -200,7 +276,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         }
     };
 
-    const performScan = useCallback(() => {
+    const performScan = useCallback(async () => {
         const snapshotImageBase64 = captureFrame(videoRef) || lastWebcamFrameRef.current;
         if (webcamEnabled && !snapshotImageBase64) {
             const nextNotice = {
@@ -211,7 +287,12 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
             return;
         }
 
-        const result = mockClassFaceScan({ classId: selectedClassId, direction: scanDirection, snapshotImageBase64 });
+        let result;
+        try {
+            result = await scanClassAttendance({ classId: selectedClassId, direction: scanDirection, snapshotImageBase64 });
+        } catch {
+            result = mockClassFaceScan({ classId: selectedClassId, direction: scanDirection, snapshotImageBase64 });
+        }
         const nextMessage = result?.data?.message || result.message || 'Đã xử lý lượt quét.';
         const nextNotice = {
             type: result.success ? 'success' : (result.warning ? 'warning' : 'error'),
@@ -239,7 +320,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         return () => clearTimeout(timer);
     }, [scanNotice]);
 
-    const canOperateCamera = mode === 'teacher';
+    const canOperateCamera = mode === 'teacher' && selectedDate === getTodayKey();
 
     return (
         <div className="space-y-5 animate-fade-in-up">
@@ -250,36 +331,55 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         Điểm danh lớp học
                     </span>
                     <h1 className="text-xl font-bold text-midnight-indigo tracking-tight mt-3">
-                        {mode === 'manager' ? 'Quản lý chuyên cần lớp học' : 'Dashboard giáo viên'}
+                        {mode === 'manager' ? 'Quản lý chuyên cần lớp học' : 'Điểm danh lớp'}
                     </h1>
                     <p className="text-xs text-slate-blue mt-1">
                         Tự động quét FaceID, ghi nhận giờ vào/ra, xác định đi muộn và lưu ảnh bằng chứng.
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(event) => setSelectedDate(event.target.value)}
+                        className="px-3 py-2.5 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
+                        aria-label="Lọc theo ngày"
+                    />
                     <select
-                        value={selectedClassId}
-                        onChange={(e) => setSelectedClassId(e.target.value)}
+                        value={selectedAdministrativeClass}
+                        onChange={(event) => setSelectedAdministrativeClass(event.target.value)}
                         className="px-4 py-2.5 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
+                        aria-label="Lọc theo lớp hành chính"
                     >
-                        {mockClassrooms.map(item => (
-                            <option key={item.id} value={item.id}>{item.code} - {item.subject}</option>
+                        <option value="">Tất cả lớp</option>
+                        {administrativeClassOptions.map(className => (
+                            <option key={className} value={className}>{className}</option>
+                        ))}
+                    </select>
+                    <select
+                        value={selectedClass.subjectCode || selectedClass.code}
+                        onChange={(event) => {
+                            const nextClass = classrooms.find(item => (item.subjectCode || item.code) === event.target.value);
+                            if (nextClass) setSelectedClassId(nextClass.id);
+                        }}
+                        className="px-4 py-2.5 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
+                        aria-label="Lọc theo môn học"
+                    >
+                        {subjectOptions.map(subject => (
+                            <option key={subject.code} value={subject.code}>{subject.code} - {subject.name}</option>
                         ))}
                     </select>
                     <button type="button" onClick={refresh} className="px-4 py-2.5 rounded-xl border border-platinum-tint bg-white text-xs font-bold text-slate-blue flex items-center gap-2">
                         <RefreshCw className="w-4 h-4" /> Làm mới
                     </button>
-                    <button type="button" onClick={() => exportClassAttendanceCsv(selectedClassId)} className="px-4 py-2.5 rounded-xl bg-action-blue text-white text-xs font-bold flex items-center gap-2">
-                        <Download className="w-4 h-4" /> Xuất CSV
-                    </button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <StatCard label="Sĩ số" value={summary.total} helper={selectedClass.room} />
-                <StatCard label="Đã vào lớp" value={summary.checkedIn} helper={`Bắt đầu ${settings.classStartTime}`} />
-                <StatCard label="Đi muộn" value={summary.late} helper={`Ngưỡng ${settings.lateThresholdMinutes} phút`} />
-                <StatCard label="Đã rời lớp" value={summary.left} helper={selectedClass.semester} />
+                <StatCard label="Sĩ số" value={filteredSummary.total} helper={selectedAdministrativeClass || selectedClass.room} />
+                <StatCard label="Đã vào lớp" value={filteredSummary.checkedIn} helper={`Bắt đầu ${settings.classStartTime}`} />
+                <StatCard label="Đi muộn" value={filteredSummary.late} helper={`Ngưỡng ${settings.lateThresholdMinutes} phút`} />
+                <StatCard label="Đã rời lớp" value={filteredSummary.left} helper={selectedClass.semester} />
             </div>
 
             {canOperateCamera && (
@@ -331,13 +431,18 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
             )}
 
             <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10 flex items-center justify-between">
+                <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">Danh sách sinh viên trong lớp</h2>
-                    {canOperateCamera && (
-                        <button type="button" onClick={() => { clearClassAttendanceRecords(); refresh(); }} className="px-3 py-2 rounded-xl border border-red-200 text-red-600 bg-red-50 text-xs font-bold flex items-center gap-2">
-                            <Trash2 className="w-4 h-4" /> Xóa dữ liệu test
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button type="button" onClick={() => exportClassAttendanceCsv(selectedClassId, selectedDate, filteredRows, selectedClass)} className="px-3 py-2 rounded-xl bg-action-blue text-white text-xs font-bold flex items-center gap-2">
+                            <Download className="w-4 h-4" /> Xuất CSV
                         </button>
-                    )}
+                        {canOperateCamera && (
+                            <button type="button" onClick={() => { clearClassAttendanceRecords(); refresh(); }} className="px-3 py-2 rounded-xl border border-red-200 text-red-600 bg-red-50 text-xs font-bold flex items-center gap-2">
+                                <Trash2 className="w-4 h-4" /> Xóa dữ liệu test
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -351,7 +456,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.map(row => (
+                            {filteredRows.map(row => (
                                 <tr key={row.id} className="border-t border-platinum-tint/70">
                                     <td className="px-5 py-4">
                                         <p className="font-bold text-midnight-indigo">{row.name}</p>
@@ -373,6 +478,11 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                     </td>
                                 </tr>
                             ))}
+                            {filteredRows.length === 0 && (
+                                <tr>
+                                    <td colSpan="5" className="px-5 py-10 text-center text-sm text-slate-blue">Không có dữ liệu phù hợp với bộ lọc.</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

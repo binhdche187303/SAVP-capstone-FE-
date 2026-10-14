@@ -5,7 +5,14 @@ import Pagination from '../../components/common/Pagination';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 import { getSystemConfigs, updateSystemConfig, getChannelMaps, updateChannelMap, getRooms, getZones, getNoShowConfig, updateNoShowConfig, getSecurityAlertsConfig, updateSecurityAlertsConfig } from '../../service/sysAdminServices';
-import { DEFAULT_CLASS_ATTENDANCE_SETTINGS, getClassAttendanceSettings, mockClassrooms, saveClassAttendanceSettings } from '../../service/classAttendanceService';
+import {
+    DEFAULT_CLASS_ATTENDANCE_SETTINGS,
+    fetchClassAttendanceSettings,
+    getClassAttendanceSettings,
+    mockClassrooms,
+    saveClassAttendanceSettings,
+    updateClassAttendanceSettings
+} from '../../service/classAttendanceService';
 
 /**
  * SystemSettings Component
@@ -196,6 +203,20 @@ const SystemSettings = () => {
                 console.error('Không thể tải cấu hình hệ thống chung (tab đang ẩn):', genErr);
             }
 
+            try {
+                const attendanceSettings = await fetchClassAttendanceSettings();
+                setClassAttendanceConfig({
+                    ...DEFAULT_CLASS_ATTENDANCE_SETTINGS,
+                    ...attendanceSettings
+                });
+                saveClassAttendanceSettings({
+                    ...DEFAULT_CLASS_ATTENDANCE_SETTINGS,
+                    ...attendanceSettings
+                });
+            } catch (attendanceErr) {
+                console.error('Không thể tải cấu hình điểm danh lớp học:', attendanceErr);
+            }
+
             // Channel maps là nguồn dữ liệu bắt buộc cho tab Camera & Cảm biến
             const channelRes = await getChannelMaps();
             if (!channelRes?.success || !Array.isArray(channelRes.data)) {
@@ -238,7 +259,7 @@ const SystemSettings = () => {
     }, [fetchConfigs]);
 
     useEffect(() => {
-        setClassAttendanceConfig(getClassAttendanceSettings(selectedClassAttendanceClassId));
+        setClassAttendanceConfig(getClassAttendanceSettings());
     }, [selectedClassAttendanceClassId]);
 
     // Auto-hide alert messages
@@ -281,7 +302,7 @@ const SystemSettings = () => {
         setClassAttendanceConfig(prev => ({ ...prev, [key]: value }));
     };
 
-    const handleSaveClassAttendanceConfig = () => {
+    const handleSaveClassAttendanceConfig = async () => {
         if (Number(classAttendanceConfig.lateThresholdMinutes) < 0) {
             setError('Ngưỡng đi muộn không được âm.');
             return;
@@ -290,13 +311,25 @@ const SystemSettings = () => {
             setError('Chu kỳ quét tự động tối thiểu là 2 giây.');
             return;
         }
-        saveClassAttendanceSettings({
-            ...classAttendanceConfig,
-            lateThresholdMinutes: Number(classAttendanceConfig.lateThresholdMinutes),
-            autoScanIntervalSeconds: Number(classAttendanceConfig.autoScanIntervalSeconds)
-        }, selectedClassAttendanceClassId);
-        const selectedClass = mockClassrooms.find(item => item.id === selectedClassAttendanceClassId);
-        setSuccessMessage(`Đã lưu cấu hình điểm danh cho ${selectedClass?.subject || 'lớp học'}.`);
+        setSaving(true);
+        try {
+            const saved = await updateClassAttendanceSettings({
+                ...classAttendanceConfig,
+                lateThresholdMinutes: Number(classAttendanceConfig.lateThresholdMinutes),
+                autoScanIntervalSeconds: Number(classAttendanceConfig.autoScanIntervalSeconds)
+            });
+            const nextSettings = {
+                ...DEFAULT_CLASS_ATTENDANCE_SETTINGS,
+                ...saved
+            };
+            setClassAttendanceConfig(nextSettings);
+            saveClassAttendanceSettings(nextSettings);
+            setSuccessMessage('Đã lưu cấu hình điểm danh lớp học.');
+        } catch (err) {
+            setError(err?.message || err?.error?.message || 'Không thể lưu cấu hình điểm danh lớp học.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const validateConfigs = (noShow, data) => {
@@ -415,7 +448,7 @@ const SystemSettings = () => {
         setSecurityAlertsConfig({ ...dbSecurityAlertsConfig });
         setConfigs({ ...dbConfigs });
         setChannelMaps({ ...dbChannelMaps });
-        setClassAttendanceConfig(getClassAttendanceSettings(selectedClassAttendanceClassId));
+        setClassAttendanceConfig(getClassAttendanceSettings());
         setChannelEditor(emptyChannelEditor);
     };
 

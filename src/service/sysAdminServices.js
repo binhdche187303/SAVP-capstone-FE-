@@ -428,9 +428,9 @@ export const getRooms = async (params = {}) => {
 /**
  * UC-NOTI-01: Get notifications list
  */
-export const getNotifications = async (params = {}) => {
+export const getNotifications = async (params = {}, options = {}) => {
     const query = buildQuery(params);
-    return await get(`/notifications${query}`);
+    return await get(`/notifications${query}`, options);
 };
 
 /**

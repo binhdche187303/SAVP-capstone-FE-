@@ -65,6 +65,7 @@ const StudentHome = () => {
                         {mockClassrooms.map(klass => (
                             <div key={klass.id} className="rounded-xl border border-platinum-tint p-4">
                                 <p className="text-sm font-bold text-midnight-indigo">{klass.subject}</p>
+                                <p className="text-xs text-slate-blue mt-1">Mã môn học: {klass.subjectCode}</p>
                                 <p className="text-sm text-slate-blue mt-1">{klass.schedule} · {klass.room}</p>
                                 <p className="text-xs text-steel-gray mt-1">Giảng viên: {klass.teacher}</p>
                             </div>

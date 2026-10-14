@@ -62,9 +62,9 @@ const NotificationBell = ({
         setLoading(true);
         try {
             const [notiRes, alertsRes] = await Promise.allSettled([
-                getNotifications({ page: 1, limit: 5 }),
+                getNotifications({ page: 1, limit: 5 }, { skipToast: true }),
                 canReadSecurityAlerts
-                    ? getSecurityAlerts({ status: 'new', limit: 5 })
+                    ? getSecurityAlerts({ status: 'new', limit: 5 }, { skipToast: true })
                     : Promise.resolve(null),
             ]);
 

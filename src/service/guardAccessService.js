@@ -1,3 +1,4 @@
+import { buildQuery, get, post } from '../utils/request';
 import GUARD_DEMO_FACES from '../assets/guardDemoFaces';
 
 export const GUARD_GATE_EVENTS_STORAGE_KEY = 'smartracking_guard_gate_events_v9';
@@ -304,6 +305,99 @@ export const getGuardGateEvents = () => {
     const seeded = seedEvents();
     localStorage.setItem(GUARD_GATE_EVENTS_STORAGE_KEY, JSON.stringify(seeded));
     return seeded;
+};
+
+export const fetchGuardGateEvents = async (params = {}) => {
+    const response = await get(`/admin/gate-access-logs${buildQuery({
+        page: params.page || 1,
+        limit: params.limit || 100,
+        from: params.from,
+        to: params.to
+    })}`, { skipToast: true });
+    const rows = Array.isArray(response?.data) ? response.data : [];
+    return rows.map(item => {
+        const meta = item.metadata_json || {};
+        const direction = item.direction === 'leave' ? 'out' : 'in';
+        const occurredAt = item.access_time || new Date().toISOString();
+        const status = meta.accessStatus || 'authorized';
+        const gate = guardGates.find(candidate => candidate.id === meta.gateId);
+        return {
+            id: item.id,
+            userId: item.user?.user_id || null,
+            personCode: meta.personCode || item.user?.employee_code || item.user?.email || '--',
+            personName: item.user?.full_name || (status === 'denied' ? 'Người lạ chưa xác định' : 'Người dùng'),
+            personRole: meta.personRole || item.user?.position_title || 'Người dùng',
+            gateId: meta.gateId || item.zone_id || 'api-gate',
+            gateName: item.zone_name || 'Cổng ra vào',
+            cameraName: gate?.cameraName || (item.zone_name ? `Camera ${item.zone_name}` : 'Camera cổng'),
+            direction,
+            occurredAt,
+            dateText: formatDate(occurredAt),
+            timeText: formatTime(occurredAt),
+            status,
+            statusLabel: status === 'authorized' ? 'Hợp lệ' : 'Từ chối',
+            reason: meta.reason || 'Dữ liệu lấy từ nhật ký ra/vào cổng trên backend.',
+            accessMatched: status === 'authorized',
+            plateNumber: item.plate_number || null,
+            plateStatus: meta.scenario === 'plate_mismatch' ? 'mismatch' : item.plate_number ? 'matched' : 'unknown',
+            snapshot: meta.snapshotImageBase64 || null,
+            presenceDurationMinutes: item.duration_seconds ? Math.round(Number(item.duration_seconds) / 60) : null,
+            presenceDurationText: item.duration_seconds ? formatDuration(Number(item.duration_seconds) / 60) : '--'
+        };
+    });
+};
+
+export const scanGuardGateEvent = async ({ gateId = 'main-in', scenario = 'authorized', snapshotImageBase64 } = {}) => {
+    const gate = guardGates.find(item => item.id === gateId) || guardGates[0];
+    const response = await post('/admin/gate-access-logs/scan', {
+        gateId,
+        direction: gate.direction,
+        scenario,
+        snapshotImageBase64
+    }, { skipToast: true });
+    const event = response?.data?.event;
+    if (!event) {
+        return {
+            success: response?.success !== false,
+            warning: Boolean(response?.data?.warning),
+            duplicate: Boolean(response?.data?.duplicate),
+            duplicateReason: response?.data?.duplicateReason,
+            retryAfterSeconds: response?.data?.retryAfterSeconds,
+            message: response?.message || response?.data?.message
+        };
+    }
+    const meta = event.metadata_json || {};
+    const direction = event.direction === 'leave' ? 'out' : 'in';
+    const occurredAt = event.access_time || new Date().toISOString();
+    const status = meta.accessStatus || 'authorized';
+    return {
+        success: true,
+        event: {
+            id: event.id,
+            userId: event.user_id || null,
+            personCode: event.person_code || '--',
+            personName: event.person_name || 'Người dùng',
+            personRole: event.person_role || 'Người dùng',
+            gateId,
+            gateName: event.zone_name || gate.name,
+            cameraName: gate.cameraName,
+            direction,
+            occurredAt,
+            dateText: formatDate(occurredAt),
+            timeText: formatTime(occurredAt),
+            status,
+            statusLabel: status === 'authorized' ? 'Hợp lệ' : 'Từ chối',
+            reason: meta.reason || response?.message || 'Đã ghi nhận lượt qua cổng.',
+            accessMatched: status === 'authorized',
+            plateNumber: event.plate_number || null,
+            plateStatus: meta.scenario === 'plate_mismatch' ? 'mismatch' : event.plate_number ? 'matched' : 'unknown',
+            snapshot: meta.snapshotImageBase64 || snapshotImageBase64 || buildSnapshot({ name: event.person_name || 'Người dùng', code: event.person_code || '--' }, gate, status, event.plate_number),
+            recognitionProvider: meta.recognitionProvider || 'demo-fallback',
+            source: snapshotImageBase64 ? 'webcam' : 'backend-camera',
+            presenceDurationMinutes: null,
+            presenceDurationText: '--'
+        }
+    };
 };
 
 export const saveGuardGateEvents = (events) => {

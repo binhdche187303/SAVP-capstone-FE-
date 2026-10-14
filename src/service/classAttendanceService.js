@@ -1,3 +1,5 @@
+import { get, patch, post, buildQuery } from '../utils/request';
+
 const SETTINGS_KEY = 'camai.classAttendance.settings';
 const RECORDS_KEY = 'camai.classAttendance.records.v2';
 
@@ -9,20 +11,21 @@ export const DEFAULT_CLASS_ATTENDANCE_SETTINGS = {
 };
 
 const demoStudents = [
-    { id: 'SV001', code: 'SV001', username: 'student.demo', email: 'student@meetingsys.vn', name: 'Lê Minh Sinh', avatar: 'S' },
-    { id: 'SV002', code: 'SV002', username: 'nam.nguyen', email: 'nam.nguyen@smartracking.edu.vn', name: 'Nguyễn Hoàng Nam', avatar: 'N' },
-    { id: 'SV003', code: 'SV003', username: 'lan.ngo', email: 'lan.ngo@smartracking.edu.vn', name: 'Ngô Thị Lan', avatar: 'L' },
-    { id: 'SV004', code: 'SV004', username: 'huy.do', email: 'huy.do@smartracking.edu.vn', name: 'Đỗ Gia Huy', avatar: 'H' },
-    { id: 'SV005', code: 'SV005', username: 'mai.tran', email: 'mai.tran@smartracking.edu.vn', name: 'Trần Ngọc Mai', avatar: 'M' },
-    { id: 'SV006', code: 'SV006', username: 'anh.pham', email: 'anh.pham@smartracking.edu.vn', name: 'Phạm Đức Anh', avatar: 'A' },
-    { id: 'SV007', code: 'SV007', username: 'thao.vo', email: 'thao.vo@smartracking.edu.vn', name: 'Võ Minh Thảo', avatar: 'T' },
-    { id: 'SV008', code: 'SV008', username: 'khoa.le', email: 'khoa.le@smartracking.edu.vn', name: 'Lê Đăng Khoa', avatar: 'K' }
+    { id: 'SV001', code: 'SV001', username: 'student.demo', email: 'student@meetingsys.vn', name: 'Lê Minh Sinh', avatar: 'S', administrativeClass: 'DHTH2026' },
+    { id: 'SV002', code: 'SV002', username: 'nam.nguyen', email: 'nam.nguyen@smartracking.edu.vn', name: 'Nguyễn Hoàng Nam', avatar: 'N', administrativeClass: 'DHTH2026' },
+    { id: 'SV003', code: 'SV003', username: 'lan.ngo', email: 'lan.ngo@smartracking.edu.vn', name: 'Ngô Thị Lan', avatar: 'L', administrativeClass: 'DHTH2026' },
+    { id: 'SV004', code: 'SV004', username: 'huy.do', email: 'huy.do@smartracking.edu.vn', name: 'Đỗ Gia Huy', avatar: 'H', administrativeClass: 'DHTH2026' },
+    { id: 'SV005', code: 'SV005', username: 'mai.tran', email: 'mai.tran@smartracking.edu.vn', name: 'Trần Ngọc Mai', avatar: 'M', administrativeClass: 'DHTH2026' },
+    { id: 'SV006', code: 'SV006', username: 'anh.pham', email: 'anh.pham@smartracking.edu.vn', name: 'Phạm Đức Anh', avatar: 'A', administrativeClass: 'DHTH2026' },
+    { id: 'SV007', code: 'SV007', username: 'thao.vo', email: 'thao.vo@smartracking.edu.vn', name: 'Võ Minh Thảo', avatar: 'T', administrativeClass: 'DHTH2026' },
+    { id: 'SV008', code: 'SV008', username: 'khoa.le', email: 'khoa.le@smartracking.edu.vn', name: 'Lê Đăng Khoa', avatar: 'K', administrativeClass: 'DHTH2026' }
 ];
 
 export const mockClassrooms = [
     {
         id: 'WEB-101',
-        code: 'WEB101',
+        code: 'WEB101-01',
+        subjectCode: 'WEB101',
         subject: 'Lập trình Web',
         room: 'Phòng học A101',
         teacher: 'Nguyễn Thị Giang',
@@ -33,7 +36,8 @@ export const mockClassrooms = [
     },
     {
         id: 'AI-202',
-        code: 'AI202',
+        code: 'AI202-01',
+        subjectCode: 'AI202',
         subject: 'Trí tuệ nhân tạo ứng dụng',
         room: 'Phòng học A102',
         teacher: 'Nguyễn Thị Giang',
@@ -44,7 +48,8 @@ export const mockClassrooms = [
     },
     {
         id: 'DB-303',
-        code: 'DB303',
+        code: 'DB303-01',
+        subjectCode: 'DB303',
         subject: 'Cơ sở dữ liệu nâng cao',
         room: 'Phòng học B203',
         teacher: 'Nguyễn Thị Giang',
@@ -148,6 +153,20 @@ export const saveClassAttendanceSettings = (settings, classId) => {
     const store = getClassAttendanceSettingsStore();
     writeJson(SETTINGS_KEY, { ...store, global: next });
     return next;
+};
+
+export const fetchClassAttendanceSettings = async () => {
+    const response = await get('/class-attendance/settings', { skipToast: true });
+    return response?.data || DEFAULT_CLASS_ATTENDANCE_SETTINGS;
+};
+
+export const updateClassAttendanceSettings = async (settings) => {
+    const response = await patch('/class-attendance/settings', {
+        classStartTime: settings.classStartTime,
+        lateThresholdMinutes: Number(settings.lateThresholdMinutes),
+        autoScanIntervalSeconds: Number(settings.autoScanIntervalSeconds)
+    });
+    return response?.data || settings;
 };
 
 const buildDateForWeekday = (weekday, weeksAgo = 0) => {
@@ -417,6 +436,35 @@ export const getClassAttendanceSummary = (classId = mockClassrooms[0].id, date =
     };
 };
 
+export const fetchClassAttendanceClasses = async () => {
+    const response = await get('/class-attendance/classes', { skipToast: true });
+    return response?.data || [];
+};
+
+export const fetchClassAttendanceRows = async (classId, date = todayKey()) => {
+    const response = await get(`/class-attendance/classes/${classId}/rows${buildQuery({ date })}`, { skipToast: true });
+    return response?.data || [];
+};
+
+export const fetchClassAttendanceSummary = async (classId, date = todayKey()) => {
+    const response = await get(`/class-attendance/classes/${classId}/summary${buildQuery({ date })}`, { skipToast: true });
+    return response?.data || null;
+};
+
+export const scanClassAttendance = async ({ classId, direction = 'in', snapshotImageBase64 } = {}) => {
+    const response = await post('/class-attendance/scan', {
+        classId,
+        direction,
+        snapshotImageBase64
+    }, { skipToast: true });
+    return {
+        success: response?.data?.operationSuccess !== false && response?.success !== false,
+        warning: Boolean(response?.data?.warning),
+        data: response?.data,
+        message: response?.message || response?.data?.message
+    };
+};
+
 export const mockClassFaceScan = ({ classId = mockClassrooms[0].id, direction = 'in', snapshotImageBase64 } = {}) => {
     const klass = mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
     const settings = getClassAttendanceSettings(klass.id);
@@ -509,13 +557,14 @@ export const mockClassFaceScan = ({ classId = mockClassrooms[0].id, direction = 
     };
 };
 
-export const exportClassAttendanceCsv = (classId = mockClassrooms[0].id, date = todayKey()) => {
-    const klass = mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
-    const rows = buildClassAttendanceRows(klass.id, date);
+export const exportClassAttendanceCsv = (classId = mockClassrooms[0].id, date = todayKey(), filteredRows, selectedClass) => {
+    const klass = selectedClass || mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
+    const rows = filteredRows || buildClassAttendanceRows(klass.id, date);
     const csvRows = [
-        ['Môn học', 'Mã SV', 'Sinh viên', 'Giờ vào', 'Giờ ra', 'Trạng thái', 'Độ tin cậy'],
+        ['Môn học', 'Lớp hành chính', 'Mã SV', 'Sinh viên', 'Giờ vào', 'Giờ ra', 'Trạng thái', 'Độ tin cậy'],
         ...rows.map(row => [
             klass.subject,
+            row.administrativeClass || '',
             row.code,
             row.name,
             row.checkInText,
@@ -534,15 +583,39 @@ export const exportClassAttendanceCsv = (classId = mockClassrooms[0].id, date = 
     URL.revokeObjectURL(url);
 };
 
-export const exportSemesterClassAttendanceCsv = ({
+const downloadCsvBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+};
+
+export const exportSemesterClassAttendanceCsv = async ({
     classId = 'all',
-    semester = DEFAULT_CLASS_ATTENDANCE_SETTINGS.semester
+    semester = DEFAULT_CLASS_ATTENDANCE_SETTINGS.semester,
+    subjectCode = 'all',
+    administrativeClass = 'all'
 } = {}) => {
+    try {
+        const response = await get(`/class-attendance/export.csv${buildQuery({ classId, semester, subjectCode, administrativeClass })}`, { skipToast: true });
+        if (response?.isBlob && response.data) {
+            const classPart = classId === 'all' ? 'tat-ca-mon' : classId;
+            const semesterPart = String(semester || 'tat-ca-hoc-ky').replace(/\s+/g, '-');
+            downloadCsvBlob(response.data, `bang-chuyen-can-${classPart}-${semesterPart}.csv`);
+            return true;
+        }
+    } catch {
+        // Local fallback keeps the demo usable when backend is offline.
+    }
+
     const classes = (classId === 'all' ? mockClassrooms : mockClassrooms.filter(item => item.id === classId))
+        .filter(item => subjectCode === 'all' || (item.subjectCode || item.code) === subjectCode)
         .filter(item => semester === 'all' || item.semester === semester);
     const savedRecords = getClassAttendanceRecords();
     const rows = [
-        ['Học kỳ', 'Mã lớp', 'Môn học', 'Phòng học', 'Giảng viên', 'Ngày học', 'Mã SV', 'Sinh viên', 'Giờ vào', 'Giờ ra', 'Trạng thái', 'Ảnh bằng chứng']
+        ['Học kỳ', 'Lớp hành chính', 'Mã môn học', 'Môn học', 'Phòng học', 'Giảng viên', 'Ngày học', 'Mã SV', 'Sinh viên', 'Giờ vào', 'Giờ ra', 'Trạng thái', 'Ảnh bằng chứng']
     ];
 
     classes.forEach(klass => {
@@ -551,13 +624,15 @@ export const exportSemesterClassAttendanceCsv = ({
             const dateKey = toDateKey(cursor);
             if (cursor.getDay() !== klass.scheduleWeekday) return;
             klass.students.forEach(student => {
+                if (administrativeClass !== 'all' && student.administrativeClass !== administrativeClass) return;
                 const saved = savedRecords.find(record => record.classId === klass.id && record.date === dateKey && record.studentId === student.id);
                 const record = saved || buildSyntheticRecord(klass, student, dateKey);
                 if (!record) return;
                 const entry = normalizeRecordToEntry(klass, student, record, dateKey);
                 rows.push([
                     klass.semester,
-                    klass.code,
+                    student.administrativeClass || '',
+                    klass.subjectCode || klass.code,
                     klass.subject,
                     klass.room,
                     klass.teacher,
@@ -595,7 +670,36 @@ export const getBusinessClassAttendanceStats = () => {
     });
 };
 
-export const getStudentAttendanceReport = ({ studentId = 'SV001', mode = 'day', anchorDate = new Date() } = {}) => {
+export const fetchBusinessClassAttendanceStats = async () => {
+    const response = await get('/class-attendance/stats', { skipToast: true });
+    return response?.data || [];
+};
+
+export const fetchTeacherClassAttendanceReport = async ({
+    classId = 'all',
+    semester = 'all',
+    mode = 'month',
+    anchorDate = todayKey(),
+    subjectCode = 'all',
+    administrativeClass = 'all'
+} = {}) => {
+    const response = await get(`/class-attendance/report${buildQuery({
+        classId,
+        semester,
+        mode,
+        subjectCode,
+        administrativeClass,
+        anchorDate: anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate
+    })}`, { skipToast: true });
+    return response?.data;
+};
+
+export const getStudentAttendanceReport = ({
+    studentId = 'SV001',
+    mode = 'day',
+    anchorDate = new Date(),
+    subjectCode = 'all'
+} = {}) => {
     const { start, end } = getRangeBounds(mode, anchorDate);
     const startKey = toDateKey(start);
     const endKey = toDateKey(end);
@@ -604,16 +708,18 @@ export const getStudentAttendanceReport = ({ studentId = 'SV001', mode = 'day', 
 
     for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
         const dateKey = toDateKey(cursor);
-        mockClassrooms.forEach(klass => {
-            const student = klass.students.find(item => item.id === studentId || item.code === studentId);
-            if (!student) return;
-            if (cursor.getDay() !== klass.scheduleWeekday) return;
+        mockClassrooms
+            .filter(klass => subjectCode === 'all' || klass.subjectCode === subjectCode)
+            .forEach(klass => {
+                const student = klass.students.find(item => item.id === studentId || item.code === studentId);
+                if (!student) return;
+                if (cursor.getDay() !== klass.scheduleWeekday) return;
 
-            const saved = savedRecords.find(record => record.classId === klass.id && record.date === dateKey && record.studentId === student.id);
-            const record = saved || buildSyntheticRecord(klass, student, dateKey);
-            if (!record) return;
-            entries.push(normalizeRecordToEntry(klass, student, record, dateKey));
-        });
+                const saved = savedRecords.find(record => record.classId === klass.id && record.date === dateKey && record.studentId === student.id);
+                const record = saved || buildSyntheticRecord(klass, student, dateKey);
+                if (!record) return;
+                entries.push(normalizeRecordToEntry(klass, student, record, dateKey));
+            });
     }
 
     const attended = entries.filter(item => item.checkInAt).length;
@@ -633,4 +739,17 @@ export const getStudentAttendanceReport = ({ studentId = 'SV001', mode = 'day', 
             attendanceRate: entries.length ? Math.round((attended / entries.length) * 100) : 0
         }
     };
+};
+
+export const fetchStudentAttendanceReport = async ({
+    studentId,
+    mode = 'day',
+    anchorDate = new Date(),
+    subjectCode = 'all',
+    self = false
+} = {}) => {
+    const dateValue = anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate;
+    const endpoint = self ? '/class-attendance/student/me' : '/class-attendance/student/report';
+    const response = await get(`${endpoint}${buildQuery({ studentId, mode, anchorDate: dateValue, subjectCode })}`, { skipToast: true });
+    return response?.data;
 };

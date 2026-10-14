@@ -51,7 +51,7 @@ const TeacherRecordings = () => {
                         onClick={() => setClassId(c.id)}
                         className={`px-4 py-2 rounded-xl text-sm font-semibold border ${c.id === klass?.id ? 'bg-action-blue text-white border-action-blue' : 'bg-white text-slate-blue border-platinum-tint hover:text-midnight-indigo'}`}
                     >
-                        {c.code} · {c.subject}
+                        {c.subjectCode || c.code} - {c.subject}
                     </button>
                 ))}
             </div>

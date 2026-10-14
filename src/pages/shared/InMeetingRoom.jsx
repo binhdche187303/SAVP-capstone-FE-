@@ -26,6 +26,7 @@ import {
     pauseVideoRecording as pauseEmployeeVideoRecording,
     resumeVideoRecording as resumeEmployeeVideoRecording,
     stopVideoRecording as stopEmployeeVideoRecording,
+    scanMeetingAttendance as scanEmployeeMeetingAttendance,
     createMockCamera as createEmployeeMockCamera,
     getRecordingStatus as getEmployeeRecordingStatus,
     getMeetingMediaFiles as getEmployeeMediaFiles,
@@ -46,6 +47,7 @@ import {
     pauseVideoRecording as pauseManagerVideoRecording,
     resumeVideoRecording as resumeManagerVideoRecording,
     stopVideoRecording as stopManagerVideoRecording,
+    scanMeetingAttendance as scanManagerMeetingAttendance,
     createMockCamera as createManagerMockCamera,
     getRecordingStatus as getManagerRecordingStatus,
     getMeetingMediaFiles as getManagerMediaFiles,
@@ -1245,10 +1247,16 @@ const InMeetingRoom = ({ isPublic = false }) => {
         setAutoFaceCameraError('');
         try {
             const snapshotImageBase64 = captureAutoFaceSnapshot();
-            const res = await request('/dev/mock-camera-face-scan', {
-                method: 'POST',
-                body: { meetingId: id, direction: autoFaceScanDirection, snapshotImageBase64 }
-            });
+            const res = await callWithFallback(
+                scanEmployeeMeetingAttendance,
+                scanManagerMeetingAttendance,
+                id,
+                {
+                    direction: autoFaceScanDirection,
+                    snapshotImageBase64,
+                    cameraName: 'Camera phong hop'
+                }
+            );
             if (!res?.success) {
                 throw new Error(res?.error?.message || res?.message || 'Camera API không xử lý được lượt quét.');
             }
@@ -1256,10 +1264,10 @@ const InMeetingRoom = ({ isPublic = false }) => {
             const data = res.data || {};
             setLastAutoFaceScan({
                 at: new Date().toISOString(),
-                matched: data.matched === true,
-                skipped: data.skipped === true,
-                userName: data.fullName || data.userName || '',
-                note: data.note || '',
+                matched: data.matched === true || data.operationSuccess === true,
+                skipped: data.skipped === true || data.duplicate === true,
+                userName: data.fullName || data.userName || data.participant?.fullName || data.participant?.full_name || '',
+                note: data.note || data.message || '',
                 hasSnapshot: !!snapshotImageBase64,
                 direction: data.direction || autoFaceScanDirection
             });
@@ -1269,10 +1277,11 @@ const InMeetingRoom = ({ isPublic = false }) => {
                 showToast(autoFaceScanDirection === 'out'
                     ? 'Người này đã có lượt ra, hệ thống bỏ qua lượt quét lặp.'
                     : 'Người này đã được điểm danh, hệ thống bỏ qua lượt quét lặp.', 'info');
-            } else if (data.matched) {
-                showToast(`${autoFaceScanDirection === 'out' ? 'Đã ghi nhận ra khỏi phòng' : 'Đã tự động điểm danh vào phòng'}${data.fullName ? `: ${data.fullName}` : ''}.`, 'success');
+            } else if (data.matched || data.operationSuccess) {
+                const displayName = data.fullName || data.userName || data.participant?.fullName || data.participant?.full_name || '';
+                showToast(`${autoFaceScanDirection === 'out' ? 'Đã ghi nhận ra khỏi phòng' : 'Đã tự động điểm danh vào phòng'}${displayName ? `: ${displayName}` : ''}.`, 'success');
             } else {
-                showToast('Không khớp FaceID đã đăng ký, đã ghi nhận cảnh báo.', 'warning');
+                showToast(data.message || 'Không khớp FaceID đã đăng ký, đã ghi nhận cảnh báo.', 'warning');
             }
         } catch (err) {
             const message = err?.error?.message || err?.message || 'Không xử lý được lượt quét từ camera.';
