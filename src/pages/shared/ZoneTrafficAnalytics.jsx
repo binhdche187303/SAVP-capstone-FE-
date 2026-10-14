@@ -5,6 +5,7 @@ import {
     Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { getZoneTraffic } from '../../service/campusService';
+import { getZones } from '../../service/zoneServices';
 
 // UC-120 (2.6): lưu lượng người + heatmap khu vực công cộng.
 // Heatmap dạng ma trận khu × giờ trong ngày; vị trí GPS của khu vực xem ở trang Bản đồ khuôn viên.
@@ -57,6 +58,31 @@ const ZoneTrafficAnalytics = () => {
     const [to, setTo] = useState(presetRange('week').to);
     const [building, setBuilding] = useState('');
     const [floor, setFloor] = useState('');
+    const [zoneCatalog, setZoneCatalog] = useState([]);
+
+    // Tòa nhà/Tầng chọn từ danh mục khu vực — BE lọc khớp chính xác nên không cho gõ tự do.
+    useEffect(() => {
+        getZones({ limit: 100 })
+            .then((res) => { if (res?.success) setZoneCatalog(res.data || []); })
+            .catch(() => {});
+    }, []);
+
+    const buildingOptions = useMemo(
+        () => [...new Set(zoneCatalog.map((z) => z.building).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')),
+        [zoneCatalog]
+    );
+    const floorOptions = useMemo(
+        () => [...new Set(
+            zoneCatalog.filter((z) => !building || z.building === building).map((z) => z.floor).filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })),
+        [zoneCatalog, building]
+    );
+
+    const handleBuildingChange = (value) => {
+        setBuilding(value);
+        const floorsOfBuilding = zoneCatalog.filter((z) => !value || z.building === value).map((z) => z.floor);
+        if (floor && !floorsOfBuilding.includes(floor)) setFloor('');
+    };
 
     const handlePreset = (value) => {
         setPreset(value);
@@ -99,7 +125,7 @@ const ZoneTrafficAnalytics = () => {
     }, [from, to, building, floor]);
 
     useEffect(() => {
-        const t = setTimeout(fetchData, 400); // debounce ô nhập toà nhà/tầng
+        const t = setTimeout(fetchData, 400); // debounce khi đổi bộ lọc liên tiếp
         return () => clearTimeout(t);
     }, [fetchData]);
 
@@ -207,11 +233,17 @@ const ZoneTrafficAnalytics = () => {
                 )}
                 <div className="space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tòa nhà</label>
-                    <input type="text" value={building} onChange={(e) => setBuilding(e.target.value)} placeholder="VD: Alpha" className={inputCls} />
+                    <select value={building} onChange={(e) => handleBuildingChange(e.target.value)} className={inputCls}>
+                        <option value="">Tất cả tòa nhà</option>
+                        {buildingOptions.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
                 </div>
                 <div className="space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tầng</label>
-                    <input type="text" value={floor} onChange={(e) => setFloor(e.target.value)} placeholder="VD: 1" className={`${inputCls} w-20`} />
+                    <select value={floor} onChange={(e) => setFloor(e.target.value)} className={inputCls}>
+                        <option value="">Tất cả tầng</option>
+                        {floorOptions.map((f) => <option key={f} value={f}>Tầng {f}</option>)}
+                    </select>
                 </div>
             </div>
 

@@ -1,5 +1,6 @@
 import { Camera, Plus, RefreshCw, Search, Trash2, X, Edit2, AlertTriangle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import toast from '../../utils/toast';
 import { getDevices } from '../../service/sysAdminServices';
 import {
@@ -21,8 +22,9 @@ const StatusBadge = ({ status }) => {
 
 const list = (res) => (Array.isArray(res?.data) ? res.data : res?.data?.items || []);
 
-const Modal = ({ title, onClose, children }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+// Portal ra body: nếu render trong khối space-y-* thì overlay bị cộng margin-top (lộ dải trắng trên cùng).
+const Modal = ({ title, onClose, children }) => createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
         <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-midnight-indigo">{title}</h3>
@@ -30,20 +32,29 @@ const Modal = ({ title, onClose, children }) => (
             </div>
             {children}
         </div>
-    </div>
+    </div>,
+    document.body
 );
 
 const GroupForm = ({ initial, onSubmit, onCancel, busy }) => {
     const [code, setCode] = useState(initial?.group_code || '');
     const [name, setName] = useState(initial?.group_name || '');
     const [desc, setDesc] = useState(initial?.description || '');
-    const valid = (initial || /^[A-Za-z0-9_-]{2,50}$/.test(code)) && name.trim();
+    // Khớp rule BE (CreateCameraGroupDto.groupCode); chỉ báo lỗi khi đã nhập để form mới mở không đỏ sẵn.
+    const codeError = !initial && code
+        ? (code.length < 2 || code.length > 50 ? 'Mã nhóm phải từ 2 đến 50 ký tự'
+            : !/^[A-Za-z0-9_-]+$/.test(code) ? 'Mã nhóm chỉ gồm chữ không dấu, số, "_" hoặc "-" (không có dấu cách)' : '')
+        : '';
+    const valid = (initial || (code && !codeError)) && name.trim();
     return (
         <form onSubmit={(e) => { e.preventDefault(); onSubmit({ code, name: name.trim(), desc }); }} className="space-y-3">
             <label className="block text-xs font-bold text-slate-blue uppercase">Mã nhóm
-                <input value={code} onChange={(e) => setCode(e.target.value)} disabled={!!initial} placeholder="VD: TOA-A"
-                    className="mt-1 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-normal disabled:bg-slate-50" />
-                {!initial && <span className="text-[11px] normal-case font-normal text-slate-500">Chữ, số, "_" hoặc "-" (2–50 ký tự), không đổi được sau khi tạo.</span>}
+                <input value={code} onChange={(e) => setCode(e.target.value)} disabled={!!initial} placeholder="VD: TOA-A" maxLength={50}
+                    aria-invalid={!!codeError}
+                    className={`mt-1 w-full px-3 py-2 border rounded-xl text-sm font-normal disabled:bg-slate-50 ${codeError ? '!border-red-500' : 'border-platinum-tint'}`} />
+                {codeError
+                    ? <span role="alert" className="text-[11px] normal-case font-normal text-red-600">{codeError}</span>
+                    : !initial && <span className="text-[11px] normal-case font-normal text-slate-500">Chữ, số, "_" hoặc "-" (2–50 ký tự), không đổi được sau khi tạo.</span>}
             </label>
             <label className="block text-xs font-bold text-slate-blue uppercase">Tên nhóm
                 <input value={name} onChange={(e) => setName(e.target.value)} maxLength={150} placeholder="VD: Camera tòa A"

@@ -733,7 +733,7 @@ const RoomAccessLogs = () => {
                             <ShieldAlert className="w-3.5 h-3.5" /> An ninh
                         </span>
                     </div>
-                    <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Kiểm soát ra vào cổng</h1>
+                    <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Nhật ký ra/vào phòng</h1>
                     <p className="text-slate-blue text-sm mt-1">Đối soát an ninh ra/vào dựa trên API camera nhận diện khuôn mặt</p>
                 </div>
                 <div className="self-start flex flex-col items-end gap-1">
