@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Activity, BookOpen, CalendarDays, ChevronDown, KeyRound, LogOut, Menu, User, UserCheck, X } from 'lucide-react';
+import { Activity, BookOpen, CalendarDays, ChevronDown, KeyRound, LogOut, Film, Menu, ScanFace, User, UserCheck, X } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import { getCurrentUser, logout } from '../../service/authService';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -67,8 +67,12 @@ const LearningLayout = ({ role = 'teacher' }) => {
     const navItems = [
         { label: 'Trang chủ', to: basePath, end: true, icon: BookOpen },
         { label: role === 'student' ? 'Chuyên cần' : 'Điểm danh lớp', to: `${basePath}/attendance`, icon: UserCheck },
-        ...(role === 'teacher' ? [{ label: 'Bảng chuyên cần', to: `${basePath}/attendance-report`, icon: Activity }] : []),
-        { label: 'Lịch học', to: `${basePath}/schedule`, icon: CalendarDays }
+        ...(role === 'teacher' ? [
+            { label: 'Bảng chuyên cần', to: `${basePath}/attendance-report`, icon: Activity },
+            { label: 'Ghi hình', to: `${basePath}/recordings`, icon: Film },
+        ] : []),
+        { label: 'Lịch học', to: `${basePath}/schedule`, icon: CalendarDays },
+        { label: 'Đăng ký khuôn mặt', to: `${basePath}/face-register`, icon: ScanFace }
     ];
     const displayName = currentUser?.fullName || currentUser?.full_name || displayRole;
 
@@ -105,7 +109,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
                                     <p className="text-sm font-semibold text-midnight-indigo leading-tight">{displayName}</p>
                                     <p className="text-xs text-slate-blue leading-tight">{displayRole}</p>
                                 </div>
-                                <UserAvatar user={currentUser} size="md" />
+                                <UserAvatar user={currentUser} className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20" />
                                 <ChevronDown className={`w-4 h-4 text-slate-blue transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {isProfileMenuOpen && (

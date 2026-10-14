@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { getMySchedule } from '../../service/employeeServices';
 import { isForbiddenError } from '../../utils/permissionUtils';
+import MyMeetingAttendance from './MyMeetingAttendance';
 
 const STATUS_CONFIG = {
     draft: { label: 'Bản nháp', bg: 'bg-slate-50 text-slate-600 border-slate-200', dot: 'bg-slate-400', icon: Clock },
@@ -25,6 +26,7 @@ const getEffectiveStatus = (meeting, nowTs = Date.now()) => {
 
 const PersonalCalendar = () => {
     const navigate = useNavigate();
+    const [tab, setTab] = useState('calendar'); // 'calendar' | 'attendance'
     const [viewMode, setViewMode] = useState('month'); // 'month' | 'week'
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -211,8 +213,33 @@ const PersonalCalendar = () => {
     // Week time slots hours definition (08:00 to 18:00)
     const hours = Array.from({ length: 11 }, (_, i) => 8 + i);
 
+    const tabBar = (
+        <div className="flex items-center bg-white p-1 rounded-xl border border-platinum-tint shadow-sm w-fit">
+            {[['calendar', 'Lịch'], ['attendance', 'Lịch sử tham dự']].map(([key, label]) => (
+                <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTab(key)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === key ? 'bg-action-blue text-white shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
+                >
+                    {label}
+                </button>
+            ))}
+        </div>
+    );
+
+    if (tab === 'attendance') {
+        return (
+            <div className="space-y-6">
+                {tabBar}
+                <MyMeetingAttendance />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
+            {tabBar}
             {/* Header section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>

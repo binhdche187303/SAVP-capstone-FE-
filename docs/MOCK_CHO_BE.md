@@ -54,3 +54,11 @@ _Chưa làm — ghi chú sẽ bổ sung khi triển khai từng mục._
 
 Ghi chú liên quan: `liveness_check`, `mask_support`, `low_light` (2.2.6) đã lưu BE trong `ai_config`, sẽ được dùng
 lại cho 2.3.6 và 2.3.7.
+
+---
+
+## Ghi hình & biên bản buổi học (TEACHER) — mockup
+
+| Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
+|---|---|---|
+| Ghi hình + biên bản AI cho **cuộc họp** (`recording_sessions.meeting_id` NOT NULL). | `/teacher/recordings` (`pages/classroom/TeacherRecordings.jsx`): danh sách buổi đã dạy suy từ `mockClassrooms`, mọi buổi "Chưa có ghi hình / Chưa có biên bản". | Liên kết buổi học với ghi hình: hoặc `class_sessions.meeting_id` (mỗi buổi 1 meeting ẩn → tái dùng ghi hình/biên bản), hoặc `recording_sessions.class_session_id` + `meeting_id` nullable. API `GET /teacher/class-sessions/:id/recordings` (chỉ giảng viên của lớp). FE thay mock bằng API + dùng lại player của `employee/Recordings.jsx`. |
