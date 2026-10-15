@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, CalendarDays, Download, Filter, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { exportSemesterClassAttendanceCsv, fetchClassAttendanceClasses, fetchTeacherClassAttendanceReport, getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
@@ -151,6 +151,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const [rangeMode, setRangeMode] = useState('month');
     const [anchorDate, setAnchorDate] = useState(() => todayKey());
     const [dateText, setDateText] = useState(() => formatDateKey(todayKey()));
+    const datePickerRef = useRef(null);
     useEffect(() => {
         setCurrentUser(getStoredUser());
     }, []);
@@ -261,6 +262,20 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
         if (parsedDate) setAnchorDate(parsedDate);
     };
 
+    const handleDatePick = (event) => {
+        const nextKey = event.target.value;
+        if (!nextKey) return;
+        setAnchorDate(nextKey);
+        setDateText(formatDateKey(nextKey));
+    };
+
+    const openDatePicker = () => {
+        const input = datePickerRef.current;
+        if (!input) return;
+        if (typeof input.showPicker === 'function') input.showPicker();
+        else input.click();
+    };
+
     const normalizeDateText = () => {
         const parsedDate = parseDisplayDate(dateText);
         setDateText(formatDateKey(parsedDate || anchorDate));
@@ -353,7 +368,23 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                             className="w-full pl-9 pr-9 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20 placeholder:text-steel-gray"
                         />
                         <Filter className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
-                        <CalendarDays className="w-4 h-4 text-slate-blue absolute right-3 top-2.5" />
+                        <button
+                            type="button"
+                            onClick={openDatePicker}
+                            title="Chọn ngày"
+                            className="absolute right-2 top-1.5 p-1 rounded-md text-slate-blue hover:text-action-blue hover:bg-cloud-mist"
+                        >
+                            <CalendarDays className="w-4 h-4" />
+                        </button>
+                        <input
+                            ref={datePickerRef}
+                            type="date"
+                            value={anchorDate}
+                            onChange={handleDatePick}
+                            tabIndex={-1}
+                            aria-hidden="true"
+                            className="absolute right-2 bottom-0 w-0 h-0 opacity-0 pointer-events-none"
+                        />
                     </div>
                 </div>
 

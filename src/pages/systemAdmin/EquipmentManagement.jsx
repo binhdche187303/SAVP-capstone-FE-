@@ -1070,6 +1070,12 @@ const EquipmentManagement = () => {
                                                 <p className="text-sm text-midnight-indigo mt-1.5">
                                                     <span className="font-semibold">{item.actorName || 'Không rõ người thực hiện'}</span>
                                                 </p>
+                                                {item.location && (
+                                                    <p className="text-xs text-midnight-indigo mt-1 flex items-center gap-1">
+                                                        <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-blue" />
+                                                        {[item.location.roomName, item.location.areaName, item.location.siteName].filter(Boolean).join(' • ')}
+                                                    </p>
+                                                )}
                                                 {item.note && (
                                                     <p className="text-xs text-slate-blue mt-1 whitespace-pre-wrap">{item.note}</p>
                                                 )}

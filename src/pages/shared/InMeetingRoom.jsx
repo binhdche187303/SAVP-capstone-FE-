@@ -1327,7 +1327,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                     return next;
                 });
                 showToast(isAuto ? 'Cuộc họp đã hết giờ và được tự động kết thúc.' : 'Cuộc họp đã kết thúc', 'info');
-                setTimeout(() => navigate(isPublic ? '/' : '/employee'), 1200);
+                setTimeout(() => navigate(isPublic ? '/' : `/${window.location.pathname.split('/')[1]}`), 1200);
             } else {
                 autoEndMeetingTriggeredRef.current = false;
                 showToast(res?.message || res?.error?.message || 'Lỗi khi kết thúc', 'error');
@@ -1778,7 +1778,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
     const handleLeaveRoom = () => {
         // Nếu cuộc họp đã kết thúc thì không cần hỏi xác nhận, navigate thẳng
         if (meetingState.status === 'completed') {
-            navigate(isPublic ? '/' : '/employee');
+            navigate(isPublic ? '/' : `/${window.location.pathname.split('/')[1]}`);
             return;
         }
         setConfirmLeaveModal(true);
@@ -1790,7 +1790,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
             localStorage.setItem(`meeting_state_${id}`, JSON.stringify(next));
             return next;
         });
-        navigate(isPublic ? '/' : '/employee');
+        navigate(isPublic ? '/' : `/${window.location.pathname.split('/')[1]}`);
     };
 
     // ─── Computed ─────────────────────────────────────────────────────

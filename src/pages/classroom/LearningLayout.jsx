@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Activity, BookOpen, CalendarDays, ChevronDown, KeyRound, LogOut, Film, Menu, ScanFace, User, UserCheck, X } from 'lucide-react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Activity, BookOpen, Calendar, CalendarDays, ChevronDown, FileCheck, FileText, GraduationCap, KeyRound, LogOut, Film, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, Users, X } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import { getCurrentUser, logout } from '../../service/authService';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -10,6 +10,8 @@ import ChangePasswordModal from '../../components/auth/ChangePasswordModal';
 
 const LearningLayout = ({ role = 'teacher' }) => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const [openDropdown, setOpenDropdown] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -64,16 +66,41 @@ const LearningLayout = ({ role = 'teacher' }) => {
         setIsChangePasswordOpen(true);
     }, []);
 
-    const navItems = [
+    // Giảng viên là cán bộ: ngoài giảng dạy còn họp, báo hỏng thiết bị, đón khách như Nhân viên.
+    const navItems = role === 'teacher' ? [
         { label: 'Trang chủ', to: basePath, end: true, icon: BookOpen },
-        { label: role === 'student' ? 'Chuyên cần' : 'Điểm danh lớp', to: `${basePath}/attendance`, icon: UserCheck },
-        ...(role === 'teacher' ? [
-            { label: 'Bảng chuyên cần', to: `${basePath}/attendance-report`, icon: Activity },
-            { label: 'Ghi hình', to: `${basePath}/recordings`, icon: Film },
-        ] : []),
-        { label: role === 'teacher' ? 'Lịch dạy' : 'Lịch học', to: `${basePath}/schedule`, icon: CalendarDays },
-        { label: 'Đăng ký khuôn mặt', to: `${basePath}/face-register`, icon: ScanFace }
+        {
+            label: 'Giảng dạy',
+            icon: GraduationCap,
+            children: [
+                { label: 'Điểm danh lớp', to: `${basePath}/attendance`, icon: UserCheck },
+                { label: 'Bảng chuyên cần', to: `${basePath}/attendance-report`, icon: Activity },
+                { label: 'Lịch dạy', to: `${basePath}/schedule`, icon: CalendarDays },
+                { label: 'Ghi hình', to: `${basePath}/recordings`, icon: Film },
+            ],
+        },
+        {
+            label: 'Cuộc họp',
+            icon: Calendar,
+            children: [
+                { label: 'Lịch cá nhân', to: `${basePath}/my-schedule`, icon: Calendar },
+                { label: 'Đăng ký họp', to: `${basePath}/book`, icon: PlusCircle },
+                { label: 'Kho biên bản', to: `${basePath}/minutes`, icon: FileCheck },
+                { label: 'Tài liệu họp', to: `${basePath}/meeting-documents`, icon: FileText },
+            ],
+        },
+        { label: 'Báo hỏng thiết bị', to: `${basePath}/equipments`, icon: Monitor },
+        { label: 'Khách của tôi', to: `${basePath}/my-visitors`, icon: Users },
+        { label: 'Đăng ký khuôn mặt', to: `${basePath}/face-register`, icon: ScanFace },
+    ] : [
+        { label: 'Trang chủ', to: basePath, end: true, icon: BookOpen },
+        { label: 'Chuyên cần', to: `${basePath}/attendance`, icon: UserCheck },
+        { label: 'Lịch học', to: `${basePath}/schedule`, icon: CalendarDays },
+        { label: 'Đăng ký khuôn mặt', to: `${basePath}/face-register`, icon: ScanFace },
     ];
+    const isGroupActive = (item) => item.children.some(c => location.pathname.startsWith(c.to));
+    const navLinkClass = ({ isActive }) => `px-3 py-2 rounded-xl text-sm no-underline flex items-center gap-2 whitespace-nowrap shrink-0 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`;
+    const mobileLinkClass = ({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive ? 'text-action-blue bg-blue-50 font-bold' : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist'}`;
     const displayName = currentUser?.fullName || currentUser?.full_name || displayRole;
 
     return (
@@ -87,15 +114,42 @@ const LearningLayout = ({ role = 'teacher' }) => {
                             </div>
                             <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden xl:block">SmarTracking</span>
                         </NavLink>
-                        <nav className="hidden md:flex items-center gap-1 min-w-0 flex-nowrap">
-                            {navItems.map(item => (
-                                <NavLink
-                                    key={item.to}
-                                    to={item.to}
-                                    end={item.end}
-                                    className={({ isActive }) => `px-2.5 xl:px-3.5 py-2 rounded-xl text-xs xl:text-sm no-underline flex items-center gap-1.5 xl:gap-2 whitespace-nowrap shrink-0 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`}
+                        <nav className="hidden xl:flex items-center gap-0.5 flex-nowrap">
+                            {navItems.map(item => item.children ? (
+                                <div
+                                    key={item.label}
+                                    className="relative shrink-0"
+                                    onMouseEnter={() => setOpenDropdown(item.label)}
+                                    onMouseLeave={() => setOpenDropdown(null)}
                                 >
-                                    <item.icon className="w-4 h-4 shrink-0" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpenDropdown(v => (v === item.label ? null : item.label))}
+                                        className={navLinkClass({ isActive: isGroupActive(item) })}
+                                    >
+                                        {item.label}
+                                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openDropdown === item.label ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {openDropdown === item.label && (
+                                        <div className="absolute top-full left-0 pt-1 z-50 min-w-max">
+                                            <div className="bg-white border border-platinum-tint/80 rounded-2xl shadow-xl p-2.5 flex flex-col gap-1 min-w-[190px]">
+                                                {item.children.map(child => (
+                                                    <NavLink
+                                                        key={child.to}
+                                                        to={child.to}
+                                                        onClick={() => setOpenDropdown(null)}
+                                                        className={({ isActive }) => `flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium no-underline whitespace-nowrap ${isActive ? 'text-action-blue bg-blue-50/70 font-bold' : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/60'}`}
+                                                    >
+                                                        <child.icon className="w-4 h-4 shrink-0 text-slate-400" />
+                                                        {child.label}
+                                                    </NavLink>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
                                     {item.label}
                                 </NavLink>
                             ))}
@@ -105,7 +159,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
                         <NotificationBell basePath={basePath} />
                         <div className="relative" ref={profileMenuRef}>
                             <button type="button" onClick={() => setIsProfileMenuOpen(v => !v)} className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-cloud-mist">
-                                <div className="text-right hidden sm:block max-w-[150px] lg:max-w-[190px]">
+                                <div className="text-right hidden sm:block xl:hidden max-w-[150px] lg:max-w-[190px]">
                                     <p className="text-sm font-semibold text-midnight-indigo leading-tight truncate">{displayName}</p>
                                     <p className="text-xs text-slate-blue leading-tight">{displayRole}</p>
                                 </div>
@@ -132,18 +186,28 @@ const LearningLayout = ({ role = 'teacher' }) => {
                                 </div>
                             )}
                         </div>
-                        <button type="button" onClick={() => setIsMobileMenuOpen(v => !v)} className="md:hidden flex items-center justify-center p-2 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist">
+                        <button type="button" onClick={() => setIsMobileMenuOpen(v => !v)} className="xl:hidden flex items-center justify-center p-2 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist">
                             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
                     </div>
                 </div>
             </header>
-            <div className={`md:hidden fixed inset-0 z-40 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`xl:hidden fixed inset-0 z-40 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <div className="absolute inset-0 bg-midnight-indigo/20 backdrop-blur-sm learning-mobile-overlay" />
                 <div className={`absolute top-16 right-0 bottom-0 w-64 bg-white shadow-xl transition-transform duration-300 ease-in-out transform ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto`}>
                     <div className="p-4 flex flex-col gap-2">
-                        {navItems.map(item => (
-                            <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive ? 'text-action-blue bg-blue-50 font-bold' : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist'}`}>
+                        {navItems.map(item => item.children ? (
+                            <div key={item.label} className="flex flex-col gap-1">
+                                <p className="px-3 pt-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">{item.label}</p>
+                                {item.children.map(child => (
+                                    <NavLink key={child.to} to={child.to} onClick={() => setIsMobileMenuOpen(false)} className={mobileLinkClass}>
+                                        <child.icon className="w-4 h-4 text-slate-400" />
+                                        <span>{child.label}</span>
+                                    </NavLink>
+                                ))}
+                            </div>
+                        ) : (
+                            <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setIsMobileMenuOpen(false)} className={mobileLinkClass}>
                                 <item.icon className="w-4 h-4 text-slate-400" />
                                 <span>{item.label}</span>
                             </NavLink>

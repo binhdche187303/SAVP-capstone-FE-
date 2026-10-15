@@ -1,7 +1,7 @@
 import {
-    Activity, AlertCircle, ArrowLeft, Calendar, CheckCircle,
+    AlertCircle, ArrowLeft, Calendar, CheckCircle,
     ChevronLeft, ChevronRight, Clock, DoorOpen, Edit2, Eye,
-    Home, List, MapPin, Mic, Monitor, Plus, RefreshCw,
+    Home, MapPin, Mic, Monitor, Plus, RefreshCw,
     Trash2, Users, Video, Wrench, X
 } from 'lucide-react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -18,8 +18,6 @@ import {
     getRoomDetail,
     updateRoomAdministrativeStatus
 } from '../../service/businessAdminServices';
-
-import RealtimeRoomMonitor from '../../components/security/RealtimeRoomMonitor';
 
 const ROOM_TYPE_LABELS = {
     meeting_room: 'Phòng họp',
@@ -122,7 +120,6 @@ const sanitizeRoomCode = (raw) => {
 };
 
 const RoomManagement = ({ readOnly = false }) => {
-    const [viewMode, setViewMode] = useState('list');
     const [roomsList, setRoomsList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -422,26 +419,6 @@ const RoomManagement = ({ readOnly = false }) => {
                 </div>
             )}
 
-            {/* Tabs */}
-            {!readOnly && (
-                <div className="flex flex-wrap bg-cloud-mist/50 p-1 rounded-xl w-fit gap-0.5">
-                    {[
-                        { key: 'list', label: 'Danh sách phòng', Icon: List, active: 'text-action-blue' },
-                        { key: 'realtime', label: 'Giám sát trực tuyến', Icon: Activity, active: 'text-action-blue' },
-                    ].map(({ key, label, Icon, active }) => (
-                        <button
-                            key={key}
-                            onClick={() => setViewMode(key)}
-                            className={`px-4 py-2 text-sm font-bold rounded-lg flex items-center gap-2 transition-colors ${viewMode === key ? `bg-white shadow-sm ${active}` : 'text-slate-blue hover:text-midnight-indigo'
-                                }`}
-                        >
-                            <Icon className="w-4 h-4" /> {label}
-                        </button>
-                    ))}
-                </div>
-            )}
-
-            {(readOnly || viewMode === 'list') ? (
                 <>
                     {/* Filters */}
                     <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1 flex flex-col sm:flex-row gap-3">
@@ -630,9 +607,6 @@ const RoomManagement = ({ readOnly = false }) => {
                         )}
                     </div>
                 </>
-            ) : (
-                <RealtimeRoomMonitor />
-            )}
 
             {/* Add/Edit Modal */}
             {isModalOpen && createPortal(

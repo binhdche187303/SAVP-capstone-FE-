@@ -6,7 +6,7 @@ import {
     Tooltip, ResponsiveContainer, BarChart, Bar, Cell,
     PieChart, Pie, Legend
 } from 'recharts';
-import { getRoomAnalytics, getNoShowStats, getRoomUtilizationRate } from '../../service/businessAdminServices';
+import { getRoomAnalytics, getNoShowStats, getRoomUtilizationRate, getRooms } from '../../service/businessAdminServices';
 import { get } from '../../utils/request';
 import ExportReportModal from '../../components/common/ExportReportModal';
 
@@ -47,6 +47,18 @@ const RoomUsageAnalytics = () => {
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
     const [siteName, setSiteName] = useState('');
+    const [siteOptions, setSiteOptions] = useState([]);
+
+    // Danh sach toa nha lay tu danh sach phong (BE chua co API rieng cho toa nha).
+    useEffect(() => {
+        getRooms({ limit: 100 })
+            .then((res) => {
+                if (!res?.success) return;
+                const sites = [...new Set((res.data || []).map((r) => r.siteName).filter(Boolean))];
+                setSiteOptions(sites.sort((a, b) => a.localeCompare(b, 'vi')));
+            })
+            .catch(() => {});
+    }, []);
 
     const fetchAll = useCallback(async () => {
         if (preset === 'custom' && (!from || !to)) return;
@@ -175,13 +187,16 @@ const RoomUsageAnalytics = () => {
                 )}
                 <div className="space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tòa nhà</label>
-                    <input
-                        type="text"
+                    <select
                         value={siteName}
                         onChange={(e) => setSiteName(e.target.value)}
-                        placeholder="Nhập tên tòa nhà..."
                         className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo"
-                    />
+                    >
+                        <option value="">Tất cả tòa nhà</option>
+                        {siteOptions.map((site) => (
+                            <option key={site} value={site}>{site}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 

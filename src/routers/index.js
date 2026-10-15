@@ -576,6 +576,43 @@ export const router = [
             {
                 path: 'notifications',
                 element: <Notifications />
+            },
+            // Giảng viên dùng chung các trang cuộc họp / báo hỏng / khách với Nhân viên
+            {
+                path: 'book',
+                element: <BookMeeting />
+            },
+            {
+                path: 'my-schedule',
+                element: (
+                    <ProtectedRoute requiredPermission="schedule.read.self">
+                        <PersonalCalendar />
+                    </ProtectedRoute>
+                )
+            },
+            {
+                path: 'meeting/:id',
+                element: <EmployeeMeetingDetail />
+            },
+            {
+                path: 'in-meeting/:id',
+                element: <InMeetingRoom />
+            },
+            {
+                path: 'minutes',
+                element: <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"/></div>}><DocumentArchive scope="self" /></Suspense>
+            },
+            {
+                path: 'meeting-documents',
+                element: <EmployeeRecordings />
+            },
+            {
+                path: 'equipments',
+                element: <EmployeeEquipmentReport />
+            },
+            {
+                path: 'my-visitors',
+                element: <MyVisitors />
             }
         ]
     },

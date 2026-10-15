@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench, Monitor } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 
 import ReactDOM from 'react-dom';
@@ -58,6 +58,50 @@ const handleDateChangeRaw = (e) => {
     if (typeof rawVal === 'string' && /[a-zA-ZÀ-ỹ]/.test(rawVal)) {
         e.target.value = rawVal.replace(/[a-zA-ZÀ-ỹ]/g, '');
     }
+};
+
+const EQUIPMENT_TYPE_LABELS = {
+    camera: 'Camera',
+    microphone: 'Micro',
+    display: 'Màn hình',
+    speaker: 'Loa',
+    capture_agent: 'Thiết bị ghi',
+    sensor: 'Cảm biến',
+    other: 'Thiết bị khác',
+};
+
+// Thiết bị hỏng/mất kết nối của phòng (API rooms/available trả kèm) — hiện ngay
+// trên card để người đặt chọn phòng hợp nhu cầu, không phải đợi tới lúc bấm đặt.
+const hasFaultyType = (room, type) =>
+    (room.faultyEquipments || []).some(eq => eq.equipmentType === type);
+
+const RoomFaultNote = ({ room }) => {
+    const faults = room.faultyEquipments || [];
+    if (faults.length === 0) return null;
+    const text = faults
+        .map(eq => `${EQUIPMENT_TYPE_LABELS[eq.equipmentType] || eq.equipmentType} ${eq.healthStatus === 'offline' ? 'mất kết nối' : 'hỏng'}`)
+        .join(', ');
+    const detail = faults
+        .map(eq => `${eq.equipmentName}${eq.lastIssueNote ? `: ${eq.lastIssueNote}` : ''}`)
+        .join('; ');
+    return (
+        <p className="text-[10px] text-red-600 mt-1 flex items-center gap-1" title={detail}>
+            <Wrench className="w-3 h-3 shrink-0" />
+            <span className="line-clamp-1">Thiết bị lỗi: {text}</span>
+        </p>
+    );
+};
+
+const RoomEquipmentIcons = ({ room, showDisplay = true }) => {
+    const iconCls = (type) => `w-3.5 h-3.5 ${hasFaultyType(room, type) ? 'text-red-500' : ''}`;
+    const tip = (type, label) => (hasFaultyType(room, type) ? `${label} đang lỗi` : `Có ${label}`);
+    return (
+        <>
+            {(room.hasCamera || room.has_camera) && <Video className={iconCls('camera')} title={tip('camera', 'Camera')} />}
+            {(room.hasMicrophone || room.has_microphone) && <Mic className={iconCls('microphone')} title={tip('microphone', 'Mic')} />}
+            {showDisplay && (room.hasDisplay || room.has_display) && <Monitor className={iconCls('display')} title={tip('display', 'Màn hình')} />}
+        </>
+    );
 };
 
 const BookMeeting = () => {
@@ -166,6 +210,9 @@ const BookMeeting = () => {
     const [searchFocused, setSearchFocused] = useState(false);
     const [defaultSuggestions, setDefaultSuggestions] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
+    // Dong vua bam chon: tam tat hieu ung hover "Bo chon" (X do) cho den khi chuot roi khoi dong,
+    // tranh viec vua bam + da hien X do khien nguoi dung tuong la loi.
+    const [justToggledUserId, setJustToggledUserId] = useState(null);
     const [searchingUsers, setSearchingUsers] = useState(false);
     const searchRequestRef = useRef(0);
 
@@ -1023,6 +1070,7 @@ const BookMeeting = () => {
                 if (roles.includes('SYSTEM_ADMIN') || roles.includes('ADMIN')) homePath = '/system-admin';
                 else if (roles.includes('BUSINESS_ADMIN')) homePath = '/business-admin';
                 else if (roles.includes('MANAGER')) homePath = '/manager';
+                else if (roles.includes('TEACHER')) homePath = '/teacher';
             }
 
             // Clear form and reset
@@ -1155,6 +1203,7 @@ const BookMeeting = () => {
                 if (roles.includes('SYSTEM_ADMIN') || roles.includes('ADMIN')) homePath = '/system-admin';
                 else if (roles.includes('BUSINESS_ADMIN')) homePath = '/business-admin';
                 else if (roles.includes('MANAGER')) homePath = '/manager';
+                else if (roles.includes('TEACHER')) homePath = '/teacher';
             }
 
             // Clear form and reset
@@ -1396,14 +1445,13 @@ const BookMeeting = () => {
                                                                 {room.pendingConflicts.length} yêu cầu khác đang chờ duyệt cùng giờ
                                                             </p>
                                                         )}
+                                                        <RoomFaultNote room={room} />
                                                     </div>
 
                                                     {/* Facilities Icons */}
                                                     <div className="flex items-center justify-between border-t border-platinum-tint/40 pt-2.5 mt-2">
                                                         <div className="flex items-center gap-2.5 text-slate-blue/70">
-                                                            {(room.hasCamera || room.has_camera) && <Video className="w-3.5 h-3.5" title="Có Camera" />}
-                                                            {(room.hasMicrophone || room.has_microphone) && <Mic className="w-3.5 h-3.5" title="Có Mic" />}
-                                                            {(room.hasDisplay || room.has_display) && <Calendar className="w-3.5 h-3.5" title="Có Màn hình" />}
+                                                            <RoomEquipmentIcons room={room} />
                                                         </div>
                                                         <span className={`text-xs font-bold transition-colors ${isSelected ? 'text-action-blue' : 'text-slate-blue/60'}`}>
                                                             {isSelected ? 'Đã chọn' : 'Chọn phòng'}
@@ -1617,15 +1665,23 @@ const BookMeeting = () => {
                                                             {visibleSuggestions.map(user => {
                                                                 const deptCode = getUserDeptCode(user);
                                                                 const isSelected = selectedParticipantIds.includes(user.id);
+                                                                const showRemoveHover = isSelected && justToggledUserId !== user.id;
                                                                 return (
                                                                     <div
                                                                         key={user.id}
                                                                         onMouseDown={(e) => {
                                                                             e.preventDefault();
+                                                                            setJustToggledUserId(user.id);
                                                                             toggleParticipant(user.id);
+                                                                            // Dong dropdown de nguoi dung thay ngay nguoi vua them trong danh sach ben duoi
+                                                                            // (dropdown dang mo se che mat danh sach nay).
+                                                                            setSearchEmail('');
+                                                                            setSearchFocused(false);
+                                                                            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                                                                         }}
+                                                                        onMouseLeave={() => setJustToggledUserId(prev => (prev === user.id ? null : prev))}
                                                                         className={`p-3 cursor-pointer flex items-center justify-between transition-colors gap-3 min-w-0 group ${isSelected
-                                                                            ? 'bg-action-blue/[0.04] hover:bg-rose-50/50 border-l-2 border-action-blue'
+                                                                            ? `bg-action-blue/[0.04] ${showRemoveHover ? 'hover:bg-rose-50/50' : ''} border-l-2 border-action-blue`
                                                                             : 'hover:bg-action-blue/[0.03] border-l-2 border-transparent'
                                                                             }`}
                                                                     >
@@ -1663,10 +1719,16 @@ const BookMeeting = () => {
                                                                             </div>
                                                                         </div>
                                                                         {isSelected ? (
-                                                                            <div className="w-5 h-5 rounded-full bg-action-blue text-white border border-action-blue flex items-center justify-center transition-all duration-200 shrink-0 group-hover:bg-rose-600 group-hover:border-rose-600 shadow-sm" title="Bỏ chọn">
-                                                                                <Check className="w-3 h-3 block group-hover:hidden" />
-                                                                                <X className="w-3 h-3 hidden group-hover:block" />
-                                                                            </div>
+                                                                            showRemoveHover ? (
+                                                                                <div className="w-5 h-5 rounded-full bg-action-blue text-white border border-action-blue flex items-center justify-center transition-all duration-200 shrink-0 group-hover:bg-rose-600 group-hover:border-rose-600 shadow-sm" title="Bỏ chọn">
+                                                                                    <Check className="w-3 h-3 block group-hover:hidden" />
+                                                                                    <X className="w-3 h-3 hidden group-hover:block" />
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="w-5 h-5 rounded-full bg-action-blue text-white border border-action-blue flex items-center justify-center shrink-0 shadow-sm" title="Đã thêm">
+                                                                                    <Check className="w-3 h-3" />
+                                                                                </div>
+                                                                            )
                                                                         ) : (
                                                                             <Plus className="w-4 h-4 text-action-blue opacity-60 group-hover:opacity-100 shrink-0" title="Thêm vào danh sách" />
                                                                         )}
@@ -2190,12 +2252,12 @@ const BookMeeting = () => {
                                                             <p className="text-xs text-slate-blue mt-1 line-clamp-1">
                                                                 {room.siteName || room.site_name} • {room.areaName || room.area_name || 'Khu vực'}
                                                             </p>
+                                                            <RoomFaultNote room={room} />
                                                         </div>
 
                                                         <div className="flex items-center justify-between border-t border-platinum-tint/40 pt-2.5 mt-3">
                                                             <div className="flex items-center gap-2 text-slate-blue/60">
-                                                                {(room.hasCamera || room.has_camera) && <Video className="w-3.5 h-3.5" title="Có Camera" />}
-                                                                {(room.hasMicrophone || room.has_microphone) && <Mic className="w-3.5 h-3.5" title="Có Mic" />}
+                                                                <RoomEquipmentIcons room={room} showDisplay={false} />
                                                             </div>
                                                             <span className="text-[11px] font-bold text-action-blue group-hover:underline">
                                                                 Đổi sang phòng này

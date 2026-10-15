@@ -37,14 +37,21 @@ const STATIC_NAVIGATION_ITEMS = [
         icon: Home
     },
     {
-        label: 'Quản lý',
+        label: 'Cơ sở vật chất',
         isDropdown: true,
         icon: Layers,
         children: [
             { label: 'Phòng họp', to: '/business-admin/rooms', icon: Video },
+            { label: 'Trang thiết bị', to: '/business-admin/equipments', icon: Monitor },
+        ],
+    },
+    {
+        label: 'Nhân sự',
+        isDropdown: true,
+        icon: Users,
+        children: [
             { label: 'Người dùng', to: '/business-admin/users', icon: Users },
             { label: 'Phòng ban', to: '/business-admin/departments', icon: Briefcase },
-            { label: 'Trang thiết bị', to: '/business-admin/equipments', icon: Monitor },
             { label: 'Duyệt ảnh sinh trắc học', to: '/business-admin/biometric-submissions', icon: Fingerprint },
         ],
     },
@@ -59,6 +66,26 @@ const STATIC_NAVIGATION_ITEMS = [
         ],
     },
     {
+        label: 'Phân tích',
+        isDropdown: true,
+        icon: PieChart,
+        children: [
+            { label: 'Hiệu suất phòng họp', to: '/business-admin/room-analytics', icon: PieChart },
+            { label: 'Lưu lượng & Heatmap', to: '/business-admin/zone-traffic', icon: Flame },
+            { label: 'Bản đồ khuôn viên', to: '/business-admin/campus-map', icon: MapIcon },
+        ],
+    },
+    {
+        label: 'Chuyên cần',
+        isDropdown: true,
+        icon: Activity,
+        children: [
+            { label: 'Tỷ lệ đúng giờ', to: '/business-admin/attendance-analytics', icon: Clock },
+            { label: 'Chuyên cần phòng ban', to: '/business-admin/meeting-attendance', icon: Activity },
+            { label: 'Chuyên cần lớp học', to: '/business-admin/class-attendance', icon: GraduationCap },
+        ],
+    },
+    {
         label: 'Báo cáo',
         isDropdown: true,
         icon: BarChart2,
@@ -66,12 +93,6 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Trung tâm báo cáo', to: '/business-admin/reports', icon: FileBarChart },
             { label: 'Lịch gửi báo cáo', to: '/business-admin/report-schedules', end: true, icon: CalendarClock },
             { label: 'Lịch sử gửi', to: '/business-admin/report-schedules/runs', icon: History },
-            { label: 'Hiệu suất phòng họp', to: '/business-admin/room-analytics', icon: PieChart },
-            { label: 'Lưu lượng & Heatmap', to: '/business-admin/zone-traffic', icon: Flame },
-            { label: 'Bản đồ khuôn viên', to: '/business-admin/campus-map', icon: MapIcon },
-            { label: 'Tỷ lệ đúng giờ', to: '/business-admin/attendance-analytics', icon: Clock },
-            { label: 'Chuyên cần phòng ban', to: '/business-admin/meeting-attendance', icon: Activity },
-            { label: 'Chuyên cần lớp học', to: '/business-admin/class-attendance', icon: GraduationCap },
         ],
     },
 ];
