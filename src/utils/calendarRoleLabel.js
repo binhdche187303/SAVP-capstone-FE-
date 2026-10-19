@@ -14,3 +14,9 @@ export const getCalendarRoleLabel = (user) => {
     return null;
 };
 export const LEADERSHIP_TITLE_LABELS = LEADERSHIP_LABELS;
+
+/** BGH mang role MANAGER nhưng hiển thị là Ban Giám hiệu. */
+export const isSchoolLeader = (user) => !!user?.leadershipTitle;
+export const getLeaderRoleLabel = (user) => (
+    isSchoolLeader(user) ? `Ban Giám hiệu · ${LEADERSHIP_LABELS[user.leadershipTitle] || ''}`.replace(/ · $/, '') : null
+);

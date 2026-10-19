@@ -75,7 +75,7 @@ const ReportCenter = () => {
 
             {catalog && (
                 <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {catalog.map((item) => {
+                    {catalog.filter((item) => !item.outOfScope).map((item) => {
                         const Icon = getReportDefinition(item.type)?.icon || FileBarChart;
                         const unavailable = item.available === false;
                         const body = (

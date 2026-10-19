@@ -8,6 +8,7 @@ import UserAvatar from '../../../components/common/UserAvatar';
 import ChangePasswordModal from '../../../components/auth/ChangePasswordModal';
 import NotificationBell from '../../../components/common/NotificationBell';
 import { buildDynamicNavigation, filterStaticNavigation } from '../../../utils/buildDynamicNavigation';
+import { getLeaderRoleLabel, isSchoolLeader } from '../../../utils/calendarRoleLabel';
 
 
 const chunkArray = (arr, size) => {
@@ -123,7 +124,13 @@ const ManagerLayout = () => {
     const navRef = useRef(null);
     const navigate = useNavigate();
 
-    const navigationItems = [...filterStaticNavigation(STATIC_NAVIGATION_ITEMS), ...buildDynamicNavigation('manager')];
+    // BGH không thuộc đơn vị nào ⇒ không có yêu cầu họp để phê duyệt (P.HC duyệt lịch trường).
+    const hideForLeader = (items) => (isSchoolLeader(currentUser) && !currentUser?.departmentId
+        ? items.map((it) => (it.children
+            ? { ...it, children: it.children.filter((ch) => ch.to !== '/manager/meeting-approvals') }
+            : it))
+        : items);
+    const navigationItems = [...hideForLeader(filterStaticNavigation(STATIC_NAVIGATION_ITEMS)), ...buildDynamicNavigation('manager')];
 
     // Load user info from localStorage
     useEffect(() => {
@@ -142,7 +149,13 @@ const ManagerLayout = () => {
             if (Array.isArray(res?.data?.permissions)) {
                 const userStr = localStorage.getItem('user');
                 const user = userStr ? JSON.parse(userStr) : {};
-                const updatedUser = { ...user, permissions: res.data.permissions };
+                const updatedUser = {
+                    ...user,
+                    permissions: res.data.permissions,
+                    departmentId: res.data.departmentId ?? null,
+                    isUnitClerk: !!res.data.isUnitClerk,
+                    leadershipTitle: res.data.leadershipTitle ?? null,
+                };
                 localStorage.setItem('user', JSON.stringify(updatedUser));
                 setCurrentUser(updatedUser);
             }
@@ -194,6 +207,7 @@ const ManagerLayout = () => {
     }, []);
 
     const displayName = currentUser?.fullName || 'Trưởng phòng';
+    const displayRole = getLeaderRoleLabel(currentUser) || 'Trưởng đơn vị';
 
     return (
         <div className="min-h-screen flex flex-col bg-cloud-mist">
@@ -309,6 +323,15 @@ const ManagerLayout = () => {
                                 onClick={() => setIsProfileMenuOpen((prev) => !prev)}
                                 className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-cloud-mist transition-colors duration-200"
                             >
+                                <div className="hidden sm:flex flex-col items-end">
+                                    <span className="text-sm font-semibold text-midnight-indigo leading-tight">
+                                        {displayName}
+                                    </span>
+                                    <span className="text-xs text-slate-blue leading-tight">
+                                        {displayRole}
+                                    </span>
+                                </div>
+
                                 <UserAvatar
                                     user={currentUser}
                                     name={displayName}
