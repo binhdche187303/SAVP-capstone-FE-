@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench, Monitor, Bell } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench, Monitor, Bell, Mail, MessageSquare, Smartphone, Repeat, FileText, PenLine } from 'lucide-react';
 import RichTextEditor from '../../components/common/RichTextEditor';
 import { useState, useEffect, useMemo, useRef } from 'react';
 
@@ -106,6 +106,21 @@ const RoomEquipmentIcons = ({ room, showDisplay = true }) => {
     );
 };
 
+const REMINDER_CHANNELS = [
+    { key: 'in_app', label: 'Thông báo (web & app)', icon: Bell },
+    { key: 'message', label: 'Tin nhắn', icon: MessageSquare },
+    { key: 'email', label: 'Email', icon: Mail },
+    { key: 'sms', label: 'SMS', icon: Smartphone },
+];
+const REMINDER_UNIT_MINUTES = { minute: 1, hour: 60, day: 1440 };
+// Thứ theo ISO: 1 = Thứ 2 … 7 = Chủ nhật (khớp BE MeetingRecurrenceDto.daysOfWeek)
+const WEEKDAYS = [
+    { v: 1, label: 'T2' }, { v: 2, label: 'T3' }, { v: 3, label: 'T4' }, { v: 4, label: 'T5' },
+    { v: 5, label: 'T6' }, { v: 6, label: 'T7' }, { v: 7, label: 'CN' },
+];
+const isoWeekday = (d) => ((d.getDay() + 6) % 7) + 1;
+const formatViDate = (ymd) => ymd.split('-').reverse().join('/');
+
 const BookMeeting = () => {
     const navigate = useNavigate();
     const [currentUser, setCurrentUser] = useState(null);
@@ -142,7 +157,18 @@ const BookMeeting = () => {
     const [endTime, setEndTime] = useState(initialTimes.end);
     const [expectedAttendeeCount, setExpectedAttendeeCount] = useState('');
     const [attendanceEnabled, setAttendanceEnabled] = useState(true);
-    const [reminderMinutes, setReminderMinutes] = useState(10);
+    // Nhắc trước họp theo kênh: { enabled, value, unit } — unit: minute | hour | day
+    const [reminders, setReminders] = useState({
+        in_app: { enabled: true, value: 10, unit: 'minute' },
+        email: { enabled: false, value: 30, unit: 'minute' },
+        message: { enabled: false, value: 10, unit: 'minute' },
+        sms: { enabled: false, value: 10, unit: 'minute' },
+    });
+    // Lặp lại (UEL mục 16): type none | daily | weekly | monthly; kết thúc theo số lần hoặc ngày
+    const [recurrence, setRecurrence] = useState({ type: 'none', daysOfWeek: [], endMode: 'count', count: 4, endDate: '' });
+    // Yêu cầu nộp báo cáo trước họp (mục 12) và trình ký biên bản sau họp (mục 13)
+    const [reportReq, setReportReq] = useState({ enabled: false, userIds: [], value: 1, unit: 'day', note: '' });
+    const [signoffReq, setSignoffReq] = useState({ enabled: false, signerId: '' });
     const [capacityOverrideConfirmed, setCapacityOverrideConfirmed] = useState(false);
     const [recordingEnabled, setRecordingEnabled] = useState(false);
     const [audioRecordingEnabled, setAudioRecordingEnabled] = useState(false);
@@ -1009,7 +1035,12 @@ const BookMeeting = () => {
             meetingType,
             meetingMode,
             attendanceEnabled,
-            reminderMinutes,
+            reminders: Object.entries(reminders)
+                .filter(([, r]) => r.enabled)
+                .map(([channel, r]) => ({
+                    channel,
+                    minutes: Math.min(10080, Math.max(1, Number(r.value) || 1) * REMINDER_UNIT_MINUTES[r.unit]),
+                })),
             calendarType,
         };
         if (hostId) payload.hostId = hostId;
@@ -1018,6 +1049,24 @@ const BookMeeting = () => {
         if (expectedAttendeeCount) payload.expectedAttendeeCount = Number(expectedAttendeeCount);
         if (capacityExceeded && capacityOverrideConfirmed) payload.capacityOverrideConfirmed = true;
         if (selectedParticipantIds.length > 0) payload.participantUserIds = selectedParticipantIds;
+        if (recurrence.type !== 'none') {
+            payload.recurrence = {
+                type: recurrence.type,
+                ...(recurrence.type === 'weekly' ? { daysOfWeek: recurrence.daysOfWeek.length ? recurrence.daysOfWeek : [isoWeekday(startDate)] } : {}),
+                ...(recurrence.endMode === 'count' ? { count: Math.min(60, Math.max(2, Number(recurrence.count) || 2)) } : { endDate: recurrence.endDate }),
+            };
+        }
+        const memberIdSet = new Set(memberOptions.map(o => o.id));
+        if (reportReq.enabled) {
+            payload.reportRequirement = {
+                userIds: reportReq.userIds.filter(id => memberIdSet.has(id)),
+                deadlineMinutes: Math.max(0, Number(reportReq.value) || 0) * REMINDER_UNIT_MINUTES[reportReq.unit],
+                ...(reportReq.note.trim() ? { note: reportReq.note.trim() } : {}),
+            };
+        }
+        if (signoffReq.enabled) {
+            payload.signoff = memberIdSet.has(signoffReq.signerId) ? { signerId: signoffReq.signerId } : {};
+        }
 
         if (externalParticipants.length > 0) {
             payload.externalParticipants = externalParticipants.map(p => ({
@@ -1027,9 +1076,27 @@ const BookMeeting = () => {
             }));
         }
 
+        if (recurrence.type !== 'none' && recurrence.endMode === 'date' && !recurrence.endDate) {
+            toast.error('Vui lòng chọn ngày kết thúc lặp lại');
+            return;
+        }
+        if (reportReq.enabled && payload.reportRequirement.userIds.length === 0) {
+            toast.error('Vui lòng chọn người cần nộp báo cáo');
+            return;
+        }
+
         setSubmitting(true);
         try {
-            const res = await createMeeting(payload);
+            let res;
+            try {
+                res = await createMeeting(payload);
+            } catch (seriesErr) {
+                // Chuỗi lặp có ngày trùng phòng ⇒ hỏi bỏ qua các ngày đó rồi tạo phần còn lại.
+                const dates = seriesErr?.error?.code === 'RECURRENCE_ROOM_CONFLICT' ? seriesErr.error.details?.conflictDates || [] : null;
+                if (!dates || !window.confirm(`Phòng đã có lịch vào các ngày: ${dates.map(formatViDate).join(', ')}.\n\nBỏ qua các ngày này và tạo các buổi còn lại?`)) throw seriesErr;
+                payload.skipDates = dates;
+                res = await createMeeting(payload);
+            }
             if (!res?.success) {
                 const failure = new Error(res?.message || 'Tạo cuộc họp thất bại.');
                 failure.error = { message: res?.message || 'Tạo cuộc họp thất bại.' };
@@ -1082,6 +1149,10 @@ const BookMeeting = () => {
             }
 
             let msg = 'Đăng ký đặt phòng họp thành công! Yêu cầu của bạn đã được gửi tới Quản lý phê duyệt.';
+            const seriesCount = res.data?.series?.occurrences?.length;
+            if (seriesCount) {
+                msg = `Đã tạo chuỗi ${seriesCount} buổi họp lặp lại${payload.skipDates?.length ? ` (bỏ qua ${payload.skipDates.length} ngày trùng phòng)` : ''}.`;
+            }
             if (subWarnings.length > 0) {
                 msg += ` (Lưu ý: lưu ${subWarnings.join(', ')} thất bại, vui lòng cập nhật lại ở trang chi tiết cuộc họp.)`;
             }
@@ -1306,6 +1377,12 @@ const BookMeeting = () => {
             .filter(Boolean)
             .map(u => ({ id: u.id, label: u.fullName || u.full_name || u.email })),
     ];
+
+    // Thành viên (thành phần tham gia + chủ trì) — người nộp báo cáo / người ký duyệt phải thuộc nhóm này.
+    const memberOptions = [...new Set([...(hostId ? [hostId] : []), ...selectedParticipantIds])]
+        .map(id => usersById[id] || staff.find(u => u.id === id) || (id === currentUser?.id ? currentUser : null))
+        .filter(Boolean)
+        .map(u => ({ id: u.id, label: u.fullName || u.full_name || u.email }));
 
     if (loadingData) {
         return (
@@ -2267,32 +2344,245 @@ const BookMeeting = () => {
                                     </p>
                                 </div>
 
-                                {/* Nhắc trước họp — thông báo trong ứng dụng (web & app) tới thành viên */}
-                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-3">
+                                {/* Nhắc trước họp — mỗi kênh một mốc thời gian */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
                                     <div className="flex items-center gap-2">
                                         <Bell className="w-4 h-4 text-amber-500" />
                                         <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Nhắc trước cuộc họp</span>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {[0, 5, 10, 15, 30, 60].map(m => (
+                                    <div className="divide-y divide-cloud-mist border border-platinum-tint rounded-xl">
+                                        {REMINDER_CHANNELS.map(({ key, label, icon: Icon }) => {
+                                            const r = reminders[key];
+                                            const setR = (patch) => setReminders(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+                                            return (
+                                                <div key={key} className="flex items-center gap-3 px-4 py-2.5">
+                                                    <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={r.enabled}
+                                                            onChange={(e) => setR({ enabled: e.target.checked })}
+                                                            className="w-4 h-4 rounded border-slate-300 text-action-blue focus:ring-action-blue"
+                                                        />
+                                                        <Icon className={`w-4 h-4 ${r.enabled ? 'text-action-blue' : 'text-slate-400'}`} />
+                                                        <span className={`text-sm font-medium ${r.enabled ? 'text-midnight-indigo' : 'text-slate-blue'}`}>{label}</span>
+                                                    </label>
+                                                    <div className={`flex items-center gap-2 transition-opacity ${r.enabled ? '' : 'opacity-40 pointer-events-none'}`}>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            max={r.unit === 'day' ? 7 : r.unit === 'hour' ? 168 : 10080}
+                                                            value={r.value}
+                                                            disabled={!r.enabled}
+                                                            onChange={(e) => setR({ value: e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                                                            className="w-16 px-2 py-1.5 text-sm text-center border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue"
+                                                        />
+                                                        <select
+                                                            value={r.unit}
+                                                            disabled={!r.enabled}
+                                                            onChange={(e) => setR({ unit: e.target.value })}
+                                                            className="px-2 py-1.5 text-sm border border-platinum-tint rounded-lg bg-white focus:outline-none focus:border-action-blue"
+                                                        >
+                                                            <option value="minute">phút</option>
+                                                            <option value="hour">giờ</option>
+                                                            <option value="day">ngày</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {Object.values(reminders).some(r => r.enabled)
+                                            ? 'Thành viên nhận nhắc qua các kênh đã chọn trước giờ họp (sau khi lịch được duyệt). Tối đa 7 ngày.'
+                                            : 'Không gửi nhắc trước giờ họp.'}
+                                    </p>
+                                </div>
+
+                                {/* Lặp lại — mỗi buổi là một cuộc họp riêng (UEL mục 16) */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <Repeat className="w-4 h-4 text-violet-500" />
+                                        <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Lặp lại</span>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[['none', 'Không lặp'], ['daily', 'Hằng ngày'], ['weekly', 'Hằng tuần'], ['monthly', 'Hằng tháng']].map(([v, label]) => (
                                             <button
-                                                key={m}
+                                                key={v}
                                                 type="button"
-                                                onClick={() => setReminderMinutes(m)}
-                                                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
-                                                    reminderMinutes === m
-                                                        ? 'bg-action-blue text-white border-action-blue'
-                                                        : 'bg-white text-slate-blue border-platinum-tint hover:border-action-blue'
-                                                }`}
+                                                onClick={() => setRecurrence(prev => ({
+                                                    ...prev,
+                                                    type: v,
+                                                    daysOfWeek: v === 'weekly' && prev.daysOfWeek.length === 0 && startDate ? [isoWeekday(startDate)] : prev.daysOfWeek,
+                                                }))}
+                                                className={`px-2 py-2 text-xs font-semibold rounded-lg border transition-colors ${recurrence.type === v ? 'bg-action-blue text-white border-action-blue' : 'bg-white text-slate-blue border-platinum-tint hover:border-action-blue'}`}
                                             >
-                                                {m === 0 ? 'Không nhắc' : `${m} phút`}
+                                                {label}
                                             </button>
                                         ))}
                                     </div>
+                                    {recurrence.type === 'weekly' && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs text-slate-blue mr-1">Vào</span>
+                                            {WEEKDAYS.map(({ v, label }) => {
+                                                const on = recurrence.daysOfWeek.includes(v);
+                                                return (
+                                                    <button
+                                                        key={v}
+                                                        type="button"
+                                                        onClick={() => setRecurrence(prev => ({
+                                                            ...prev,
+                                                            daysOfWeek: on ? prev.daysOfWeek.filter(x => x !== v) : [...prev.daysOfWeek, v].sort(),
+                                                        }))}
+                                                        className={`w-9 h-9 text-xs font-semibold rounded-full border transition-colors ${on ? 'bg-violet-500 text-white border-violet-500' : 'bg-white text-slate-blue border-platinum-tint hover:border-violet-400'}`}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    {recurrence.type !== 'none' && (
+                                        <div className="space-y-2 text-sm text-midnight-indigo">
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input type="radio" checked={recurrence.endMode === 'count'} onChange={() => setRecurrence(prev => ({ ...prev, endMode: 'count' }))} className="text-action-blue focus:ring-action-blue" />
+                                                <span>Sau</span>
+                                                <input
+                                                    type="number"
+                                                    min={2}
+                                                    max={60}
+                                                    value={recurrence.count}
+                                                    disabled={recurrence.endMode !== 'count'}
+                                                    onChange={(e) => setRecurrence(prev => ({ ...prev, count: e.target.value === '' ? '' : Math.min(60, Math.max(1, parseInt(e.target.value, 10) || 2)) }))}
+                                                    className="w-16 px-2 py-1.5 text-sm text-center border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue disabled:opacity-40"
+                                                />
+                                                <span>buổi</span>
+                                            </label>
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input type="radio" checked={recurrence.endMode === 'date'} onChange={() => setRecurrence(prev => ({ ...prev, endMode: 'date' }))} className="text-action-blue focus:ring-action-blue" />
+                                                <span>Đến hết ngày</span>
+                                                <input
+                                                    type="date"
+                                                    value={recurrence.endDate}
+                                                    min={startStr || undefined}
+                                                    disabled={recurrence.endMode !== 'date'}
+                                                    onChange={(e) => setRecurrence(prev => ({ ...prev, endDate: e.target.value }))}
+                                                    className="px-2 py-1.5 text-sm border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue disabled:opacity-40"
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
                                     <p className="text-xs text-slate-blue leading-relaxed">
-                                        {reminderMinutes === 0
-                                            ? 'Không gửi nhắc trước giờ họp.'
-                                            : `Thành viên nhận thông báo trên web và app ${reminderMinutes} phút trước giờ họp (sau khi lịch được duyệt).`}
+                                        {recurrence.type === 'none'
+                                            ? 'Cuộc họp diễn ra một lần.'
+                                            : 'Mỗi buổi là một cuộc họp riêng (điểm danh, biên bản riêng), cùng phòng và giờ. Tối đa 60 buổi; ngày trùng phòng sẽ được hỏi để bỏ qua.'}
+                                    </p>
+                                </div>
+
+                                {/* Yêu cầu nộp báo cáo trước họp (UEL mục 12) */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
+                                    <label className="flex items-center justify-between cursor-pointer">
+                                        <span className="flex items-center gap-2">
+                                            <FileText className="w-4 h-4 text-emerald-600" />
+                                            <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Yêu cầu nộp báo cáo</span>
+                                        </span>
+                                        <input
+                                            type="checkbox"
+                                            checked={reportReq.enabled}
+                                            onChange={(e) => setReportReq(prev => ({ ...prev, enabled: e.target.checked }))}
+                                            className="w-4 h-4 rounded border-slate-300 text-action-blue focus:ring-action-blue"
+                                        />
+                                    </label>
+                                    {reportReq.enabled && (
+                                        <div className="space-y-3">
+                                            <div>
+                                                <div className="text-xs font-bold text-slate-blue uppercase mb-1.5">Người cần nộp</div>
+                                                {memberOptions.length === 0 ? (
+                                                    <p className="text-xs text-amber-600">Thêm thành phần tham gia trước để chọn người nộp.</p>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {memberOptions.map(o => {
+                                                            const on = reportReq.userIds.includes(o.id);
+                                                            return (
+                                                                <button
+                                                                    key={o.id}
+                                                                    type="button"
+                                                                    onClick={() => setReportReq(prev => ({ ...prev, userIds: on ? prev.userIds.filter(x => x !== o.id) : [...prev.userIds, o.id] }))}
+                                                                    className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${on ? 'bg-emerald-50 text-emerald-700 border-emerald-400' : 'bg-white text-slate-blue border-platinum-tint hover:border-emerald-400'}`}
+                                                                >
+                                                                    {on && <Check className="inline w-3 h-3 mr-1" />}{o.label}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm text-midnight-indigo">
+                                                <span>Hạn nộp: trước giờ họp</span>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    value={reportReq.value}
+                                                    onChange={(e) => setReportReq(prev => ({ ...prev, value: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                                                    className="w-16 px-2 py-1.5 text-sm text-center border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue"
+                                                />
+                                                <select
+                                                    value={reportReq.unit}
+                                                    onChange={(e) => setReportReq(prev => ({ ...prev, unit: e.target.value }))}
+                                                    className="px-2 py-1.5 text-sm border border-platinum-tint rounded-lg bg-white focus:outline-none focus:border-action-blue"
+                                                >
+                                                    <option value="minute">phút</option>
+                                                    <option value="hour">giờ</option>
+                                                    <option value="day">ngày</option>
+                                                </select>
+                                            </div>
+                                            <textarea
+                                                value={reportReq.note}
+                                                maxLength={1000}
+                                                rows={2}
+                                                onChange={(e) => setReportReq(prev => ({ ...prev, note: e.target.value }))}
+                                                placeholder="Nội dung cần báo cáo, VD: Tiến độ hạng mục phụ trách, số liệu đến hết tháng"
+                                                className="w-full px-3 py-2 text-sm border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue resize-none"
+                                            />
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {reportReq.enabled
+                                            ? 'Người được giao nhận thông báo, nộp file ở trang chi tiết cuộc họp; hệ thống nhắc người chưa nộp khi còn 1 ngày tới hạn.'
+                                            : 'Không yêu cầu nộp báo cáo trước họp.'}
+                                    </p>
+                                </div>
+
+                                {/* Trình ký biên bản sau họp (UEL mục 13) */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
+                                    <label className="flex items-center justify-between cursor-pointer">
+                                        <span className="flex items-center gap-2">
+                                            <PenLine className="w-4 h-4 text-rose-500" />
+                                            <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Trình ký biên bản</span>
+                                        </span>
+                                        <input
+                                            type="checkbox"
+                                            checked={signoffReq.enabled}
+                                            onChange={(e) => setSignoffReq(prev => ({ ...prev, enabled: e.target.checked }))}
+                                            className="w-4 h-4 rounded border-slate-300 text-action-blue focus:ring-action-blue"
+                                        />
+                                    </label>
+                                    {signoffReq.enabled && (
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Người ký duyệt</label>
+                                            <select
+                                                value={memberOptions.some(o => o.id === signoffReq.signerId) ? signoffReq.signerId : ''}
+                                                onChange={(e) => setSignoffReq(prev => ({ ...prev, signerId: e.target.value }))}
+                                                className="w-full px-3 py-2 text-sm border border-platinum-tint rounded-lg bg-white focus:outline-none focus:border-action-blue"
+                                            >
+                                                <option value="">Chủ trì cuộc họp (mặc định)</option>
+                                                {memberOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {signoffReq.enabled
+                                            ? 'Sau khi họp, thư ký trình biên bản cho người ký; biên bản chỉ được ban hành khi đã ký duyệt.'
+                                            : 'Biên bản được ban hành trực tiếp, không cần trình ký.'}
                                     </p>
                                 </div>
 

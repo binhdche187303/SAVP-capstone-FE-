@@ -852,7 +852,7 @@ const SystemSettings = () => {
                                         <svg className="w-5 h-5 text-action-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                         </svg>
-                                        Chính sách No-show (Vắng mặt)
+                                        Chính sách Vắng mặt
                                     </h2>
                                     <p className="text-xs text-slate-blue mt-1">Phát hiện vắng mặt → gửi cảnh báo (luôn tự động) → chờ phản hồi → nếu bật, tự động đổi trạng thái phòng.</p>
                                 </div>
@@ -861,7 +861,7 @@ const SystemSettings = () => {
                                     {/* Enable toggle */}
                                     <div className="p-4 bg-cloud-mist/50 border border-platinum-tint/70 rounded-xl flex flex-col justify-between h-full">
                                         <div>
-                                            <span className="block text-xs font-bold text-slate-blue uppercase">Xử lý No-show tự động</span>
+                                            <span className="block text-xs font-bold text-slate-blue uppercase">Xử lý vắng mặt tự động</span>
                                             <span className="text-xs text-steel-gray mt-1 block">Tự động thu hồi phòng nếu bỏ trống phòng khi đến giờ họp.</span>
                                         </div>
                                         <div className="flex items-center mt-3">
@@ -1240,7 +1240,7 @@ const SystemSettings = () => {
                             <div className="border-b border-platinum-tint/60 pb-3">
                                 <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
                                     <Camera className="w-5 h-5 text-action-blue" />
-                                    Cấu hình Camera & Cảm biến (IVSS)
+                                    Cấu hình Camera & Cảm biến
                                 </h2>
                                 <p className="text-xs text-slate-blue mt-1">Ánh xạ kênh camera vào phòng họp/khu vực theo vai trò và thiết lập ngưỡng thời gian vắng mặt.</p>
                             </div>

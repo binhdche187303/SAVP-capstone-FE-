@@ -8,6 +8,8 @@ import {
     getMyPenaltyReport,
     getUserPenaltyReport,
     getPenaltySummary,
+    getPenaltyMeetingSummary,
+    getPenaltyMeetingDetail,
 } from '../../service/managerServices';
 
 const CATEGORY_MAP = {
@@ -33,12 +35,30 @@ const monthRange = (offset = 0) => {
     return { from: ymd(first), to: ymd(last) };
 };
 const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('vi-VN') : '');
+const fmtTime = (s) => (s ? new Date(s).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '');
+const fmtDateTime = (s) => (s ? `${fmtTime(s)} ${fmtDate(s)}` : '');
+const categoryText = (i) => `${CATEGORY_MAP[i.category]?.label || i.category}${i.category === 'late' && i.lateMinutes ? ` (${i.lateMinutes}p)` : ''}`;
+const excuseText = (i) => (i.excuseStatus ? `${EXCUSE_MAP[i.excuseStatus]}${i.excuseReason ? `: ${i.excuseReason}` : ''}${i.excuseStatus === 'rejected' && i.excuseReviewNote ? ` (Từ chối: ${i.excuseReviewNote})` : ''}` : '');
+const writeBook = (rows, sheetName, fileName) => {
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), sheetName);
+    XLSX.writeFile(book, fileName);
+};
+const ExportButton = ({ onClick, disabled }) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+    >
+        <Download className="w-3.5 h-3.5" /> Xuất Excel
+    </button>
+);
 const fmtPoints = (p) => (p > 0 ? `+${p}` : `${p}`);
 const pointsCls = (p) => (p < 0 ? 'text-rose-600' : 'text-emerald-600');
 
-const SummaryCards = ({ s }) => {
+const SummaryCards = ({ s, label = 'Số buổi họp' }) => {
     const cards = [
-        { label: 'Số buổi họp', value: s.totalMeetings, icon: Users, cls: 'text-action-blue bg-blue-50' },
+        { label, value: s.totalMeetings, icon: Users, cls: 'text-action-blue bg-blue-50' },
         { label: 'Đi trễ', value: s.late, icon: Clock, cls: 'text-amber-600 bg-amber-50' },
         { label: 'Về sớm', value: s.leftEarly, icon: LogOut, cls: 'text-orange-600 bg-orange-50' },
         { label: 'Vắng mặt', value: s.absent, icon: XCircle, cls: 'text-rose-600 bg-rose-50' },
@@ -109,6 +129,54 @@ const MeetingRows = ({ items, basePath }) => (
     </div>
 );
 
+const ParticipantRows = ({ items }) => (
+    <div className="bg-white rounded-2xl border border-platinum-tint overflow-x-auto">
+        <table className="w-full text-sm">
+            <thead className="bg-cloud-mist/50 text-[10px] uppercase text-slate-blue font-bold">
+                <tr>
+                    <th className="px-4 py-3 text-left">Nhân sự</th>
+                    <th className="px-3 py-3 text-center">Giờ vào</th>
+                    <th className="px-3 py-3 text-center">Giờ ra</th>
+                    <th className="px-3 py-3 text-left">Tình trạng</th>
+                    <th className="px-3 py-3 text-left">Lý do / ghi chú</th>
+                    <th className="px-4 py-3 text-right">Điểm</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-platinum-tint">
+                {items.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-blue text-sm">Không có thành viên nào.</td></tr>
+                ) : items.map((i) => (
+                    <tr key={i.userId} className="hover:bg-cloud-mist/20">
+                        <td className="px-4 py-3">
+                            <p className="font-bold text-xs text-midnight-indigo">{i.fullName}</p>
+                            <p className="text-[10px] text-slate-blue">{[i.employeeCode, i.departmentName].filter(Boolean).join(' • ') || i.email}</p>
+                        </td>
+                        <td className="px-3 py-3 text-center text-xs">{fmtTime(i.checkInTime) || '--'}</td>
+                        <td className="px-3 py-3 text-center text-xs">{fmtTime(i.checkOutTime) || '--'}</td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${CATEGORY_MAP[i.category]?.cls || ''}`}>{categoryText(i)}</span>
+                        </td>
+                        <td className="px-3 py-3 text-[11px] text-slate-600 max-w-[280px]">
+                            {i.excuseStatus && (
+                                <>
+                                    <span className="font-bold">{EXCUSE_MAP[i.excuseStatus]}</span>
+                                    {i.excuseReason && <span className="block break-words">"{i.excuseReason}"</span>}
+                                    {i.excuseStatus === 'rejected' && i.excuseReviewNote && (
+                                        <span className="block text-rose-600 break-words">Từ chối: {i.excuseReviewNote}</span>
+                                    )}
+                                </>
+                            )}
+                            {i.note && <span className="block break-words text-slate-blue">Ghi chú: {i.note}</span>}
+                            {!i.excuseStatus && !i.note && '--'}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-black ${pointsCls(i.points)}`}>{fmtPoints(i.points)}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </div>
+);
+
 const AttendancePenaltyReport = () => {
     const location = useLocation();
     const basePath = '/' + (location.pathname.split('/')[1] || 'employee');
@@ -119,6 +187,8 @@ const AttendancePenaltyReport = () => {
     const [tab, setTab] = useState(isAdminArea ? 'summary' : 'me');
     const [mine, setMine] = useState(null);
     const [summary, setSummary] = useState(null);
+    const [meetingSummary, setMeetingSummary] = useState(null);
+    const [meetingDetail, setMeetingDetail] = useState(null);
     const [departmentId, setDepartmentId] = useState('');
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
@@ -139,8 +209,14 @@ const AttendancePenaltyReport = () => {
                 const res = await getMyPenaltyReport(range);
                 setMine(res?.data || null);
             } else {
-                const res = await getPenaltySummary({ ...range, departmentId: departmentId || undefined, search: search.trim() || undefined });
-                setSummary(res?.data || null);
+                const params = { ...range, departmentId: departmentId || undefined, search: search.trim() || undefined };
+                if (tab === 'meetings') {
+                    const res = await getPenaltyMeetingSummary(params);
+                    setMeetingSummary(res?.data || null);
+                } else {
+                    const res = await getPenaltySummary(params);
+                    setSummary(res?.data || null);
+                }
             }
         } catch (err) {
             setError(err?.message || 'Không tải được dữ liệu.');
@@ -163,6 +239,71 @@ const AttendancePenaltyReport = () => {
             setDetail(null);
             setError(err?.message || 'Không tải được chi tiết.');
         }
+    };
+
+    const openMeetingDetail = async (row) => {
+        setMeetingDetail({ loading: true, row });
+        try {
+            const res = await getPenaltyMeetingDetail(row.meetingId, { departmentId: departmentId || undefined });
+            setMeetingDetail({ row, data: res?.data });
+        } catch (err) {
+            setMeetingDetail(null);
+            setError(err?.message || 'Không tải được chi tiết.');
+        }
+    };
+
+    const exportMeetings = () => {
+        if (!meetingSummary?.rows?.length) return;
+        writeBook(meetingSummary.rows.map((r, idx) => ({
+            'STT': idx + 1,
+            'Mã cuộc họp': r.meetingCode || '',
+            'Cuộc họp': r.title,
+            'Ngày họp': fmtDate(r.startTime),
+            'Bắt đầu': fmtTime(r.startTime),
+            'Kết thúc': fmtTime(r.endTime),
+            'Phòng': r.roomName || '',
+            'Chủ trì': r.hostName || '',
+            'Số được mời': r.invited,
+            'Có mặt': r.present,
+            'Đi trễ': r.late,
+            'Về sớm': r.leftEarly,
+            'Vắng mặt': r.absent,
+            'Có lý do': r.excused,
+            'Lý do chờ duyệt': r.pendingExcuses,
+            'Tổng điểm trừ': r.totalPoints,
+        })), 'Theo cuoc hop', `bao-cao-diem-danh-theo-cuoc-hop_${range.from}_${range.to}.xlsx`);
+    };
+
+    const exportMeetingDetail = () => {
+        const d = meetingDetail?.data;
+        if (!d?.items?.length) return;
+        writeBook(d.items.map((i, idx) => ({
+            'STT': idx + 1,
+            'Họ tên': i.fullName,
+            'Mã CB': i.employeeCode || '',
+            'Email': i.email,
+            'Đơn vị': i.departmentName || '',
+            'Giờ vào': fmtDateTime(i.checkInTime),
+            'Giờ ra': fmtDateTime(i.checkOutTime),
+            'Tình trạng': categoryText(i),
+            'Lý do': excuseText(i),
+            'Ghi chú': i.note || '',
+            'Điểm': i.points,
+        })), 'Chi tiet', `diem-danh_${d.meeting.meetingCode || d.meeting.id}_${ymd(new Date(d.meeting.startTime))}.xlsx`);
+    };
+
+    const exportUserDetail = () => {
+        const d = detail?.data;
+        if (!d?.items?.length) return;
+        writeBook(d.items.map((i, idx) => ({
+            'STT': idx + 1,
+            'Ngày họp': fmtDate(i.startTime),
+            'Mã cuộc họp': i.meetingCode || '',
+            'Cuộc họp': i.title,
+            'Tình trạng': categoryText(i),
+            'Lý do': excuseText(i),
+            'Điểm': i.points,
+        })), 'Chi tiet', `diem-chuyen-can_${(detail.row.email || detail.row.userId).split('@')[0]}_${range.from}_${range.to}.xlsx`);
     };
 
     const exportExcel = () => {
@@ -190,7 +331,7 @@ const AttendancePenaltyReport = () => {
     const summaryTitle = scope === 'school' ? 'Tổng hợp toàn trường' : 'Tổng hợp đơn vị';
     const tabs = useMemo(() => [
         ...(!isAdminArea ? [{ id: 'me', label: 'Của tôi' }] : []),
-        ...(scope ? [{ id: 'summary', label: summaryTitle }] : []),
+        ...(scope ? [{ id: 'summary', label: `${summaryTitle} · theo nhân sự` }, { id: 'meetings', label: 'Theo cuộc họp' }] : []),
     ], [isAdminArea, scope, summaryTitle]);
 
     return (
@@ -320,7 +461,125 @@ const AttendancePenaltyReport = () => {
                 </div>
             )}
 
+            {tab === 'meetings' && scope && (
+                <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {scope === 'school' ? (
+                            <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="px-3 py-2 text-xs rounded-xl border border-platinum-tint bg-white">
+                                <option value="">Tất cả đơn vị</option>
+                                {meetingSummary?.departments?.map((d) => <option key={d.id} value={d.id}>{d.departmentName}</option>)}
+                            </select>
+                        ) : (
+                            <span className="px-3 py-2 text-xs font-bold rounded-xl bg-cloud-mist text-midnight-indigo">{meetingSummary?.departments?.[0]?.departmentName}</span>
+                        )}
+                        <div className="relative">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tên, mã cuộc họp" className="pl-8 pr-3 py-2 text-xs rounded-xl border border-platinum-tint w-56" />
+                        </div>
+                        <div className="ml-auto">
+                            <ExportButton onClick={exportMeetings} disabled={!meetingSummary?.rows?.length} />
+                        </div>
+                    </div>
+                    {scope === 'unit' && (
+                        <p className="text-[11px] text-slate-blue">Số liệu chỉ tính thành viên thuộc đơn vị của bạn.</p>
+                    )}
+
+                    {meetingSummary && (
+                        <div className="bg-white rounded-2xl border border-platinum-tint overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-cloud-mist/50 text-[10px] uppercase text-slate-blue font-bold">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left">Cuộc họp</th>
+                                        <th className="px-3 py-3 text-left">Thời gian</th>
+                                        <th className="px-3 py-3 text-center">Được mời</th>
+                                        <th className="px-3 py-3 text-center">Có mặt</th>
+                                        <th className="px-3 py-3 text-center">Đi trễ</th>
+                                        <th className="px-3 py-3 text-center">Về sớm</th>
+                                        <th className="px-3 py-3 text-center">Vắng</th>
+                                        <th className="px-3 py-3 text-center">Có lý do</th>
+                                        <th className="px-4 py-3 text-right">Tổng điểm</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-platinum-tint">
+                                    {meetingSummary.rows.length === 0 ? (
+                                        <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-blue text-sm">Không có cuộc họp nào có điểm danh trong khoảng thời gian này.</td></tr>
+                                    ) : meetingSummary.rows.map((r) => (
+                                        <tr key={r.meetingId} onClick={() => openMeetingDetail(r)} className="hover:bg-cloud-mist/30 cursor-pointer">
+                                            <td className="px-4 py-3">
+                                                <p className="font-bold text-xs text-midnight-indigo">{r.title}</p>
+                                                <p className="text-[10px] text-slate-blue">{[r.roomName, r.hostName && `Chủ trì: ${r.hostName}`].filter(Boolean).join(' • ')}</p>
+                                            </td>
+                                            <td className="px-3 py-3 whitespace-nowrap text-xs text-slate-600">
+                                                {fmtDate(r.startTime)}
+                                                <span className="block text-[10px] text-slate-blue">{fmtTime(r.startTime)}{r.endTime ? ` – ${fmtTime(r.endTime)}` : ''}</span>
+                                            </td>
+                                            <td className="px-3 py-3 text-center text-xs font-bold">{r.invited}</td>
+                                            <td className="px-3 py-3 text-center text-xs">{r.present}</td>
+                                            <td className="px-3 py-3 text-center text-xs text-amber-700">{r.late || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-xs text-orange-700">{r.leftEarly || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-xs text-rose-700">{r.absent || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-xs text-sky-700">
+                                                {r.excused || '-'}
+                                                {r.pendingExcuses > 0 && <span className="block text-[9px] text-amber-600">{r.pendingExcuses} chờ duyệt</span>}
+                                            </td>
+                                            <td className={`px-4 py-3 text-right font-black ${pointsCls(r.totalPoints)}`}>{fmtPoints(r.totalPoints)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                {meetingSummary.rows.length > 0 && (
+                                    <tfoot className="bg-cloud-mist/40 text-xs font-bold">
+                                        <tr>
+                                            <td className="px-4 py-3">Tổng ({meetingSummary.totals.meetings} cuộc họp)</td>
+                                            <td />
+                                            <td className="px-3 py-3 text-center">{meetingSummary.totals.invited}</td>
+                                            <td />
+                                            <td className="px-3 py-3 text-center text-amber-700">{meetingSummary.totals.late}</td>
+                                            <td className="px-3 py-3 text-center text-orange-700">{meetingSummary.totals.leftEarly}</td>
+                                            <td className="px-3 py-3 text-center text-rose-700">{meetingSummary.totals.absent}</td>
+                                            <td className="px-3 py-3 text-center text-sky-700">{meetingSummary.totals.excused}</td>
+                                            <td className={`px-4 py-3 text-right font-black ${pointsCls(meetingSummary.totals.totalPoints)}`}>{fmtPoints(meetingSummary.totals.totalPoints)}</td>
+                                        </tr>
+                                    </tfoot>
+                                )}
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {loading && <p className="text-center text-xs text-slate-blue">Đang tải...</p>}
+
+            {meetingDetail && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onClick={() => setMeetingDetail(null)}>
+                    <div className="bg-cloud-mist rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <h3 className="text-base font-black text-midnight-indigo">{meetingDetail.row.title}</h3>
+                                <p className="text-xs text-slate-blue">
+                                    {fmtDateTime(meetingDetail.row.startTime)}
+                                    {meetingDetail.row.roomName ? ` • ${meetingDetail.row.roomName}` : ''}
+                                    {meetingDetail.data?.meeting?.hostName ? ` • Chủ trì: ${meetingDetail.data.meeting.hostName}` : ''}
+                                    {meetingDetail.data?.meeting?.secretaryName ? ` • Thư ký: ${meetingDetail.data.meeting.secretaryName}` : ''}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <ExportButton onClick={exportMeetingDetail} disabled={!meetingDetail.data?.items?.length} />
+                                <Link to={`${basePath}/meeting/${meetingDetail.row.meetingId}`} className="px-3 py-2 text-xs font-bold rounded-xl border border-platinum-tint bg-white hover:bg-cloud-mist">Mở cuộc họp</Link>
+                                <button onClick={() => setMeetingDetail(null)} className="text-slate-blue hover:text-midnight-indigo"><X className="w-5 h-5" /></button>
+                            </div>
+                        </div>
+                        {meetingDetail.loading ? (
+                            <p className="text-center text-xs text-slate-blue py-6">Đang tải...</p>
+                        ) : (
+                            <>
+                                <SummaryCards s={{ ...meetingDetail.data.summary, totalMeetings: meetingDetail.data.items.length }} label="Được mời" />
+                                <ParticipantRows items={meetingDetail.data.items} />
+                            </>
+                        )}
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {detail && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onClick={() => setDetail(null)}>
@@ -330,7 +589,10 @@ const AttendancePenaltyReport = () => {
                                 <h3 className="text-base font-black text-midnight-indigo">{detail.row.fullName}</h3>
                                 <p className="text-xs text-slate-blue">{detail.row.departmentName} • {fmtDate(range.from)} – {fmtDate(range.to)}</p>
                             </div>
-                            <button onClick={() => setDetail(null)} className="text-slate-blue hover:text-midnight-indigo"><X className="w-5 h-5" /></button>
+                            <div className="flex items-center gap-2">
+                                <ExportButton onClick={exportUserDetail} disabled={!detail.data?.items?.length} />
+                                <button onClick={() => setDetail(null)} className="text-slate-blue hover:text-midnight-indigo"><X className="w-5 h-5" /></button>
+                            </div>
                         </div>
                         {detail.loading ? (
                             <p className="text-center text-xs text-slate-blue py-6">Đang tải...</p>

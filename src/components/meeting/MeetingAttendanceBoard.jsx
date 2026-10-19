@@ -58,6 +58,11 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
     // { mode: 'submit' | 'review', item, text, approve }
     const [excuseModal, setExcuseModal] = useState(null);
     const myUserId = getMyUserId();
+    const meetingInfo = attendanceData?.meeting;
+    // UEL 4.1: kết thúc (chủ trì bấm kết thúc hoặc quá giờ) ⇒ thành viên không tự gửi lý do nữa
+    const meetingEnded = !!meetingInfo && (meetingInfo.status === 'completed'
+        || (meetingInfo.endTime && Date.now() > new Date(meetingInfo.endTime).getTime()));
+    const needsExcuse = (item) => item.isLate || ['late', 'left_early', 'absent', 'not_checked_in'].includes(item.attendanceStatus);
 
     // Filtered internal items, as API pagination might not be fully working or we just want local search
     // But we will use the API pagination pattern
@@ -478,6 +483,17 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                                                     </div>
                                                 )}
                                             </div>
+                                        ) : item.userId === myUserId && needsExcuse(item) ? (
+                                            meetingEnded ? (
+                                                <span className="text-[10px] text-slate-400 italic">Đã khóa vì cuộc họp đã kết thúc</span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setExcuseModal({ mode: 'submit', item, text: '' })}
+                                                    className="px-2 py-1 text-[10px] font-bold rounded-lg border border-action-blue text-action-blue hover:bg-blue-50"
+                                                >
+                                                    Gửi lý do
+                                                </button>
+                                            )
                                         ) : (
                                             <span className="text-[11px] text-slate-400">--</span>
                                         )}

@@ -3149,6 +3149,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     <MinutesTabContent
                                         meetingId={id}
                                         isHost={isHost}
+                                        isSecretary={isSecretary}
                                         transcriptStatus="empty"
                                         allowAiCreate={false}
                                     />
@@ -3223,12 +3224,16 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                         {/* Chỉ hiện khi đã có kết quả điểm danh (camera / thủ công) là trễ / về sớm / vắng */}
                                                         {record && !record.excuseStatus && getActualUserId(p) === myParticipantId
                                                             && (record.isLate || ['late', 'left_early', 'absent'].includes(record.attendanceStatus)) && (
+                                                            meetingState?.status === 'completed' ? (
+                                                                <p className="mt-1.5 text-[9px] italic text-slate-400">Đã khóa vì cuộc họp đã kết thúc</p>
+                                                            ) : (
                                                             <button
                                                                 onClick={() => setExcuseModal({ mode: 'submit', participant: p, record, text: '' })}
                                                                 className="mt-1.5 inline-flex items-center gap-1 whitespace-nowrap px-2 py-1 text-[9px] font-bold rounded-lg border border-action-blue text-action-blue hover:bg-blue-50"
                                                             >
                                                                 <MessageSquare className="w-3 h-3" /> Gửi lý do
                                                             </button>
+                                                            )
                                                         )}
                                                         {canReviewExcuse && record?.excuseStatus === 'pending' && getActualUserId(p) !== myParticipantId && (
                                                             <div className="mt-1.5 flex gap-1.5">

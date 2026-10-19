@@ -1463,6 +1463,7 @@ const ManagerMeetingDetail = () => {
                         <MinutesTabContent 
                             meetingId={meeting.id} 
                             isHost={canManage} 
+                            isSecretary={currentUser?.id === meeting.secretaryId}
                             transcriptStatus={isCompleted ? 'ready' : 'empty'} 
                         />
                     )}

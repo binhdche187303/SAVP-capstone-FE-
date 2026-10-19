@@ -89,6 +89,15 @@ export const uploadAgendaAttachment = async (meetingId, agendaId, formData) => {
     });
 };
 
+// Lịch UEL 12/13/16: báo cáo trước họp, trình ký biên bản, chuỗi lặp
+export const getMinutesInbox = async () => get('/minutes-inbox', { skipToast: true });
+export const getMeetingPrep = async (meetingId) => get(`/meetings/${meetingId}/prep`, { skipToast: true });
+export const submitMeetingReport = async (meetingId, formData) => post(`/meetings/${meetingId}/reports`, formData, { headers: {} });
+export const submitMinutesSignoff = async (meetingId, data = {}) => post(`/meetings/${meetingId}/signoff/submit`, data);
+export const reviewMinutesSignoff = async (meetingId, data) => post(`/meetings/${meetingId}/signoff/review`, data);
+export const cancelMeetingSeries = async (meetingId, data) => post(`/meetings/${meetingId}/series/cancel`, data);
+export const updateMeetingSeriesTime = async (meetingId, data) => patch(`/meetings/${meetingId}/series/time`, data);
+
 export const deleteAgendaAttachment = async (meetingId, agendaId, fileId) => {
     return await dele(`/meetings/${meetingId}/agendas/${agendaId}/attachments/${fileId}`);
 };

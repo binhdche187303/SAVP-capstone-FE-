@@ -374,6 +374,15 @@ export const getPenaltySummary = async (params = {}) => {
     return await get(`/attendance/penalty-report${buildQuery(params)}`);
 };
 
+// Báo cáo theo cuộc họp (UEL 4.3)
+export const getPenaltyMeetingSummary = async (params = {}) => {
+    return await get(`/attendance/penalty-report/meetings${buildQuery(params)}`);
+};
+
+export const getPenaltyMeetingDetail = async (meetingId, params = {}) => {
+    return await get(`/attendance/penalty-report/meetings/${meetingId}${buildQuery(params)}`);
+};
+
 /**
  * UC-100: Xem danh sách người đang có mặt
  * Endpoint: GET /live-meetings/{meetingId}/present-attendees

@@ -102,7 +102,7 @@ const AddDevicesModal = ({ group, onClose, onDone }) => {
                 {shown.map((d) => (
                     <label key={d.id} className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50">
                         <input type="checkbox" checked={picked.includes(d.id)} onChange={() => toggle(d.id)} />
-                        <span className="flex-1">{d.device_name} <span className="text-slate-400">({d.device_code})</span></span>
+                        <span className="flex-1">{d.device_name}</span>
                         <StatusBadge status={d.status} />
                     </label>
                 ))}
@@ -136,6 +136,11 @@ const CameraGroups = () => {
         try { setDetail((await getCameraGroupById(id)).data); }
         catch (e) { void e; }
     };
+    // Mặc định mở nhóm đầu tiên khi vào trang.
+    useEffect(() => {
+        if (!detail && groups.length > 0) open(groups[0].id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [groups]);
     const refreshAll = async () => { await load(); if (detail) await open(detail.id); };
 
     const run = async (fn, okMsg, failMsg) => {
@@ -226,7 +231,7 @@ const CameraGroups = () => {
                                 <ul className="mt-3 divide-y border border-platinum-tint rounded-xl">
                                     {detail.devices.map((d) => (
                                         <li key={d.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                                            <span className="flex-1">{d.device_name} <span className="text-slate-400">({d.device_code})</span></span>
+                                            <span className="flex-1">{d.device_name}</span>
                                             <StatusBadge status={d.status} />
                                             <button onClick={() => removeDevice(d)} disabled={busy} aria-label={`Gỡ ${d.device_name}`} className="text-slate-400 hover:text-red-600"><X className="w-4 h-4" /></button>
                                         </li>
