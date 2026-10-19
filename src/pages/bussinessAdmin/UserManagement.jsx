@@ -39,6 +39,8 @@ import {
     buildPartnerFormData,
 } from '../../constants/partnerAccount';
 
+import { getLeaderRoleLabel } from '../../utils/calendarRoleLabel';
+
 const ROLE_LABELS = {
     SYSTEM_ADMIN: 'Quản trị hệ thống',
     BUSINESS_ADMIN: 'Quản trị nghiệp vụ',
@@ -999,7 +1001,12 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                 </td>
                                                 <td className="py-4 px-6 whitespace-nowrap">
                                                     <div className="flex flex-wrap gap-1">
-                                                        {user.roles?.map((r, idx) => {
+                                                        {user.leadershipTitle ? (
+                                                            // BGH mang role MANAGER nhưng hiển thị theo chức danh lãnh đạo
+                                                            <span className="inline-flex text-[10px] px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold">
+                                                                {getLeaderRoleLabel(user)}
+                                                            </span>
+                                                        ) : user.roles?.map((r, idx) => {
                                                             // user.roles có thể là string[] roleCode (ManageUserItemDto, danh sách)
                                                             // hoặc object[] {id, roleCode, roleName} (UserDetailResponseDto, chi tiết).
                                                             return (

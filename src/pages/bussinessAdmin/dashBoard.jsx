@@ -1,3 +1,4 @@
+import { hasPermission } from '../../utils/permissionUtils';
 import {
     Activity, AlertTriangle, ArrowRight, BarChart3, Building2, Calendar,
     Car, CheckCircle, ChevronRight, Clock, Download, LogIn, MapPin,
@@ -347,6 +348,8 @@ const DashBoard = () => {
     const [recentGateAccess, setRecentGateAccess] = useState([]);
     const [alertTrendGCData, setAlertTrendGCData] = useState(null);
     const [alertTrendTotal,  setAlertTrendTotal]  = useState(0);
+    // Audit log theo giờ chỉ SYSTEM_ADMIN có quyền (analytics.audit_activity.read) → ẩn ô với người khác.
+    const canReadAudit = hasPermission('analytics.audit_activity.read');
     const [auditHourlyData,  setAuditHourlyData]  = useState([]);
     const [auditTotal,       setAuditTotal]       = useState(0);
     const [activeSeverityIdx, setActiveSeverityIdx] = useState(null);
@@ -396,7 +399,7 @@ const DashBoard = () => {
             getVehicleControlList({ list_type: 'blocklist', active: true, limit: 100 }),
             getAdminGateAccessHistory({ from: todayStart.toISOString(), to: todayEnd.toISOString(), limit: 5 }),
             getSecurityAlertsDailyTrend({ days: 7 }),
-            getAuditActivityHourly({}, { skipToast: true }),
+            canReadAudit ? getAuditActivityHourly({}, { skipToast: true }) : Promise.resolve(null),
         ]);
 
         // Devices
@@ -1046,7 +1049,7 @@ const DashBoard = () => {
                     <ZonePresenceTable />
 
                     {/* Alert trend 7d (sysadmin API) + Audit hourly (sysadmin API) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div className={`grid grid-cols-1 ${canReadAudit ? 'lg:grid-cols-2' : ''} gap-5`}>
                         <GChartCard accent={D.red} delay={0} title="Xu hướng cảnh báo an ninh 7 ngày"
                             sub={alertTrendTotal > 0 ? `Tổng ${alertTrendTotal} sự kiện · phân loại theo loại` : 'Dữ liệu từ Security Alerts API'}
                             loading={campusLoading} empty={!alertTrendGCData || alertTrendGCData.length <= 1}
@@ -1057,6 +1060,7 @@ const DashBoard = () => {
                                 loader={<PulseSkeleton />} />
                         </GChartCard>
 
+                        {canReadAudit && (
                         <ChartCard accent={D.blue} delay={100} title="Hoạt động hệ thống theo giờ"
                             sub={auditTotal > 0 ? `Hôm nay · ${auditTotal} thao tác audit log` : 'Dữ liệu từ Audit Activity API'}
                             renderChart={(visible) => {
@@ -1075,6 +1079,7 @@ const DashBoard = () => {
                                 );
                             }}
                         />
+                        )}
                     </div>
 
                     {/* Vehicle watchlist + Gate history */}

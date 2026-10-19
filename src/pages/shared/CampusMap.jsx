@@ -1,4 +1,4 @@
-import { AlertTriangle, Camera, ExternalLink, Map as MapIcon, MapPin, RefreshCw, Users } from 'lucide-react';
+import { AlertTriangle, Camera, ExternalLink, Layers, Map as MapIcon, MapPin, RefreshCw, Users } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { MapContainer, TileLayer, LayersControl, Marker, Popup, useMap } from 'react-leaflet';
@@ -6,9 +6,11 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getCampusMap } from '../../service/campusService';
 import { getAlertTypeLabel } from '../../constants/alertType';
+import FloorPlanView from '../../components/campus/FloorPlanView';
 
 // GIS: bản đồ khuôn viên — vị trí zone (GPS) + camera gắn zone + cảnh báo an ninh gần đây.
 // Vị trí camera = vị trí zone (iot_devices không có toạ độ riêng). Nền OSM cần internet.
+// Chế độ "Mặt bằng tầng": ảnh bản vẽ thật của tầng + camera đúng vị trí đặt ở Sơ đồ lắp đặt camera.
 
 const REFRESH_MS = 60000;
 const DEFAULT_CENTER = [10.7554, 106.6634]; // ĐH Y Dược TP.HCM — 217 Hồng Bàng, Q.5
@@ -38,10 +40,10 @@ const SEVERITY = {
 const ALERT_STATUS_LABELS = { new: 'Mới', acknowledged: 'Đã tiếp nhận', resolved: 'Đã xử lý' };
 
 const DEVICE_STATUS = {
-    online: { label: 'Online', cls: 'text-green-600' },
-    offline: { label: 'Offline', cls: 'text-red-600' },
-    maintenance: { label: 'Bảo trì', cls: 'text-amber-600' },
-    disabled: { label: 'Vô hiệu', cls: 'text-gray-500' }
+    online: { label: 'Online', cls: 'text-green-600', color: '#22c55e' },
+    offline: { label: 'Offline', cls: 'text-red-600', color: '#ef4444' },
+    maintenance: { label: 'Bảo trì', cls: 'text-amber-600', color: '#f59e0b' },
+    disabled: { label: 'Vô hiệu', cls: 'text-gray-500', color: '#94a3b8' }
 };
 
 const fmtDateTime = (iso) =>
@@ -144,6 +146,9 @@ const CampusMap = () => {
     // Chỉ SA có trang Cảnh báo an ninh.
     const area = '/' + pathname.split('/')[1];
     const alertsLink = ['/system-admin', '/business-admin'].includes(area) ? `${area}/security-alerts` : null;
+    // Trang Sơ đồ lắp đặt camera (nơi tải ảnh mặt bằng) chỉ có ở khu SA.
+    const layoutLink = area === '/system-admin' ? '/system-admin/camera-layout' : null;
+    const [view, setView] = useState('gis'); // 'gis' | 'floor'
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -211,6 +216,17 @@ const CampusMap = () => {
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex rounded-lg border border-gray-300 bg-white p-0.5" role="group" aria-label="Chế độ xem">
+                        {[
+                            { key: 'gis', label: 'Bản đồ GIS', icon: MapIcon },
+                            { key: 'floor', label: 'Mặt bằng tầng', icon: Layers }
+                        ].map((v) => (
+                            <button key={v.key} onClick={() => setView(v.key)} aria-pressed={view === v.key}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md ${view === v.key ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
+                                <v.icon className="w-4 h-4" /> {v.label}
+                            </button>
+                        ))}
+                    </div>
                     <select value={hours} onChange={(e) => setHours(Number(e.target.value))}
                         className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
                         {HOURS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -249,6 +265,20 @@ const CampusMap = () => {
 
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
                 <div className="xl:col-span-3 bg-white rounded-xl border border-gray-200 overflow-hidden relative">
+                    {view === 'floor' ? (
+                        <>
+                            <FloorPlanView zones={data?.zones || []} building={building} alertsLink={alertsLink} layoutLink={layoutLink} />
+                            <div className="absolute top-3 right-3 z-[400] bg-white/95 rounded-lg shadow px-3 py-2 text-xs space-y-1">
+                                {Object.entries(DEVICE_STATUS).map(([k, s]) => (
+                                    <div key={k} className="flex items-center gap-2">
+                                        <span className="w-3 h-3 rounded-full inline-block" style={{ background: s.color }} /> {s.label}
+                                    </div>
+                                ))}
+                                <div className="text-gray-500 pt-1 border-t">Số trên camera = cảnh báo đang mở của khu vực</div>
+                            </div>
+                        </>
+                    ) : (
+                    <>
                     <MapContainer center={DEFAULT_CENTER} zoom={18} style={{ height: 560 }} scrollWheelZoom>
                         <LayersControl position="topright">
                             <LayersControl.BaseLayer checked name="Bản đồ">
@@ -290,6 +320,8 @@ const CampusMap = () => {
                         ))}
                         <div className="text-gray-500 pt-1 border-t">Số trên marker = cảnh báo đang mở</div>
                     </div>
+                    </>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-xl border border-gray-200 p-4 max-h-[560px] overflow-y-auto">

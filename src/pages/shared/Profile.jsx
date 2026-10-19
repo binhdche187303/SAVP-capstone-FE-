@@ -8,7 +8,7 @@ import { get } from '../../utils/request';
 import { updateSelfProfile } from '../../service/employeeServices';
 import { getBiometricStatus, updateSelfAvatar } from '../../service/avatarService';
 import BiometricUploadForm from '../../components/biometric/BiometricUploadForm';
-import { getCalendarRoleLabel } from "../../utils/calendarRoleLabel";
+import { getCalendarRoleLabel, getLeaderRoleLabel } from "../../utils/calendarRoleLabel";
 
 const STATUS_LABEL = {
     not_uploaded: { label: "Chưa nộp ảnh", badge: "bg-amber-50 text-amber-700 border border-amber-200" },
@@ -386,7 +386,7 @@ const Profile = () => {
                     <h3 className="text-lg font-bold text-midnight-indigo leading-tight">{profile?.fullName || ""}</h3>
                     <p className="text-xs text-slate-blue mt-1">{profile?.email || ""}</p>
                     <div className="flex flex-wrap gap-1.5 justify-center mt-3">
-                        <span className="inline-flex text-[10px] px-2.5 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">{getCalendarRoleLabel(profile) || roleLabel}</span>
+                        <span className="inline-flex text-[10px] px-2.5 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">{getLeaderRoleLabel(profile) || getCalendarRoleLabel(profile) || roleLabel}</span>
                     </div>
 
                     {showFaceRegisterBtn && !biometricStatusLoading && biometricStatus && (

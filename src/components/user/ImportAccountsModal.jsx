@@ -364,8 +364,8 @@ const EmployeeTab = ({ onSuccess }) => {
                 setResults(allRows);
                 if (step === 1) {
                     setBanner(failed.length
-                        ? { type: 'warn', text: `Xác thực xong — ${failed.length} dòng có lỗi, ${(report.successCount ?? 0)} dòng hợp lệ.` }
-                        : { type: 'success', text: `Xác thực thành công — ${report.successCount ?? 0} tài khoản hợp lệ, sẵn sàng nhập.` });
+                        ? { type: 'warn', text: `Xác thực xong — ${failed.length} dòng có lỗi, ${report.validCount ?? 0} dòng hợp lệ.` }
+                        : { type: 'success', text: `Xác thực thành công — ${report.validCount ?? 0} tài khoản hợp lệ, sẵn sàng nhập.` });
                     setStep(2);
                 } else {
                     const created = report.successCount ?? 0;
@@ -644,8 +644,8 @@ const PartnerTab = ({ onSuccess }) => {
                 setResults(allRows);
                 if (step === 1) {
                     setBanner(failed.length
-                        ? { type: 'warn', text: `Xác thực xong — ${failed.length} dòng có lỗi, ${report.successCount ?? 0} dòng hợp lệ.` }
-                        : { type: 'success', text: `Xác thực thành công — ${report.successCount ?? 0} tài khoản đối tác hợp lệ.` });
+                        ? { type: 'warn', text: `Xác thực xong — ${failed.length} dòng có lỗi, ${report.validCount ?? 0} dòng hợp lệ.` }
+                        : { type: 'success', text: `Xác thực thành công — ${report.validCount ?? 0} tài khoản đối tác hợp lệ.` });
                     setStep(2);
                 } else {
                     const created = report.successCount ?? 0;
