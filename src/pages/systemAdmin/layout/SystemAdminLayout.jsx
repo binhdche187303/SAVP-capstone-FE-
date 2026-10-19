@@ -9,7 +9,7 @@ import {
     RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiLayoutMasonryLine, RiFilmLine,
     RiBarChartBoxLine, RiFileChartLine,
     RiUserReceivedLine, RiContactsBookLine,
-    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine, RiGroupLine
+    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine, RiGroupLine, RiBuilding2Line
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -34,7 +34,6 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Vai trò & Phân quyền',  to: '/system-admin/roles-permissions', icon: RiShieldLine },
             { label: 'Cấu hình hệ thống',     to: '/system-admin/settings',           icon: RiSettings2Line },
             { label: 'Nhật ký hệ thống',      to: '/system-admin/audit-logs',         icon: RiFileListLine },
-            { label: 'Quy tắc cảnh báo',      to: '/system-admin/alert-rules',        icon: RiEqualizerLine },
         ],
     },
     {
@@ -44,11 +43,21 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Thiết bị IoT',                  to: '/system-admin/devices',              icon: RiHardDriveLine },
             { label: 'Sơ đồ lắp đặt camera',          to: '/system-admin/camera-layout',        icon: RiLayoutMasonryLine },
+            { label: 'Sơ đồ camera 3D',               to: '/system-admin/camera-map-3d',        icon: RiBuilding2Line },
             { label: 'Nhóm camera',                  to: '/system-admin/camera-groups',        icon: RiGroupLine, requiredPermission: 'iot.camera_group.read' },
             { label: 'Ghi hình & lưu trữ',            to: '/system-admin/camera-recording',     icon: RiFilmLine },
             { label: 'Khu vực giám sát',              to: '/system-admin/zones',                icon: RiMapLine },
-            { label: 'Lưu lượng & Heatmap',           to: '/system-admin/zone-traffic',         icon: RiFireLine },
+        ],
+    },
+    {
+        label: 'Ra vào',
+        isDropdown: true,
+        icon: RiLoginBoxLine,
+        children: [
+            { label: 'Kiểm soát ra vào cổng',         to: '/system-admin/anpr-management',      icon: RiCameraLine },
             { label: 'Nhật ký ra/vào phòng',          to: '/system-admin/room-access-logs',     icon: RiLoginBoxLine },
+            { label: 'Đăng ký phương tiện',           to: '/system-admin/vehicle-registrations',icon: RiFileTextLine },
+            { label: 'Danh sách biển số giám sát',    to: '/system-admin/vehicle-control-list', icon: RiCarLine },
         ],
     },
     {
@@ -56,15 +65,20 @@ const STATIC_NAVIGATION_ITEMS = [
         isDropdown: true,
         icon: RiShieldUserLine,
         children: [
-            { label: 'Kiểm soát ra vào cổng',         to: '/system-admin/anpr-management',      icon: RiCameraLine },
-            { label: 'Hiện diện khuôn viên',          to: '/system-admin/gate-presence',        icon: RiTimeLine },
-            { label: 'Danh sách biển số giám sát',    to: '/system-admin/vehicle-control-list', icon: RiCarLine },
+            { label: 'Cảnh báo an ninh',              to: '/system-admin/security-alerts',      icon: RiAlertLine },
+            { label: 'Quy tắc cảnh báo',              to: '/system-admin/alert-rules',          icon: RiEqualizerLine },
             { label: 'Người lạ',                      to: '/system-admin/strangers',            icon: RiUserUnfollowLine },
             { label: 'Danh sách người giám sát',      to: '/system-admin/person-control-list',  icon: RiShieldUserLine },
-            { label: 'Đăng ký phương tiện',           to: '/system-admin/vehicle-registrations',icon: RiFileTextLine },
+        ],
+    },
+    {
+        label: 'Giám sát khuôn viên',
+        isDropdown: true,
+        icon: RiMapPin2Line,
+        children: [
+            { label: 'Hiện diện khuôn viên',          to: '/system-admin/gate-presence',        icon: RiTimeLine },
             { label: 'Hành trình khuôn viên',         to: '/system-admin/user-journey',         icon: RiMapPinLine },
-            { label: 'Cảnh báo an ninh',              to: '/system-admin/security-alerts',      icon: RiAlertLine },
-            { label: 'Bản đồ khuôn viên',             to: '/system-admin/campus-map',           icon: RiMapPin2Line },
+            { label: 'Lưu lượng & Heatmap',           to: '/system-admin/zone-traffic',         icon: RiFireLine },
         ],
     },
     {
@@ -159,7 +173,7 @@ const SystemAdminLayout = () => {
                 <header className="lg:hidden flex items-center justify-between bg-white border-b border-platinum-tint px-4 py-3 shrink-0">
                     <div className="flex items-center gap-2">
                         <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
-                        <span className="font-bold text-midnight-indigo tracking-tight">SmarTracking</span>
+                        <span className="font-bold text-midnight-indigo tracking-tight">VISMA IVA</span>
                     </div>
                     <button 
                         onClick={() => setIsMobileSidebarOpen(true)} 

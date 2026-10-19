@@ -1,4 +1,4 @@
-import { request, get, post, patch, dele, buildQuery } from '../utils/request';
+import { request, get, post, patch, put, dele, buildQuery } from '../utils/request';
 
 // ============================================================
 // DASHBOARD & ANALYTICS APIs for Business Admin
@@ -537,4 +537,28 @@ export const deleteMinutesAttachment = async (minutesId, fileId) => {
 // ============================================================
 export const resyncUserPortrait = async (userId) => {
     return await post(`/admin/ivss/portrait/${userId}/resync`);
+};
+
+// ============================================================
+// Cấu hình vi phạm điểm danh cuộc họp
+// ============================================================
+
+export const getViolationRules = async (includeInactive = false) => {
+    return await get(`/attendance/violation-rules${includeInactive ? '?includeInactive=true' : ''}`);
+};
+
+export const updateViolationRules = async (payload) => {
+    return await put('/attendance/violation-rules', payload);
+};
+
+// ============================================================
+// Vai trò lịch họp (văn thư, Ban Giám hiệu, đơn vị duyệt cấp trường)
+// ============================================================
+
+export const getCalendarRoles = async () => {
+    return await get('/meeting-calendar-roles');
+};
+
+export const updateCalendarRoles = async (payload) => {
+    return await put('/meeting-calendar-roles', payload);
 };

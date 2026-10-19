@@ -18,7 +18,7 @@ const EmployeeFaceRegistration = () => {
         ? {
             roleLabel: 'Sinh viên',
             codeLabel: 'Mã sinh viên',
-            purposeText: 'SmarTracking thu thập hình ảnh khuôn mặt của sinh viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh lớp học tự động, theo dõi chuyên cần và xác thực danh tính khi ra/vào khu vực học tập.',
+            purposeText: 'VISMA IVA thu thập hình ảnh khuôn mặt của sinh viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh lớp học tự động, theo dõi chuyên cần và xác thực danh tính khi ra/vào khu vực học tập.',
             revokeText: 'Bất cứ lúc nào, sinh viên có quyền yêu cầu xóa dữ liệu khuôn mặt và hủy liên kết FaceID thông qua bộ phận quản trị hệ thống hoặc đơn vị phụ trách học vụ.',
             successText: 'Khuôn mặt của bạn đã được liên kết thành công vào tài khoản sinh viên. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh lớp học và xác thực ra/vào các khu vực được phép.'
         }
@@ -26,16 +26,16 @@ const EmployeeFaceRegistration = () => {
             ? {
                 roleLabel: 'Giảng viên',
                 codeLabel: 'Mã giảng viên',
-                purposeText: 'SmarTracking thu thập hình ảnh khuôn mặt của giảng viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh lớp học tự động, xác thực giảng viên phụ trách buổi học và kiểm soát ra/vào khu vực học tập.',
+                purposeText: 'VISMA IVA thu thập hình ảnh khuôn mặt của giảng viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh lớp học tự động, xác thực giảng viên phụ trách buổi học và kiểm soát ra/vào khu vực học tập.',
                 revokeText: 'Bất cứ lúc nào, giảng viên có quyền yêu cầu xóa dữ liệu khuôn mặt và hủy liên kết FaceID thông qua bộ phận quản trị hệ thống hoặc đơn vị phụ trách đào tạo.',
                 successText: 'Khuôn mặt của bạn đã được liên kết thành công vào tài khoản giảng viên. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh lớp học và xác thực ra/vào các khu vực được phép.'
             }
         : {
             roleLabel: 'Nhân viên',
             codeLabel: 'Mã nhân viên',
-            purposeText: 'SmarTracking thu thập hình ảnh khuôn mặt của nhân viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh tự động tại cửa phòng họp, kiểm soát ra vào bảo mật và chống giả mạo chấm công.',
+            purposeText: 'VISMA IVA thu thập hình ảnh khuôn mặt của nhân viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh tự động tại cửa phòng họp, kiểm soát ra vào bảo mật và chống giả mạo chấm công.',
             revokeText: 'Bất cứ lúc nào, nhân viên có quyền yêu cầu xóa dữ liệu khuôn mặt và hủy liên kết FaceID thông qua bộ phận Quản lý tài nguyên hệ thống hoặc Phòng Nhân sự.',
-            successText: 'Khuôn mặt của bạn đã được liên kết thành công vào tài khoản nhân viên. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh ra vào các phòng họp SmarTracking.'
+            successText: 'Khuôn mặt của bạn đã được liên kết thành công vào tài khoản nhân viên. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh ra vào các phòng họp VISMA IVA.'
         };
 
     // Steps: 'consent' | 'scanner' | 'submitting' | 'avatar_sync' | 'success'
@@ -346,7 +346,7 @@ const EmployeeFaceRegistration = () => {
                             onChange={(e) => setPdpaAgreed(e.target.checked)}
                         />
                         <span className="text-xs text-midnight-indigo font-medium leading-relaxed">
-                            Tôi đã đọc, hiểu rõ và đồng ý cho phép hệ thống SmarTracking thu thập, xử lý và lưu trữ dữ liệu sinh trắc học khuôn mặt của tôi cho các mục đích quản lý nêu trên.
+                            Tôi đã đọc, hiểu rõ và đồng ý cho phép hệ thống VISMA IVA thu thập, xử lý và lưu trữ dữ liệu sinh trắc học khuôn mặt của tôi cho các mục đích quản lý nêu trên.
                         </span>
                     </label>
 

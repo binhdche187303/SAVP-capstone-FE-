@@ -1,4 +1,5 @@
 import { AlertTriangle, Calendar, CheckCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Eye, FileText, Info, LayoutGrid, List, MapPin, RefreshCw, Search, UserX, Users, X, XCircle } from 'lucide-react';
+import { htmlToPlainText } from '../../utils/richText';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -11,6 +12,18 @@ import {
     rejectMeetingRequest
 } from '../../service/managerServices';
 import { subscribeToMeetingRequestUpdates } from '../../utils/socket';
+
+// Lịch tuần UEL: nhãn nhóm lịch của yêu cầu
+const CALENDAR_TYPE_BADGES = {
+    UNIT: { label: 'Lịch đơn vị', cls: 'bg-slate-50 text-slate-600 border-slate-200' },
+    SCHOOL_LEADERSHIP: { label: 'Lịch lãnh đạo trường', cls: 'bg-rose-50 text-rose-600 border-rose-200' },
+    SCHOOL_OTHER: { label: 'Lịch hoạt động khác', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+};
+const CalendarTypeBadge = ({ type }) => {
+    const b = CALENDAR_TYPE_BADGES[type];
+    if (!b) return null;
+    return <span className={`px-2 py-0.5 rounded border text-[10px] font-bold w-max ${b.cls}`}>{b.label}</span>;
+};
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -326,7 +339,7 @@ const MeetingApprovals = () => {
     const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
 
     // Filter states
-    const [statusFilter, setStatusFilter] = useState('pending'); // 'pending' | 'approved' | 'rejected' | 'all'
+    const [statusFilter, setStatusFilter] = useState('pending'); // 'pending' | 'approved' | 'rejected' | 'expired' | 'all'
     const [searchQuery, setSearchQuery] = useState('');
     const [searchVal, setSearchVal] = useState(''); // Triggered on search submit
     const [fromDate, setFromDate] = useState('');
@@ -648,6 +661,7 @@ const MeetingApprovals = () => {
                     { key: 'pending', label: 'Chờ phê duyệt' },
                     { key: 'approved', label: 'Đã phê duyệt' },
                     { key: 'rejected', label: 'Đã từ chối' },
+                    { key: 'expired', label: 'Hết hạn' },
                     { key: 'all', label: 'Tất cả yêu cầu' }
                 ].map(tab => (
                     <button
@@ -714,6 +728,7 @@ const MeetingApprovals = () => {
                                                     #{req.requestCode}
                                                 </span>
                                                 <h4 className="font-bold text-sm text-midnight-indigo line-clamp-1" title={req.meeting?.title}>{req.meeting?.title || 'Đặt lịch phòng họp'}</h4>
+                                                <CalendarTypeBadge type={req.meeting?.calendarType} />
                                             </div>
                                             <div className="flex shrink-0">
                                                 {req.approvalStatus === 'pending' && (
@@ -729,6 +744,16 @@ const MeetingApprovals = () => {
                                                 {req.approvalStatus === 'rejected' && (
                                                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider">
                                                         Từ chối
+                                                    </span>
+                                                )}
+                                                {req.approvalStatus === 'expired' && (
+                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-300 uppercase tracking-wider">
+                                                        Hết hạn
+                                                    </span>
+                                                )}
+                                                {req.approvalStatus === 'cancelled' && (
+                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-50 text-gray-600 border border-gray-200 uppercase tracking-wider">
+                                                        Đã hủy
                                                     </span>
                                                 )}
                                             </div>
@@ -876,6 +901,7 @@ const MeetingApprovals = () => {
                                             {/* Title */}
                                             <td className="p-4 font-semibold text-midnight-indigo max-w-xs truncate" title={req.meeting?.title || 'Đăt lịch phòng họp'}>
                                                 {req.meeting?.title || 'Đăt lịch phòng họp'}
+                                                <div className="mt-1"><CalendarTypeBadge type={req.meeting?.calendarType} /></div>
                                             </td>
 
                                             {/* Requester */}
@@ -946,6 +972,16 @@ const MeetingApprovals = () => {
                                                 {req.approvalStatus === 'rejected' && (
                                                     <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider">
                                                         Từ chối
+                                                    </span>
+                                                )}
+                                                {req.approvalStatus === 'expired' && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-red-50 text-red-600 border border-red-300 uppercase tracking-wider">
+                                                        Hết hạn
+                                                    </span>
+                                                )}
+                                                {req.approvalStatus === 'cancelled' && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-gray-50 text-gray-600 border border-gray-200 uppercase tracking-wider">
+                                                        Đã hủy
                                                     </span>
                                                 )}
                                             </td>
@@ -1061,7 +1097,7 @@ const MeetingApprovals = () => {
                                             <div className="text-xs space-y-1 text-midnight-indigo">
                                                 <p className="font-semibold text-sm">{selectedRequest.meeting?.title || 'Cuộc họp nội bộ'}</p>
                                                 {selectedRequest.meeting?.description && (
-                                                    <p className="text-[11px] text-slate-blue italic line-clamp-2 mt-1">{selectedRequest.meeting?.description}</p>
+                                                    <p className="text-[11px] text-slate-blue italic line-clamp-2 mt-1">{htmlToPlainText(selectedRequest.meeting?.description)}</p>
                                                 )}
                                                 <p className="pt-1 flex items-center gap-1.5 text-slate-blue">
                                                     <Calendar className="w-3.5 h-3.5 text-action-blue" />
@@ -1196,10 +1232,14 @@ const MeetingApprovals = () => {
                                     {selectedRequest.approvalStatus !== 'pending' && (
                                         <div className={`p-4 rounded-xl border space-y-2 ${selectedRequest.approvalStatus === 'approved'
                                             ? 'bg-emerald-50/20 border-emerald-100 text-emerald-850'
-                                            : 'bg-rose-50/20 border-rose-100 text-rose-850'
+                                            : selectedRequest.approvalStatus === 'rejected'
+                                                ? 'bg-rose-50/20 border-rose-100 text-rose-850'
+                                                : selectedRequest.approvalStatus === 'expired'
+                                                    ? 'bg-red-50/40 border-red-200 text-red-800'
+                                                    : 'bg-slate-50 border-slate-200 text-slate-700'
                                             }`}>
                                             <h4 className="text-[11px] font-bold uppercase tracking-wider">
-                                                Lịch sử xét duyệt ({selectedRequest.approvalStatus === 'approved' ? 'Đã duyệt' : 'Đã từ chối'})
+                                                Lịch sử xét duyệt ({{ approved: 'Đã duyệt', rejected: 'Đã từ chối', expired: 'Hết hạn', cancelled: 'Đã hủy' }[selectedRequest.approvalStatus] || selectedRequest.approvalStatus})
                                             </h4>
                                             <div className="text-xs space-y-1 text-midnight-indigo">
                                                 {selectedRequest.decisionDate && (
@@ -1210,6 +1250,9 @@ const MeetingApprovals = () => {
                                                 )}
                                                 {selectedRequest.approvalStatus === 'approved' && selectedRequest.decisionNote && (
                                                     <p className="bg-white/60 p-2.5 rounded-lg mt-1 border border-emerald-100/50"><strong className="opacity-80">Ghi chú duyệt:</strong> {selectedRequest.decisionNote}</p>
+                                                )}
+                                                {selectedRequest.approvalStatus === 'expired' && (
+                                                    <p className="bg-white/60 p-2.5 rounded-lg mt-1 border border-red-100">Yêu cầu không được duyệt trước giờ họp nên đã tự hết hạn.</p>
                                                 )}
                                                 {selectedRequest.approvalStatus === 'rejected' && selectedRequest.rejectionReason && (
                                                     <p className="bg-white/60 p-2.5 rounded-lg mt-1 border border-rose-100/50"><strong className="opacity-80">Lý do từ chối:</strong> {selectedRequest.rejectionReason}</p>

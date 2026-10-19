@@ -1,4 +1,5 @@
-import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench, Monitor, Bell, Mail, MessageSquare, Smartphone, Repeat, FileText, PenLine } from 'lucide-react';
+import RichTextEditor from '../../components/common/RichTextEditor';
 import { useState, useEffect, useMemo, useRef } from 'react';
 
 import ReactDOM from 'react-dom';
@@ -6,7 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from '../../utils/toast';
 
-import { getAvailableRooms, createMeeting, addRecordingConfig, replaceAgendas, uploadAgendaAttachment, getUsers, getUserById, getUserPublicProfile } from '../../service/employeeServices';
+import { getAvailableRooms, createMeeting, addRecordingConfig, replaceAgendas, uploadAgendaAttachment, getUsers, getUserById, getUserPublicProfile, getCalendarBookingContext } from '../../service/employeeServices';
+import { LEADERSHIP_TITLE_LABELS } from '../../utils/calendarRoleLabel';
 import { getDepartments, getDepartmentMembers } from '../../service/businessAdminServices';
 import * as XLSX from 'xlsx';
 import DatePicker from "react-datepicker";
@@ -60,6 +62,65 @@ const handleDateChangeRaw = (e) => {
     }
 };
 
+const EQUIPMENT_TYPE_LABELS = {
+    camera: 'Camera',
+    microphone: 'Micro',
+    display: 'Màn hình',
+    speaker: 'Loa',
+    capture_agent: 'Thiết bị ghi',
+    sensor: 'Cảm biến',
+    other: 'Thiết bị khác',
+};
+
+// Thiết bị hỏng/mất kết nối của phòng (API rooms/available trả kèm) — hiện ngay
+// trên card để người đặt chọn phòng hợp nhu cầu, không phải đợi tới lúc bấm đặt.
+const hasFaultyType = (room, type) =>
+    (room.faultyEquipments || []).some(eq => eq.equipmentType === type);
+
+const RoomFaultNote = ({ room }) => {
+    const faults = room.faultyEquipments || [];
+    if (faults.length === 0) return null;
+    const text = faults
+        .map(eq => `${EQUIPMENT_TYPE_LABELS[eq.equipmentType] || eq.equipmentType} ${eq.healthStatus === 'offline' ? 'mất kết nối' : 'hỏng'}`)
+        .join(', ');
+    const detail = faults
+        .map(eq => `${eq.equipmentName}${eq.lastIssueNote ? `: ${eq.lastIssueNote}` : ''}`)
+        .join('; ');
+    return (
+        <p className="text-[10px] text-red-600 mt-1 flex items-center gap-1" title={detail}>
+            <Wrench className="w-3 h-3 shrink-0" />
+            <span className="line-clamp-1">Thiết bị lỗi: {text}</span>
+        </p>
+    );
+};
+
+const RoomEquipmentIcons = ({ room, showDisplay = true }) => {
+    const iconCls = (type) => `w-3.5 h-3.5 ${hasFaultyType(room, type) ? 'text-red-500' : ''}`;
+    const tip = (type, label) => (hasFaultyType(room, type) ? `${label} đang lỗi` : `Có ${label}`);
+    return (
+        <>
+            {(room.hasCamera || room.has_camera) && <Video className={iconCls('camera')} title={tip('camera', 'Camera')} />}
+            {(room.hasMicrophone || room.has_microphone) && <Mic className={iconCls('microphone')} title={tip('microphone', 'Mic')} />}
+            {showDisplay && (room.hasDisplay || room.has_display) && <Monitor className={iconCls('display')} title={tip('display', 'Màn hình')} />}
+        </>
+    );
+};
+
+const REMINDER_CHANNELS = [
+    { key: 'in_app', label: 'Thông báo (web & app)', icon: Bell },
+    { key: 'message', label: 'Tin nhắn', icon: MessageSquare },
+    { key: 'email', label: 'Email', icon: Mail },
+    { key: 'sms', label: 'SMS', icon: Smartphone },
+];
+const REMINDER_UNIT_MINUTES = { minute: 1, hour: 60, day: 1440 };
+// Thứ theo ISO: 1 = Thứ 2 … 7 = Chủ nhật (khớp BE MeetingRecurrenceDto.daysOfWeek)
+const WEEKDAYS = [
+    { v: 1, label: 'T2' }, { v: 2, label: 'T3' }, { v: 3, label: 'T4' }, { v: 4, label: 'T5' },
+    { v: 5, label: 'T6' }, { v: 6, label: 'T7' }, { v: 7, label: 'CN' },
+];
+const isoWeekday = (d) => ((d.getDay() + 6) % 7) + 1;
+const formatViDate = (ymd) => ymd.split('-').reverse().join('/');
+
 const BookMeeting = () => {
     const navigate = useNavigate();
     const [currentUser, setCurrentUser] = useState(null);
@@ -74,6 +135,11 @@ const BookMeeting = () => {
     const [meetingType, setMeetingType] = useState('normal');
     const [meetingMode, setMeetingMode] = useState('offline');
     const [hostId, setHostId] = useState('');
+    // Lịch tuần UEL: nhóm lịch
+    const [calendarType, setCalendarType] = useState('UNIT');
+    const [hostSearch, setHostSearch] = useState('');
+    const [secretaryId, setSecretaryId] = useState('');
+    const [bookingCtx, setBookingCtx] = useState(null);
     const [selectedRoomId, setSelectedRoomId] = useState('');
     const [dateRange, setDateRange] = useState([new Date(), new Date()]);
     const [startDate, endDate] = dateRange;
@@ -90,6 +156,19 @@ const BookMeeting = () => {
     const [startTime, setStartTime] = useState(initialTimes.start);
     const [endTime, setEndTime] = useState(initialTimes.end);
     const [expectedAttendeeCount, setExpectedAttendeeCount] = useState('');
+    const [attendanceEnabled, setAttendanceEnabled] = useState(true);
+    // Nhắc trước họp theo kênh: { enabled, value, unit } — unit: minute | hour | day
+    const [reminders, setReminders] = useState({
+        in_app: { enabled: true, value: 10, unit: 'minute' },
+        email: { enabled: false, value: 30, unit: 'minute' },
+        message: { enabled: false, value: 10, unit: 'minute' },
+        sms: { enabled: false, value: 10, unit: 'minute' },
+    });
+    // Lặp lại (UEL mục 16): type none | daily | weekly | monthly; kết thúc theo số lần hoặc ngày
+    const [recurrence, setRecurrence] = useState({ type: 'none', daysOfWeek: [], endMode: 'count', count: 4, endDate: '' });
+    // Yêu cầu nộp báo cáo trước họp (mục 12) và trình ký biên bản sau họp (mục 13)
+    const [reportReq, setReportReq] = useState({ enabled: false, userIds: [], value: 1, unit: 'day', note: '' });
+    const [signoffReq, setSignoffReq] = useState({ enabled: false, signerId: '' });
     const [capacityOverrideConfirmed, setCapacityOverrideConfirmed] = useState(false);
     const [recordingEnabled, setRecordingEnabled] = useState(false);
     const [audioRecordingEnabled, setAudioRecordingEnabled] = useState(false);
@@ -166,6 +245,9 @@ const BookMeeting = () => {
     const [searchFocused, setSearchFocused] = useState(false);
     const [defaultSuggestions, setDefaultSuggestions] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
+    // Dong vua bam chon: tam tat hieu ung hover "Bo chon" (X do) cho den khi chuot roi khoi dong,
+    // tranh viec vua bam + da hien X do khien nguoi dung tuong la loi.
+    const [justToggledUserId, setJustToggledUserId] = useState(null);
     const [searchingUsers, setSearchingUsers] = useState(false);
     const searchRequestRef = useRef(0);
 
@@ -230,6 +312,10 @@ const BookMeeting = () => {
 
         const fetchData = async () => {
             try {
+                getCalendarBookingContext()
+                    .then(res => { if (res?.success) setBookingCtx(res.data); })
+                    .catch(err => console.error('Failed to load calendar booking context', err));
+
                 const deptsRes = await getDepartments().catch(err => {
                     console.error('Failed to load departments', err);
                     return { success: false };
@@ -711,7 +797,7 @@ const BookMeeting = () => {
         guideWs['!cols'] = [{ wch: 20 }, { wch: 72 }];
         XLSX.utils.book_append_sheet(wb, guideWs, 'HuongDan');
 
-        XLSX.writeFile(wb, 'SmarTracking_Template_Them_Danh_Sach.xlsx');
+        XLSX.writeFile(wb, 'VISMA_IVA_Template_Them_Danh_Sach.xlsx');
     };
 
     const handleExcelImport = async (e) => {
@@ -915,8 +1001,13 @@ const BookMeeting = () => {
             return;
         }
 
+        if (calendarType === 'SCHOOL_LEADERSHIP' && !hostId) {
+            setErrorMsg('Lịch lãnh đạo trường: vui lòng chọn Chủ trì thuộc Ban Giám hiệu.');
+            return;
+        }
+
         if (selectedParticipantIds.length === 0 && externalParticipants.length === 0) {
-            setErrorMsg('Vui lòng thêm ít nhất 1 người tham gia vào cuộc họp.');
+            setErrorMsg('Vui lòng thêm ít nhất 1 thành phần tham gia vào cuộc họp.');
             return;
         }
 
@@ -943,12 +1034,39 @@ const BookMeeting = () => {
             roomId: selectedRoomId,
             meetingType,
             meetingMode,
+            attendanceEnabled,
+            reminders: Object.entries(reminders)
+                .filter(([, r]) => r.enabled)
+                .map(([channel, r]) => ({
+                    channel,
+                    minutes: Math.min(10080, Math.max(1, Number(r.value) || 1) * REMINDER_UNIT_MINUTES[r.unit]),
+                })),
+            calendarType,
         };
         if (hostId) payload.hostId = hostId;
+        if (secretaryId && secretaryOptions.some(o => o.id === secretaryId)) payload.secretaryId = secretaryId;
         if (description.trim()) payload.description = description.trim();
         if (expectedAttendeeCount) payload.expectedAttendeeCount = Number(expectedAttendeeCount);
         if (capacityExceeded && capacityOverrideConfirmed) payload.capacityOverrideConfirmed = true;
         if (selectedParticipantIds.length > 0) payload.participantUserIds = selectedParticipantIds;
+        if (recurrence.type !== 'none') {
+            payload.recurrence = {
+                type: recurrence.type,
+                ...(recurrence.type === 'weekly' ? { daysOfWeek: recurrence.daysOfWeek.length ? recurrence.daysOfWeek : [isoWeekday(startDate)] } : {}),
+                ...(recurrence.endMode === 'count' ? { count: Math.min(60, Math.max(2, Number(recurrence.count) || 2)) } : { endDate: recurrence.endDate }),
+            };
+        }
+        const memberIdSet = new Set(memberOptions.map(o => o.id));
+        if (reportReq.enabled) {
+            payload.reportRequirement = {
+                userIds: reportReq.userIds.filter(id => memberIdSet.has(id)),
+                deadlineMinutes: Math.max(0, Number(reportReq.value) || 0) * REMINDER_UNIT_MINUTES[reportReq.unit],
+                ...(reportReq.note.trim() ? { note: reportReq.note.trim() } : {}),
+            };
+        }
+        if (signoffReq.enabled) {
+            payload.signoff = memberIdSet.has(signoffReq.signerId) ? { signerId: signoffReq.signerId } : {};
+        }
 
         if (externalParticipants.length > 0) {
             payload.externalParticipants = externalParticipants.map(p => ({
@@ -958,9 +1076,27 @@ const BookMeeting = () => {
             }));
         }
 
+        if (recurrence.type !== 'none' && recurrence.endMode === 'date' && !recurrence.endDate) {
+            toast.error('Vui lòng chọn ngày kết thúc lặp lại');
+            return;
+        }
+        if (reportReq.enabled && payload.reportRequirement.userIds.length === 0) {
+            toast.error('Vui lòng chọn người cần nộp báo cáo');
+            return;
+        }
+
         setSubmitting(true);
         try {
-            const res = await createMeeting(payload);
+            let res;
+            try {
+                res = await createMeeting(payload);
+            } catch (seriesErr) {
+                // Chuỗi lặp có ngày trùng phòng ⇒ hỏi bỏ qua các ngày đó rồi tạo phần còn lại.
+                const dates = seriesErr?.error?.code === 'RECURRENCE_ROOM_CONFLICT' ? seriesErr.error.details?.conflictDates || [] : null;
+                if (!dates || !window.confirm(`Phòng đã có lịch vào các ngày: ${dates.map(formatViDate).join(', ')}.\n\nBỏ qua các ngày này và tạo các buổi còn lại?`)) throw seriesErr;
+                payload.skipDates = dates;
+                res = await createMeeting(payload);
+            }
             if (!res?.success) {
                 const failure = new Error(res?.message || 'Tạo cuộc họp thất bại.');
                 failure.error = { message: res?.message || 'Tạo cuộc họp thất bại.' };
@@ -1013,6 +1149,10 @@ const BookMeeting = () => {
             }
 
             let msg = 'Đăng ký đặt phòng họp thành công! Yêu cầu của bạn đã được gửi tới Quản lý phê duyệt.';
+            const seriesCount = res.data?.series?.occurrences?.length;
+            if (seriesCount) {
+                msg = `Đã tạo chuỗi ${seriesCount} buổi họp lặp lại${payload.skipDates?.length ? ` (bỏ qua ${payload.skipDates.length} ngày trùng phòng)` : ''}.`;
+            }
             if (subWarnings.length > 0) {
                 msg += ` (Lưu ý: lưu ${subWarnings.join(', ')} thất bại, vui lòng cập nhật lại ở trang chi tiết cuộc họp.)`;
             }
@@ -1023,6 +1163,7 @@ const BookMeeting = () => {
                 if (roles.includes('SYSTEM_ADMIN') || roles.includes('ADMIN')) homePath = '/system-admin';
                 else if (roles.includes('BUSINESS_ADMIN')) homePath = '/business-admin';
                 else if (roles.includes('MANAGER')) homePath = '/manager';
+                else if (roles.includes('TEACHER')) homePath = '/teacher';
             }
 
             // Clear form and reset
@@ -1155,6 +1296,7 @@ const BookMeeting = () => {
                 if (roles.includes('SYSTEM_ADMIN') || roles.includes('ADMIN')) homePath = '/system-admin';
                 else if (roles.includes('BUSINESS_ADMIN')) homePath = '/business-admin';
                 else if (roles.includes('MANAGER')) homePath = '/manager';
+                else if (roles.includes('TEACHER')) homePath = '/teacher';
             }
 
             // Clear form and reset
@@ -1184,10 +1326,63 @@ const BookMeeting = () => {
         }
     };
 
-    // BE auto-approve khi người đặt có quyền duyệt (resolveApproverIds fallback theo
-    // permission `meeting_request.approve`). Login trả roles dạng string[] nên so
-    // r.roleCode luôn false → luôn hiện "Cần Trưởng phòng duyệt" dù BE đã tự duyệt.
-    const isManagerAutoApprove = currentUser?.permissions?.includes('meeting_request.approve') ?? false;
+    // Lịch tuần UEL: người duyệt theo nhóm lịch (khớp BE resolveCalendarApproverIds) —
+    // lịch đơn vị → trưởng phòng / văn thư đơn vị; lịch cấp trường → đơn vị duyệt cấp trường.
+    const approvalScope = bookingCtx ? (calendarType === 'UNIT' ? bookingCtx.unit : bookingCtx.school) : null;
+    const approvers = approvalScope?.approvers || [];
+    const isManagerAutoApprove = approvers.some(a => a.id === currentUser?.id);
+    const canBookSchoolCalendar = !!bookingCtx?.isUnitClerk;
+    const leaders = bookingCtx?.leaders || [];
+    // Chủ trì theo nhóm lịch: lãnh đạo trường → chỉ BGH; lịch đơn vị → người trong đơn vị
+    // (trưởng phòng lên đầu) + BGH; hoạt động khác cấp trường → toàn trường (có tìm kiếm).
+    const staff = bookingCtx?.staff || [];
+    const leaderOption = (l) => ({ id: l.id, label: `${l.fullName} — ${LEADERSHIP_TITLE_LABELS[l.leadershipTitle] || ''}` });
+    const meOption = { id: '', label: `${currentUser?.fullName || 'Tôi'} (người đặt lịch)` };
+    const notMeOrLeader = (u) => u.id !== currentUser?.id && !leaders.some(l => l.id === u.id);
+    let hostOptions;
+    if (calendarType === 'SCHOOL_LEADERSHIP') {
+        hostOptions = leaders.map(leaderOption);
+    } else if (calendarType === 'UNIT') {
+        const unitId = bookingCtx?.unit?.departmentId;
+        const members = staff
+            .filter(u => unitId && u.departmentId === unitId && notMeOrLeader(u))
+            .sort((x, y) => Number(y.isManager) - Number(x.isManager));
+        hostOptions = [
+            meOption,
+            ...members.map(u => ({ id: u.id, label: u.isManager ? `${u.fullName} — Trưởng phòng` : u.fullName })),
+            ...leaders.map(leaderOption),
+        ];
+    } else {
+        const q = hostSearch.trim().toLowerCase();
+        const others = staff
+            .filter(notMeOrLeader)
+            .filter(u => !q || `${u.fullName} ${u.email || ''} ${u.departmentName || ''}`.toLowerCase().includes(q));
+        hostOptions = [
+            meOption,
+            ...leaders.map(leaderOption),
+            ...others.map(u => ({ id: u.id, label: u.departmentName ? `${u.fullName} — ${u.departmentName}` : u.fullName })),
+        ];
+        if (hostId && !hostOptions.some(o => o.id === hostId)) {
+            const cur = staff.find(u => u.id === hostId);
+            if (cur) hostOptions.push({ id: cur.id, label: cur.fullName });
+        }
+    }
+
+    // Thư ký: người đặt lịch hoặc một người trong thành phần tham gia (khớp BE SECRETARY_NOT_PARTICIPANT).
+    const secretaryOptions = [
+        ...(currentUser?.id ? [{ id: currentUser.id, label: `${currentUser.fullName || 'Tôi'} (người đặt lịch)` }] : []),
+        ...[...new Set([...selectedParticipantIds, ...(hostId ? [hostId] : [])])]
+            .filter(id => id !== currentUser?.id)
+            .map(id => usersById[id] || staff.find(u => u.id === id))
+            .filter(Boolean)
+            .map(u => ({ id: u.id, label: u.fullName || u.full_name || u.email })),
+    ];
+
+    // Thành viên (thành phần tham gia + chủ trì) — người nộp báo cáo / người ký duyệt phải thuộc nhóm này.
+    const memberOptions = [...new Set([...(hostId ? [hostId] : []), ...selectedParticipantIds])]
+        .map(id => usersById[id] || staff.find(u => u.id === id) || (id === currentUser?.id ? currentUser : null))
+        .filter(Boolean)
+        .map(u => ({ id: u.id, label: u.fullName || u.full_name || u.email }));
 
     if (loadingData) {
         return (
@@ -1199,7 +1394,7 @@ const BookMeeting = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
             {/* Header */}
             <div>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
@@ -1396,14 +1591,13 @@ const BookMeeting = () => {
                                                                 {room.pendingConflicts.length} yêu cầu khác đang chờ duyệt cùng giờ
                                                             </p>
                                                         )}
+                                                        <RoomFaultNote room={room} />
                                                     </div>
 
                                                     {/* Facilities Icons */}
                                                     <div className="flex items-center justify-between border-t border-platinum-tint/40 pt-2.5 mt-2">
                                                         <div className="flex items-center gap-2.5 text-slate-blue/70">
-                                                            {(room.hasCamera || room.has_camera) && <Video className="w-3.5 h-3.5" title="Có Camera" />}
-                                                            {(room.hasMicrophone || room.has_microphone) && <Mic className="w-3.5 h-3.5" title="Có Mic" />}
-                                                            {(room.hasDisplay || room.has_display) && <Calendar className="w-3.5 h-3.5" title="Có Màn hình" />}
+                                                            <RoomEquipmentIcons room={room} />
                                                         </div>
                                                         <span className={`text-xs font-bold transition-colors ${isSelected ? 'text-action-blue' : 'text-slate-blue/60'}`}>
                                                             {isSelected ? 'Đã chọn' : 'Chọn phòng'}
@@ -1443,30 +1637,31 @@ const BookMeeting = () => {
                             {/* Left Side: Inputs */}
                             <div className="lg:col-span-2 space-y-6">
                                 {/* Selected Room Summary Banner */}
-                                <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/30 p-5 rounded-2xl border border-platinum-tint flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div>
-                                        <span className="text-[10px] font-bold text-action-blue uppercase tracking-wider bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
-                                            Phòng họp đã chọn
-                                        </span>
-                                        <h3 className="font-bold text-lg text-midnight-indigo mt-2">
-                                            {selectedRoom?.roomName || selectedRoom?.room_name}
-                                        </h3>
-                                        <p className="text-xs text-slate-blue mt-0.5">
-                                            {selectedRoom?.siteName || selectedRoom?.site_name} • Sức chứa: {selectedRoom?.capacity} người
-                                        </p>
-                                    </div>
-
-                                    <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-platinum-tint/80 shadow-sm shrink-0">
-                                        <Calendar className="w-5 h-5 text-action-blue shrink-0" />
-                                        <div>
-                                            <p className="text-[10px] text-slate-blue font-bold uppercase">Khung giờ họp</p>
-                                            <p className="text-sm font-bold text-midnight-indigo">
-                                                {startTime} - {endTime}
-                                            </p>
-                                            <p className="text-[11px] text-slate-blue font-semibold">
-                                                Ngày {startStr?.split('-').reverse().join('/')} {endStr && endStr !== startStr ? `- ${endStr.split('-').reverse().join('/')}` : ''}
-                                            </p>
+                                <div className="bg-white px-4 py-3 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap items-center gap-x-6 gap-y-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center shrink-0">
+                                            <Building className="w-5 h-5" />
                                         </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-bold text-action-blue uppercase tracking-wider">Phòng họp đã chọn</p>
+                                            <h3 className="font-bold text-base text-midnight-indigo truncate">
+                                                {selectedRoom?.roomName || selectedRoom?.room_name}
+                                            </h3>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-blue">
+                                        <span className="flex items-center gap-1.5 bg-slate-50 border border-platinum-tint px-2.5 py-1 rounded-lg">
+                                            <Building className="w-3.5 h-3.5" /> {selectedRoom?.siteName || selectedRoom?.site_name}
+                                        </span>
+                                        <span className="flex items-center gap-1.5 bg-slate-50 border border-platinum-tint px-2.5 py-1 rounded-lg">
+                                            <Users className="w-3.5 h-3.5" /> {selectedRoom?.capacity} người
+                                        </span>
+                                        <span className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-action-blue px-2.5 py-1 rounded-lg">
+                                            <Clock className="w-3.5 h-3.5" /> {startTime} - {endTime}
+                                        </span>
+                                        <span className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-action-blue px-2.5 py-1 rounded-lg">
+                                            <Calendar className="w-3.5 h-3.5" /> {startStr?.split('-').reverse().join('/')}{endStr && endStr !== startStr ? ` - ${endStr.split('-').reverse().join('/')}` : ''}
+                                        </span>
                                     </div>
                                 </div>
 
@@ -1497,6 +1692,73 @@ const BookMeeting = () => {
                                         <Info className="w-4 h-4 text-action-blue" /> Chi tiết cuộc họp
                                     </h3>
 
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Nhóm lịch *</label>
+                                            {canBookSchoolCalendar ? (
+                                                <select
+                                                    value={calendarType}
+                                                    onChange={(e) => {
+                                                        const next = e.target.value;
+                                                        setCalendarType(next);
+                                                        setHostSearch('');
+                                                        const keep = next === 'SCHOOL_OTHER'
+                                                            || (next === 'SCHOOL_LEADERSHIP' ? leaders.some(l => l.id === hostId)
+                                                                : leaders.some(l => l.id === hostId) || staff.some(u => u.id === hostId && u.departmentId === bookingCtx?.unit?.departmentId));
+                                                        if (!keep) setHostId('');
+                                                    }}
+                                                    className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm bg-white focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo"
+                                                >
+                                                    <option value="UNIT">Lịch đơn vị{bookingCtx?.unit?.departmentName ? ` — ${bookingCtx.unit.departmentName}` : ''}</option>
+                                                    <option value="SCHOOL_LEADERSHIP">Lịch lãnh đạo trường</option>
+                                                    <option value="SCHOOL_OTHER">Lịch hoạt động khác</option>
+                                                </select>
+                                            ) : (
+                                                <div className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm bg-cloud-mist/40 text-midnight-indigo">
+                                                    Lịch đơn vị{bookingCtx?.unit?.departmentName ? ` — ${bookingCtx.unit.departmentName}` : ''}
+                                                </div>
+                                            )}
+                                            <p className="text-[11px] text-slate-blue mt-1">
+                                                {calendarType === 'SCHOOL_LEADERSHIP'
+                                                    ? 'Do Ban Giám hiệu chủ trì, hiển thị trên lịch tuần toàn trường.'
+                                                    : calendarType === 'SCHOOL_OTHER'
+                                                        ? 'Hoạt động do lãnh đạo đơn vị chủ trì, liên quan toàn trường.'
+                                                        : canBookSchoolCalendar
+                                                            ? 'Lịch nội bộ của đơn vị.'
+                                                            : 'Lịch lãnh đạo trường / hoạt động khác do văn thư đơn vị đăng ký.'}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Chủ trì *</label>
+                                            {calendarType === 'SCHOOL_OTHER' && (
+                                                <input
+                                                    type="text"
+                                                    value={hostSearch}
+                                                    onChange={(e) => setHostSearch(e.target.value)}
+                                                    placeholder="Tìm theo tên, email, đơn vị..."
+                                                    className="w-full mb-2 px-4 py-2 border border-platinum-tint rounded-xl text-sm bg-white focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo"
+                                                />
+                                            )}
+                                            <select
+                                                value={hostId}
+                                                onChange={(e) => setHostId(e.target.value)}
+                                                className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm bg-white focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo"
+                                            >
+                                                {calendarType === 'SCHOOL_LEADERSHIP' && <option value="">— Chọn thành viên Ban Giám hiệu —</option>}
+                                                {hostOptions.map(o => (
+                                                    <option key={o.id || 'me'} value={o.id}>{o.label}</option>
+                                                ))}
+                                            </select>
+                                            <p className="text-[11px] text-slate-blue mt-1">
+                                                {calendarType === 'SCHOOL_LEADERSHIP'
+                                                    ? 'Bắt buộc là thành viên Ban Giám hiệu.'
+                                                    : calendarType === 'UNIT'
+                                                        ? 'Người trong đơn vị hoặc Ban Giám hiệu; mặc định là bạn.'
+                                                        : 'Bất kỳ nhân viên nào trong trường; mặc định là bạn.'}
+                                            </p>
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Tiêu đề cuộc họp *</label>
                                         <input
@@ -1514,13 +1776,11 @@ const BookMeeting = () => {
 
                                     <div>
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Mô tả (tuỳ chọn)</label>
-                                        <textarea
+                                        <RichTextEditor
                                             value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
+                                            onChange={setDescription}
                                             placeholder="Mục tiêu, nội dung chính của cuộc họp..."
-                                            rows={3}
                                             maxLength={2000}
-                                            className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo resize-none"
                                         />
                                     </div>
                                 </div>
@@ -1529,7 +1789,7 @@ const BookMeeting = () => {
                                 <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
                                     <div className="flex justify-between items-center pb-3 border-b border-cloud-mist">
                                         <h3 className="font-bold text-sm text-midnight-indigo uppercase tracking-wider flex items-center gap-2">
-                                            <Users className="w-4 h-4 text-royal-amethyst" /> Mời khách tham gia
+                                            <Users className="w-4 h-4 text-royal-amethyst" /> Thành phần tham gia *
                                         </h3>
                                         <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${(selectedParticipantIds.length + externalParticipants.length + 1) > (selectedRoom?.capacity || 0)
                                             ? 'bg-rose-50 text-rose-600 border border-rose-100 animate-pulse'
@@ -1617,15 +1877,23 @@ const BookMeeting = () => {
                                                             {visibleSuggestions.map(user => {
                                                                 const deptCode = getUserDeptCode(user);
                                                                 const isSelected = selectedParticipantIds.includes(user.id);
+                                                                const showRemoveHover = isSelected && justToggledUserId !== user.id;
                                                                 return (
                                                                     <div
                                                                         key={user.id}
                                                                         onMouseDown={(e) => {
                                                                             e.preventDefault();
+                                                                            setJustToggledUserId(user.id);
                                                                             toggleParticipant(user.id);
+                                                                            // Dong dropdown de nguoi dung thay ngay nguoi vua them trong danh sach ben duoi
+                                                                            // (dropdown dang mo se che mat danh sach nay).
+                                                                            setSearchEmail('');
+                                                                            setSearchFocused(false);
+                                                                            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                                                                         }}
+                                                                        onMouseLeave={() => setJustToggledUserId(prev => (prev === user.id ? null : prev))}
                                                                         className={`p-3 cursor-pointer flex items-center justify-between transition-colors gap-3 min-w-0 group ${isSelected
-                                                                            ? 'bg-action-blue/[0.04] hover:bg-rose-50/50 border-l-2 border-action-blue'
+                                                                            ? `bg-action-blue/[0.04] ${showRemoveHover ? 'hover:bg-rose-50/50' : ''} border-l-2 border-action-blue`
                                                                             : 'hover:bg-action-blue/[0.03] border-l-2 border-transparent'
                                                                             }`}
                                                                     >
@@ -1663,10 +1931,16 @@ const BookMeeting = () => {
                                                                             </div>
                                                                         </div>
                                                                         {isSelected ? (
-                                                                            <div className="w-5 h-5 rounded-full bg-action-blue text-white border border-action-blue flex items-center justify-center transition-all duration-200 shrink-0 group-hover:bg-rose-600 group-hover:border-rose-600 shadow-sm" title="Bỏ chọn">
-                                                                                <Check className="w-3 h-3 block group-hover:hidden" />
-                                                                                <X className="w-3 h-3 hidden group-hover:block" />
-                                                                            </div>
+                                                                            showRemoveHover ? (
+                                                                                <div className="w-5 h-5 rounded-full bg-action-blue text-white border border-action-blue flex items-center justify-center transition-all duration-200 shrink-0 group-hover:bg-rose-600 group-hover:border-rose-600 shadow-sm" title="Bỏ chọn">
+                                                                                    <Check className="w-3 h-3 block group-hover:hidden" />
+                                                                                    <X className="w-3 h-3 hidden group-hover:block" />
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="w-5 h-5 rounded-full bg-action-blue text-white border border-action-blue flex items-center justify-center shrink-0 shadow-sm" title="Đã thêm">
+                                                                                    <Check className="w-3 h-3" />
+                                                                                </div>
+                                                                            )
                                                                         ) : (
                                                                             <Plus className="w-4 h-4 text-action-blue opacity-60 group-hover:opacity-100 shrink-0" title="Thêm vào danh sách" />
                                                                         )}
@@ -1827,6 +2101,22 @@ const BookMeeting = () => {
                                             </div>
                                         </div>
                                     )}
+                                    <div className="pt-4 border-t border-cloud-mist">
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Thư ký (tuỳ chọn)</label>
+                                        <select
+                                            value={secretaryOptions.some(o => o.id === secretaryId) ? secretaryId : ''}
+                                            onChange={(e) => setSecretaryId(e.target.value)}
+                                            className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm bg-white focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo"
+                                        >
+                                            <option value="">— Không có thư ký —</option>
+                                            {secretaryOptions.map(o => (
+                                                <option key={o.id} value={o.id}>{o.label}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[11px] text-slate-blue mt-1">
+                                            Chọn từ thành phần tham gia. Thư ký điểm danh thủ công cùng Chủ trì, sửa được tới 24 giờ sau khi họp kết thúc.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 {/* Agenda Builder */}
@@ -2000,21 +2290,300 @@ const BookMeeting = () => {
                                             <span className="text-slate-blue">Quy trình duyệt:</span>
                                             {isManagerAutoApprove ? (
                                                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold border border-emerald-100">
-                                                    Tự động phê duyệt
+                                                    Tự duyệt
                                                 </span>
                                             ) : (
                                                 <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 text-xs font-bold border border-amber-100">
-                                                    Cần Trưởng phòng duyệt
+                                                    Chờ {approvalScope?.departmentName || 'đơn vị'} duyệt
                                                 </span>
                                             )}
                                         </div>
 
+                                        {!isManagerAutoApprove && approvers.length > 0 && (
+                                            <div className="text-sm">
+                                                <span className="text-slate-blue">Người duyệt:</span>
+                                                <ul className="mt-1 space-y-0.5">
+                                                    {approvers.map(a => (
+                                                        <li key={a.id} className="text-xs font-semibold text-midnight-indigo">
+                                                            {a.fullName} <span className="font-normal text-slate-blue">({a.isUnitClerk ? 'Văn thư' : 'Trưởng phòng'})</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
                                         <p className="text-xs text-slate-blue leading-relaxed pt-2 border-t border-cloud-mist/50">
                                             {isManagerAutoApprove
-                                                ? 'Với vai trò Trưởng phòng, lịch họp này sẽ được chốt tức thời mà không cần qua bước phê duyệt trung gian.'
-                                                : 'Yêu cầu của bạn sẽ được gửi tới hòm thư phê duyệt của Trưởng phòng. Phòng họp sẽ được tạm khóa giữ chỗ để tránh xung đột.'}
+                                                ? `Bạn là người duyệt của ${approvalScope?.departmentName || 'đơn vị'} nên lịch được chốt ngay khi tạo.`
+                                                : `Yêu cầu được gửi tới trưởng phòng / văn thư ${approvalScope?.departmentName || 'đơn vị'}; chỉ cần 1 người duyệt. Phòng họp được giữ chỗ trong lúc chờ.`}
                                         </p>
                                     </div>
+                                </div>
+
+                                {/* Điểm danh — Lịch tuần UEL: đăng ký chọn có/không điểm danh */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                            <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Điểm danh cuộc họp</span>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={attendanceEnabled}
+                                                onChange={(e) => setAttendanceEnabled(e.target.checked)}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {attendanceEnabled
+                                            ? 'Camera và thư ký sẽ ghi nhận có mặt / đi trễ / vắng của thành viên.'
+                                            : 'Cuộc họp không ghi nhận điểm danh, không gửi nhắc check-in và không tính vào thống kê chuyên cần.'}
+                                    </p>
+                                </div>
+
+                                {/* Nhắc trước họp — mỗi kênh một mốc thời gian */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <Bell className="w-4 h-4 text-amber-500" />
+                                        <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Nhắc trước cuộc họp</span>
+                                    </div>
+                                    <div className="divide-y divide-cloud-mist border border-platinum-tint rounded-xl">
+                                        {REMINDER_CHANNELS.map(({ key, label, icon: Icon }) => {
+                                            const r = reminders[key];
+                                            const setR = (patch) => setReminders(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+                                            return (
+                                                <div key={key} className="flex items-center gap-3 px-4 py-2.5">
+                                                    <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={r.enabled}
+                                                            onChange={(e) => setR({ enabled: e.target.checked })}
+                                                            className="w-4 h-4 rounded border-slate-300 text-action-blue focus:ring-action-blue"
+                                                        />
+                                                        <Icon className={`w-4 h-4 ${r.enabled ? 'text-action-blue' : 'text-slate-400'}`} />
+                                                        <span className={`text-sm font-medium ${r.enabled ? 'text-midnight-indigo' : 'text-slate-blue'}`}>{label}</span>
+                                                    </label>
+                                                    <div className={`flex items-center gap-2 transition-opacity ${r.enabled ? '' : 'opacity-40 pointer-events-none'}`}>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            max={r.unit === 'day' ? 7 : r.unit === 'hour' ? 168 : 10080}
+                                                            value={r.value}
+                                                            disabled={!r.enabled}
+                                                            onChange={(e) => setR({ value: e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                                                            className="w-16 px-2 py-1.5 text-sm text-center border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue"
+                                                        />
+                                                        <select
+                                                            value={r.unit}
+                                                            disabled={!r.enabled}
+                                                            onChange={(e) => setR({ unit: e.target.value })}
+                                                            className="px-2 py-1.5 text-sm border border-platinum-tint rounded-lg bg-white focus:outline-none focus:border-action-blue"
+                                                        >
+                                                            <option value="minute">phút</option>
+                                                            <option value="hour">giờ</option>
+                                                            <option value="day">ngày</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {Object.values(reminders).some(r => r.enabled)
+                                            ? 'Thành viên nhận nhắc qua các kênh đã chọn trước giờ họp (sau khi lịch được duyệt). Tối đa 7 ngày.'
+                                            : 'Không gửi nhắc trước giờ họp.'}
+                                    </p>
+                                </div>
+
+                                {/* Lặp lại — mỗi buổi là một cuộc họp riêng (UEL mục 16) */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <Repeat className="w-4 h-4 text-violet-500" />
+                                        <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Lặp lại</span>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[['none', 'Không lặp'], ['daily', 'Hằng ngày'], ['weekly', 'Hằng tuần'], ['monthly', 'Hằng tháng']].map(([v, label]) => (
+                                            <button
+                                                key={v}
+                                                type="button"
+                                                onClick={() => setRecurrence(prev => ({
+                                                    ...prev,
+                                                    type: v,
+                                                    daysOfWeek: v === 'weekly' && prev.daysOfWeek.length === 0 && startDate ? [isoWeekday(startDate)] : prev.daysOfWeek,
+                                                }))}
+                                                className={`px-2 py-2 text-xs font-semibold rounded-lg border transition-colors ${recurrence.type === v ? 'bg-action-blue text-white border-action-blue' : 'bg-white text-slate-blue border-platinum-tint hover:border-action-blue'}`}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {recurrence.type === 'weekly' && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs text-slate-blue mr-1">Vào</span>
+                                            {WEEKDAYS.map(({ v, label }) => {
+                                                const on = recurrence.daysOfWeek.includes(v);
+                                                return (
+                                                    <button
+                                                        key={v}
+                                                        type="button"
+                                                        onClick={() => setRecurrence(prev => ({
+                                                            ...prev,
+                                                            daysOfWeek: on ? prev.daysOfWeek.filter(x => x !== v) : [...prev.daysOfWeek, v].sort(),
+                                                        }))}
+                                                        className={`w-9 h-9 text-xs font-semibold rounded-full border transition-colors ${on ? 'bg-violet-500 text-white border-violet-500' : 'bg-white text-slate-blue border-platinum-tint hover:border-violet-400'}`}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    {recurrence.type !== 'none' && (
+                                        <div className="space-y-2 text-sm text-midnight-indigo">
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input type="radio" checked={recurrence.endMode === 'count'} onChange={() => setRecurrence(prev => ({ ...prev, endMode: 'count' }))} className="text-action-blue focus:ring-action-blue" />
+                                                <span>Sau</span>
+                                                <input
+                                                    type="number"
+                                                    min={2}
+                                                    max={60}
+                                                    value={recurrence.count}
+                                                    disabled={recurrence.endMode !== 'count'}
+                                                    onChange={(e) => setRecurrence(prev => ({ ...prev, count: e.target.value === '' ? '' : Math.min(60, Math.max(1, parseInt(e.target.value, 10) || 2)) }))}
+                                                    className="w-16 px-2 py-1.5 text-sm text-center border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue disabled:opacity-40"
+                                                />
+                                                <span>buổi</span>
+                                            </label>
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input type="radio" checked={recurrence.endMode === 'date'} onChange={() => setRecurrence(prev => ({ ...prev, endMode: 'date' }))} className="text-action-blue focus:ring-action-blue" />
+                                                <span>Đến hết ngày</span>
+                                                <input
+                                                    type="date"
+                                                    value={recurrence.endDate}
+                                                    min={startStr || undefined}
+                                                    disabled={recurrence.endMode !== 'date'}
+                                                    onChange={(e) => setRecurrence(prev => ({ ...prev, endDate: e.target.value }))}
+                                                    className="px-2 py-1.5 text-sm border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue disabled:opacity-40"
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {recurrence.type === 'none'
+                                            ? 'Cuộc họp diễn ra một lần.'
+                                            : 'Mỗi buổi là một cuộc họp riêng (điểm danh, biên bản riêng), cùng phòng và giờ. Tối đa 60 buổi; ngày trùng phòng sẽ được hỏi để bỏ qua.'}
+                                    </p>
+                                </div>
+
+                                {/* Yêu cầu nộp báo cáo trước họp (UEL mục 12) */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
+                                    <label className="flex items-center justify-between cursor-pointer">
+                                        <span className="flex items-center gap-2">
+                                            <FileText className="w-4 h-4 text-emerald-600" />
+                                            <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Yêu cầu nộp báo cáo</span>
+                                        </span>
+                                        <input
+                                            type="checkbox"
+                                            checked={reportReq.enabled}
+                                            onChange={(e) => setReportReq(prev => ({ ...prev, enabled: e.target.checked }))}
+                                            className="w-4 h-4 rounded border-slate-300 text-action-blue focus:ring-action-blue"
+                                        />
+                                    </label>
+                                    {reportReq.enabled && (
+                                        <div className="space-y-3">
+                                            <div>
+                                                <div className="text-xs font-bold text-slate-blue uppercase mb-1.5">Người cần nộp</div>
+                                                {memberOptions.length === 0 ? (
+                                                    <p className="text-xs text-amber-600">Thêm thành phần tham gia trước để chọn người nộp.</p>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {memberOptions.map(o => {
+                                                            const on = reportReq.userIds.includes(o.id);
+                                                            return (
+                                                                <button
+                                                                    key={o.id}
+                                                                    type="button"
+                                                                    onClick={() => setReportReq(prev => ({ ...prev, userIds: on ? prev.userIds.filter(x => x !== o.id) : [...prev.userIds, o.id] }))}
+                                                                    className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${on ? 'bg-emerald-50 text-emerald-700 border-emerald-400' : 'bg-white text-slate-blue border-platinum-tint hover:border-emerald-400'}`}
+                                                                >
+                                                                    {on && <Check className="inline w-3 h-3 mr-1" />}{o.label}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm text-midnight-indigo">
+                                                <span>Hạn nộp: trước giờ họp</span>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    value={reportReq.value}
+                                                    onChange={(e) => setReportReq(prev => ({ ...prev, value: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                                                    className="w-16 px-2 py-1.5 text-sm text-center border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue"
+                                                />
+                                                <select
+                                                    value={reportReq.unit}
+                                                    onChange={(e) => setReportReq(prev => ({ ...prev, unit: e.target.value }))}
+                                                    className="px-2 py-1.5 text-sm border border-platinum-tint rounded-lg bg-white focus:outline-none focus:border-action-blue"
+                                                >
+                                                    <option value="minute">phút</option>
+                                                    <option value="hour">giờ</option>
+                                                    <option value="day">ngày</option>
+                                                </select>
+                                            </div>
+                                            <textarea
+                                                value={reportReq.note}
+                                                maxLength={1000}
+                                                rows={2}
+                                                onChange={(e) => setReportReq(prev => ({ ...prev, note: e.target.value }))}
+                                                placeholder="Nội dung cần báo cáo, VD: Tiến độ hạng mục phụ trách, số liệu đến hết tháng"
+                                                className="w-full px-3 py-2 text-sm border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue resize-none"
+                                            />
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {reportReq.enabled
+                                            ? 'Người được giao nhận thông báo, nộp file ở trang chi tiết cuộc họp; hệ thống nhắc người chưa nộp khi còn 1 ngày tới hạn.'
+                                            : 'Không yêu cầu nộp báo cáo trước họp.'}
+                                    </p>
+                                </div>
+
+                                {/* Trình ký biên bản sau họp (UEL mục 13) */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
+                                    <label className="flex items-center justify-between cursor-pointer">
+                                        <span className="flex items-center gap-2">
+                                            <PenLine className="w-4 h-4 text-rose-500" />
+                                            <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Trình ký biên bản</span>
+                                        </span>
+                                        <input
+                                            type="checkbox"
+                                            checked={signoffReq.enabled}
+                                            onChange={(e) => setSignoffReq(prev => ({ ...prev, enabled: e.target.checked }))}
+                                            className="w-4 h-4 rounded border-slate-300 text-action-blue focus:ring-action-blue"
+                                        />
+                                    </label>
+                                    {signoffReq.enabled && (
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Người ký duyệt</label>
+                                            <select
+                                                value={memberOptions.some(o => o.id === signoffReq.signerId) ? signoffReq.signerId : ''}
+                                                onChange={(e) => setSignoffReq(prev => ({ ...prev, signerId: e.target.value }))}
+                                                className="w-full px-3 py-2 text-sm border border-platinum-tint rounded-lg bg-white focus:outline-none focus:border-action-blue"
+                                            >
+                                                <option value="">Chủ trì cuộc họp (mặc định)</option>
+                                                {memberOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {signoffReq.enabled
+                                            ? 'Sau khi họp, thư ký trình biên bản cho người ký; biên bản chỉ được ban hành khi đã ký duyệt.'
+                                            : 'Biên bản được ban hành trực tiếp, không cần trình ký.'}
+                                    </p>
                                 </div>
 
                                 {/* Security & Recording Config — chỉ hiển thị nếu phòng có thiết bị ghi âm/hình */}
@@ -2190,12 +2759,12 @@ const BookMeeting = () => {
                                                             <p className="text-xs text-slate-blue mt-1 line-clamp-1">
                                                                 {room.siteName || room.site_name} • {room.areaName || room.area_name || 'Khu vực'}
                                                             </p>
+                                                            <RoomFaultNote room={room} />
                                                         </div>
 
                                                         <div className="flex items-center justify-between border-t border-platinum-tint/40 pt-2.5 mt-3">
                                                             <div className="flex items-center gap-2 text-slate-blue/60">
-                                                                {(room.hasCamera || room.has_camera) && <Video className="w-3.5 h-3.5" title="Có Camera" />}
-                                                                {(room.hasMicrophone || room.has_microphone) && <Mic className="w-3.5 h-3.5" title="Có Mic" />}
+                                                                <RoomEquipmentIcons room={room} showDisplay={false} />
                                                             </div>
                                                             <span className="text-[11px] font-bold text-action-blue group-hover:underline">
                                                                 Đổi sang phòng này

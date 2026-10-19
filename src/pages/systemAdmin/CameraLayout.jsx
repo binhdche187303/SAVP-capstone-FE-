@@ -2,7 +2,7 @@ import { Activity, LayoutGrid, Move, RotateCcw, Save } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DeviceConnectionHistoryPanel from "../../components/devices/DeviceConnectionHistoryPanel";
-import { CAMERA_TYPES, defaultAngle } from "../../mocks/cameraMock";
+import { CAMERA_TYPES } from "../../mocks/cameraMock";
 import { getCampusMap } from "../../service/campusService";
 import {
   getDevices,
@@ -10,16 +10,19 @@ import {
   getZones,
   saveCameraLayout,
 } from "../../service/sysAdminServices";
+import {
+  BLOCK_STYLE,
+  PLAN_W as W,
+  buildPlan,
+  placeCameras,
+  savedLayout,
+  zoneFloorKey,
+} from "../../utils/floorPlan";
 
 // 2.2.4 Sơ đồ lắp đặt camera theo tầng.
 // Thật (BE): zone (building/floor), phòng (areaName), camera theo zone (campus map), trạng thái camera.
 // Vị trí + hướng camera lưu BE (PUT /iot-devices/layout → metadata_json.layout theo floor_key).
 // Mặt bằng do FE tự vẽ từ danh sách zone/phòng (chưa có ảnh mặt bằng).
-
-const W = 1000;
-const PAD = 40;
-const GAP = 30;
-const BAND_H = { rooms: 170, corridors: 90, others: 170 };
 
 const STATUS_COLOR = {
   online: "#22c55e",
@@ -38,80 +41,6 @@ const TYPE_LABEL = {
   door_camera: "Camera vào/ra",
   room_camera: "Camera phòng",
   anpr_camera: "Camera biển số",
-};
-
-const BLOCK_STYLE = {
-  room: { fill: "#eef2ff", stroke: "#a5b4fc" },
-  corridor: { fill: "#f1f5f9", stroke: "#cbd5e1" },
-  lobby: { fill: "#eff6ff", stroke: "#93c5fd" },
-  gate: { fill: "#fffbeb", stroke: "#fcd34d" },
-  parking: { fill: "#f3f4f6", stroke: "#9ca3af" },
-  restricted: { fill: "#fef2f2", stroke: "#fca5a5" },
-};
-
-const zoneFloorKey = (z) =>
-  z.building && z.floor ? `${z.building} - Tầng ${z.floor}` : null;
-
-const isRestricted = (z) =>
-  /SERVER|RESTRICT/i.test(z.zone_code) || /hạn chế/i.test(z.zone_name);
-
-/** Chia 1 dải ngang thành n khối bằng nhau. */
-const rowBlocks = (items, y, h) => {
-  const n = items.length;
-  const w = (W - PAD * 2 - (n - 1) * 20) / n;
-  return items.map((it, i) => ({ ...it, x: PAD + i * (w + 20), y, w, h }));
-};
-
-/** Dựng mặt bằng 1 tầng: phòng (trên) — hành lang (giữa) — sảnh/cổng/bãi xe (dưới). */
-const buildPlan = (zones, rooms) => {
-  const bands = [
-    [
-      "rooms",
-      rooms.map((r) => ({
-        key: r.roomId,
-        kind: "room",
-        label: r.roomName,
-        sub: r.roomCode,
-        roomId: r.roomId,
-      })),
-    ],
-    [
-      "corridors",
-      zones
-        .filter((z) => z.zone_type === "corridor" && !isRestricted(z))
-        .map((z) => ({
-          key: z.id,
-          kind: "corridor",
-          label: z.zone_name,
-          sub: z.zone_code,
-          zoneId: z.id,
-        })),
-    ],
-    [
-      "others",
-      zones
-        .filter((z) => z.zone_type !== "corridor" || isRestricted(z))
-        .map((z) => ({
-          key: z.id,
-          kind: isRestricted(z)
-            ? "restricted"
-            : BLOCK_STYLE[z.zone_type]
-              ? z.zone_type
-              : "lobby",
-          label: z.zone_name,
-          sub: z.zone_code,
-          zoneId: z.id,
-        })),
-    ],
-  ].filter(([, items]) => items.length > 0);
-
-  let y = PAD;
-  const blocks = [];
-  bands.forEach(([band, items]) => {
-    blocks.push(...rowBlocks(items, y, BAND_H[band]));
-    y += BAND_H[band] + GAP;
-  });
-  return { blocks, height: Math.max(y - GAP + PAD, 300) };
 };
 
 /** Hình quạt góc nhìn 60°, bán kính r, hướng angle (độ). */
@@ -197,14 +126,7 @@ const CameraLayout = () => {
 
   // Vị trí đã lưu của tầng hiện tại (metadata_json.layout của từng camera).
   const savedPositions = useMemo(() => {
-    if (!current) return {};
-    const out = {};
-    devices.forEach((d) => {
-      const l = d.metadata_json?.layout;
-      if (l && l.floor_key === current.key)
-        out[d.id] = { x: l.x, y: l.y, angle: l.angle };
-    });
-    return out;
+    return current ? savedLayout(devices, current.key) : {};
   }, [devices, current]);
 
   useEffect(() => {
@@ -290,29 +212,8 @@ const CameraLayout = () => {
 
   // Camera của tầng: camera theo zone (campus map) + camera gán phòng (room_id).
   const placed = useMemo(() => {
-    const out = [];
-    plan.blocks.forEach((b) => {
-      const ids = b.zoneId
-        ? zoneCameras[b.zoneId] || []
-        : devices
-            .filter(
-              (d) =>
-                d.room_id === b.roomId && CAMERA_TYPES.includes(d.device_type),
-            )
-            .map((d) => d.id);
-      ids.forEach((id, i) => {
-        const device = deviceById[id];
-        if (!device) return;
-        const def = {
-          x: b.x + (b.w * (i + 1)) / (ids.length + 1),
-          y: b.kind === "room" ? b.y + 26 : b.y + b.h / 2,
-          angle: b.kind === "room" ? 90 : defaultAngle(id),
-        };
-        out.push({ device, block: b, ...def, ...positions[id] });
-      });
-    });
-    return out;
-  }, [plan, zoneCameras, devices, deviceById, positions]);
+    return placeCameras(plan, zoneCameras, devices, positions);
+  }, [plan, zoneCameras, devices, positions]);
 
   const toSvg = (e) => {
     const pt = svgRef.current.createSVGPoint();

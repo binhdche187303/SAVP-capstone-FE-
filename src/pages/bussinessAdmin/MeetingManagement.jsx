@@ -1,4 +1,5 @@
 import { AlertCircle, Calendar, CheckCircle, Clock, Home, Plus, RefreshCw, Search, Users, XCircle } from 'lucide-react';
+import { htmlToPlainText } from '../../utils/richText';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -413,7 +414,7 @@ const MeetingManagement = () => {
                                         <tr key={m.id} className="border-b border-platinum-tint/40 hover:bg-cloud-mist/30 transition-colors">
                                             <td className="py-4 px-6">
                                                 <div className="font-bold text-midnight-indigo">{m.title}</div>
-                                                <div className="text-xs text-slate-blue truncate max-w-[240px]">{m.description || 'Không có mô tả'}</div>
+                                                <div className="text-xs text-slate-blue truncate max-w-[240px]">{htmlToPlainText(m.description) || 'Không có mô tả'}</div>
                                             </td>
                                             <td className="py-4 px-6 text-sm text-slate-blue font-semibold">
                                                 <span className="flex items-center gap-1.5">

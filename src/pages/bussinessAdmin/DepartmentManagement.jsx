@@ -653,7 +653,6 @@ const DepartmentManagement = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/50">
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Mã</th>
                                     <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Phòng ban</th>
                                     <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Mô tả chi tiết</th>
                                     <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Thành viên</th>
@@ -665,18 +664,13 @@ const DepartmentManagement = () => {
                             <tbody>
                                 {departmentsList.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" className="py-12 text-center text-slate-blue text-sm">
+                                        <td colSpan="6" className="py-12 text-center text-slate-blue text-sm">
                                             Không tìm thấy phòng ban nào phù hợp.
                                         </td>
                                     </tr>
                                 ) : (
                                     departmentsList.map((dept) => (
                                         <tr key={dept.id} className="border-b border-platinum-tint/40 hover:bg-cloud-mist/30 transition-colors">
-                                            <td className="py-4 px-6">
-                                                <span className="font-mono text-xs font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-md whitespace-nowrap">
-                                                    {dept.departmentCode || '—'}
-                                                </span>
-                                            </td>
                                             <td className="py-4 px-6">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-9 h-9 rounded-lg bg-blue-50 text-action-blue flex items-center justify-center font-bold text-sm">
@@ -952,6 +946,7 @@ const DepartmentManagement = () => {
                         <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-cloud-mist/50">
                             <div>
                                 <h3 className="font-bold text-midnight-indigo text-base">Thành viên phòng ban: {selectedDept.name}</h3>
+                                <p className="text-xs text-slate-blue mt-0.5">Mã đơn vị: <span className="font-mono font-bold">{selectedDept.departmentCode || '—'}</span></p>
                                 <p className="text-xs text-slate-blue mt-0.5">{selectedDept.description || 'Không có mô tả chi tiết'}</p>
                             </div>
                             <div className="flex items-center gap-3">

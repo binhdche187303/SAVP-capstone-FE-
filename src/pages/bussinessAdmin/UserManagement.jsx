@@ -43,7 +43,7 @@ const ROLE_LABELS = {
     SYSTEM_ADMIN: 'Quản trị hệ thống',
     BUSINESS_ADMIN: 'Quản trị nghiệp vụ',
     MANAGER: 'Trưởng nhóm / Quản lý',
-    EMPLOYEE: 'Nhân viên',
+    EMPLOYEE: 'Cán bộ, viên chức',
     TEACHER: 'Giảng viên',
     STUDENT: 'Sinh viên',
     GUARD: 'Bảo vệ',
@@ -128,6 +128,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
 
     const [selectedUser, setSelectedUser] = useState(null);
     const [selectedUserDetail, setSelectedUserDetail] = useState(null);
+    const [calendarRoleOrig, setCalendarRoleOrig] = useState(null);
     const [userLogs, setUserLogs] = useState([]);
     const [logsLoading, setLogsLoading] = useState(false);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -485,7 +486,12 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                 : await updateUser(selectedUser.id, {
                     fullName: formData.fullName,
                     phoneNumber: formData.phone,
-                    departmentId: formData.departmentId || null
+                    departmentId: formData.departmentId || null,
+                    // Chỉ gửi vai trò lịch khi đã tải được giá trị gốc và có thay đổi
+                    ...(calendarRoleOrig && formData.isUnitClerk !== calendarRoleOrig.isUnitClerk
+                        ? { isUnitClerk: formData.isUnitClerk } : {}),
+                    ...(calendarRoleOrig && formData.leadershipTitle !== calendarRoleOrig.leadershipTitle
+                        ? { leadershipTitle: formData.leadershipTitle || null } : {}),
                 });
             if (isSystemAdminMode) {
                 await updateUserRoles(selectedUser.id, { roleIds: formData.roleIds });
@@ -686,9 +692,21 @@ const UserManagement = ({ mode = 'business-admin' }) => {
             phone: user.phoneNumber || user.phone || '',
             departmentId: deptId,
             administrativeClass: '',
-            roleIds
+            roleIds,
+            isUnitClerk: false,
+            leadershipTitle: '',
         });
+        setCalendarRoleOrig(null);
         setIsEditModalOpen(true);
+        // Lịch tuần UEL: cờ văn thư / chức danh BGH chỉ có trong chi tiết tài khoản.
+        getUserById(user.id)
+            .then((res) => {
+                if (!res?.success || !res.data) return;
+                const orig = { isUnitClerk: !!res.data.isUnitClerk, leadershipTitle: res.data.leadershipTitle || '' };
+                setCalendarRoleOrig(orig);
+                setFormData((prev) => ({ ...prev, ...orig }));
+            })
+            .catch(() => {});
     };
 
     const resetForm = () => {
@@ -1510,6 +1528,39 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                             {departments.map(d => (
                                                 <option key={d.id} value={d.id}>{d.departmentName}</option>
                                             ))}
+                                        </select>
+                                    </div>
+                                    <div className="pt-3 border-t border-platinum-tint">
+                                        <p className="text-xs font-bold text-slate-blue uppercase mb-2">Vai trò lịch họp</p>
+                                        <label className={`flex items-start gap-2 text-sm font-medium ${formData.departmentId ? 'text-midnight-indigo cursor-pointer' : 'text-slate-400 cursor-not-allowed'}`}>
+                                            <input
+                                                type="checkbox"
+                                                checked={!!formData.isUnitClerk}
+                                                disabled={!formData.departmentId || !calendarRoleOrig}
+                                                onChange={(e) => setFormData({ ...formData, isUnitClerk: e.target.checked })}
+                                                className="mt-0.5 rounded text-action-blue focus:ring-action-blue"
+                                            />
+                                            <span>
+                                                Văn thư đơn vị
+                                                <span className="block text-xs font-normal text-slate-blue">
+                                                    {formData.departmentId
+                                                        ? `Là văn thư của: ${departments.find(d => d.id === formData.departmentId)?.departmentName || ''}`
+                                                        : 'Cần chọn phòng ban trước'}
+                                                </span>
+                                            </span>
+                                        </label>
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mt-3 mb-1">Ban Giám hiệu</label>
+                                        <select
+                                            value={formData.leadershipTitle || ''}
+                                            disabled={!calendarRoleOrig}
+                                            onChange={(e) => setFormData({ ...formData, leadershipTitle: e.target.value })}
+                                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white disabled:bg-cloud-mist"
+                                        >
+                                            <option value="">Không</option>
+                                            <option value="HIEU_TRUONG">Hiệu trưởng</option>
+                                            <option value="PHO_HIEU_TRUONG">Phó Hiệu trưởng</option>
+                                            <option value="BI_THU">Bí thư Đảng ủy</option>
+                                            <option value="PHO_BI_THU">Phó Bí thư Đảng ủy</option>
                                         </select>
                                     </div>
                                 </>

@@ -345,6 +345,11 @@ const EquipmentReport = () => {
                             <div className="p-3 bg-cloud-mist/30 rounded-xl mb-4">
                                 <p className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
                                 <p className="text-xs text-slate-blue">Mã: {selectedEquipment.equipmentCode} • Phòng: {selectedEntry?.room?.roomName}</p>
+                                {selectedEntry?.room?.location && (
+                                    <p className="text-xs text-slate-blue mt-0.5 flex items-center gap-1">
+                                        <MapPin className="w-3 h-3 shrink-0" /> {selectedEntry.room.location}
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mức độ sự cố</label>

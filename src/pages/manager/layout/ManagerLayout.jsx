@@ -1,4 +1,4 @@
-import { Activity, Archive, BarChart2, Calendar, ChevronDown, Clock, Car, FileBarChart, FileCheck, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
+import { Activity, Archive, Award, BarChart2, Calendar, ChevronDown, Clock, Car, FileBarChart, FileCheck, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -95,6 +95,11 @@ const STATIC_NAVIGATION_ITEMS = [
                 icon: Activity,
             },
             {
+                label: 'Điểm chuyên cần cuộc họp',
+                to: '/manager/attendance-points',
+                icon: Award,
+            },
+            {
                 label: 'Lưu lượng & Heatmap',
                 to: '/manager/zone-traffic',
                 icon: Flame,
@@ -189,7 +194,6 @@ const ManagerLayout = () => {
     }, []);
 
     const displayName = currentUser?.fullName || 'Trưởng phòng';
-    const displayRole = 'Trưởng phòng';
 
     return (
         <div className="min-h-screen flex flex-col bg-cloud-mist">
@@ -197,25 +201,25 @@ const ManagerLayout = () => {
             <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-platinum-tint">
                 <div className="max-w-[1440px] mx-auto flex items-center justify-between h-16 px-6 lg:px-12">
                     {/* Left: Logo + Nav */}
-                    <div className="flex items-center gap-10">
+                    <div className="flex items-center gap-6">
                         {/* Logo */}
                         <NavLink
                             to="/manager"
                             className="flex items-center gap-2 no-underline"
-                            aria-label="SmarTracking home"
+                            aria-label="VISMA IVA home"
                         >
                             <div className="w-12 h-12 bg-white flex items-center justify-center shrink-0">
-                                <img src={logo} alt="SmarTracking Logo" className="w-full h-full object-contain scale-[1.3]" />
+                                <img src={logo} alt="VISMA IVA Logo" className="w-full h-full object-contain scale-[1.3]" />
                             </div>
                             <span className="text-midnight-indigo font-bold text-xl tracking-tight hidden sm:block">
-                                SmarTracking
+                                VISMA IVA
                             </span>
                         </NavLink>
 
                         <nav
                             ref={navRef}
                             aria-label="Primary navigation"
-                            className="hidden md:flex items-center gap-1"
+                            className="hidden xl:flex items-center gap-0.5"
                         >
                             {navigationItems.map((item) => (
                                 item.isDropdown ? (
@@ -227,9 +231,9 @@ const ManagerLayout = () => {
                                     >
                                         <button
                                             onClick={() => setOpenDropdown(openDropdown === item.label ? null : item.label)}
-                                            className="px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist flex items-center gap-1.5"
+                                            className="px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist whitespace-nowrap flex items-center gap-1.5"
                                         >
-                                            {item.icon && <item.icon className="w-4 h-4 text-slate-400" />}
+                                            {item.icon && <item.icon className="hidden 2xl:block w-4 h-4 text-slate-400" />}
                                             <span>{item.label}</span>
                                             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdown === item.label ? 'rotate-180 text-midnight-indigo' : 'text-slate-400'}`} />
                                         </button>
@@ -237,7 +241,7 @@ const ManagerLayout = () => {
                                         {openDropdown === item.label && (
                                             <div className="absolute top-full left-0 pt-1 z-50 min-w-max">
                                                 <div className="bg-white border border-platinum-tint/80 rounded-2xl shadow-xl p-2.5 flex gap-4 items-stretch animate-in fade-in slide-in-from-top-1 duration-150">
-                                                    {chunkArray(item.children, 3).map((chunk, chunkIdx) => (
+                                                    {chunkArray(item.children, item.children.length <= 5 ? 5 : Math.ceil(item.children.length / 2)).map((chunk, chunkIdx) => (
                                                         <div key={chunkIdx} className="flex gap-4 items-stretch">
                                                             {chunkIdx > 0 && (
                                                                 <div className="w-px bg-platinum-tint/60 self-stretch my-1" aria-hidden="true" />
@@ -273,13 +277,13 @@ const ManagerLayout = () => {
                                         to={item.to}
                                         end={item.end || false}
                                         className={({ isActive }) =>
-                                            `px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 no-underline whitespace-nowrap flex items-center gap-1.5 ${isActive
+                                            `px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 no-underline whitespace-nowrap flex items-center gap-1.5 ${isActive
                                                 ? 'text-action-blue bg-blue-50 font-bold'
                                                 : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist'
                                             }`
                                         }
                                     >
-                                        {item.icon && <item.icon className="w-4 h-4 text-slate-400" />}
+                                        {item.icon && <item.icon className="hidden 2xl:block w-4 h-4 text-slate-400" />}
                                         <span>{item.label}</span>
                                     </NavLink>
                                 )
@@ -288,7 +292,7 @@ const ManagerLayout = () => {
                     </div>
 
                     {/* Right: Notification + Profile */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 shrink-0">
                         {/* Notification bell */}
                         <NotificationBell basePath="/manager" />
 
@@ -305,15 +309,6 @@ const ManagerLayout = () => {
                                 onClick={() => setIsProfileMenuOpen((prev) => !prev)}
                                 className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-cloud-mist transition-colors duration-200"
                             >
-                                <div className="hidden sm:flex flex-col items-end">
-                                    <span className="text-sm font-semibold text-midnight-indigo leading-tight">
-                                        {displayName}
-                                    </span>
-                                    <span className="text-xs text-slate-blue leading-tight">
-                                        {displayRole}
-                                    </span>
-                                </div>
-
                                 <UserAvatar
                                     user={currentUser}
                                     name={displayName}
@@ -402,7 +397,7 @@ const ManagerLayout = () => {
                         <button
                             type="button"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="md:hidden flex items-center justify-center p-2 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist transition-colors bg-transparent border-0"
+                            className="xl:hidden flex items-center justify-center p-2 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist transition-colors bg-transparent border-0"
                         >
                             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
@@ -411,7 +406,7 @@ const ManagerLayout = () => {
             </header>
 
             {/* ========== MOBILE MENU DRAWER ========== */}
-            <div className={`md:hidden fixed inset-0 z-40 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`xl:hidden fixed inset-0 z-40 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 {/* Overlay backdrop */}
                 <div 
                     className="absolute inset-0 bg-midnight-indigo/20 backdrop-blur-sm mobile-menu-overlay" 
@@ -479,10 +474,10 @@ const ManagerLayout = () => {
                 <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 px-6 lg:px-12 py-5">
                     <div className="flex items-center gap-4">
                         <span className="text-sm font-bold text-midnight-indigo">
-                            SmarTracking
+                            VISMA IVA
                         </span>
                         <span className="text-xs text-slate-blue">
-                            © 2026 Trung tâm Điều hành Thông minh SmarTracking. Trạng thái: Hoạt động.
+                            © 2026 VISMA Intelligent Video Analytics (IVA). Trạng thái: Hoạt động.
                         </span>
                     </div>
 

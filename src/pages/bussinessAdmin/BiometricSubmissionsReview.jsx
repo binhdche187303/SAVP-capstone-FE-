@@ -41,7 +41,7 @@ const ROLE_OPTIONS = [
     { value: "STUDENT", label: "Sinh viên" },
     { value: "TEACHER", label: "Giảng viên" },
     { value: "GUARD", label: "Bảo vệ" },
-    { value: "EMPLOYEE", label: "Nhân viên" },
+    { value: "EMPLOYEE", label: "Cán bộ, viên chức" },
     { value: "MANAGER", label: "Quản lý" },
     { value: "BUSINESS_ADMIN", label: "Business Admin" },
     { value: "SYSTEM_ADMIN", label: "System Admin" },

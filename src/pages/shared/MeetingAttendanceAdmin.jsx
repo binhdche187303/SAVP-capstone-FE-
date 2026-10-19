@@ -285,9 +285,6 @@ const MeetingAttendanceAdmin = () => {
                                             <p className="text-sm font-bold text-midnight-indigo leading-snug">
                                                 {m.title || m.name || 'Cuộc họp không tên'}
                                             </p>
-                                            <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusTab.badge}`}>
-                                                {statusTab.label}
-                                            </span>
                                         </div>
 
                                         {/* Time */}
@@ -322,13 +319,18 @@ const MeetingAttendanceAdmin = () => {
                                     </div>
 
                                     {/* CTA button */}
-                                    <button
-                                        onClick={() => setSelectedMeeting(m)}
-                                        className="flex-shrink-0 self-center inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-action-blue/10 hover:bg-action-blue text-action-blue hover:text-white text-[11px] font-bold border border-action-blue/20 hover:border-action-blue transition-all active:scale-95"
-                                    >
-                                        Xem chuyên cần
-                                        <ArrowRight className="w-3.5 h-3.5" />
-                                    </button>
+                                    <div className="flex-shrink-0 self-center flex flex-col items-center gap-2">
+                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusTab.badge}`}>
+                                            {statusTab.label}
+                                        </span>
+                                        <button
+                                            onClick={() => setSelectedMeeting(m)}
+                                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-action-blue/10 hover:bg-action-blue text-action-blue hover:text-white text-[11px] font-bold border border-action-blue/20 hover:border-action-blue transition-all active:scale-95"
+                                        >
+                                            Xem chuyên cần
+                                            <ArrowRight className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

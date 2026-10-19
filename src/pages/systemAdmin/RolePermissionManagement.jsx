@@ -1,5 +1,6 @@
-import { AlertTriangle, CheckCircle, Key, Plus, RefreshCw, Save, Search, Shield, Trash2, UserCog } from 'lucide-react';
+import { AlertTriangle, CheckCircle, GripVertical, Key, Plus, RefreshCw, Save, Search, Shield, Trash2, UserCog } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
+import { Reorder, useDragControls } from 'framer-motion';
 
 import { createPortal } from 'react-dom';
 import {
@@ -8,6 +9,13 @@ import {
 } from '../../service/permissionServices';
 import { PERMISSION_MODULE_STATUS } from '../../config/permissionModuleStatus';
 import { PERMISSION_DEPENDENCIES } from '../../config/permissionDependencies';
+
+const MODULE_STATUS_LABEL = {
+    partial: 'Chức năng chưa hoàn thiện',
+    missing: 'Chưa có màn hình',
+    orphaned: 'Quyền không còn được sử dụng',
+    unknown: 'Cần kiểm tra thêm',
+};
 
 
 // [FIX] Bổ sung đầy đủ moduleCode thật — đọc trực tiếp từ dữ liệu seed thật
@@ -80,7 +88,7 @@ const ROLE_TRANSLATIONS = {
     'SYSTEM_ADMIN': 'Quản trị hệ thống',
     'BUSINESS_ADMIN': 'Quản trị doanh nghiệp',
     'MANAGER': 'Quản lý',
-    'EMPLOYEE': 'Nhân viên',
+    'EMPLOYEE': 'Cán bộ, viên chức',
     'TEACHER': 'Giảng viên',
     'STUDENT': 'Sinh viên',
     'GUARD': 'Bảo vệ'
@@ -93,6 +101,94 @@ const getDisplayRoleName = (role) => {
 
 const getDisplayPermissionName = (permission) => {
     return PERMISSION_NAME_TRANSLATIONS[permission?.permissionCode] || permission?.permissionName || permission?.permissionCode || 'Quyền';
+};
+
+// Thứ tự mặc định: role quyền cao lên trên; role tự tạo xếp sau, theo tên.
+const ROLE_PRIORITY = ['SYSTEM_ADMIN', 'BUSINESS_ADMIN', 'MANAGER', 'TEACHER', 'GUARD', 'EMPLOYEE', 'STUDENT'];
+
+// BE chưa có cột thứ tự cho role → thứ tự kéo thả lưu theo trình duyệt (danh sách role id).
+const ROLE_ORDER_STORAGE_KEY = 'rolePermission.roleOrder';
+
+const loadSavedRoleOrder = () => {
+    try {
+        const saved = JSON.parse(localStorage.getItem(ROLE_ORDER_STORAGE_KEY));
+        return Array.isArray(saved) ? saved : [];
+    } catch {
+        return [];
+    }
+};
+
+const saveRoleOrder = (roles) => {
+    try {
+        localStorage.setItem(ROLE_ORDER_STORAGE_KEY, JSON.stringify(roles.map(r => r.id)));
+    } catch {}
+};
+
+const sortRoles = (roles) => {
+    const defaultRank = (role) => {
+        const idx = ROLE_PRIORITY.indexOf((role.roleCode || '').toUpperCase());
+        return idx === -1 ? ROLE_PRIORITY.length : idx;
+    };
+    const byDefault = [...roles].sort((a, b) =>
+        defaultRank(a) - defaultRank(b) || getDisplayRoleName(a).localeCompare(getDisplayRoleName(b), 'vi')
+    );
+    // Role đã từng được kéo thả giữ vị trí đã lưu; role mới (chưa có trong thứ tự đã lưu) nối phía sau.
+    const saved = loadSavedRoleOrder();
+    const savedIndex = (role) => {
+        const idx = saved.indexOf(role.id);
+        return idx === -1 ? saved.length + byDefault.indexOf(role) : idx;
+    };
+    return byDefault.sort((a, b) => savedIndex(a) - savedIndex(b));
+};
+
+// Mỗi item cần useDragControls riêng để chỉ kéo bằng tay nắm, click vào thẻ vẫn là chọn role.
+const RoleListItem = ({ role, isSelected, onSelect, onDelete }) => {
+    const dragControls = useDragControls();
+    return (
+        <Reorder.Item
+            value={role}
+            dragListener={false}
+            dragControls={dragControls}
+            onClick={() => onSelect(role)}
+            className={`relative p-4 pl-3 rounded-xl border cursor-pointer transition-colors flex gap-2 ${
+                isSelected
+                ? 'border-action-blue bg-action-blue/10 ring-2 ring-action-blue/30 shadow-sm'
+                : 'border-platinum-tint bg-white hover:border-action-blue/50 hover:bg-cloud-mist/20'
+            }`}
+        >
+            {isSelected && <span className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full bg-action-blue" />}
+            <button
+                type="button"
+                onPointerDown={(e) => dragControls.start(e)}
+                onClick={(e) => e.stopPropagation()}
+                className="self-center p-1 -ml-1 text-slate-blue/50 hover:text-action-blue cursor-grab active:cursor-grabbing touch-none"
+                title="Kéo để đổi vị trí"
+            >
+                <GripVertical className="w-4 h-4" />
+            </button>
+            <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start mb-1">
+                    <h3 className={`font-bold text-sm ${isSelected ? 'text-action-blue' : 'text-midnight-indigo'}`}>{getDisplayRoleName(role)}</h3>
+                    <div className="flex items-center gap-1">
+                        {role.isSystemRole && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md">HỆ THỐNG</span>
+                        )}
+                        {!role.isSystemRole && (
+                            <button
+                                onClick={(e) => onDelete(role, e)}
+                                className="p-1 text-slate-blue hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                title="Xoá vai trò"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                </div>
+                <p className="text-xs text-slate-blue font-mono mb-2">{role.roleCode}</p>
+                <p className="text-xs text-slate-blue line-clamp-2">{role.description || 'Không có mô tả'}</p>
+            </div>
+        </Reorder.Item>
+    );
 };
 
 const RolePermissionManagement = () => {
@@ -136,7 +232,7 @@ const RolePermissionManagement = () => {
             ]);
             
             if (rolesRes?.success && permsRes?.success) {
-                setRoles(rolesRes.data || []);
+                setRoles(sortRoles(rolesRes.data || []));
                 setPermissions(permsRes.data || []);
             } else {
                 setError('Không thể tải dữ liệu vai trò hoặc quyền hệ thống.');
@@ -178,6 +274,12 @@ const RolePermissionManagement = () => {
         }
     };
 
+    // Mặc định chọn vai trò đầu tiên khi vào trang (giống Nhóm camera).
+    useEffect(() => {
+        if (!selectedRole && roles.length > 0) handleSelectRole(roles[0]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [roles]);
+
     // Handle toggling a permission checkbox.
     // Enforces a one-way dependency: ticking a "write" permission auto-ticks its required "read"
     // permission (if declared in PERMISSION_DEPENDENCIES); unticking a "read" permission is blocked
@@ -210,6 +312,44 @@ const RolePermissionManagement = () => {
         }
 
         setRolePermissions(prev => prev.filter(id => id !== permissionId));
+    };
+
+    // Ô "chọn tất cả" của 1 nhóm quyền — cùng ràng buộc với handleTogglePermission:
+    // chọn → kèm quyền xem phụ thuộc (có thể thuộc nhóm khác); bỏ chọn → giữ lại quyền xem
+    // mà 1 quyền thao tác ở NGOÀI nhóm vẫn đang cần.
+    const handleToggleModule = (modulePermissions) => {
+        const ids = modulePermissions.map(p => p.id);
+        const allChecked = ids.every(id => rolePermissions.includes(id));
+
+        if (!allChecked) {
+            const depIds = modulePermissions
+                .flatMap(p => PERMISSION_DEPENDENCIES[p.permissionCode] || [])
+                .map(code => permissions.find(p => p.permissionCode === code)?.id)
+                .filter(id => id && !ids.includes(id) && !rolePermissions.includes(id));
+            const uniqueDepIds = [...new Set(depIds)];
+            setError(null);
+            setSuccessMessage(uniqueDepIds.length > 0
+                ? `Đã tự động thêm ${uniqueDepIds.length} quyền xem cần thiết ở nhóm khác.`
+                : null);
+            setRolePermissions(prev => [...new Set([...prev, ...ids, ...uniqueDepIds])]);
+            return;
+        }
+
+        const remaining = rolePermissions
+            .filter(id => !ids.includes(id))
+            .map(id => permissions.find(p => p.id === id))
+            .filter(Boolean);
+        const blocked = modulePermissions.filter(target =>
+            remaining.some(p => PERMISSION_DEPENDENCIES[p.permissionCode]?.includes(target.permissionCode))
+        );
+        if (blocked.length > 0) {
+            setSuccessMessage(null);
+            setError(`Giữ lại ${blocked.map(p => `"${getDisplayPermissionName(p)}"`).join(', ')} vì quyền ở nhóm khác đang cần.`);
+        } else {
+            setError(null);
+        }
+        const blockedIds = blocked.map(p => p.id);
+        setRolePermissions(prev => prev.filter(id => !ids.includes(id) || blockedIds.includes(id)));
     };
 
     // Save assigned permissions: diff against the originally loaded set so
@@ -380,50 +520,33 @@ const RolePermissionManagement = () => {
                         </button>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {loading ? (
-                            Array(4).fill(0).map((_, idx) => (
+                    {loading ? (
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {Array(4).fill(0).map((_, idx) => (
                                 <div key={idx} className="h-16 bg-cloud-mist rounded-xl animate-pulse"></div>
-                            ))
-                        ) : roles.length === 0 ? (
-                            <div className="text-center py-8 text-slate-blue text-sm">Chưa có vai trò nào.</div>
-                        ) : (
-                            roles.map(role => {
-                                const displayRoleName = getDisplayRoleName(role);
-                                return (
-                                <div 
+                            ))}
+                        </div>
+                    ) : roles.length === 0 ? (
+                        <div className="flex-1 p-4 text-center py-8 text-slate-blue text-sm">Chưa có vai trò nào.</div>
+                    ) : (
+                        <Reorder.Group
+                            axis="y"
+                            values={roles}
+                            onReorder={(next) => { setRoles(next); saveRoleOrder(next); }}
+                            layoutScroll
+                            className="flex-1 overflow-y-auto p-4 space-y-3"
+                        >
+                            {roles.map(role => (
+                                <RoleListItem
                                     key={role.id}
-                                    onClick={() => handleSelectRole(role)}
-                                    className={`p-4 rounded-xl border cursor-pointer transition-all hover:-translate-y-0.5 ${
-                                        selectedRole?.id === role.id 
-                                        ? 'border-action-blue bg-blue-50/50 shadow-sm' 
-                                        : 'border-platinum-tint bg-white hover:border-action-blue/50 hover:bg-cloud-mist/20'
-                                    }`}
-                                >
-                                    <div className="flex justify-between items-start mb-1">
-                                        <h3 className="font-bold text-sm text-midnight-indigo">{displayRoleName}</h3>
-                                        <div className="flex items-center gap-1">
-                                            {role.isSystemRole && (
-                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md">HỆ THỐNG</span>
-                                            )}
-                                            {!role.isSystemRole && (
-                                                <button
-                                                    onClick={(e) => handleDeleteClick(role, e)}
-                                                    className="p-1 text-slate-blue hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                                    title="Xoá vai trò"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <p className="text-xs text-slate-blue font-mono mb-2">{role.roleCode}</p>
-                                    <p className="text-xs text-slate-blue line-clamp-2">{role.description || 'Không có mô tả'}</p>
-                                </div>
-                                );
-                            })
-                        )}
-                    </div>
+                                    role={role}
+                                    isSelected={selectedRole?.id === role.id}
+                                    onSelect={handleSelectRole}
+                                    onDelete={handleDeleteClick}
+                                />
+                            ))}
+                        </Reorder.Group>
+                    )}
                 </div>
 
                 {/* PERMISSIONS MATRIX PANE */}
@@ -471,14 +594,28 @@ const RolePermissionManagement = () => {
                                 ) : (
                                     <div className="flex flex-col h-full">
                                         <div className="space-y-6 flex-1">
-                                            {filteredModules.slice((currentPage - 1) * modulesPerPage, currentPage * modulesPerPage).map(module => (
+                                            {filteredModules.slice((currentPage - 1) * modulesPerPage, currentPage * modulesPerPage).map(module => {
+                                                const visiblePermissions = groupedPermissions[module]
+                                                    .filter(p => !searchTerm || getDisplayPermissionName(p).toLowerCase().includes(searchTerm.toLowerCase()) || p.permissionCode.toLowerCase().includes(searchTerm.toLowerCase()));
+                                                const checkedCount = visiblePermissions.filter(p => rolePermissions.includes(p.id)).length;
+                                                const allChecked = visiblePermissions.length > 0 && checkedCount === visiblePermissions.length;
+                                                const someChecked = checkedCount > 0 && !allChecked;
+                                                return (
                                                 <div key={module} className="bg-cloud-mist/20 border border-platinum-tint rounded-xl overflow-hidden">
-                                                <div className="bg-cloud-mist/40 px-4 py-2 border-b border-platinum-tint">
-                                                    <h3 className="font-bold text-midnight-indigo text-sm uppercase">{MODULE_TRANSLATIONS[module] || module}</h3>
-                                                </div>
+                                                <label className="bg-cloud-mist/40 px-4 py-2 border-b border-platinum-tint flex items-center gap-3 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="w-4 h-4 text-action-blue border-platinum-tint rounded focus:ring-action-blue"
+                                                        checked={allChecked}
+                                                        ref={el => { if (el) el.indeterminate = someChecked; }}
+                                                        onChange={() => handleToggleModule(visiblePermissions)}
+                                                        title={allChecked ? 'Bỏ chọn tất cả quyền trong nhóm' : 'Chọn tất cả quyền trong nhóm'}
+                                                    />
+                                                    <h3 className="font-bold text-midnight-indigo text-sm uppercase flex-1">{MODULE_TRANSLATIONS[module] || module}</h3>
+                                                    <span className="text-xs font-semibold text-slate-blue">{checkedCount}/{visiblePermissions.length}</span>
+                                                </label>
                                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {groupedPermissions[module]
-                                                        .filter(p => !searchTerm || getDisplayPermissionName(p).toLowerCase().includes(searchTerm.toLowerCase()) || p.permissionCode.toLowerCase().includes(searchTerm.toLowerCase()))
+                                                    {visiblePermissions
                                                         .map(p => {
                                                         const moduleStatus = PERMISSION_MODULE_STATUS[p.moduleCode];
                                                         return (
@@ -495,20 +632,26 @@ const RolePermissionManagement = () => {
                                                                 <p className="text-sm font-semibold text-midnight-indigo group-hover:text-action-blue transition-colors flex items-center gap-1.5">
                                                                     {getDisplayPermissionName(p)}
                                                                     {moduleStatus && (
-                                                                        <AlertTriangle
-                                                                            className="w-3.5 h-3.5 text-amber-500 flex-shrink-0"
-                                                                            title={moduleStatus.note}
-                                                                        />
+                                                                        // Icon lucide không nhận `title` ⇒ tự vẽ tooltip khi hover.
+                                                                        <span className="relative group/warn inline-flex flex-shrink-0" aria-label={moduleStatus.note}>
+                                                                            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                                                            <span className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-2 hidden w-64 -translate-x-1/2 rounded-lg bg-slate-800 px-3 py-2 text-xs font-normal leading-snug text-white shadow-lg group-hover/warn:block">
+                                                                                <span className="block font-bold text-amber-300">
+                                                                                    {MODULE_STATUS_LABEL[moduleStatus.status] || 'Lưu ý'}
+                                                                                </span>
+                                                                                {moduleStatus.note}
+                                                                            </span>
+                                                                        </span>
                                                                     )}
                                                                 </p>
-                                                                <p className="text-xs text-slate-blue font-mono mt-0.5">{p.permissionCode}</p>
                                                             </div>
                                                         </label>
                                                         );
                                                         })}
                                                 </div>
                                             </div>
-                                        ))}
+                                                );
+                                            })}
                                         </div>
                                         
                                         {/* Pagination Controls */}

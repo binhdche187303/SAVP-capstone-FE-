@@ -186,7 +186,7 @@ const GuestJoin = () => {
                     <div className="w-12 h-12 bg-action-blue rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-action-blue/30">
                         <span className="text-white font-extrabold text-lg">S</span>
                     </div>
-                    <p className="text-xs text-slate-blue font-medium">SmarTracking — Cổng vào cuộc họp cho khách</p>
+                    <p className="text-xs text-slate-blue font-medium">VISMA IVA — Cổng vào cuộc họp cho khách</p>
                 </div>
 
                 <AnimatePresence mode="wait">
