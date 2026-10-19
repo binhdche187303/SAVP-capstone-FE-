@@ -303,7 +303,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
                                 <div className="border-t border-platinum-tint pt-4 space-y-3">
                                     {showRejectInput ? (
                                         <div className="space-y-2">
-                                            <label className="block text-xs font-bold text-slate-blue uppercase">Lý do từ chối</label>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase">Lý do từ chối <span className="text-red-500">*</span></label>
                                             <textarea
                                                 value={rejectReason}
                                                 onChange={(e) => setRejectReason(e.target.value)}

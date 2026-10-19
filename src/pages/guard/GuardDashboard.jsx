@@ -115,7 +115,6 @@ const GuardDashboard = () => {
     const [cameraReady, setCameraReady] = useState(false);
     const [autoScan, setAutoScan] = useState(false);
     const [autoScanCooling, setAutoScanCooling] = useState(false);
-    const [waitingForFaceExit, setWaitingForFaceExit] = useState(false);
     const [scanning, setScanning] = useState(false);
     const [scanNotice, setScanNotice] = useState(null);
     const videoRef = useRef(null);
@@ -226,7 +225,6 @@ const GuardDashboard = () => {
             lastWebcamFrameRef.current = null;
             setCameraReady(false);
             setAutoScan(false);
-            setWaitingForFaceExit(false);
             setWebcamEnabled(false);
             setScanNotice({ type: 'warning', message: 'Đã tắt webcam.' });
             return;
@@ -292,9 +290,7 @@ const GuardDashboard = () => {
                     type: 'warning',
                     message: result.message || 'Không tạo nhật ký ra/vào mới.',
                     detail: result.duplicate
-                        ? result.duplicateReason === 'same_direction'
-                            ? `Hệ thống không ghi trùng. Hãy ghi nhận lượt ${selectedGate?.direction === 'in' ? 'ra' : 'vào'} trước khi quét lại chiều này.`
-                            : `Camera vẫn nhận diện cùng đối tượng; có thể quét lại sau ${result.retryAfterSeconds || 4} giây.`
+                        ? `Camera vẫn nhận diện cùng đối tượng; hệ thống không ghi trùng. Có thể quét lại sau ${result.retryAfterSeconds || 30} giây.`
                         : 'Backend không trả event mới cho lượt quét này.'
                 });
                 return;
@@ -305,7 +301,7 @@ const GuardDashboard = () => {
             setScanNotice({
                 type: isOk ? 'success' : 'error',
                 message: `${event.personName} ${event.direction === 'in' ? 'vào cổng' : 'ra cổng'}: ${event.statusLabel}.`,
-                detail: `${event.reason} Dữ liệu đã ghi vào backend. Ảnh bằng chứng lấy từ webcam. Kiểm tra: ${event.recognitionProvider === 'faceid-engine' ? 'đã đối chiếu đúng người có FaceID được duyệt' : 'dữ liệu mô phỏng'}.`
+                detail: `${event.reason} Dữ liệu đã ghi vào backend. Ảnh bằng chứng lấy từ webcam. Kiểm tra: ${event.recognitionProvider === 'approved-faceid-profile' ? 'tài khoản có FaceID đã duyệt' : 'dữ liệu mô phỏng'}.`
             });
         } catch (err) {
             setScanNotice({
@@ -317,7 +313,6 @@ const GuardDashboard = () => {
             scanningRef.current = false;
             setScanning(false);
             if (automatic) {
-                setWaitingForFaceExit(true);
                 setAutoScanCooling(true);
                 if (autoScanCooldownTimerRef.current) clearTimeout(autoScanCooldownTimerRef.current);
                 autoScanCooldownTimerRef.current = setTimeout(() => {
@@ -326,31 +321,20 @@ const GuardDashboard = () => {
                 }, AUTO_SCAN_COOLDOWN_MS);
             }
         }
-    }, [cameraReady, load, scenario, selectedGate, selectedGateId, webcamEnabled]);
+    }, [cameraReady, load, scenario, selectedGateId, webcamEnabled]);
 
     const handleStableFace = useCallback(() => {
-        if (!autoScan || autoScanCooling || waitingForFaceExit || scanningRef.current) return;
+        if (!autoScan || autoScanCooling || scanningRef.current) return;
         handleScan({ automatic: true });
-    }, [autoScan, autoScanCooling, handleScan, waitingForFaceExit]);
+    }, [autoScan, autoScanCooling, handleScan]);
 
     const { guidance: faceGuidance, modelError: faceModelError } = useFaceGuidance({
         videoRef,
-        active: webcamEnabled && cameraReady && autoScan && !scanning,
+        active: webcamEnabled && cameraReady && autoScan && !scanning && !autoScanCooling,
         onStable: handleStableFace,
         stableFramesRequired: 8,
         intervalMs: 180
     });
-
-    useEffect(() => {
-        if (autoScan && waitingForFaceExit && faceGuidance.state === 'no_face') {
-            setWaitingForFaceExit(false);
-        }
-    }, [autoScan, faceGuidance.state, waitingForFaceExit]);
-
-    const toggleAutoScan = () => {
-        setWaitingForFaceExit(false);
-        setAutoScan(value => !value);
-    };
 
     useEffect(() => {
         if (!scanNotice || scanNotice.type !== 'success') return undefined;
@@ -411,7 +395,7 @@ const GuardDashboard = () => {
                             {selectedGate?.direction === 'in' ? <LogIn className="w-4 h-4" /> : <LogOut className="w-4 h-4" />}
                             {scanning ? 'Đang quét...' : !webcamEnabled ? 'Bật webcam để quét' : !cameraReady ? 'Đang khởi động camera...' : 'Quét người qua cổng'}
                         </button>
-                        <button type="button" onClick={toggleAutoScan} disabled={!webcamEnabled || !cameraReady} className={`px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-60 ${autoScan ? 'bg-red-600 text-white' : 'bg-action-blue text-white'}`}>
+                        <button type="button" onClick={() => setAutoScan(v => !v)} disabled={!webcamEnabled || !cameraReady} className={`px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-60 ${autoScan ? 'bg-red-600 text-white' : 'bg-action-blue text-white'}`}>
                             {autoScan ? 'Dừng tự động' : 'Bật tự động quét'}
                         </button>
                     </div>
@@ -435,9 +419,7 @@ const GuardDashboard = () => {
                             <span className={`absolute top-3 left-3 px-2 py-1 rounded-lg text-[11px] font-bold ${faceGuidance.state === 'perfect' && !autoScanCooling ? 'bg-emerald-500 text-white' : 'bg-black/60 text-white'}`}>
                                 {scanning
                                     ? 'Đang xử lý FaceID'
-                                    : waitingForFaceExit
-                                        ? 'Vui lòng rời khỏi khung hình'
-                                        : autoScanCooling
+                                    : autoScanCooling
                                         ? 'Đang chờ lượt quét tiếp theo'
                                         : getFaceGuidanceLabel(faceGuidance)}
                             </span>
@@ -449,7 +431,7 @@ const GuardDashboard = () => {
                         <p className="mt-4 text-xs text-slate-blue">Bảo vệ chỉ thao tác quét và xem kết quả. Cảnh báo phát sinh sẽ xử lý trong màn Cảnh báo an ninh.</p>
                         {autoScan && (
                             <p className="mt-3 text-xs text-slate-blue">
-                                Camera chỉ gửi ảnh khi khuôn mặt đủ sáng, đúng khoảng cách và ổn định. Sau mỗi lượt quét, hệ thống chờ 4 giây và yêu cầu người vừa quét rời khỏi khung hình.
+                                Camera chỉ gửi ảnh khi khuôn mặt đủ sáng, đúng khoảng cách và ổn định. Sau mỗi lượt quét, hệ thống chờ 4 giây để hạn chế ghi trùng.
                             </p>
                         )}
                         {faceModelError && <p className="mt-3 text-xs font-semibold text-red-600">{faceModelError}</p>}

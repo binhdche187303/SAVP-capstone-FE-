@@ -1175,7 +1175,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                             </div>
 
                             <div>
-                                <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.fullName ? 'text-red-500' : 'text-slate-blue'}`}>Họ và Tên</label>
+                                <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.fullName ? 'text-red-500' : 'text-slate-blue'}`}>Họ và Tên <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     value={formData.fullName}
@@ -1186,7 +1186,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                 {formErrors.fullName && <p className="text-red-500 text-xs mt-1">{formErrors.fullName}</p>}
                             </div>
                             <div>
-                                <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.email ? 'text-red-500' : 'text-slate-blue'}`}>Email</label>
+                                <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.email ? 'text-red-500' : 'text-slate-blue'}`}>Email <span className="text-red-500">*</span></label>
                                 <input
                                     type="email"
                                     value={formData.email}
@@ -1215,7 +1215,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                     </div>
                                     {isStudentRoleSelected ? (
                                         <div>
-                                            <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.administrativeClass ? 'text-red-500' : 'text-slate-blue'}`}>Lớp hành chính</label>
+                                            <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.administrativeClass ? 'text-red-500' : 'text-slate-blue'}`}>Lớp hành chính <span className="text-red-500">*</span></label>
                                             <select
                                                 value={formData.administrativeClass}
                                                 onChange={(e) => { setFormData({ ...formData, administrativeClass: e.target.value }); setFormErrors({ ...formErrors, administrativeClass: '' }); }}
@@ -1232,7 +1232,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                         </div>
                                     ) : (
                                         <div>
-                                            <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.departmentId ? 'text-red-500' : 'text-slate-blue'}`}>Phòng ban</label>
+                                            <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.departmentId ? 'text-red-500' : 'text-slate-blue'}`}>Phòng ban <span className="text-red-500">*</span></label>
                                             <select
                                                 value={formData.departmentId}
                                                 onChange={(e) => { setFormData({ ...formData, departmentId: e.target.value }); setFormErrors({ ...formErrors, departmentId: '' }); }}
@@ -1251,7 +1251,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
 
                             {formData.accountType !== 'partner' && (
                                 <div>
-                                    <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.roleIds ? 'text-red-500' : 'text-slate-blue'}`}>Gán vai trò</label>
+                                    <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.roleIds ? 'text-red-500' : 'text-slate-blue'}`}>Gán vai trò <span className="text-red-500">*</span></label>
                                     <div className="space-y-2 mt-1">
                                         {roles.map(r => (
                                             <label key={r.id} className="flex items-center gap-2 text-sm text-midnight-indigo font-medium cursor-pointer">
@@ -1481,7 +1481,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                             {!isSystemAdminMode && (
                                 <>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Họ và Tên</label>
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Họ và Tên <span className="text-red-500">*</span></label>
                                         <input
                                             type="text"
                                             required

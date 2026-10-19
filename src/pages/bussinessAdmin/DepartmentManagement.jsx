@@ -906,7 +906,7 @@ const DepartmentManagement = () => {
                                 <p className="text-[10px] text-slate-blue mt-1">Mã phòng ban không thể thay đổi sau khi tạo.</p>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên phòng ban</label>
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên phòng ban <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     required
@@ -1262,7 +1262,7 @@ const DepartmentManagement = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Họ và Tên</label>
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Họ và Tên <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     required

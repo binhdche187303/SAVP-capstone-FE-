@@ -463,7 +463,7 @@ const Profile = () => {
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Họ và tên</label>
+                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Họ và tên <span className="text-red-500">*</span></label>
                                     <input
                                         type="text"
                                         disabled={!editMode || updating}
