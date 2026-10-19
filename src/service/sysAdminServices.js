@@ -753,6 +753,24 @@ export const saveCameraLayout = async (body) => {
     return await put(`/iot-devices/layout`, body);
 };
 
+// 2.2.4: ảnh mặt bằng theo tầng (nền cho sơ đồ lắp đặt). Ảnh cần token nên tải qua request → blob.
+export const getFloorPlans = async () => {
+    return await get(`/iot-devices/layout/floor-plans`);
+};
+
+export const getFloorPlanImage = async (floorKey) => {
+    return await get(`/iot-devices/layout/floor-plans/image${buildQuery({ floor_key: floorKey })}`);
+};
+
+// FormData: file, floor_key, width, height (kích thước thật của ảnh, px).
+export const uploadFloorPlan = async (formData) => {
+    return await put(`/iot-devices/layout/floor-plan`, formData);
+};
+
+export const deleteFloorPlan = async (floorKey) => {
+    return await dele(`/iot-devices/layout/floor-plan${buildQuery({ floor_key: floorKey })}`);
+};
+
 // Body: { mode, retention_days, bitrate_mbps, schedule: string[7] }
 export const updateRecordingPolicy = async (deviceId, body) => {
     return await patch(`/iot-devices/${deviceId}/recording-policy`, body);

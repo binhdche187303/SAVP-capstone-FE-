@@ -8,6 +8,7 @@ import {
 import { IoMic, IoMicOff, IoHandLeft, IoVolumeHigh, IoHappy, IoTime, IoCall, IoArrowBack } from 'react-icons/io5';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { renderAsync as renderDocxAsync } from 'docx-preview';
+import { restoreNativeFileReader } from '../../utils/nativeFileReader';
 import { PPTXViewer } from 'pptxviewjs';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -68,6 +69,9 @@ import RecordingsTab from '../../components/meeting/RecordingsTab';
 import { startRecordingMarker, createLiveSpeakerTag } from '../../service/transcriptionServices';
 import { LIVE_SPEAKER_TAGGING_ENABLED } from '../../config/featureFlags';
 import useFaceGuidance from '../../hooks/useFaceGuidance';
+
+// pptxviewjs vừa ghi đè window.FileReader khi nạp module (xem utils/nativeFileReader.js) → trả lại bản gốc.
+restoreNativeFileReader();
 
 const customStyles = `
 @keyframes floatUp {

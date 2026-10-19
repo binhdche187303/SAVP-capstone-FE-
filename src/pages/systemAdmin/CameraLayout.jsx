@@ -1,20 +1,52 @@
-import { Activity, LayoutGrid, Move, RotateCcw, Save } from "lucide-react";
+import {
+  Activity,
+  ImagePlus,
+  LayoutGrid,
+  Move,
+  RotateCcw,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DeviceConnectionHistoryPanel from "../../components/devices/DeviceConnectionHistoryPanel";
 import { CAMERA_TYPES, defaultAngle } from "../../mocks/cameraMock";
 import { getCampusMap } from "../../service/campusService";
 import {
+  deleteFloorPlan,
   getDevices,
+  getFloorPlanImage,
+  getFloorPlans,
   getRooms,
   getZones,
   saveCameraLayout,
+  uploadFloorPlan,
 } from "../../service/sysAdminServices";
 
 // 2.2.4 Sơ đồ lắp đặt camera theo tầng.
 // Thật (BE): zone (building/floor), phòng (areaName), camera theo zone (campus map), trạng thái camera.
 // Vị trí + hướng camera lưu BE (PUT /iot-devices/layout → metadata_json.layout theo floor_key).
-// Mặt bằng do FE tự vẽ từ danh sách zone/phòng (chưa có ảnh mặt bằng).
+// Mặt bằng: ảnh bản vẽ của tầng nếu đã tải lên (PUT /iot-devices/layout/floor-plan), không thì
+// FE tự vẽ từ danh sách zone/phòng.
+
+const PLAN_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const PLAN_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Đọc kích thước thật (px) của ảnh để BE lưu tỉ lệ khung. */
+const readImageSize = (file) =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Không đọc được ảnh mặt bằng."));
+    };
+    img.src = url;
+  });
 
 const W = 1000;
 const PAD = 40;
@@ -137,10 +169,28 @@ const CameraLayout = () => {
   const [dragId, setDragId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [historyDevice, setHistoryDevice] = useState(null);
+  const [floorPlans, setFloorPlans] = useState({});
+  const [planImageUrl, setPlanImageUrl] = useState(null);
+  const [showBlocks, setShowBlocks] = useState(false);
+  const [planBusy, setPlanBusy] = useState(false);
   const svgRef = useRef(null);
+  const planInputRef = useRef(null);
+
+  const loadFloorPlans = useCallback(async () => {
+    try {
+      const res = await getFloorPlans();
+      setFloorPlans(
+        Object.fromEntries((res?.data || []).map((p) => [p.floorKey, p])),
+      );
+    } catch {
+      // Không có ảnh mặt bằng thì vẫn dùng mặt bằng tự vẽ.
+      setFloorPlans({});
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
+    loadFloorPlans();
     try {
       const [zRes, rRes, dRes, mRes] = await Promise.all([
         getZones({ limit: 100 }),
@@ -165,7 +215,7 @@ const CameraLayout = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadFloorPlans]);
 
   useEffect(() => {
     load();
@@ -194,6 +244,85 @@ const CameraLayout = () => {
   }, [zones, rooms]);
 
   const current = floors.find((f) => f.key === floor) || floors[0];
+  const currentPlan = current ? floorPlans[current.key] : null;
+
+  // Ảnh mặt bằng cần token → tải qua request thành blob URL; thu hồi khi đổi tầng/ảnh.
+  useEffect(() => {
+    if (!currentPlan) {
+      setPlanImageUrl(null);
+      return undefined;
+    }
+    let url = null;
+    let cancelled = false;
+    getFloorPlanImage(currentPlan.floorKey)
+      .then((res) => {
+        if (cancelled || !res?.isBlob) return;
+        url = URL.createObjectURL(res.data);
+        setPlanImageUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setPlanImageUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      setPlanImageUrl(null);
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [currentPlan]);
+
+  const handlePlanFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !current) return;
+    if (!PLAN_TYPES.includes(file.type)) {
+      setError("Ảnh mặt bằng phải là JPG, PNG hoặc WEBP.");
+      return;
+    }
+    if (file.size > PLAN_MAX_BYTES) {
+      setError("Ảnh mặt bằng tối đa 10MB.");
+      return;
+    }
+    setPlanBusy(true);
+    setError(null);
+    try {
+      const { width, height } = await readImageSize(file);
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("floor_key", current.key);
+      fd.append("width", String(width));
+      fd.append("height", String(height));
+      const res = await uploadFloorPlan(fd);
+      if (!res?.success) throw new Error(res?.error?.message || res?.message);
+      await loadFloorPlans();
+    } catch (err) {
+      setError(
+        err?.error?.message || err?.message || "Không tải được ảnh mặt bằng.",
+      );
+    } finally {
+      setPlanBusy(false);
+    }
+  };
+
+  const handleRemovePlan = async () => {
+    if (
+      !current ||
+      !window.confirm(`Xoá ảnh mặt bằng của "${current.key}"?`)
+    )
+      return;
+    setPlanBusy(true);
+    setError(null);
+    try {
+      const res = await deleteFloorPlan(current.key);
+      if (!res?.success) throw new Error(res?.error?.message || res?.message);
+      await loadFloorPlans();
+    } catch (err) {
+      setError(
+        err?.error?.message || err?.message || "Không xoá được ảnh mặt bằng.",
+      );
+    } finally {
+      setPlanBusy(false);
+    }
+  };
 
   // Vị trí đã lưu của tầng hiện tại (metadata_json.layout của từng camera).
   const savedPositions = useMemo(() => {
@@ -280,13 +409,17 @@ const CameraLayout = () => {
     }
   };
 
-  const plan = useMemo(
-    () =>
-      current
-        ? buildPlan(current.zones, current.rooms)
-        : { blocks: [], height: 300 },
-    [current],
-  );
+  // Có ảnh mặt bằng: khung vẽ rộng W, cao theo đúng tỉ lệ ảnh; khối khu vực chỉ còn để tham chiếu.
+  const plan = useMemo(() => {
+    const base = current
+      ? buildPlan(current.zones, current.rooms)
+      : { blocks: [], height: 300 };
+    if (!currentPlan) return base;
+    return {
+      ...base,
+      height: Math.round((W * currentPlan.height) / currentPlan.width),
+    };
+  }, [current, currentPlan]);
 
   // Camera của tầng: camera theo zone (campus map) + camera gán phòng (room_id).
   const placed = useMemo(() => {
@@ -308,7 +441,10 @@ const CameraLayout = () => {
           y: b.kind === "room" ? b.y + 26 : b.y + b.h / 2,
           angle: b.kind === "room" ? 90 : defaultAngle(id),
         };
-        out.push({ device, block: b, ...def, ...positions[id] });
+        const pos = { ...def, ...positions[id] };
+        // Khung ảnh mặt bằng có thể thấp hơn mặt bằng tự vẽ: giữ camera trong khung để còn kéo được.
+        pos.y = Math.min(pos.y, plan.height - 12);
+        out.push({ device, block: b, ...pos });
       });
     });
     return out;
@@ -371,6 +507,34 @@ const CameraLayout = () => {
         <div className="flex items-center gap-2">
           {editMode ? (
             <>
+              <input
+                ref={planInputRef}
+                type="file"
+                accept={PLAN_TYPES.join(",")}
+                className="hidden"
+                onChange={handlePlanFile}
+              />
+              <button
+                onClick={() => planInputRef.current?.click()}
+                disabled={planBusy}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-action-blue border border-action-blue/30 hover:bg-blue-50 disabled:opacity-50"
+              >
+                <ImagePlus className="w-3.5 h-3.5" />{" "}
+                {planBusy
+                  ? "Đang xử lý..."
+                  : currentPlan
+                    ? "Thay ảnh mặt bằng"
+                    : "Tải ảnh mặt bằng"}
+              </button>
+              {currentPlan && (
+                <button
+                  onClick={handleRemovePlan}
+                  disabled={planBusy}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Xoá ảnh
+                </button>
+              )}
               <button
                 onClick={handleReset}
                 disabled={saving}
@@ -389,12 +553,8 @@ const CameraLayout = () => {
           ) : (
             <button
               onClick={() => setEditMode(true)}
-              disabled={!current || placed.length === 0}
-              title={
-                current && placed.length === 0
-                  ? "Tầng này chưa có camera để chỉnh vị trí"
-                  : undefined
-              }
+              // Vẫn cho vào khi tầng chưa có camera: để tải ảnh mặt bằng trước.
+              disabled={!current}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-action-blue border border-action-blue/30 hover:bg-blue-50 disabled:opacity-50"
             >
               <Move className="w-3.5 h-3.5" /> Chỉnh vị trí
@@ -470,10 +630,20 @@ const CameraLayout = () => {
                 stroke="#e2e8f0"
                 strokeWidth={2}
               />
-              {plan.blocks.map((b) => {
+              {planImageUrl && (
+                <image
+                  href={planImageUrl}
+                  x={0}
+                  y={0}
+                  width={W}
+                  height={plan.height}
+                  preserveAspectRatio="none"
+                />
+              )}
+              {(!currentPlan || showBlocks) && plan.blocks.map((b) => {
                 const st = BLOCK_STYLE[b.kind];
                 return (
-                  <g key={b.key}>
+                  <g key={b.key} opacity={currentPlan ? 0.55 : 1}>
                     <rect
                       x={b.x}
                       y={b.y}
@@ -588,6 +758,17 @@ const CameraLayout = () => {
                 <span className="w-2.5 h-2.5 rounded-full border-2 border-orange-600" />{" "}
                 Camera biển số
               </span>
+              {currentPlan && (
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showBlocks}
+                    onChange={(e) => setShowBlocks(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-action-blue"
+                  />
+                  Hiện khối khu vực
+                </label>
+              )}
               <span className="ml-auto text-steel-gray">
                 {placed.length === 0
                   ? "Chưa có camera trên tầng này."
