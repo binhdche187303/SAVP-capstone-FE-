@@ -17,24 +17,37 @@ const mapError = (code) => ERROR_MAP[code] || 'Đã xảy ra lỗi hệ thống.
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE = 5 * 1024 * 1024;
 
-// Không dùng FileReader: pptxviewjs (nạp ở InMeetingRoom) ghi đè window.FileReader toàn cục
-// bằng bản thiếu readAsArrayBuffer ⇒ đọc trực tiếp qua Blob.arrayBuffer().
+// Không dùng FileReader: thư viện pptxviewjs (nạp ở InMeetingRoom) ghi đè window.FileReader toàn cục bằng bản
+// không có readAsArrayBuffer — ném lỗi ngầm khiến chọn ảnh "không có phản ứng gì" (xem FaceCapture.jsx).
+const readHeadBytes = async (blob) => {
+    if (typeof blob.arrayBuffer !== 'function') {
+        // Môi trường cũ (và jsdom khi chạy test) chưa có Blob.arrayBuffer: dùng FileReader gốc.
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(new Uint8Array(reader.result));
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(blob);
+        });
+    }
+    return new Uint8Array(await blob.arrayBuffer());
+};
+
 const validateMagicBytes = async (file) => {
     let arr;
     try {
-        arr = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+        arr = await readHeadBytes(file.slice(0, 12));
     } catch {
         return false;
     }
     if (arr.length < 4) return false;
-    // PNG: 89 50 4E 47
+    // PNG check: 89 50 4E 47
     if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) return true;
-    // JPEG: FF D8 FF
+    // JPEG check: FF D8 FF
     if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) return true;
-    // WEBP: RIFF ở 0-3, WEBP ở 8-11
+    // WEBP check: RIFF at 0-3, WEBP at 8-11
     if (arr.length >= 12) {
-        const isRiff = arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46;
-        const isWebp = arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50;
+        const isRiff = arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46; // RIFF
+        const isWebp = arr[8] === 0x57 && arr[9] === 0x45 && arr[10] === 0x42 && arr[11] === 0x50; // WEBP
         if (isRiff && isWebp) return true;
     }
     return false;
@@ -152,7 +165,7 @@ const BiometricUploadForm = ({ onSuccess, onCancel, compact }) => {
                     className="mt-0.5 w-4 h-4 rounded border-steel-gray text-action-blue focus:ring-action-blue/30"
                 />
                 <span className="text-xs text-slate-blue leading-relaxed">
-                    Tôi đồng ý cho phép VISMA IVA sử dụng ảnh này cho mục đích nhận diện khuôn mặt (bắt buộc).
+                    Tôi đồng ý cho phép SmarTracking sử dụng ảnh này cho mục đích nhận diện khuôn mặt (bắt buộc).
                 </span>
             </label>
 
