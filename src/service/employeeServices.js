@@ -43,6 +43,11 @@ export const getAvailableRoomsForMeeting = async (meetingId, options = {}) => {
  * Tìm kiếm/lấy danh sách rút gọn nhân viên nội bộ (dùng cho autocomplete chọn participants)
  * @param {object} params - { page, limit, search }
  */
+// Lịch tuần UEL: nhóm lịch được phép, Ban Giám hiệu, người duyệt cho form đặt lịch
+export const getCalendarBookingContext = async () => {
+    return await get('/meeting-calendar-roles/booking-context');
+};
+
 export const getUsers = async (params = {}) => {
     const query = buildQuery(params);
     return await get(`/users${query}`);

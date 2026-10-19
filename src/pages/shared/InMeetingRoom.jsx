@@ -3,13 +3,14 @@ import {
     ClipboardList, Clock, Cpu, Download, ExternalLink, Eye, FileText, Film, Loader, Mail, Mic, MicOff,
     MonitorUp, Play, Plus, RefreshCw, Shield, Smile,
     StickyNote, Timer, UserCheck, UserX, Users, Video as VideoIcon, VideoOff,
-    VolumeX, X, Edit2
+    VolumeX, X, Edit2, MessageSquare
 } from 'lucide-react';
 import { IoMic, IoMicOff, IoHandLeft, IoVolumeHigh, IoHappy, IoTime, IoCall, IoArrowBack } from 'react-icons/io5';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { renderAsync as renderDocxAsync } from 'docx-preview';
 import { PPTXViewer } from 'pptxviewjs';
 import { useParams, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../../assets/images/SmarTracking.png';
 
@@ -58,6 +59,8 @@ import {
     invalidateAttendanceRecord,
     getMediaFile as getManagerMediaFile,
     getRecordingSessions as getManagerRecordingSessions,
+    submitAttendanceExcuse,
+    reviewAttendanceExcuse,
 } from '../../service/managerServices';
 import UserAvatar, { resolveAvatarUrl } from '../../components/common/UserAvatar';
 import MeetingGrid from '../../components/meeting/MeetingGrid';
@@ -89,7 +92,7 @@ const customStyles = `
 `;
 
 const defaultMeeting = {
-    title: 'Họp kỹ thuật dự án SmarTracking',
+    title: 'Họp kỹ thuật dự án VISMA IVA',
     roomName: 'Phòng Apollo 101',
     host: 'Nguyễn Văn A',
     hostId: 'mgr-uuid',
@@ -137,6 +140,12 @@ const PRESENCE_MAP = {
     checked_in: { label: 'Đã điểm danh', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
     absent: { label: 'Vắng mặt', color: 'bg-red-50 text-red-600 border-red-200' },
     unknown: { label: 'Chưa điểm danh', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+};
+
+const EXCUSE_STATUS_MAP = {
+    pending: { label: 'Lý do: chờ duyệt', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+    approved: { label: 'Có lý do (0đ)', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    rejected: { label: 'Lý do bị từ chối', color: 'bg-rose-50 text-rose-700 border-rose-200' },
 };
 
 const RecordingTimer = ({ meetingId, sessionId, initialStatus, onStatusChange }) => {
@@ -227,6 +236,9 @@ const InMeetingRoom = ({ isPublic = false }) => {
     const [shareNoteWithGuest, setShareNoteWithGuest] = useState(false);
     const [presentedFile, setPresentedFile] = useState(null);
     const [attendance, setAttendance] = useState([]);
+    // Lý do vắng / trễ / về sớm — { mode: 'submit' | 'review', participant, record, approve, text }
+    const [excuseModal, setExcuseModal] = useState(null);
+    const [excuseSaving, setExcuseSaving] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
 
     // Recording
@@ -638,6 +650,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                 savedState.title = baseMeeting.title || savedState.title;
                 savedState.roomName = baseMeeting.room?.room_name || baseMeeting.room?.roomName || savedState.roomName;
                 savedState.room = baseMeeting.room || savedState.room || null;
+                savedState.secretary = baseMeeting.secretary || null;
                 // Fix: Luôn sử dụng danh sách agenda mới nhất từ API, không gộp với cache localStorage
                 // để tránh tình trạng dữ liệu của tài khoản khác bị rò rỉ nếu dùng chung trình duyệt
                 savedState.agenda = (baseMeeting.agendas || []).map((a, idx) => ({
@@ -687,6 +700,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                 initial.title = baseMeeting.title || initial.title;
                 initial.roomName = baseMeeting.room?.room_name || baseMeeting.room?.roomName || initial.roomName;
                 initial.room = baseMeeting.room || null;
+                initial.secretary = baseMeeting.secretary || null;
                 initial.agenda = (baseMeeting.agendas || []).map((a, idx) => ({
                     id: a.id,
                     title: a.title,
@@ -1650,6 +1664,34 @@ const InMeetingRoom = ({ isPublic = false }) => {
             showToast('Đã chuyển sang mục tiếp theo trong chương trình.', 'success');
         } else {
             showToast('Chương trình đã kết thúc.', 'warning');
+        }
+    };
+
+    // Lý do vắng / trễ / về sớm: thành viên gửi từ thẻ của mình; chủ trì / thư ký duyệt.
+    const isSecretary = !!myParticipantId && myParticipantId === (meetingState?.secretary?.id || meetingState?.secretaryId);
+    const canReviewExcuse = isHost || isSecretary;
+
+    const handleExcuse = async () => {
+        const { mode, record, approve, text } = excuseModal;
+        const value = (text || '').trim();
+        if (mode === 'submit' && value.length < 5) return showToast('Lý do phải có ít nhất 5 ký tự', 'error');
+        if (mode === 'review' && !approve && value.length < 3) return showToast('Vui lòng nhập lý do từ chối', 'error');
+        setExcuseSaving(true);
+        try {
+            const res = mode === 'submit'
+                ? await submitAttendanceExcuse(id, { reason: value })
+                : await reviewAttendanceExcuse(id, record.userId, { approve, ...(value ? { note: value } : {}) });
+            if (res?.success) {
+                showToast(res.message || 'Đã cập nhật lý do', 'success');
+                setExcuseModal(null);
+                await loadAttendance();
+            } else {
+                showToast(res?.message || res?.error?.message || 'Không thể xử lý lý do', 'error');
+            }
+        } catch (err) {
+            showToast(err?.message || 'Lỗi kết nối server', 'error');
+        } finally {
+            setExcuseSaving(false);
         }
     };
 
@@ -3157,6 +3199,9 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                             {p.role === 'Chủ tọa' && (
                                                                 <span className="text-[8px] px-1.5 py-0.5 bg-red-50 text-red-600 rounded font-extrabold shrink-0">CT</span>
                                                             )}
+                                                            {getActualUserId(p) === (meetingState?.secretary?.id || meetingState?.secretaryId) && (
+                                                                <span className="text-[8px] px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded font-extrabold shrink-0">TK</span>
+                                                            )}
                                                             {p.isExternal && (
                                                                 <span className="text-[8px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded font-extrabold shrink-0">KHÁCH</span>
                                                             )}
@@ -3166,7 +3211,41 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                 {presenceInfo.label}
                                                             </span>
                                                             {timeStr && <span className="text-[9px] text-slate-blue">{timeStr}</span>}
+                                                            {record?.excuseStatus && (
+                                                                <span
+                                                                    className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${EXCUSE_STATUS_MAP[record.excuseStatus]?.color || ''}`}
+                                                                    title={[record.excuseReason, record.excuseReviewNote && `Từ chối: ${record.excuseReviewNote}`].filter(Boolean).join(' — ')}
+                                                                >
+                                                                    {EXCUSE_STATUS_MAP[record.excuseStatus]?.label || record.excuseStatus}
+                                                                </span>
+                                                            )}
                                                         </div>
+                                                        {/* Chỉ hiện khi đã có kết quả điểm danh (camera / thủ công) là trễ / về sớm / vắng */}
+                                                        {record && !record.excuseStatus && getActualUserId(p) === myParticipantId
+                                                            && (record.isLate || ['late', 'left_early', 'absent'].includes(record.attendanceStatus)) && (
+                                                            <button
+                                                                onClick={() => setExcuseModal({ mode: 'submit', participant: p, record, text: '' })}
+                                                                className="mt-1.5 inline-flex items-center gap-1 whitespace-nowrap px-2 py-1 text-[9px] font-bold rounded-lg border border-action-blue text-action-blue hover:bg-blue-50"
+                                                            >
+                                                                <MessageSquare className="w-3 h-3" /> Gửi lý do
+                                                            </button>
+                                                        )}
+                                                        {canReviewExcuse && record?.excuseStatus === 'pending' && getActualUserId(p) !== myParticipantId && (
+                                                            <div className="mt-1.5 flex gap-1.5">
+                                                                <button
+                                                                    onClick={() => setExcuseModal({ mode: 'review', participant: p, record, approve: true, text: '' })}
+                                                                    className="px-2 py-0.5 text-[9px] font-bold rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                                                >
+                                                                    Duyệt
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setExcuseModal({ mode: 'review', participant: p, record, approve: false, text: '' })}
+                                                                    className="px-2 py-0.5 text-[9px] font-bold rounded bg-rose-600 text-white hover:bg-rose-700"
+                                                                >
+                                                                    Từ chối
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {isHost && !p.isExternal && (
@@ -3201,6 +3280,59 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                             );
                                         })}
                                     </div>
+
+                                    {excuseModal && createPortal(
+                                        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+                                            <div className="bg-white rounded-2xl border border-platinum-tint max-w-sm w-full p-5 space-y-3">
+                                                <div className="flex items-center justify-between border-b border-platinum-tint pb-2">
+                                                    <h3 className="text-sm font-bold text-midnight-indigo">
+                                                        {excuseModal.mode === 'submit' ? 'Gửi lý do vắng / trễ / về sớm'
+                                                            : excuseModal.approve ? 'Duyệt lý do' : 'Từ chối lý do'}
+                                                    </h3>
+                                                    <button onClick={() => setExcuseModal(null)} className="text-slate-blue hover:text-midnight-indigo">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                                {excuseModal.mode === 'submit' ? (
+                                                    <p className="text-xs text-slate-blue">Mỗi cuộc họp chỉ gửi được 1 lần. Nếu được chủ trì / thư ký duyệt, bạn được ghi nhận <b>0 điểm trừ</b>.</p>
+                                                ) : (
+                                                    <div className="text-xs text-slate-blue space-y-1">
+                                                        <p>Người gửi: <span className="font-bold text-midnight-indigo">{excuseModal.participant.fullName}</span></p>
+                                                        <p className="italic">"{excuseModal.record.excuseReason}"</p>
+                                                        <p>{excuseModal.approve ? 'Duyệt ⇒ ghi nhận "Có lý do", 0 điểm trừ.' : 'Từ chối ⇒ giữ nguyên điểm trừ, người gửi được thông báo.'}</p>
+                                                    </div>
+                                                )}
+                                                {(excuseModal.mode === 'submit' || !excuseModal.approve) && (
+                                                    <textarea
+                                                        rows={4}
+                                                        maxLength={1000}
+                                                        autoFocus
+                                                        value={excuseModal.text}
+                                                        onChange={(e) => setExcuseModal({ ...excuseModal, text: e.target.value })}
+                                                        placeholder={excuseModal.mode === 'submit' ? 'Lý do *' : 'Lý do từ chối *'}
+                                                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo"
+                                                    />
+                                                )}
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => setExcuseModal(null)}
+                                                        disabled={excuseSaving}
+                                                        className="px-3 py-1.5 border border-platinum-tint rounded-xl text-xs font-bold text-slate-blue hover:bg-cloud-mist"
+                                                    >
+                                                        Hủy
+                                                    </button>
+                                                    <button
+                                                        onClick={handleExcuse}
+                                                        disabled={excuseSaving}
+                                                        className={`px-3 py-1.5 text-white rounded-xl text-xs font-bold ${excuseModal.mode === 'review' && !excuseModal.approve ? 'bg-rose-600 hover:bg-rose-700' : 'bg-action-blue hover:bg-glacier-blue'}`}
+                                                    >
+                                                        {excuseSaving ? 'Đang gửi...' : excuseModal.mode === 'submit' ? 'Gửi lý do' : excuseModal.approve ? 'Xác nhận duyệt' : 'Xác nhận từ chối'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>,
+                                        document.body
+                                    )}
 
                                     <button
                                         onClick={loadAttendance}

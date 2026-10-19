@@ -1,4 +1,5 @@
-import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench, Monitor } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench, Monitor, Bell } from 'lucide-react';
+import RichTextEditor from '../../components/common/RichTextEditor';
 import { useState, useEffect, useMemo, useRef } from 'react';
 
 import ReactDOM from 'react-dom';
@@ -6,7 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from '../../utils/toast';
 
-import { getAvailableRooms, createMeeting, addRecordingConfig, replaceAgendas, uploadAgendaAttachment, getUsers, getUserById, getUserPublicProfile } from '../../service/employeeServices';
+import { getAvailableRooms, createMeeting, addRecordingConfig, replaceAgendas, uploadAgendaAttachment, getUsers, getUserById, getUserPublicProfile, getCalendarBookingContext } from '../../service/employeeServices';
+import { LEADERSHIP_TITLE_LABELS } from '../../utils/calendarRoleLabel';
 import { getDepartments, getDepartmentMembers } from '../../service/businessAdminServices';
 import * as XLSX from 'xlsx';
 import DatePicker from "react-datepicker";
@@ -118,6 +120,11 @@ const BookMeeting = () => {
     const [meetingType, setMeetingType] = useState('normal');
     const [meetingMode, setMeetingMode] = useState('offline');
     const [hostId, setHostId] = useState('');
+    // Lịch tuần UEL: nhóm lịch
+    const [calendarType, setCalendarType] = useState('UNIT');
+    const [hostSearch, setHostSearch] = useState('');
+    const [secretaryId, setSecretaryId] = useState('');
+    const [bookingCtx, setBookingCtx] = useState(null);
     const [selectedRoomId, setSelectedRoomId] = useState('');
     const [dateRange, setDateRange] = useState([new Date(), new Date()]);
     const [startDate, endDate] = dateRange;
@@ -134,6 +141,8 @@ const BookMeeting = () => {
     const [startTime, setStartTime] = useState(initialTimes.start);
     const [endTime, setEndTime] = useState(initialTimes.end);
     const [expectedAttendeeCount, setExpectedAttendeeCount] = useState('');
+    const [attendanceEnabled, setAttendanceEnabled] = useState(true);
+    const [reminderMinutes, setReminderMinutes] = useState(10);
     const [capacityOverrideConfirmed, setCapacityOverrideConfirmed] = useState(false);
     const [recordingEnabled, setRecordingEnabled] = useState(false);
     const [audioRecordingEnabled, setAudioRecordingEnabled] = useState(false);
@@ -277,6 +286,10 @@ const BookMeeting = () => {
 
         const fetchData = async () => {
             try {
+                getCalendarBookingContext()
+                    .then(res => { if (res?.success) setBookingCtx(res.data); })
+                    .catch(err => console.error('Failed to load calendar booking context', err));
+
                 const deptsRes = await getDepartments().catch(err => {
                     console.error('Failed to load departments', err);
                     return { success: false };
@@ -758,7 +771,7 @@ const BookMeeting = () => {
         guideWs['!cols'] = [{ wch: 20 }, { wch: 72 }];
         XLSX.utils.book_append_sheet(wb, guideWs, 'HuongDan');
 
-        XLSX.writeFile(wb, 'SmarTracking_Template_Them_Danh_Sach.xlsx');
+        XLSX.writeFile(wb, 'VISMA_IVA_Template_Them_Danh_Sach.xlsx');
     };
 
     const handleExcelImport = async (e) => {
@@ -962,8 +975,13 @@ const BookMeeting = () => {
             return;
         }
 
+        if (calendarType === 'SCHOOL_LEADERSHIP' && !hostId) {
+            setErrorMsg('Lịch lãnh đạo trường: vui lòng chọn Chủ trì thuộc Ban Giám hiệu.');
+            return;
+        }
+
         if (selectedParticipantIds.length === 0 && externalParticipants.length === 0) {
-            setErrorMsg('Vui lòng thêm ít nhất 1 người tham gia vào cuộc họp.');
+            setErrorMsg('Vui lòng thêm ít nhất 1 thành phần tham gia vào cuộc họp.');
             return;
         }
 
@@ -990,8 +1008,12 @@ const BookMeeting = () => {
             roomId: selectedRoomId,
             meetingType,
             meetingMode,
+            attendanceEnabled,
+            reminderMinutes,
+            calendarType,
         };
         if (hostId) payload.hostId = hostId;
+        if (secretaryId && secretaryOptions.some(o => o.id === secretaryId)) payload.secretaryId = secretaryId;
         if (description.trim()) payload.description = description.trim();
         if (expectedAttendeeCount) payload.expectedAttendeeCount = Number(expectedAttendeeCount);
         if (capacityExceeded && capacityOverrideConfirmed) payload.capacityOverrideConfirmed = true;
@@ -1233,10 +1255,57 @@ const BookMeeting = () => {
         }
     };
 
-    // BE auto-approve khi người đặt có quyền duyệt (resolveApproverIds fallback theo
-    // permission `meeting_request.approve`). Login trả roles dạng string[] nên so
-    // r.roleCode luôn false → luôn hiện "Cần Trưởng phòng duyệt" dù BE đã tự duyệt.
-    const isManagerAutoApprove = currentUser?.permissions?.includes('meeting_request.approve') ?? false;
+    // Lịch tuần UEL: người duyệt theo nhóm lịch (khớp BE resolveCalendarApproverIds) —
+    // lịch đơn vị → trưởng phòng / văn thư đơn vị; lịch cấp trường → đơn vị duyệt cấp trường.
+    const approvalScope = bookingCtx ? (calendarType === 'UNIT' ? bookingCtx.unit : bookingCtx.school) : null;
+    const approvers = approvalScope?.approvers || [];
+    const isManagerAutoApprove = approvers.some(a => a.id === currentUser?.id);
+    const canBookSchoolCalendar = !!bookingCtx?.isUnitClerk;
+    const leaders = bookingCtx?.leaders || [];
+    // Chủ trì theo nhóm lịch: lãnh đạo trường → chỉ BGH; lịch đơn vị → người trong đơn vị
+    // (trưởng phòng lên đầu) + BGH; hoạt động khác cấp trường → toàn trường (có tìm kiếm).
+    const staff = bookingCtx?.staff || [];
+    const leaderOption = (l) => ({ id: l.id, label: `${l.fullName} — ${LEADERSHIP_TITLE_LABELS[l.leadershipTitle] || ''}` });
+    const meOption = { id: '', label: `${currentUser?.fullName || 'Tôi'} (người đặt lịch)` };
+    const notMeOrLeader = (u) => u.id !== currentUser?.id && !leaders.some(l => l.id === u.id);
+    let hostOptions;
+    if (calendarType === 'SCHOOL_LEADERSHIP') {
+        hostOptions = leaders.map(leaderOption);
+    } else if (calendarType === 'UNIT') {
+        const unitId = bookingCtx?.unit?.departmentId;
+        const members = staff
+            .filter(u => unitId && u.departmentId === unitId && notMeOrLeader(u))
+            .sort((x, y) => Number(y.isManager) - Number(x.isManager));
+        hostOptions = [
+            meOption,
+            ...members.map(u => ({ id: u.id, label: u.isManager ? `${u.fullName} — Trưởng phòng` : u.fullName })),
+            ...leaders.map(leaderOption),
+        ];
+    } else {
+        const q = hostSearch.trim().toLowerCase();
+        const others = staff
+            .filter(notMeOrLeader)
+            .filter(u => !q || `${u.fullName} ${u.email || ''} ${u.departmentName || ''}`.toLowerCase().includes(q));
+        hostOptions = [
+            meOption,
+            ...leaders.map(leaderOption),
+            ...others.map(u => ({ id: u.id, label: u.departmentName ? `${u.fullName} — ${u.departmentName}` : u.fullName })),
+        ];
+        if (hostId && !hostOptions.some(o => o.id === hostId)) {
+            const cur = staff.find(u => u.id === hostId);
+            if (cur) hostOptions.push({ id: cur.id, label: cur.fullName });
+        }
+    }
+
+    // Thư ký: người đặt lịch hoặc một người trong thành phần tham gia (khớp BE SECRETARY_NOT_PARTICIPANT).
+    const secretaryOptions = [
+        ...(currentUser?.id ? [{ id: currentUser.id, label: `${currentUser.fullName || 'Tôi'} (người đặt lịch)` }] : []),
+        ...[...new Set([...selectedParticipantIds, ...(hostId ? [hostId] : [])])]
+            .filter(id => id !== currentUser?.id)
+            .map(id => usersById[id] || staff.find(u => u.id === id))
+            .filter(Boolean)
+            .map(u => ({ id: u.id, label: u.fullName || u.full_name || u.email })),
+    ];
 
     if (loadingData) {
         return (
@@ -1248,7 +1317,7 @@ const BookMeeting = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
             {/* Header */}
             <div>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
@@ -1491,30 +1560,31 @@ const BookMeeting = () => {
                             {/* Left Side: Inputs */}
                             <div className="lg:col-span-2 space-y-6">
                                 {/* Selected Room Summary Banner */}
-                                <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/30 p-5 rounded-2xl border border-platinum-tint flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div>
-                                        <span className="text-[10px] font-bold text-action-blue uppercase tracking-wider bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
-                                            Phòng họp đã chọn
-                                        </span>
-                                        <h3 className="font-bold text-lg text-midnight-indigo mt-2">
-                                            {selectedRoom?.roomName || selectedRoom?.room_name}
-                                        </h3>
-                                        <p className="text-xs text-slate-blue mt-0.5">
-                                            {selectedRoom?.siteName || selectedRoom?.site_name} • Sức chứa: {selectedRoom?.capacity} người
-                                        </p>
-                                    </div>
-
-                                    <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-platinum-tint/80 shadow-sm shrink-0">
-                                        <Calendar className="w-5 h-5 text-action-blue shrink-0" />
-                                        <div>
-                                            <p className="text-[10px] text-slate-blue font-bold uppercase">Khung giờ họp</p>
-                                            <p className="text-sm font-bold text-midnight-indigo">
-                                                {startTime} - {endTime}
-                                            </p>
-                                            <p className="text-[11px] text-slate-blue font-semibold">
-                                                Ngày {startStr?.split('-').reverse().join('/')} {endStr && endStr !== startStr ? `- ${endStr.split('-').reverse().join('/')}` : ''}
-                                            </p>
+                                <div className="bg-white px-4 py-3 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap items-center gap-x-6 gap-y-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center shrink-0">
+                                            <Building className="w-5 h-5" />
                                         </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-bold text-action-blue uppercase tracking-wider">Phòng họp đã chọn</p>
+                                            <h3 className="font-bold text-base text-midnight-indigo truncate">
+                                                {selectedRoom?.roomName || selectedRoom?.room_name}
+                                            </h3>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-blue">
+                                        <span className="flex items-center gap-1.5 bg-slate-50 border border-platinum-tint px-2.5 py-1 rounded-lg">
+                                            <Building className="w-3.5 h-3.5" /> {selectedRoom?.siteName || selectedRoom?.site_name}
+                                        </span>
+                                        <span className="flex items-center gap-1.5 bg-slate-50 border border-platinum-tint px-2.5 py-1 rounded-lg">
+                                            <Users className="w-3.5 h-3.5" /> {selectedRoom?.capacity} người
+                                        </span>
+                                        <span className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-action-blue px-2.5 py-1 rounded-lg">
+                                            <Clock className="w-3.5 h-3.5" /> {startTime} - {endTime}
+                                        </span>
+                                        <span className="flex items-center gap-1.5 bg-blue-50 border border-blue-100 text-action-blue px-2.5 py-1 rounded-lg">
+                                            <Calendar className="w-3.5 h-3.5" /> {startStr?.split('-').reverse().join('/')}{endStr && endStr !== startStr ? ` - ${endStr.split('-').reverse().join('/')}` : ''}
+                                        </span>
                                     </div>
                                 </div>
 
@@ -1545,6 +1615,73 @@ const BookMeeting = () => {
                                         <Info className="w-4 h-4 text-action-blue" /> Chi tiết cuộc họp
                                     </h3>
 
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Nhóm lịch *</label>
+                                            {canBookSchoolCalendar ? (
+                                                <select
+                                                    value={calendarType}
+                                                    onChange={(e) => {
+                                                        const next = e.target.value;
+                                                        setCalendarType(next);
+                                                        setHostSearch('');
+                                                        const keep = next === 'SCHOOL_OTHER'
+                                                            || (next === 'SCHOOL_LEADERSHIP' ? leaders.some(l => l.id === hostId)
+                                                                : leaders.some(l => l.id === hostId) || staff.some(u => u.id === hostId && u.departmentId === bookingCtx?.unit?.departmentId));
+                                                        if (!keep) setHostId('');
+                                                    }}
+                                                    className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm bg-white focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo"
+                                                >
+                                                    <option value="UNIT">Lịch đơn vị{bookingCtx?.unit?.departmentName ? ` — ${bookingCtx.unit.departmentName}` : ''}</option>
+                                                    <option value="SCHOOL_LEADERSHIP">Lịch lãnh đạo trường</option>
+                                                    <option value="SCHOOL_OTHER">Lịch hoạt động khác</option>
+                                                </select>
+                                            ) : (
+                                                <div className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm bg-cloud-mist/40 text-midnight-indigo">
+                                                    Lịch đơn vị{bookingCtx?.unit?.departmentName ? ` — ${bookingCtx.unit.departmentName}` : ''}
+                                                </div>
+                                            )}
+                                            <p className="text-[11px] text-slate-blue mt-1">
+                                                {calendarType === 'SCHOOL_LEADERSHIP'
+                                                    ? 'Do Ban Giám hiệu chủ trì, hiển thị trên lịch tuần toàn trường.'
+                                                    : calendarType === 'SCHOOL_OTHER'
+                                                        ? 'Hoạt động do lãnh đạo đơn vị chủ trì, liên quan toàn trường.'
+                                                        : canBookSchoolCalendar
+                                                            ? 'Lịch nội bộ của đơn vị.'
+                                                            : 'Lịch lãnh đạo trường / hoạt động khác do văn thư đơn vị đăng ký.'}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Chủ trì *</label>
+                                            {calendarType === 'SCHOOL_OTHER' && (
+                                                <input
+                                                    type="text"
+                                                    value={hostSearch}
+                                                    onChange={(e) => setHostSearch(e.target.value)}
+                                                    placeholder="Tìm theo tên, email, đơn vị..."
+                                                    className="w-full mb-2 px-4 py-2 border border-platinum-tint rounded-xl text-sm bg-white focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo"
+                                                />
+                                            )}
+                                            <select
+                                                value={hostId}
+                                                onChange={(e) => setHostId(e.target.value)}
+                                                className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm bg-white focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo"
+                                            >
+                                                {calendarType === 'SCHOOL_LEADERSHIP' && <option value="">— Chọn thành viên Ban Giám hiệu —</option>}
+                                                {hostOptions.map(o => (
+                                                    <option key={o.id || 'me'} value={o.id}>{o.label}</option>
+                                                ))}
+                                            </select>
+                                            <p className="text-[11px] text-slate-blue mt-1">
+                                                {calendarType === 'SCHOOL_LEADERSHIP'
+                                                    ? 'Bắt buộc là thành viên Ban Giám hiệu.'
+                                                    : calendarType === 'UNIT'
+                                                        ? 'Người trong đơn vị hoặc Ban Giám hiệu; mặc định là bạn.'
+                                                        : 'Bất kỳ nhân viên nào trong trường; mặc định là bạn.'}
+                                            </p>
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Tiêu đề cuộc họp *</label>
                                         <input
@@ -1562,13 +1699,11 @@ const BookMeeting = () => {
 
                                     <div>
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Mô tả (tuỳ chọn)</label>
-                                        <textarea
+                                        <RichTextEditor
                                             value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
+                                            onChange={setDescription}
                                             placeholder="Mục tiêu, nội dung chính của cuộc họp..."
-                                            rows={3}
                                             maxLength={2000}
-                                            className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo resize-none"
                                         />
                                     </div>
                                 </div>
@@ -1577,7 +1712,7 @@ const BookMeeting = () => {
                                 <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
                                     <div className="flex justify-between items-center pb-3 border-b border-cloud-mist">
                                         <h3 className="font-bold text-sm text-midnight-indigo uppercase tracking-wider flex items-center gap-2">
-                                            <Users className="w-4 h-4 text-royal-amethyst" /> Mời khách tham gia
+                                            <Users className="w-4 h-4 text-royal-amethyst" /> Thành phần tham gia *
                                         </h3>
                                         <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${(selectedParticipantIds.length + externalParticipants.length + 1) > (selectedRoom?.capacity || 0)
                                             ? 'bg-rose-50 text-rose-600 border border-rose-100 animate-pulse'
@@ -1889,6 +2024,22 @@ const BookMeeting = () => {
                                             </div>
                                         </div>
                                     )}
+                                    <div className="pt-4 border-t border-cloud-mist">
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Thư ký (tuỳ chọn)</label>
+                                        <select
+                                            value={secretaryOptions.some(o => o.id === secretaryId) ? secretaryId : ''}
+                                            onChange={(e) => setSecretaryId(e.target.value)}
+                                            className="w-full px-4 py-2.5 border border-platinum-tint rounded-xl text-sm bg-white focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/15 text-midnight-indigo"
+                                        >
+                                            <option value="">— Không có thư ký —</option>
+                                            {secretaryOptions.map(o => (
+                                                <option key={o.id} value={o.id}>{o.label}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[11px] text-slate-blue mt-1">
+                                            Chọn từ thành phần tham gia. Thư ký điểm danh thủ công cùng Chủ trì, sửa được tới 24 giờ sau khi họp kết thúc.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 {/* Agenda Builder */}
@@ -2062,21 +2213,87 @@ const BookMeeting = () => {
                                             <span className="text-slate-blue">Quy trình duyệt:</span>
                                             {isManagerAutoApprove ? (
                                                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold border border-emerald-100">
-                                                    Tự động phê duyệt
+                                                    Tự duyệt
                                                 </span>
                                             ) : (
                                                 <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 text-xs font-bold border border-amber-100">
-                                                    Cần Trưởng phòng duyệt
+                                                    Chờ {approvalScope?.departmentName || 'đơn vị'} duyệt
                                                 </span>
                                             )}
                                         </div>
 
+                                        {!isManagerAutoApprove && approvers.length > 0 && (
+                                            <div className="text-sm">
+                                                <span className="text-slate-blue">Người duyệt:</span>
+                                                <ul className="mt-1 space-y-0.5">
+                                                    {approvers.map(a => (
+                                                        <li key={a.id} className="text-xs font-semibold text-midnight-indigo">
+                                                            {a.fullName} <span className="font-normal text-slate-blue">({a.isUnitClerk ? 'Văn thư' : 'Trưởng phòng'})</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
                                         <p className="text-xs text-slate-blue leading-relaxed pt-2 border-t border-cloud-mist/50">
                                             {isManagerAutoApprove
-                                                ? 'Với vai trò Trưởng phòng, lịch họp này sẽ được chốt tức thời mà không cần qua bước phê duyệt trung gian.'
-                                                : 'Yêu cầu của bạn sẽ được gửi tới hòm thư phê duyệt của Trưởng phòng. Phòng họp sẽ được tạm khóa giữ chỗ để tránh xung đột.'}
+                                                ? `Bạn là người duyệt của ${approvalScope?.departmentName || 'đơn vị'} nên lịch được chốt ngay khi tạo.`
+                                                : `Yêu cầu được gửi tới trưởng phòng / văn thư ${approvalScope?.departmentName || 'đơn vị'}; chỉ cần 1 người duyệt. Phòng họp được giữ chỗ trong lúc chờ.`}
                                         </p>
                                     </div>
+                                </div>
+
+                                {/* Điểm danh — Lịch tuần UEL: đăng ký chọn có/không điểm danh */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                            <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Điểm danh cuộc họp</span>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={attendanceEnabled}
+                                                onChange={(e) => setAttendanceEnabled(e.target.checked)}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {attendanceEnabled
+                                            ? 'Camera và thư ký sẽ ghi nhận có mặt / đi trễ / vắng của thành viên.'
+                                            : 'Cuộc họp không ghi nhận điểm danh, không gửi nhắc check-in và không tính vào thống kê chuyên cần.'}
+                                    </p>
+                                </div>
+
+                                {/* Nhắc trước họp — thông báo trong ứng dụng (web & app) tới thành viên */}
+                                <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <Bell className="w-4 h-4 text-amber-500" />
+                                        <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Nhắc trước cuộc họp</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[0, 5, 10, 15, 30, 60].map(m => (
+                                            <button
+                                                key={m}
+                                                type="button"
+                                                onClick={() => setReminderMinutes(m)}
+                                                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
+                                                    reminderMinutes === m
+                                                        ? 'bg-action-blue text-white border-action-blue'
+                                                        : 'bg-white text-slate-blue border-platinum-tint hover:border-action-blue'
+                                                }`}
+                                            >
+                                                {m === 0 ? 'Không nhắc' : `${m} phút`}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-slate-blue leading-relaxed">
+                                        {reminderMinutes === 0
+                                            ? 'Không gửi nhắc trước giờ họp.'
+                                            : `Thành viên nhận thông báo trên web và app ${reminderMinutes} phút trước giờ họp (sau khi lịch được duyệt).`}
+                                    </p>
                                 </div>
 
                                 {/* Security & Recording Config — chỉ hiển thị nếu phòng có thiết bị ghi âm/hình */}

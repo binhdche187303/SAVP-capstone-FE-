@@ -1,4 +1,5 @@
 import { Activity, AlertTriangle, Calendar, Check, Clock, Download, Edit3, FileText, GripVertical, List, Loader2, MapPin, Pause, Play, Search, Sparkles, Trash2, Upload, Users, UserPlus, Video, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RichTextView } from '../../components/common/RichTextEditor';
 import { useState, useEffect, useCallback } from 'react';
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -217,6 +218,8 @@ const EmployeeMeetingDetail = () => {
             host: hostName,
             hostId,
             host_id: hostId,
+            secretaryName: dto.secretary?.fullName || null,
+            secretaryId: dto.secretary?.id || null,
             organizerId,
             organizer_id: organizerId,
             // Room
@@ -242,6 +245,7 @@ const EmployeeMeetingDetail = () => {
             externalParticipants: dto.externalParticipants || dto.external_participants || [],
             external_participants: dto.externalParticipants || dto.external_participants || [],
             agenda,
+            attendanceEnabled: meetingObj.attendanceEnabled ?? meetingObj.attendance_enabled ?? true,
         };
     };
 
@@ -1146,9 +1150,11 @@ const EmployeeMeetingDetail = () => {
                                 <h1 className="text-2xl md:text-3xl font-extrabold text-midnight-indigo leading-tight tracking-tight">
                                     {meeting.title}
                                 </h1>
-                                <p className="text-sm text-slate-blue/80 max-w-3xl leading-relaxed">
-                                    {meeting.description || 'Không có mô tả cuộc họp'}
-                                </p>
+                                <RichTextView
+                                    html={meeting.description}
+                                    className="text-sm text-slate-blue/80 max-w-3xl leading-relaxed"
+                                    fallback={<p className="text-sm text-slate-blue/80 max-w-3xl leading-relaxed">Không có mô tả cuộc họp</p>}
+                                />
                             </div>
                         </div>
                     </div>
@@ -1194,6 +1200,16 @@ const EmployeeMeetingDetail = () => {
                                 <span className="text-xs font-semibold text-midnight-indigo block truncate">{hostName}</span>
                             </div>
                         </div>
+
+                        {meeting.secretaryName && (
+                            <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
+                                <Users className="w-5 h-5 text-action-blue shrink-0" />
+                                <div className="truncate">
+                                    <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Thư ký</span>
+                                    <span className="text-xs font-semibold text-midnight-indigo block truncate">{meeting.secretaryName}</span>
+                                </div>
+                            </div>
+                        )}
 
                         {meeting.room?.location && (
                             <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
@@ -1809,7 +1825,9 @@ const EmployeeMeetingDetail = () => {
                             )}
                         </div>
                     ) : activeRightTab === 'attendance' ? (
-                        <MeetingAttendanceBoard meetingId={meeting.id} />
+                        meeting.attendanceEnabled === false
+                            ? <div className="p-6 text-center text-sm text-slate-blue bg-slate-50 rounded-2xl border border-platinum-tint">Cuộc họp này không yêu cầu điểm danh.</div>
+                            : <MeetingAttendanceBoard meetingId={meeting.id} />
                     ) : activeRightTab === 'transcript' ? (
                         isCompleted ? (
                             <div className="space-y-6">
