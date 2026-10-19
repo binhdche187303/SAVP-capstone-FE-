@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, BookOpen, Calendar, CalendarDays, ChevronDown, FileCheck, FileText, GraduationCap, KeyRound, LogOut, Film, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, Users, X } from 'lucide-react';
+import { Activity, BookOpen, Calendar, CalendarDays, Car, ChevronDown, FileCheck, FileText, GraduationCap, KeyRound, LogOut, Film, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, Users, X } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import { getCurrentUser, logout } from '../../service/authService';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -110,9 +110,9 @@ const LearningLayout = ({ role = 'teacher' }) => {
                     <div className="flex items-center gap-4 lg:gap-8 min-w-0 flex-1">
                         <NavLink to={basePath} className="flex items-center gap-2 no-underline shrink-0">
                             <div className="w-12 h-12 bg-white flex items-center justify-center shrink-0">
-                                <img src={logo} alt="SmarTracking" className="w-full h-full object-contain scale-[1.3]" />
+                                <img src={logo} alt="VISMA IVA" className="w-full h-full object-contain scale-[1.3]" />
                             </div>
-                            <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden xl:block">SmarTracking</span>
+                            <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden xl:block">VISMA IVA</span>
                         </NavLink>
                         <nav className="hidden xl:flex items-center gap-0.5 flex-nowrap">
                             {navItems.map(item => item.children ? (
@@ -176,6 +176,9 @@ const LearningLayout = ({ role = 'teacher' }) => {
                                         <button type="button" onClick={handleProfile} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <User className="w-4 h-4" /> Hồ sơ cá nhân
                                         </button>
+                                        <button type="button" onClick={() => { setIsProfileMenuOpen(false); navigate(`${basePath}/my-vehicles`); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
+                                            <Car className="w-4 h-4" /> Xe của tôi
+                                        </button>
                                         <button type="button" onClick={handleChangePassword} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <KeyRound className="w-4 h-4" /> Đổi mật khẩu
                                         </button>
@@ -223,8 +226,8 @@ const LearningLayout = ({ role = 'teacher' }) => {
             <footer className="w-full bg-white border-t border-platinum-tint">
                 <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 px-6 lg:px-12 py-5">
                     <div className="flex items-center gap-4">
-                        <span className="text-sm font-bold text-midnight-indigo">SmarTracking</span>
-                        <span className="text-xs text-slate-blue">© 2026 Trung tâm Điều hành Thông minh SmarTracking. Trạng thái: Hoạt động.</span>
+                        <span className="text-sm font-bold text-midnight-indigo">VISMA IVA</span>
+                        <span className="text-xs text-slate-blue">© 2026 VISMA Intelligent Video Analytics (IVA). Trạng thái: Hoạt động.</span>
                     </div>
                     <span className="text-xs font-semibold text-action-blue">v2.0.0-beta</span>
                 </div>

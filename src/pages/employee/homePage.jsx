@@ -522,10 +522,10 @@ const EmployeeHomePage = () => {
                                         Chính sách quyền riêng tư (PDPA)
                                     </h3>
                                     <p className="text-xs text-indigo-200 leading-relaxed mb-4">
-                                        Hệ thống SmarTracking cam kết bảo mật thông tin cá nhân của người dùng. Mọi video cuộc họp (Recording) sẽ chỉ được kích hoạt ghi hình khi có sự đồng ý (Consent) của tất cả thành viên bắt buộc tham dự.
+                                        Hệ thống VISMA IVA cam kết bảo mật thông tin cá nhân của người dùng. Mọi video cuộc họp (Recording) sẽ chỉ được kích hoạt ghi hình khi có sự đồng ý (Consent) của tất cả thành viên bắt buộc tham dự.
                                     </p>
                                     <ul className="text-xs text-indigo-200 space-y-2 list-disc list-inside">
-                                        <li>Face data gốc KHÔNG được lưu trên hệ thống backend SmarTracking.</li>
+                                        <li>Face data gốc KHÔNG được lưu trên hệ thống backend VISMA IVA.</li>
                                         <li>Lịch sử điểm danh được mã hóa và lưu trữ vì mục đích thống kê.</li>
                                         <li>Bản ghi hình cuộc họp được tự động xóa sau 90 ngày.</li>
                                     </ul>

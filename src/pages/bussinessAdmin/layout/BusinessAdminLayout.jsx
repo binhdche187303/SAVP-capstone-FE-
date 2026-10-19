@@ -27,6 +27,9 @@ import {
     CalendarClock,
     History,
     BarChart3,
+    SlidersHorizontal,
+    CalendarCog,
+    Award
 } from 'lucide-react';
 
 const STATIC_NAVIGATION_ITEMS = [
@@ -52,6 +55,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Người dùng', to: '/business-admin/users', icon: Users },
             { label: 'Phòng ban', to: '/business-admin/departments', icon: Briefcase },
+            { label: 'Vai trò lịch họp', to: '/business-admin/calendar-roles', icon: CalendarCog },
             { label: 'Duyệt ảnh sinh trắc học', to: '/business-admin/biometric-submissions', icon: Fingerprint },
         ],
     },
@@ -72,7 +76,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Hiệu suất phòng họp', to: '/business-admin/room-analytics', icon: PieChart },
             { label: 'Lưu lượng & Heatmap', to: '/business-admin/zone-traffic', icon: Flame },
-            { label: 'Bản đồ khuôn viên', to: '/business-admin/campus-map', icon: MapIcon },
+            { label: 'Sơ đồ camera 3D', to: '/business-admin/camera-map-3d', icon: MapIcon },
         ],
     },
     {
@@ -82,7 +86,9 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Tỷ lệ đúng giờ', to: '/business-admin/attendance-analytics', icon: Clock },
             { label: 'Chuyên cần phòng ban', to: '/business-admin/meeting-attendance', icon: Activity },
+            { label: 'Điểm chuyên cần cuộc họp', to: '/business-admin/attendance-points', icon: Award },
             { label: 'Chuyên cần lớp học', to: '/business-admin/class-attendance', icon: GraduationCap },
+            { label: 'Cấu hình điểm danh', to: '/business-admin/attendance-config', icon: SlidersHorizontal },
         ],
     },
     {
@@ -163,7 +169,7 @@ const BusinessAdminLayout = () => {
                 <header className="lg:hidden flex items-center justify-between bg-white border-b border-platinum-tint px-4 py-3 shrink-0">
                     <div className="flex items-center gap-2">
                         <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
-                        <span className="font-bold text-midnight-indigo tracking-tight">SmarTracking</span>
+                        <span className="font-bold text-midnight-indigo tracking-tight">VISMA IVA</span>
                     </div>
                     <button 
                         onClick={() => setIsMobileSidebarOpen(true)} 

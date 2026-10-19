@@ -292,10 +292,10 @@ const EmployeeTab = ({ onSuccess }) => {
 
     const parseExcel = useCallback((f) => {
         if (!f) { setExcelCodes([]); return; }
-        const reader = new FileReader();
-        reader.onload = (e) => {
+        // Blob.arrayBuffer thay FileReader (pptxviewjs ghi đè window.FileReader).
+        f.arrayBuffer().then((buf) => {
             try {
-                const wb = XLSX.read(e.target.result, { type: 'array' });
+                const wb = XLSX.read(buf, { type: 'array' });
                 const ws = wb.Sheets[wb.SheetNames[0]];
                 const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
                 if (rows.length < 2) { setExcelCodes([]); return; }
@@ -304,8 +304,7 @@ const EmployeeTab = ({ onSuccess }) => {
                 if (idx === -1) { setExcelCodes([]); return; }
                 setExcelCodes(rows.slice(1).map(r => String(r[idx] || '').trim()).filter(Boolean));
             } catch { setExcelCodes([]); }
-        };
-        reader.readAsArrayBuffer(f);
+        }).catch(() => {});
     }, []);
 
     useEffect(() => {
@@ -573,10 +572,10 @@ const PartnerTab = ({ onSuccess }) => {
 
     const parseExcel = useCallback((f) => {
         if (!f) { setExcelEmails([]); return; }
-        const reader = new FileReader();
-        reader.onload = (e) => {
+        // Blob.arrayBuffer thay FileReader (pptxviewjs ghi đè window.FileReader).
+        f.arrayBuffer().then((buf) => {
             try {
-                const wb = XLSX.read(e.target.result, { type: 'array' });
+                const wb = XLSX.read(buf, { type: 'array' });
                 const ws = wb.Sheets[wb.SheetNames[0]];
                 const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
                 if (rows.length < 2) { setExcelEmails([]); return; }
@@ -585,8 +584,7 @@ const PartnerTab = ({ onSuccess }) => {
                 if (idx === -1) { setExcelEmails([]); return; }
                 setExcelEmails(rows.slice(1).map(r => String(r[idx] || '').trim().toLowerCase()).filter(Boolean));
             } catch { setExcelEmails([]); }
-        };
-        reader.readAsArrayBuffer(f);
+        }).catch(() => {});
     }, []);
 
     useEffect(() => {
@@ -901,7 +899,7 @@ const ImportAccountsModal = ({ isOpen, onClose, onSuccess }) => {
                 {/* Tab bar */}
                 <div className="flex border-b border-platinum-tint shrink-0 px-1 bg-white">
                     {[
-                        { key: 'employee', label: 'Nhân viên', icon: '👤' },
+                        { key: 'employee', label: 'Cán bộ, viên chức', icon: '👤' },
                         { key: 'partner',  label: 'Đối tác / Khách hàng', icon: '🤝' },
                     ].map(({ key, label, icon }) => (
                         <button

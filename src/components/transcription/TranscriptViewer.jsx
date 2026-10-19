@@ -133,7 +133,7 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
 
     // Toast auto-hide
     const showToast = (message, type = 'success') => {
-        toast[type]?.(message) ?? toast.info(message);
+        (toast[type] || toast.info)(message);
     };
 
     // Tự dừng audio đúng lúc hết đoạn (endMs) thay vì phát tràn sang câu kế tiếp.

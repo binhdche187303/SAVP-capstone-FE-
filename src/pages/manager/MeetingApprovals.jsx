@@ -1,4 +1,5 @@
 import { AlertTriangle, Calendar, CheckCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Eye, FileText, Info, LayoutGrid, List, MapPin, RefreshCw, Search, UserX, Users, X, XCircle } from 'lucide-react';
+import { htmlToPlainText } from '../../utils/richText';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -11,6 +12,18 @@ import {
     rejectMeetingRequest
 } from '../../service/managerServices';
 import { subscribeToMeetingRequestUpdates } from '../../utils/socket';
+
+// Lịch tuần UEL: nhãn nhóm lịch của yêu cầu
+const CALENDAR_TYPE_BADGES = {
+    UNIT: { label: 'Lịch đơn vị', cls: 'bg-slate-50 text-slate-600 border-slate-200' },
+    SCHOOL_LEADERSHIP: { label: 'Lịch lãnh đạo trường', cls: 'bg-rose-50 text-rose-600 border-rose-200' },
+    SCHOOL_OTHER: { label: 'Lịch hoạt động khác', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+};
+const CalendarTypeBadge = ({ type }) => {
+    const b = CALENDAR_TYPE_BADGES[type];
+    if (!b) return null;
+    return <span className={`px-2 py-0.5 rounded border text-[10px] font-bold w-max ${b.cls}`}>{b.label}</span>;
+};
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -715,6 +728,7 @@ const MeetingApprovals = () => {
                                                     #{req.requestCode}
                                                 </span>
                                                 <h4 className="font-bold text-sm text-midnight-indigo line-clamp-1" title={req.meeting?.title}>{req.meeting?.title || 'Đặt lịch phòng họp'}</h4>
+                                                <CalendarTypeBadge type={req.meeting?.calendarType} />
                                             </div>
                                             <div className="flex shrink-0">
                                                 {req.approvalStatus === 'pending' && (
@@ -887,6 +901,7 @@ const MeetingApprovals = () => {
                                             {/* Title */}
                                             <td className="p-4 font-semibold text-midnight-indigo max-w-xs truncate" title={req.meeting?.title || 'Đăt lịch phòng họp'}>
                                                 {req.meeting?.title || 'Đăt lịch phòng họp'}
+                                                <div className="mt-1"><CalendarTypeBadge type={req.meeting?.calendarType} /></div>
                                             </td>
 
                                             {/* Requester */}
@@ -1082,7 +1097,7 @@ const MeetingApprovals = () => {
                                             <div className="text-xs space-y-1 text-midnight-indigo">
                                                 <p className="font-semibold text-sm">{selectedRequest.meeting?.title || 'Cuộc họp nội bộ'}</p>
                                                 {selectedRequest.meeting?.description && (
-                                                    <p className="text-[11px] text-slate-blue italic line-clamp-2 mt-1">{selectedRequest.meeting?.description}</p>
+                                                    <p className="text-[11px] text-slate-blue italic line-clamp-2 mt-1">{htmlToPlainText(selectedRequest.meeting?.description)}</p>
                                                 )}
                                                 <p className="pt-1 flex items-center gap-1.5 text-slate-blue">
                                                     <Calendar className="w-3.5 h-3.5 text-action-blue" />

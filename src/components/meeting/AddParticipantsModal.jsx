@@ -203,7 +203,7 @@ const AddParticipantsModal = ({
             const url = URL.createObjectURL(res.data);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'SmarTracking_Template_Them_Danh_Sach.xlsx';
+            a.download = 'VISMA_IVA_Template_Them_Danh_Sach.xlsx';
             document.body.appendChild(a);
             a.click();
             a.remove();
