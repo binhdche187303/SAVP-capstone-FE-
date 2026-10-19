@@ -551,7 +551,7 @@ const MeetingManagement = () => {
                         </div>
                         <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Chủ đề cuộc họp</label>
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Chủ đề cuộc họp <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     required
@@ -566,7 +566,7 @@ const MeetingManagement = () => {
                             {modalMode === 'create' && (
                                 <>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Phòng họp</label>
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Phòng họp <span className="text-red-500">*</span></label>
                                         <select
                                             required
                                             value={formData.roomId}
@@ -584,7 +584,7 @@ const MeetingManagement = () => {
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Bắt đầu</label>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Bắt đầu <span className="text-red-500">*</span></label>
                                             <input
                                                 type="datetime-local"
                                                 required
@@ -594,7 +594,7 @@ const MeetingManagement = () => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Kết thúc</label>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Kết thúc <span className="text-red-500">*</span></label>
                                             <input
                                                 type="datetime-local"
                                                 required
@@ -652,7 +652,7 @@ const MeetingManagement = () => {
                         </div>
                         <form onSubmit={handleTimeSave} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Bắt đầu</label>
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Bắt đầu <span className="text-red-500">*</span></label>
                                 <input
                                     type="datetime-local"
                                     required
@@ -662,7 +662,7 @@ const MeetingManagement = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Kết thúc</label>
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Kết thúc <span className="text-red-500">*</span></label>
                                 <input
                                     type="datetime-local"
                                     required

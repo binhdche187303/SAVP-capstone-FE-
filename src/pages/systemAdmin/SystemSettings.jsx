@@ -1,5 +1,5 @@
 import { Settings, Camera, GraduationCap, Plus, Trash2, Pencil, X } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import Pagination from '../../components/common/Pagination';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -7,6 +7,7 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { getSystemConfigs, updateSystemConfig, getChannelMaps, updateChannelMap, getRooms, getZones, getNoShowConfig, updateNoShowConfig, getSecurityAlertsConfig, updateSecurityAlertsConfig } from '../../service/sysAdminServices';
 import {
     DEFAULT_CLASS_ATTENDANCE_SETTINGS,
+    fetchClassAttendanceClasses,
     fetchClassAttendanceSettings,
     getClassAttendanceSettings,
     mockClassrooms,
@@ -67,8 +68,30 @@ const SystemSettings = () => {
     // Cấu hình Security Alerts (nguồn riêng: GET/PUT /security-alerts-config)
     const [securityAlertsConfig, setSecurityAlertsConfig] = useState({ autoResolveTimeoutMinutes: 15 });
     const [dbSecurityAlertsConfig, setDbSecurityAlertsConfig] = useState({ autoResolveTimeoutMinutes: 15 });
-    const [selectedClassAttendanceClassId, setSelectedClassAttendanceClassId] = useState(mockClassrooms[0]?.id || '');
+    const [classAttendanceClasses, setClassAttendanceClasses] = useState(mockClassrooms);
+    const classAttendanceTargets = useMemo(
+        () => classAttendanceClasses.flatMap(item => (item.classNames || item.administrativeClasses || ['Chưa cập nhật']).map(className => ({
+            value: `${item.id}::${className}`,
+            classId: item.id,
+            className,
+            item
+        }))),
+        [classAttendanceClasses]
+    );
+    const [selectedClassAttendanceClassId, setSelectedClassAttendanceClassId] = useState(
+        () => classAttendanceTargets[0]?.value || ''
+    );
     const [classAttendanceConfig, setClassAttendanceConfig] = useState(DEFAULT_CLASS_ATTENDANCE_SETTINGS);
+
+    const selectedAttendanceTarget = classAttendanceTargets.find(
+        target => target.value === selectedClassAttendanceClassId
+    ) || classAttendanceTargets[0];
+
+    useEffect(() => {
+        if (!classAttendanceTargets.some(target => target.value === selectedClassAttendanceClassId)) {
+            setSelectedClassAttendanceClassId(classAttendanceTargets[0]?.value || '');
+        }
+    }, [classAttendanceTargets, selectedClassAttendanceClassId]);
 
     // Config Values State — chỉ còn phục vụ 2 tab đang ẩn (Ghi hình & Riêng tư / Tham số hệ thống)
     const [configs, setConfigs] = useState({
@@ -204,17 +227,22 @@ const SystemSettings = () => {
             }
 
             try {
-                const attendanceSettings = await fetchClassAttendanceSettings();
-                setClassAttendanceConfig({
-                    ...DEFAULT_CLASS_ATTENDANCE_SETTINGS,
-                    ...attendanceSettings
-                });
-                saveClassAttendanceSettings({
-                    ...DEFAULT_CLASS_ATTENDANCE_SETTINGS,
-                    ...attendanceSettings
-                });
-            } catch (attendanceErr) {
-                console.error('Không thể tải cấu hình điểm danh lớp học:', attendanceErr);
+                const apiClasses = await fetchClassAttendanceClasses();
+                if (apiClasses.length) {
+                    setClassAttendanceClasses(apiClasses.map(apiClass => {
+                        const mockClass = mockClassrooms.find(item => item.subjectCode === apiClass.subjectCode);
+                        return mockClass
+                            ? {
+                                ...mockClass,
+                                ...apiClass,
+                                classNames: mockClass.classNames,
+                                classSchedules: mockClass.classSchedules
+                            }
+                            : apiClass;
+                    }));
+                }
+            } catch (classErr) {
+                console.error('Không thể tải danh sách lớp học:', classErr);
             }
 
             // Channel maps là nguồn dữ liệu bắt buộc cho tab Camera & Cảm biến
@@ -259,8 +287,21 @@ const SystemSettings = () => {
     }, [fetchConfigs]);
 
     useEffect(() => {
-        setClassAttendanceConfig(getClassAttendanceSettings());
-    }, [selectedClassAttendanceClassId]);
+        const target = selectedAttendanceTarget;
+        if (!target) return undefined;
+
+        setClassAttendanceConfig(getClassAttendanceSettings(target.classId, target.className));
+        fetchClassAttendanceSettings(target.classId, target.className)
+            .then(settings => {
+                const nextSettings = { ...DEFAULT_CLASS_ATTENDANCE_SETTINGS, ...settings };
+                setClassAttendanceConfig(nextSettings);
+                saveClassAttendanceSettings(nextSettings, target.classId, target.className);
+            })
+            .catch(attendanceErr => {
+                console.error('Không thể tải cấu hình điểm danh lớp học:', attendanceErr);
+            });
+        return undefined;
+    }, [selectedAttendanceTarget, selectedClassAttendanceClassId]);
 
     // Auto-hide alert messages
     useEffect(() => {
@@ -313,17 +354,18 @@ const SystemSettings = () => {
         }
         setSaving(true);
         try {
+            const target = selectedAttendanceTarget;
             const saved = await updateClassAttendanceSettings({
                 ...classAttendanceConfig,
                 lateThresholdMinutes: Number(classAttendanceConfig.lateThresholdMinutes),
                 autoScanIntervalSeconds: Number(classAttendanceConfig.autoScanIntervalSeconds)
-            });
+            }, target?.classId, target?.className);
             const nextSettings = {
                 ...DEFAULT_CLASS_ATTENDANCE_SETTINGS,
                 ...saved
             };
             setClassAttendanceConfig(nextSettings);
-            saveClassAttendanceSettings(nextSettings);
+            saveClassAttendanceSettings(nextSettings, target?.classId, target?.className);
             setSuccessMessage('Đã lưu cấu hình điểm danh lớp học.');
         } catch (err) {
             setError(err?.message || err?.error?.message || 'Không thể lưu cấu hình điểm danh lớp học.');
@@ -448,7 +490,10 @@ const SystemSettings = () => {
         setSecurityAlertsConfig({ ...dbSecurityAlertsConfig });
         setConfigs({ ...dbConfigs });
         setChannelMaps({ ...dbChannelMaps });
-        setClassAttendanceConfig(getClassAttendanceSettings());
+        setClassAttendanceConfig(getClassAttendanceSettings(
+            selectedAttendanceTarget?.classId,
+            selectedAttendanceTarget?.className
+        ));
         setChannelEditor(emptyChannelEditor);
     };
 
@@ -1047,9 +1092,9 @@ const SystemSettings = () => {
                                         onChange={(e) => setSelectedClassAttendanceClassId(e.target.value)}
                                         className="mt-3 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
                                     >
-                                        {mockClassrooms.map(item => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.code} - {item.subject} ({item.room})
+                                        {classAttendanceTargets.map(target => (
+                                            <option key={target.value} value={target.value}>
+                                                {target.item.subjectCode || target.item.code} - {target.item.subject} - Lớp {target.className} ({target.item.room})
                                             </option>
                                         ))}
                                     </select>
@@ -1079,9 +1124,9 @@ const SystemSettings = () => {
                                             max="120"
                                             value={classAttendanceConfig.lateThresholdMinutes}
                                             onChange={(e) => handleClassAttendanceChange('lateThresholdMinutes', Number(e.target.value))}
-                                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                            className="w-full px-3 pr-16 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                         />
-                                        <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">phút</span>
+                                        <span className="absolute right-9 top-2 text-xs text-slate-blue font-semibold pointer-events-none">phút</span>
                                     </div>
                                 </div>
                                 <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
@@ -1096,9 +1141,9 @@ const SystemSettings = () => {
                                             max="60"
                                             value={classAttendanceConfig.autoScanIntervalSeconds}
                                             onChange={(e) => handleClassAttendanceChange('autoScanIntervalSeconds', Number(e.target.value))}
-                                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                            className="w-full px-3 pr-16 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                         />
-                                        <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">giây</span>
+                                        <span className="absolute right-9 top-2 text-xs text-slate-blue font-semibold pointer-events-none">giây</span>
                                     </div>
                                 </div>
                             </div>

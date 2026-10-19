@@ -8,6 +8,12 @@ import NotificationBell from '../../components/common/NotificationBell';
 import BiometricReminderModal from '../../components/biometric/BiometricReminderModal';
 import ChangePasswordModal from '../../components/auth/ChangePasswordModal';
 
+const footerLinks = [
+    { label: 'Hỗ trợ', to: 'legal?tab=support' },
+    { label: 'Tài liệu', to: 'legal?tab=docs-user' },
+    { label: 'Quyền riêng tư', to: 'legal?tab=privacy' },
+];
+
 const LearningLayout = ({ role = 'teacher' }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -229,7 +235,20 @@ const LearningLayout = ({ role = 'teacher' }) => {
                         <span className="text-sm font-bold text-midnight-indigo">VISMA IVA</span>
                         <span className="text-xs text-slate-blue">© 2026 VISMA Intelligent Video Analytics (IVA). Trạng thái: Hoạt động.</span>
                     </div>
-                    <span className="text-xs font-semibold text-action-blue">v2.0.0-beta</span>
+                    <div className="flex items-center gap-6">
+                        <span className="text-xs font-semibold text-action-blue">v2.0.0-beta</span>
+                        <nav aria-label="Footer links" className="flex items-center gap-4">
+                            {footerLinks.map((link) => (
+                                <a
+                                    key={link.label}
+                                    href={link.to}
+                                    className="text-xs font-medium text-slate-blue hover:text-action-blue transition-colors duration-200 no-underline"
+                                >
+                                    {link.label}
+                                </a>
+                            ))}
+                        </nav>
+                    </div>
                 </div>
             </footer>
         </div>

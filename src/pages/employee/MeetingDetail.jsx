@@ -2041,7 +2041,7 @@ const EmployeeMeetingDetail = () => {
                                     </div>
                                 )}
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tiêu đề cuộc họp</label>
+                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tiêu đề cuộc họp <span className="text-red-500">*</span></label>
                                     <input
                                         type="text"
                                         required
@@ -2053,7 +2053,7 @@ const EmployeeMeetingDetail = () => {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 relative">
                                     <div className="sm:col-span-2">
-                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Khung ngày họp</label>
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Khung ngày họp <span className="text-red-500">*</span></label>
                                         <div className="relative w-full z-50">
                                             <DatePicker 
                                                 selectsRange={true}
@@ -2071,14 +2071,14 @@ const EmployeeMeetingDetail = () => {
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Bắt đầu</label>
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Bắt đầu <span className="text-red-500">*</span></label>
                                         <TimePicker
                                             value={editStart}
                                             onChange={(newTime) => setEditStart(newTime)}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Kết thúc</label>
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Kết thúc <span className="text-red-500">*</span></label>
                                         <TimePicker
                                             value={editEnd}
                                             onChange={(newTime) => setEditEnd(newTime)}

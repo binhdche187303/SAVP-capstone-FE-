@@ -32,6 +32,11 @@ export const mockClassrooms = [
         schedule: 'Thứ 2, 08:00 - 10:30',
         scheduleWeekday: 1,
         semester: 'HK1 2026-2027',
+        classNames: ['KS1821', 'KS1822'],
+        classSchedules: {
+            KS1821: { schedule: 'Thứ 2, 08:00 - 10:30', scheduleWeekday: 1, room: 'Phòng học A101' },
+            KS1822: { schedule: 'Thứ 3, 08:00 - 10:30', scheduleWeekday: 2, room: 'Phòng học A101' }
+        },
         students: demoStudents.slice(0, 7)
     },
     {
@@ -44,6 +49,11 @@ export const mockClassrooms = [
         schedule: 'Thứ 4, 13:30 - 16:00',
         scheduleWeekday: 3,
         semester: 'HK1 2026-2027',
+        classNames: ['KS1821', 'KS1823'],
+        classSchedules: {
+            KS1821: { schedule: 'Thứ 4, 13:30 - 16:00', scheduleWeekday: 3, room: 'Phòng học A102' },
+            KS1823: { schedule: 'Thứ 5, 13:30 - 16:00', scheduleWeekday: 4, room: 'Phòng học A102' }
+        },
         students: [demoStudents[0], demoStudents[1], demoStudents[2], demoStudents[4], demoStudents[5], demoStudents[7]]
     },
     {
@@ -56,9 +66,123 @@ export const mockClassrooms = [
         schedule: 'Thứ 6, 09:00 - 11:30',
         scheduleWeekday: 5,
         semester: 'HK1 2026-2027',
+        classNames: ['KS1822', 'KS1823'],
+        classSchedules: {
+            KS1822: { schedule: 'Thứ 6, 09:00 - 11:30', scheduleWeekday: 5, room: 'Phòng học B203' },
+            KS1823: { schedule: 'Thứ 7, 09:00 - 11:30', scheduleWeekday: 6, room: 'Phòng học B203' }
+        },
         students: [demoStudents[0], demoStudents[2], demoStudents[3], demoStudents[4], demoStudents[6]]
+    },
+    {
+        id: 'ML-404',
+        code: 'ML404-01',
+        subjectCode: 'ML404',
+        subject: 'Học máy cơ bản',
+        room: 'Phòng học A201',
+        teacher: 'Nguyễn Thị Giang',
+        schedule: 'Thứ 2, 13:30 - 16:00',
+        scheduleWeekday: 1,
+        semester: 'HK1 2026-2027',
+        classNames: ['KS1824'],
+        students: [demoStudents[0], demoStudents[2], demoStudents[4], demoStudents[7]]
+    },
+    {
+        id: 'IOT-305',
+        code: 'IOT305-01',
+        subjectCode: 'IOT305',
+        subject: 'Internet vạn vật',
+        room: 'Phòng học B201',
+        teacher: 'Nguyễn Thị Giang',
+        schedule: 'Thứ 4, 08:00 - 10:30',
+        scheduleWeekday: 3,
+        semester: 'HK1 2026-2027',
+        classNames: ['KS1824', 'KS1825'],
+        classSchedules: {
+            KS1824: { schedule: 'Thứ 4, 08:00 - 10:30', scheduleWeekday: 3, room: 'Phòng học B201' },
+            KS1825: { schedule: 'Thứ 5, 08:00 - 10:30', scheduleWeekday: 4, room: 'Phòng học B201' }
+        },
+        students: [demoStudents[1], demoStudents[3], demoStudents[4], demoStudents[6]]
+    },
+    {
+        id: 'MATH-105',
+        code: 'MATH105-01',
+        subjectCode: 'MATH105',
+        subject: 'Toán rời rạc',
+        room: 'Phòng học B202',
+        teacher: 'Nguyễn Thị Giang',
+        schedule: 'Thứ 6, 13:30 - 16:00',
+        scheduleWeekday: 5,
+        semester: 'HK1 2026-2027',
+        classNames: ['KS1825'],
+        students: [demoStudents[0], demoStudents[1], demoStudents[5], demoStudents[6]]
+    },
+    {
+        id: 'ECON-210',
+        code: 'ECON210-01',
+        subjectCode: 'ECON210',
+        subject: 'Kinh tế học đại cương',
+        room: 'Phòng học C101',
+        teacher: 'Nguyễn Thị Giang',
+        schedule: 'Thứ 3, 08:00 - 10:30',
+        scheduleWeekday: 2,
+        semester: 'HK1 2026-2027',
+        classNames: ['KS1826', 'KS1827'],
+        classSchedules: {
+            KS1826: { schedule: 'Thứ 3, 13:30 - 16:00', scheduleWeekday: 2, room: 'Phòng học C101' },
+            KS1827: { schedule: 'Thứ 4, 10:45 - 13:15', scheduleWeekday: 3, room: 'Phòng học C101' }
+        },
+        students: [demoStudents[1], demoStudents[2], demoStudents[4], demoStudents[6]]
+    },
+    {
+        id: 'NET-306',
+        code: 'NET306-01',
+        subjectCode: 'NET306',
+        subject: 'Mạng máy tính',
+        room: 'Phòng học C102',
+        teacher: 'Nguyễn Thị Giang',
+        schedule: 'Thứ 5, 10:45 - 13:15',
+        scheduleWeekday: 4,
+        semester: 'HK1 2026-2027',
+        classNames: ['KS1827'],
+        students: [demoStudents[0], demoStudents[3], demoStudents[5], demoStudents[7]]
+    },
+    {
+        id: 'SEC-307',
+        code: 'SEC307-01',
+        subjectCode: 'SEC307',
+        subject: 'An toàn thông tin',
+        room: 'Phòng học C201',
+        teacher: 'Nguyễn Thị Giang',
+        schedule: 'Thứ 7, 08:00 - 10:30',
+        scheduleWeekday: 6,
+        semester: 'HK1 2026-2027',
+        classNames: ['KS1828', 'KS1829'],
+        classSchedules: {
+            KS1828: { schedule: 'Thứ 7, 08:00 - 10:30', scheduleWeekday: 6, room: 'Phòng học C201' },
+            KS1829: { schedule: 'Chủ nhật, 08:00 - 10:30', scheduleWeekday: 0, room: 'Phòng học C201' }
+        },
+        students: [demoStudents[0], demoStudents[2], demoStudents[4], demoStudents[7]]
+    },
+    {
+        id: 'ENG-108',
+        code: 'ENG108-01',
+        subjectCode: 'ENG108',
+        subject: 'Tiếng Anh chuyên ngành',
+        room: 'Phòng học C202',
+        teacher: 'Nguyễn Thị Giang',
+        schedule: 'Chủ nhật, 10:45 - 13:15',
+        scheduleWeekday: 0,
+        semester: 'HK1 2026-2027',
+        classNames: ['KS1829'],
+        students: [demoStudents[1], demoStudents[3], demoStudents[5], demoStudents[6]]
     }
 ];
+
+export const getClassSession = (klass, className) => ({
+    schedule: klass?.classSchedules?.[className]?.schedule || klass?.schedule || 'Chưa có lịch học',
+    scheduleWeekday: klass?.classSchedules?.[className]?.scheduleWeekday ?? klass?.scheduleWeekday,
+    room: klass?.classSchedules?.[className]?.room || klass?.room || 'Chưa có phòng học'
+});
 
 const readJson = (key, fallback) => {
     try {
@@ -125,29 +249,35 @@ export const getClassAttendanceSettingsStore = () => {
     };
 };
 
-export const getClassAttendanceSettingsForClass = (classId) => {
+const getClassAttendanceScopeKey = (classId, administrativeClass) => (
+    administrativeClass ? `${classId}::${administrativeClass}` : classId
+);
+
+export const getClassAttendanceSettingsForClass = (classId, administrativeClass) => {
     const store = getClassAttendanceSettingsStore();
+    const scopeKey = getClassAttendanceScopeKey(classId, administrativeClass);
     return {
         ...DEFAULT_CLASS_ATTENDANCE_SETTINGS,
         ...store.global,
-        ...(classId ? store.byClass?.[classId] : {})
+        ...(classId ? store.byClass?.[scopeKey] : {})
     };
 };
 
-export const getClassAttendanceSettings = (classId) => getClassAttendanceSettingsForClass(classId);
+export const getClassAttendanceSettings = (classId, administrativeClass) => getClassAttendanceSettingsForClass(classId, administrativeClass);
 
-export const saveClassAttendanceSettings = (settings, classId) => {
+export const saveClassAttendanceSettings = (settings, classId, administrativeClass) => {
     if (classId) {
         const store = getClassAttendanceSettingsStore();
+        const scopeKey = getClassAttendanceScopeKey(classId, administrativeClass);
         const nextStore = {
             ...store,
             byClass: {
                 ...store.byClass,
-                [classId]: { ...DEFAULT_CLASS_ATTENDANCE_SETTINGS, ...settings }
+                [scopeKey]: { ...DEFAULT_CLASS_ATTENDANCE_SETTINGS, ...settings }
             }
         };
         writeJson(SETTINGS_KEY, nextStore);
-        return nextStore.byClass[classId];
+        return nextStore.byClass[scopeKey];
     }
     const next = { ...DEFAULT_CLASS_ATTENDANCE_SETTINGS, ...settings };
     const store = getClassAttendanceSettingsStore();
@@ -155,13 +285,16 @@ export const saveClassAttendanceSettings = (settings, classId) => {
     return next;
 };
 
-export const fetchClassAttendanceSettings = async () => {
-    const response = await get('/class-attendance/settings', { skipToast: true });
+export const fetchClassAttendanceSettings = async (classId, administrativeClass) => {
+    const query = classId ? `?classId=${encodeURIComponent(classId)}${administrativeClass ? `&administrativeClass=${encodeURIComponent(administrativeClass)}` : ''}` : '';
+    const response = await get(`/class-attendance/settings${query}`, { skipToast: true });
     return response?.data || DEFAULT_CLASS_ATTENDANCE_SETTINGS;
 };
 
-export const updateClassAttendanceSettings = async (settings) => {
+export const updateClassAttendanceSettings = async (settings, classId, administrativeClass) => {
     const response = await patch('/class-attendance/settings', {
+        classId,
+        administrativeClass,
         classStartTime: settings.classStartTime,
         lateThresholdMinutes: Number(settings.lateThresholdMinutes),
         autoScanIntervalSeconds: Number(settings.autoScanIntervalSeconds)
@@ -451,9 +584,10 @@ export const fetchClassAttendanceSummary = async (classId, date = todayKey()) =>
     return response?.data || null;
 };
 
-export const scanClassAttendance = async ({ classId, direction = 'in', snapshotImageBase64 } = {}) => {
+export const scanClassAttendance = async ({ classId, administrativeClass, direction = 'in', snapshotImageBase64 } = {}) => {
     const response = await post('/class-attendance/scan', {
         classId,
+        administrativeClass,
         direction,
         snapshotImageBase64
     }, { skipToast: true });
@@ -465,9 +599,9 @@ export const scanClassAttendance = async ({ classId, direction = 'in', snapshotI
     };
 };
 
-export const mockClassFaceScan = ({ classId = mockClassrooms[0].id, direction = 'in', snapshotImageBase64 } = {}) => {
+export const mockClassFaceScan = ({ classId = mockClassrooms[0].id, administrativeClass, direction = 'in', snapshotImageBase64 } = {}) => {
     const klass = mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
-    const settings = getClassAttendanceSettings(klass.id);
+    const settings = getClassAttendanceSettings(klass.id, administrativeClass);
     const date = todayKey();
     const now = new Date().toISOString();
     const records = getClassAttendanceRecords();

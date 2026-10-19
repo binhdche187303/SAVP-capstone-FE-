@@ -405,7 +405,7 @@ const AddParticipantsModal = ({
                     {activeTab === 'manual' && (
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-blue uppercase tracking-wider mb-2">Tìm kiếm người dùng</label>
+                                <label className="block text-xs font-bold text-slate-blue uppercase tracking-wider mb-2">Tìm kiếm người dùng <span className="text-red-500">*</span></label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <Search className="w-4 h-4 text-slate-400" />

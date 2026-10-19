@@ -67,7 +67,9 @@ const GatePresenceManagement = () => {
     useEffect(() => {
         fetchGuardGateEvents()
             .then(apiEvents => {
-                if (apiEvents.length) setEvents(apiEvents);
+                // API trả danh sách rỗng là trạng thái hợp lệ, không được giữ lại dữ liệu demo cũ.
+                setEvents(Array.isArray(apiEvents) ? apiEvents : []);
+                setPage(1);
             })
             .catch(() => {});
         const handler = () => {

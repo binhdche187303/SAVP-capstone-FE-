@@ -1,7 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, CalendarDays, CheckCircle2, Clock, UserCheck } from 'lucide-react';
+import { BookOpen, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
-import { getClassAttendanceSettings, getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
+import { getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
 import DashboardBanner from '../../components/common/DashboardBanner';
 
 const attendanceChartColors = {
@@ -10,10 +11,19 @@ const attendanceChartColors = {
     absent: '#DC2626'
 };
 
+const SCHEDULES_PER_PAGE = 3;
+
 const StudentHome = () => {
-    const settings = getClassAttendanceSettings();
     const report = getStudentAttendanceReport({ mode: 'week' });
     const summary = report.summary || {};
+    const [schedulePage, setSchedulePage] = useState(1);
+    const schedulePageCount = Math.max(1, Math.ceil(mockClassrooms.length / SCHEDULES_PER_PAGE));
+    const todayWeekday = new Date().getDay() || 7;
+    const todayClassCount = mockClassrooms.filter(klass => Number(klass.scheduleWeekday) === todayWeekday).length;
+    const visibleSchedules = mockClassrooms.slice(
+        (schedulePage - 1) * SCHEDULES_PER_PAGE,
+        schedulePage * SCHEDULES_PER_PAGE
+    );
     const today = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
     const attendanceChartData = [
         { name: 'Đúng giờ', value: summary.onTime || 0, color: attendanceChartColors.onTime },
@@ -21,6 +31,10 @@ const StudentHome = () => {
         { name: 'Vắng', value: summary.absent || 0, color: attendanceChartColors.absent }
     ];
     const hasAttendanceData = attendanceChartData.some(item => item.value > 0);
+
+    useEffect(() => {
+        setSchedulePage(currentPage => Math.min(currentPage, schedulePageCount));
+    }, [schedulePageCount]);
 
     return (
         <div className="space-y-5 animate-fade-in-up">
@@ -51,9 +65,9 @@ const StudentHome = () => {
                     <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Tỷ lệ chuyên cần</p>
                 </div>
                 <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <Clock className="w-8 h-8 p-2 rounded-xl bg-amber-50 text-amber-600" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{settings.classStartTime}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Giờ vào học chuẩn</p>
+                    <CalendarDays className="w-8 h-8 p-2 rounded-xl bg-amber-50 text-amber-600" />
+                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{todayClassCount}</p>
+                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Môn học hôm nay</p>
                 </div>
             </div>
 
@@ -64,7 +78,7 @@ const StudentHome = () => {
                         Lịch học gần nhất
                     </h2>
                     <div className="mt-4 space-y-3">
-                        {mockClassrooms.map(klass => (
+                        {visibleSchedules.map(klass => (
                             <div key={klass.id} className="rounded-xl border border-platinum-tint p-4">
                                 <p className="text-sm font-bold text-midnight-indigo">{klass.subject}</p>
                                 <p className="text-xs text-slate-blue mt-1">Mã môn học: {klass.subjectCode}</p>
@@ -73,7 +87,32 @@ const StudentHome = () => {
                             </div>
                         ))}
                     </div>
-                    <Link to="/student/schedule" className="inline-flex mt-4 text-xs font-bold text-action-blue no-underline">Xem lịch học</Link>
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setSchedulePage(currentPage => Math.max(1, currentPage - 1))}
+                                disabled={schedulePage === 1}
+                                aria-label="Lịch trước"
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-platinum-tint text-slate-blue hover:text-action-blue hover:border-action-blue disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <span className="text-xs font-medium text-slate-blue min-w-[58px] text-center">
+                                Trang {schedulePage}/{schedulePageCount}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setSchedulePage(currentPage => Math.min(schedulePageCount, currentPage + 1))}
+                                disabled={schedulePage === schedulePageCount}
+                                aria-label="Lịch tiếp theo"
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-platinum-tint text-slate-blue hover:text-action-blue hover:border-action-blue disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <Link to="/student/schedule" className="text-xs font-bold text-action-blue no-underline">Xem lịch học</Link>
+                    </div>
                 </div>
 
                 <div className="bg-white border border-platinum-tint rounded-2xl p-5 shadow-sm">
