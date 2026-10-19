@@ -1,4 +1,5 @@
 import { Activity, AlertTriangle, Calendar, Check, Clock, Download, Edit3, FileText, GripVertical, List, Loader2, MapPin, Pause, Play, Search, Sparkles, Trash2, Upload, Users, UserPlus, Video, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RichTextView } from '../../components/common/RichTextEditor';
 import { useState, useEffect, useCallback } from 'react';
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -8,7 +9,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { vi } from 'date-fns/locale/vi';
 import TimePicker from '../../components/common/TimePicker';
 
-import { getMeetingById, updateMeeting, updateMeetingTime, updateMeetingRoom, updateMeetingRecordingConfig, addRecordingConfig, replaceAgendas, cancelMeeting, getAvailableRoomsForMeeting, getUsers, getMeetingMediaFiles, getMediaFile, uploadAgendaAttachment, deleteAgendaAttachment, updateMediaVisibility } from '../../service/employeeServices';
+import { getMeetingById, updateMeeting, updateMeetingTime, updateMeetingRoom, updateMeetingRecordingConfig, addRecordingConfig, replaceAgendas, cancelMeeting, getAvailableRoomsForMeeting, getUsers, getMeetingMediaFiles, getMediaFile, uploadAgendaAttachment, deleteAgendaAttachment, updateMediaVisibility, cancelMeetingSeries, updateMeetingSeriesTime } from '../../service/employeeServices';
 import { createTranscriptionJob } from '../../service/transcriptionServices';
 import UserAvatar from '../../components/common/UserAvatar';
 import AudioUploader from '../../components/transcription/AudioUploader';
@@ -23,6 +24,7 @@ import { getUserPresence, getMeetingPresence } from '../../service/managerServic
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import MeetingAttendanceBoard from '../../components/meeting/MeetingAttendanceBoard';
+import MeetingPrepPanel from '../../components/meeting/MeetingPrepPanel';
 import { hasPermission } from '../../utils/permissionUtils';
 
 // BE MeetingStatus enum (meeting.entity.ts) có đủ 6 giá trị — trước đây thiếu draft/pending_approval
@@ -128,6 +130,9 @@ const EmployeeMeetingDetail = () => {
     const [checkStatus, setCheckStatus] = useState('idle'); // 'idle' | 'ok' | 'conflict'
     const [selectedRoomInfo, setSelectedRoomInfo] = useState(null);
     const [cancelReason, setCancelReason] = useState('');
+    // Chuỗi lặp (UEL 16): phạm vi thao tác 'this' | 'following'
+    const [series, setSeries] = useState(null);
+    const [seriesScope, setSeriesScope] = useState('this');
 
     const [agendaList, setAgendaList] = useState([]);
     const [newAgendaTitle, setNewAgendaTitle] = useState('');
@@ -217,6 +222,8 @@ const EmployeeMeetingDetail = () => {
             host: hostName,
             hostId,
             host_id: hostId,
+            secretaryName: dto.secretary?.fullName || null,
+            secretaryId: dto.secretary?.id || null,
             organizerId,
             organizer_id: organizerId,
             // Room
@@ -242,6 +249,7 @@ const EmployeeMeetingDetail = () => {
             externalParticipants: dto.externalParticipants || dto.external_participants || [],
             external_participants: dto.externalParticipants || dto.external_participants || [],
             agenda,
+            attendanceEnabled: meetingObj.attendanceEnabled ?? meetingObj.attendance_enabled ?? true,
         };
     };
 
@@ -510,10 +518,19 @@ const EmployeeMeetingDetail = () => {
                 if (overrideParticipantConflict) {
                     timePayload.overrideParticipantConflict = true;
                 }
+                if (series && seriesScope === 'following') {
+                    // Dời cùng khoảng cho buổi này và các buổi sau trong chuỗi
+                    const sRes = await updateMeetingSeriesTime(meeting.id, { scope: 'following', startTime: startISO, endTime: endISO });
+                    if (sRes?.success) {
+                        successCount++;
+                        if (sRes.data?.failed?.length) toast.error(`${sRes.data.failed.length} buổi không đổi được giờ: ${sRes.data.failed[0].message}`);
+                    }
+                } else {
                 const timeRes = await updateMeetingTime(meeting.id, timePayload);
                 if (timeRes?.success) {
                     successCount++;
                     if (timeRes.data?.pendingApproval) pendingApproval = true;
+                }
                 }
             }
             if (editRoomId !== meeting.room?.id) {
@@ -605,9 +622,11 @@ const EmployeeMeetingDetail = () => {
     const handleCancelMeeting = async () => {
         setError(null);
         try {
-            const res = await cancelMeeting(meeting.id, cancelReason);
+            const res = series && seriesScope === 'following'
+                ? await cancelMeetingSeries(meeting.id, { scope: 'following', ...(cancelReason.trim() ? { reason: cancelReason.trim() } : {}) })
+                : await cancelMeeting(meeting.id, cancelReason);
             if (res?.success) {
-                setSuccessMsg('Đã hủy cuộc họp thành công.');
+                setSuccessMsg(series && seriesScope === 'following' ? res.message : 'Đã hủy cuộc họp thành công.');
                 setIsCancelConfirmOpen(false);
                 fetchMeeting();
             } else {
@@ -1146,9 +1165,11 @@ const EmployeeMeetingDetail = () => {
                                 <h1 className="text-2xl md:text-3xl font-extrabold text-midnight-indigo leading-tight tracking-tight">
                                     {meeting.title}
                                 </h1>
-                                <p className="text-sm text-slate-blue/80 max-w-3xl leading-relaxed">
-                                    {meeting.description || 'Không có mô tả cuộc họp'}
-                                </p>
+                                <RichTextView
+                                    html={meeting.description}
+                                    className="text-sm text-slate-blue/80 max-w-3xl leading-relaxed"
+                                    fallback={<p className="text-sm text-slate-blue/80 max-w-3xl leading-relaxed">Không có mô tả cuộc họp</p>}
+                                />
                             </div>
                         </div>
                     </div>
@@ -1194,6 +1215,16 @@ const EmployeeMeetingDetail = () => {
                                 <span className="text-xs font-semibold text-midnight-indigo block truncate">{hostName}</span>
                             </div>
                         </div>
+
+                        {meeting.secretaryName && (
+                            <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
+                                <Users className="w-5 h-5 text-action-blue shrink-0" />
+                                <div className="truncate">
+                                    <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Thư ký</span>
+                                    <span className="text-xs font-semibold text-midnight-indigo block truncate">{meeting.secretaryName}</span>
+                                </div>
+                            </div>
+                        )}
 
                         {meeting.room?.location && (
                             <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
@@ -1463,6 +1494,13 @@ const EmployeeMeetingDetail = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Báo cáo trước họp / Trình ký biên bản / Chuỗi lặp */}
+                <MeetingPrepPanel
+                    meetingId={meeting.id}
+                    onSeries={setSeries}
+                    onOpenMeeting={(mid) => navigate(window.location.pathname.replace(meeting.id, mid))}
+                />
 
                 {/* Bottom: Media & Recording & Transcript */}
                 <div className="w-full space-y-4 mt-6">
@@ -1809,7 +1847,9 @@ const EmployeeMeetingDetail = () => {
                             )}
                         </div>
                     ) : activeRightTab === 'attendance' ? (
-                        <MeetingAttendanceBoard meetingId={meeting.id} />
+                        meeting.attendanceEnabled === false
+                            ? <div className="p-6 text-center text-sm text-slate-blue bg-slate-50 rounded-2xl border border-platinum-tint">Cuộc họp này không yêu cầu điểm danh.</div>
+                            : <MeetingAttendanceBoard meetingId={meeting.id} />
                     ) : activeRightTab === 'transcript' ? (
                         isCompleted ? (
                             <div className="space-y-6">
@@ -1933,6 +1973,7 @@ const EmployeeMeetingDetail = () => {
                         <MinutesTabContent
                             meetingId={meeting.id}
                             isHost={canManage}
+                            isSecretary={currentUser?.id === meeting.secretaryId}
                             transcriptStatus={isCompleted ? 'ready' : 'empty'}
                         />
                     )}
@@ -1992,6 +2033,13 @@ const EmployeeMeetingDetail = () => {
                         >
                             <h2 className="text-lg font-bold text-midnight-indigo border-b border-platinum-tint pb-3">Chỉnh sửa thông tin cuộc họp</h2>
                             <form onSubmit={handleSaveEdit} className="space-y-4 text-left">
+                                {series && (
+                                    <div className="flex items-center gap-4 text-xs text-midnight-indigo bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">
+                                        <span className="font-bold text-violet-700">Cuộc họp lặp lại · áp dụng cho:</span>
+                                        <label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" checked={seriesScope === 'this'} onChange={() => setSeriesScope('this')} /> Chỉ buổi này</label>
+                                        <label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" checked={seriesScope === 'following'} onChange={() => setSeriesScope('following')} /> Buổi này và các buổi sau</label>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tiêu đề cuộc họp</label>
                                     <input
@@ -2324,6 +2372,13 @@ const EmployeeMeetingDetail = () => {
                                 <h2 className="text-lg font-bold text-midnight-indigo">Xác nhận hủy cuộc họp</h2>
                             </div>
                             <div className="space-y-3 text-left">
+                                {series && (
+                                    <div className="flex items-center gap-4 text-xs text-midnight-indigo bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">
+                                        <span className="font-bold text-violet-700">Cuộc họp lặp lại · áp dụng cho:</span>
+                                        <label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" checked={seriesScope === 'this'} onChange={() => setSeriesScope('this')} /> Chỉ buổi này</label>
+                                        <label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" checked={seriesScope === 'following'} onChange={() => setSeriesScope('following')} /> Buổi này và các buổi sau</label>
+                                    </div>
+                                )}
                                 <p className="text-xs text-slate-blue leading-relaxed">
                                     Hành động này sẽ gửi email thông báo hủy phòng họp tới toàn bộ người tham gia. Bạn không thể hoàn tác hành động này.
                                 </p>

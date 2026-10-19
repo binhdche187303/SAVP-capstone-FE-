@@ -625,7 +625,7 @@ const AuditLogs = () => {
                                                 {log.ipAddress || '-'}
                                             </td>
                                             <td className="py-4 px-6">
-                                                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${getStatusBadge(log.severity || log.status)}`}>
+                                                <span className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-bold ${getStatusBadge(log.severity || log.status)}`}>
                                                     {getStatusLabel(log.severity || log.status)}
                                                 </span>
                                             </td>

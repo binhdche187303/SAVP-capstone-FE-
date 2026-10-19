@@ -347,6 +347,42 @@ export const invalidateAttendanceRecord = async (meetingId, recordId, data) => {
     return await post(`/meetings/${meetingId}/attendance/${recordId}/invalidate`, data);
 };
 
+/** Thành viên gửi lý do vắng / trễ / về sớm (1 lần / cuộc họp). */
+export const submitAttendanceExcuse = async (meetingId, data) => {
+    return await post(`/meetings/${meetingId}/attendance/excuse`, data);
+};
+
+/** Chủ trì / thư ký duyệt (approve=true) hoặc từ chối (note bắt buộc). */
+export const reviewAttendanceExcuse = async (meetingId, userId, data) => {
+    return await post(`/meetings/${meetingId}/attendance/excuse/${userId}/review`, data);
+};
+
+/** Điểm chuyên cần: phạm vi xem tổng hợp (null | unit | school). */
+export const getPenaltyReportScope = async () => {
+    return await get('/attendance/penalty-report/scope');
+};
+
+export const getMyPenaltyReport = async (params = {}) => {
+    return await get(`/attendance/penalty-report/me${buildQuery(params)}`);
+};
+
+export const getUserPenaltyReport = async (userId, params = {}) => {
+    return await get(`/attendance/penalty-report/users/${userId}${buildQuery(params)}`);
+};
+
+export const getPenaltySummary = async (params = {}) => {
+    return await get(`/attendance/penalty-report${buildQuery(params)}`);
+};
+
+// Báo cáo theo cuộc họp (UEL 4.3)
+export const getPenaltyMeetingSummary = async (params = {}) => {
+    return await get(`/attendance/penalty-report/meetings${buildQuery(params)}`);
+};
+
+export const getPenaltyMeetingDetail = async (meetingId, params = {}) => {
+    return await get(`/attendance/penalty-report/meetings/${meetingId}${buildQuery(params)}`);
+};
+
 /**
  * UC-100: Xem danh sách người đang có mặt
  * Endpoint: GET /live-meetings/{meetingId}/present-attendees

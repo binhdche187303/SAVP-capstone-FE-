@@ -75,22 +75,22 @@ const LegalAndSupport = () => {
             case 'overview':
                 return (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <h1 className="text-4xl md:text-5xl font-extrabold text-midnight-indigo tracking-tight mb-4">Chào mừng đến với SmarTracking!</h1>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-midnight-indigo tracking-tight mb-4">Chào mừng đến với VISMA IVA!</h1>
                         <p className="text-slate-blue text-sm mb-10">Ngày hiệu lực: 01 Tháng 08, 2026</p>
                         
                         <div className="prose prose-slate max-w-none prose-headings:text-midnight-indigo prose-a:text-action-blue hover:prose-a:text-blue-700">
                             <p className="text-base text-gray-700 leading-relaxed mb-6">
-                                Để xác định các điều khoản, điều kiện và chính sách nào điều chỉnh việc bạn truy cập và sử dụng dịch vụ của SmarTracking, trước tiên hãy xác định bạn là loại người dùng nào. Dưới đây là các định nghĩa được sử dụng xuyên suốt các tài liệu pháp lý và chính sách của hệ thống.
+                                Để xác định các điều khoản, điều kiện và chính sách nào điều chỉnh việc bạn truy cập và sử dụng dịch vụ của VISMA IVA, trước tiên hãy xác định bạn là loại người dùng nào. Dưới đây là các định nghĩa được sử dụng xuyên suốt các tài liệu pháp lý và chính sách của hệ thống.
                             </p>
                             <p className="text-base text-gray-700 leading-relaxed mb-8">
                                 Vui lòng xem xét các điều khoản cụ thể dựa trên loại người dùng và vai trò của bạn (như được mô tả bên dưới).
                             </p>
 
-                            <h3 className="text-xl font-bold mt-8 mb-4">Bạn có phải là "Khách hàng" của SmarTracking không?</h3>
+                            <h3 className="text-xl font-bold mt-8 mb-4">Bạn có phải là "Khách hàng" của VISMA IVA không?</h3>
                             <p className="mb-4 text-gray-700">Bạn là "Khách hàng" nếu:</p>
                             <ul className="list-disc pl-6 space-y-3 text-gray-700 mb-8">
-                                <li>Bạn là một cá nhân có tài khoản SmarTracking đã đăng ký; hoặc</li>
-                                <li>Bạn là một Tổ chức (Doanh nghiệp) đã mua giấy phép SmarTracking cho Người dùng được ủy quyền để truy cập và sử dụng hệ thống.
+                                <li>Bạn là một cá nhân có tài khoản VISMA IVA đã đăng ký; hoặc</li>
+                                <li>Bạn là một Tổ chức (Doanh nghiệp) đã mua giấy phép VISMA IVA cho Người dùng được ủy quyền để truy cập và sử dụng hệ thống.
                                     <ul className="list-[circle] pl-6 mt-3 space-y-2 text-sm text-gray-600">
                                         <li>"Tổ chức" có nghĩa là công ty hoặc tổ chức đã mua giấy phép sử dụng Dịch vụ với các miền email mà họ sở hữu.</li>
                                         <li>"Người dùng được ủy quyền" có nghĩa là nhân viên, chuyên gia tư vấn hoặc nhà thầu được Tổ chức cấp quyền truy cập vào Dịch vụ.</li>
@@ -109,7 +109,7 @@ const LegalAndSupport = () => {
                         <div className="prose prose-slate max-w-none">
                             <h3 className="text-xl font-bold mt-8 mb-4 text-midnight-indigo">1. Thu thập dữ liệu sinh trắc học</h3>
                             <p className="text-base text-gray-700 leading-relaxed mb-6">
-                                SmarTracking cam kết bảo vệ dữ liệu khuôn mặt (FaceID) của bạn. Dữ liệu này chỉ được thu thập khi có sự đồng ý rõ ràng và ĐỘC QUYỀN sử dụng cho mục đích điểm danh và kiểm soát quyền truy cập tại các không gian phòng họp. Chúng tôi không chia sẻ hoặc bán dữ liệu sinh trắc học cho bất kỳ bên thứ ba nào.
+                                VISMA IVA cam kết bảo vệ dữ liệu khuôn mặt (FaceID) của bạn. Dữ liệu này chỉ được thu thập khi có sự đồng ý rõ ràng và ĐỘC QUYỀN sử dụng cho mục đích điểm danh và kiểm soát quyền truy cập tại các không gian phòng họp. Chúng tôi không chia sẻ hoặc bán dữ liệu sinh trắc học cho bất kỳ bên thứ ba nào.
                             </p>
 
                             <h3 className="text-xl font-bold mt-8 mb-4 text-midnight-indigo">2. Lưu trữ và Bảo mật</h3>
@@ -119,7 +119,7 @@ const LegalAndSupport = () => {
 
                             <h3 className="text-xl font-bold mt-8 mb-4 text-midnight-indigo">3. Quyền của người dùng</h3>
                             <p className="text-base text-gray-700 leading-relaxed mb-6">
-                                Bất cứ lúc nào, bạn cũng có quyền yêu cầu xem, trích xuất hoặc xóa bỏ hoàn toàn hồ sơ sinh trắc học của mình khỏi hệ thống SmarTracking bằng cách thao tác trên trang Hồ sơ cá nhân, hoặc liên hệ với Quản trị viên hệ thống của tổ chức bạn.
+                                Bất cứ lúc nào, bạn cũng có quyền yêu cầu xem, trích xuất hoặc xóa bỏ hoàn toàn hồ sơ sinh trắc học của mình khỏi hệ thống VISMA IVA bằng cách thao tác trên trang Hồ sơ cá nhân, hoặc liên hệ với Quản trị viên hệ thống của tổ chức bạn.
                             </p>
                         </div>
                     </div>
@@ -131,7 +131,7 @@ const LegalAndSupport = () => {
                         <p className="text-slate-blue text-sm mb-10">Cập nhật lần cuối: 01 Tháng 08, 2026</p>
                         <div className="prose prose-slate max-w-none">
                             <p className="text-base text-gray-700 leading-relaxed mb-6">
-                                Việc sử dụng nền tảng SmarTracking đồng nghĩa với việc bạn đồng ý tuân thủ các quy định vận hành của tổ chức. Hệ thống giám sát việc ra vào phòng họp và ghi âm/bóc băng cuộc họp (nếu được kích hoạt) là tài sản dữ liệu của doanh nghiệp bạn. 
+                                Việc sử dụng nền tảng VISMA IVA đồng nghĩa với việc bạn đồng ý tuân thủ các quy định vận hành của tổ chức. Hệ thống giám sát việc ra vào phòng họp và ghi âm/bóc băng cuộc họp (nếu được kích hoạt) là tài sản dữ liệu của doanh nghiệp bạn. 
                             </p>
                             <h3 className="text-xl font-bold mt-8 mb-4 text-midnight-indigo">1. Mục đích sử dụng</h3>
                             <p className="text-base text-gray-700 leading-relaxed mb-6">
@@ -149,7 +149,7 @@ const LegalAndSupport = () => {
                 return (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <h1 className="text-4xl md:text-5xl font-extrabold text-midnight-indigo tracking-tight mb-4">Hướng dẫn sử dụng</h1>
-                        <p className="text-base text-gray-700 leading-relaxed mb-8">Khám phá các tính năng cốt lõi của SmarTracking và tìm hiểu cách hệ thống hoạt động.</p>
+                        <p className="text-base text-gray-700 leading-relaxed mb-8">Khám phá các tính năng cốt lõi của VISMA IVA và tìm hiểu cách hệ thống hoạt động.</p>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                             {[

@@ -104,7 +104,7 @@ const BusinessAdminSidebar = ({
                     >
                         <img
                             src={logo}
-                            alt="SmarTracking"
+                            alt="VISMA IVA"
                             className={`w-11 h-11 object-contain transition-opacity duration-150 ${isLogoHovered ? 'opacity-20' : 'opacity-100'}`}
                         />
                         <RiMenuUnfoldLine
@@ -118,14 +118,14 @@ const BusinessAdminSidebar = ({
                         end
                         className="flex items-center gap-3 shrink-0 no-underline hover:opacity-80 transition-opacity"
                     >
-                        <img src={logo} alt="SmarTracking" className="w-11 h-11 object-contain shrink-0" />
+                        <img src={logo} alt="VISMA IVA" className="w-11 h-11 object-contain shrink-0" />
                     </NavLink>
                 )}
 
                 {/* Tên dự án — ẩn khi mini */}
                 <div className={`flex-1 min-w-0 overflow-hidden transition-all duration-200 ${isMini ? 'w-0 opacity-0 pointer-events-none' : 'opacity-100'}`}>
                     <p className="text-[16px] font-black text-white whitespace-nowrap leading-tight tracking-tight">
-                        SmarTracking
+                        VISMA IVA
                     </p>
                     <p className="text-[11px] text-steel-gray font-semibold whitespace-nowrap">
                         Business Admin

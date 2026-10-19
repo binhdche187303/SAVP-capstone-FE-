@@ -11,7 +11,7 @@ import { updateMeetingMinutes, issueMeetingMinutes, distributeMeetingMinutes, de
 import ExportMinutesModal from './ExportMinutesModal';
 import ShareMinutesModal from './ShareMinutesModal';
 
-const MinutesViewerEditor = ({ minutes, meetingId, isHost, onRefresh }) => {
+const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, onRefresh }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -27,7 +27,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, onRefresh }) => {
     const [isTogglingLive, setIsTogglingLive] = useState(false);
 
     const showToast = (message, type = 'success') => {
-        toast[type]?.(message) ?? toast.info(message);
+        (toast[type] || toast.info)(message);
     };
 
     const handleStartEdit = () => {
@@ -127,7 +127,8 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, onRefresh }) => {
                 showToast('Lỗi khi ban hành', 'error');
             }
         } catch (err) {
-            showToast(err.message || 'Lỗi kết nối', 'error');
+            // request.js đã hiện toast lỗi từ server; chỉ báo thêm khi không có phản hồi
+            if (!err?.error?.message) showToast(err?.message || 'Lỗi kết nối', 'error');
         } finally {
             setIsIssuing(false);
         }
@@ -169,9 +170,12 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, onRefresh }) => {
         currentUser.id === minutes.preparedBy
     );
 
-    const canEdit = (isHost || minutes.permissions?.canEdit) && minutes.status === 'draft';
+    // BE khoá sửa/xoá khi biên bản đang chờ ký hoặc đã ký duyệt (permissions.signoffLocked)
+    const locked = !!minutes.permissions?.signoffLocked;
+    const canEdit = !locked && (isHost || isSecretary || minutes.permissions?.canEdit) && minutes.status === 'draft';
     const canIssue = (isHost || minutes.permissions?.canIssue) && minutes.status === 'draft';
-    const canDelete = isHost || isOwner || isAdmin || minutes.permissions?.canDelete;
+    const canDelete = !locked && minutes.status === 'draft' && (isHost || isOwner || isAdmin || minutes.permissions?.canDelete);
+    const canLiveShare = minutes.status === 'draft' && (minutes.permissions?.canLiveShare ?? isHost);
     // Xuất file: chỉ Host / người soạn thảo (preparedBy) / Admin — khớp ownership-or-admin
     // rule ở BE (MinutesExportService.createExportJob, UC-147). Participant thường KHÔNG
     // được export dù biên bản đã published (quyết định PO, xem spec feat-export-meeting-minutes).
@@ -228,7 +232,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, onRefresh }) => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
-                    {isHost && minutes.status === 'draft' && (
+                    {canLiveShare && (
                         <button
                             onClick={handleToggleLiveShare}
                             disabled={isTogglingLive}

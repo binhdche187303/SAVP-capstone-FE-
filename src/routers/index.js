@@ -10,7 +10,6 @@ import Error500 from '../pages/Error/500';
 import ProtectedRoute from './ProtectedRoute';
 import RoomUsageAnalytics from '../pages/shared/RoomUsageAnalytics';
 import ZoneTrafficAnalytics from '../pages/shared/ZoneTrafficAnalytics';
-import CampusMap from '../pages/shared/CampusMap';
 import EmployeeOnTimeAnalytics from '../pages/shared/EmployeeOnTimeAnalytics';
 import MeetingAttendanceAdmin from '../pages/shared/MeetingAttendanceAdmin';
 import LearningLayout from '../pages/classroom/LearningLayout';
@@ -30,6 +29,7 @@ import DashBoard from '../pages/systemAdmin/dashBoard';
 import DeviceManagement from '../pages/systemAdmin/DeviceManagement';
 import CameraGroups from '../pages/systemAdmin/CameraGroups';
 import CameraLayout from '../pages/systemAdmin/CameraLayout';
+import CameraTwin from '../pages/systemAdmin/CameraTwin';
 import CameraRecording from '../pages/systemAdmin/CameraRecording';
 import EquipmentManagement from '../pages/systemAdmin/EquipmentManagement';
 import ZoneManagement from '../pages/systemAdmin/ZoneManagement';
@@ -63,6 +63,8 @@ import ManagerMeetingApprovals from '../pages/manager/MeetingApprovals';
 import ManagerMeetingAttendance from '../pages/manager/MeetingAttendance';
 import ManagerFaceRegistration from '../pages/manager/FaceRegistration';
 import BiometricSubmissionsReview from '../pages/bussinessAdmin/BiometricSubmissionsReview';
+import AttendanceViolationConfig from '../pages/bussinessAdmin/AttendanceViolationConfig';
+import CalendarRolesConfig from '../pages/bussinessAdmin/CalendarRolesConfig';
 
 // Employee Layout + Pages
 import EmployeeLayout from '../pages/employee/layout/EmployeeLayout';
@@ -75,6 +77,7 @@ import EmployeeRecordings from '../pages/employee/Recordings';
 import TeacherRecordings from '../pages/classroom/TeacherRecordings';
 import EmployeeEquipmentReport from '../pages/employee/EquipmentReport';
 import InMeetingRoom from '../pages/shared/InMeetingRoom';
+import AttendancePenaltyReport from '../pages/shared/AttendancePenaltyReport';
 import LegalAndSupport from '../pages/public/LegalAndSupport';
 import GuestJoin from '../pages/guest/GuestJoin';
 import GuestMeeting from '../pages/guest/GuestMeeting';
@@ -166,6 +169,10 @@ export const router = [
                 element: <CameraLayout />
             },
             {
+                path: 'camera-map-3d',
+                element: <CameraTwin />
+            },
+            {
                 path: 'camera-groups',
                 element: <CameraGroups />
             },
@@ -182,8 +189,9 @@ export const router = [
                 element: <ZoneTrafficAnalytics />
             },
             {
+                // Gộp vào sơ đồ camera 3D — giữ đường dẫn cũ cho bookmark.
                 path: 'campus-map',
-                element: <CampusMap />
+                element: <Navigate to="/system-admin/camera-map-3d" replace />
             },
             {
                 path: 'roles-permissions',
@@ -294,6 +302,10 @@ export const router = [
         ),
         children: [
             {
+                path: 'attendance-points',
+                element: <AttendancePenaltyReport />
+            },
+            {
                 index: true,
                 element: <BusinessDashboard />
             },
@@ -316,6 +328,14 @@ export const router = [
             {
                 path: 'biometric-submissions',
                 element: <BiometricSubmissionsReview />
+            },
+            {
+                path: 'attendance-config',
+                element: <AttendanceViolationConfig />
+            },
+            {
+                path: 'calendar-roles',
+                element: <CalendarRolesConfig />
             },
             {
                 path: 'profile',
@@ -342,8 +362,13 @@ export const router = [
                 element: <ZoneTrafficAnalytics />
             },
             {
+                path: 'camera-map-3d',
+                element: <CameraTwin />
+            },
+            {
+                // Bản đồ 2D cũ đã thay bằng sơ đồ camera 3D — giữ đường dẫn cũ cho bookmark.
                 path: 'campus-map',
-                element: <CampusMap />
+                element: <Navigate to="/business-admin/camera-map-3d" replace />
             },
             {
                 path: 'attendance-analytics',
@@ -405,6 +430,10 @@ export const router = [
             </ProtectedRoute>
         ),
         children: [
+            {
+                path: 'attendance-points',
+                element: <AttendancePenaltyReport />
+            },
             {
                 index: true,
                 element: <ManagerHomePage />
@@ -530,6 +559,10 @@ export const router = [
                 element: <Profile />
             },
             {
+                path: 'my-vehicles',
+                element: <MyVehicles />
+            },
+            {
                 path: 'notifications',
                 element: <Notifications />
             }
@@ -572,6 +605,10 @@ export const router = [
             {
                 path: 'profile',
                 element: <Profile />
+            },
+            {
+                path: 'my-vehicles',
+                element: <MyVehicles />
             },
             {
                 path: 'notifications',
@@ -647,6 +684,10 @@ export const router = [
                 element: <Profile />
             },
             {
+                path: 'my-vehicles',
+                element: <MyVehicles />
+            },
+            {
                 path: 'notifications',
                 element: <Notifications />
             }
@@ -663,12 +704,25 @@ export const router = [
         ),
         children: [
             {
+                path: 'attendance-points',
+                element: <AttendancePenaltyReport />
+            },
+            {
                 index: true,
                 element: <EmployeeHomePage />
             },
             {
                 path: 'book',
                 element: <BookMeeting />
+            },
+            {
+                // Văn thư đơn vị duyệt lịch (quyền cấp theo cờ is_unit_clerk)
+                path: 'meeting-approvals',
+                element: (
+                    <ProtectedRoute requiredPermission="meeting_request.approve">
+                        <ManagerMeetingApprovals />
+                    </ProtectedRoute>
+                )
             },
             {
                 path: 'schedule',

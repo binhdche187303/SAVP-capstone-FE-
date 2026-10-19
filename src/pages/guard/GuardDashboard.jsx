@@ -7,6 +7,7 @@ import { getAlertTypeLabel } from '../../constants/alertType';
 import { subscribeToSecurityAlerts } from '../../utils/socket';
 import { fetchGuardGateEvents, guardGates, scanGuardGateEvent } from '../../service/guardAccessService';
 import useFaceGuidance from '../../hooks/useFaceGuidance';
+import DashboardBanner from '../../components/common/DashboardBanner';
 
 const REFRESH_MS = 15000;
 const AUTO_SCAN_COOLDOWN_MS = 4000;
@@ -360,6 +361,7 @@ const GuardDashboard = () => {
 
     return (
         <div className="space-y-6">
+            <DashboardBanner roleName="Bảo vệ" />
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Trực cổng</h1>

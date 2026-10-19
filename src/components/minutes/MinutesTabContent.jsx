@@ -15,7 +15,9 @@ import AiGeneratorProgress from './AiGeneratorProgress';
 import MinutesViewerEditor from './MinutesViewerEditor';
 import CreateManualMinutesModal from './CreateManualMinutesModal';
 
-const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate = true }) => {
+const MinutesTabContent = ({ meetingId, isHost, isSecretary = false, transcriptStatus, allowAiCreate = true }) => {
+    // Thư ký được soạn biên bản thủ công; AI + ban hành vẫn chỉ chủ trì.
+    const canCompose = isHost || isSecretary;
     const [config, setConfig] = useState(null);
     const [status, setStatus] = useState('loading'); // loading, empty, ai_running, has_minutes, error
     const [manualSummary, setManualSummary] = useState(null); // MinutesListItemDto | null — nguồn 'manual'
@@ -247,7 +249,7 @@ const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate 
                     </div>
                 )}
 
-                {!hasBoth && isHost && (hasManual ? allowAiCreate : true) && (
+                {!hasBoth && (hasManual ? isHost && allowAiCreate : canCompose) && (
                     <div className="bg-cloud-mist/60 border border-platinum-tint rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                         <p className="text-xs text-slate-blue leading-relaxed">
                             {hasManual
@@ -285,6 +287,7 @@ const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate 
                                     minutes={manualDetail}
                                     meetingId={meetingId}
                                     isHost={isHost}
+                                    isSecretary={isSecretary}
                                     onRefresh={fetchState}
                                 />
                             )}
@@ -298,6 +301,7 @@ const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate 
                                     minutes={aiDetail}
                                     meetingId={meetingId}
                                     isHost={isHost}
+                                    isSecretary={isSecretary}
                                     onRefresh={fetchState}
                                 />
                             )}
@@ -310,6 +314,7 @@ const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate 
                                 minutes={manualDetail}
                                 meetingId={meetingId}
                                 isHost={isHost}
+                                isSecretary={isSecretary}
                                 onRefresh={fetchState}
                             />
                         )}
@@ -318,6 +323,7 @@ const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate 
                                 minutes={aiDetail}
                                 meetingId={meetingId}
                                 isHost={isHost}
+                                isSecretary={isSecretary}
                                 onRefresh={fetchState}
                             />
                         )}
@@ -335,7 +341,7 @@ const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate 
     }
 
     // Empty state — non-host: hiển thị trạng thái khóa
-    if (!isHost) {
+    if (!canCompose) {
         return (
             <div className="bg-white rounded-3xl border border-platinum-tint shadow-sm-2 p-12 text-center flex flex-col items-center justify-center">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -343,7 +349,7 @@ const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate 
                 </div>
                 <h3 className="text-base font-bold text-midnight-indigo mb-2">Chưa có Biên bản cuộc họp</h3>
                 <p className="text-xs text-slate-blue max-w-sm leading-relaxed">
-                    Host của cuộc họp chưa tạo biên bản. Chỉ Host mới có quyền tạo và chỉnh sửa biên bản.
+                    Chủ trì hoặc thư ký cuộc họp chưa tạo biên bản.
                 </p>
             </div>
         );
@@ -363,7 +369,7 @@ const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate 
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                {allowAiCreate && config?.enabled !== false && (
+                {isHost && allowAiCreate && config?.enabled !== false && (
                     <button
                         onClick={handleCreateAiDraft}
                         className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
@@ -379,7 +385,7 @@ const MinutesTabContent = ({ meetingId, isHost, transcriptStatus, allowAiCreate 
                 </button>
             </div>
 
-            {allowAiCreate && config?.enabled !== false && (transcriptStatus === 'empty' || transcriptStatus === 'loading') && (
+            {isHost && allowAiCreate && config?.enabled !== false && (transcriptStatus === 'empty' || transcriptStatus === 'loading') && (
                 <p className="text-[10px] text-amber-600 mt-4 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5" /> Tính năng AI yêu cầu phải có Bản ghi (Transcript) trước.
                 </p>

@@ -126,6 +126,9 @@ const MOCK_ROOM_USERS = {
     },
 };
 
+// Phòng/người mock dùng id không phải UUID ⇒ không gửi lên BE (BE validate uuid → lỗi toast liên tục).
+const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v || '');
+
 const MOCK_ROOMS = [
     { id: 'room-a101', roomId: 'room-a101', roomName: 'Phòng họp A101', siteName: 'Tòa nhà A' },
     { id: 'room-a102', roomId: 'room-a102', roomName: 'Phòng họp A102', siteName: 'Tòa nhà A' },
@@ -424,7 +427,9 @@ const RoomAccessLogs = () => {
         try {
             const from = `${selectedDate}T00:00:00.000+07:00`;
             const to   = `${selectedDate}T23:59:59.999+07:00`;
-            const res  = await getRoomBookings({ roomId: selectedRoomId, from, to, limit: 100, sortOrder: 'asc' });
+            const res  = isUuid(selectedRoomId)
+                ? await getRoomBookings({ roomId: selectedRoomId, from, to, limit: 100, sortOrder: 'asc' })
+                : null;
             const apiMeetings = res?.success && res.data ? res.data : [];
             const demoMeetings = createMockRoomAccessDemo(selectedDate).meetings.filter(m => m.roomId === selectedRoomId);
             const scoped = getSelectedRoomInfo(rooms, selectedRoomId);
@@ -450,6 +455,7 @@ const RoomAccessLogs = () => {
         if (!silent) setLogsLoading(true);
         setError(null);
         try {
+            if (!isUuid(selectedRoomId)) throw new Error('mock room');
             const firstRes = await getRoomAccessLog(selectedRoomId, selectedDate, {
                 page: 1, limit: 100,
                 search: debouncedSearch || undefined,
@@ -524,6 +530,7 @@ const RoomAccessLogs = () => {
         const ts = getEventTs(ev);
         setSelectedUser({ ...base, id: base.id || ev.userId, journeyDate: ts ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(ts)) : null }); setUserDetail(null); setIsUserModalOpen(true); setUserDetailLoading(true);
         try {
+            if (!isUuid(ev.userId)) return;
             const res = await getUserById(ev.userId);
             if (res?.success && res.data) setUserDetail(res.data);
         } catch (_) {}

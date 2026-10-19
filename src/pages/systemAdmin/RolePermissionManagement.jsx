@@ -10,6 +10,13 @@ import {
 import { PERMISSION_MODULE_STATUS } from '../../config/permissionModuleStatus';
 import { PERMISSION_DEPENDENCIES } from '../../config/permissionDependencies';
 
+const MODULE_STATUS_LABEL = {
+    partial: 'Chức năng chưa hoàn thiện',
+    missing: 'Chưa có màn hình',
+    orphaned: 'Quyền không còn được sử dụng',
+    unknown: 'Cần kiểm tra thêm',
+};
+
 
 // [FIX] Bổ sung đầy đủ moduleCode thật — đọc trực tiếp từ dữ liệu seed thật
 // (migrations/*.ts, cột module_code bảng permissions) + MODULE_CODE_ALLOWLIST
@@ -81,7 +88,7 @@ const ROLE_TRANSLATIONS = {
     'SYSTEM_ADMIN': 'Quản trị hệ thống',
     'BUSINESS_ADMIN': 'Quản trị doanh nghiệp',
     'MANAGER': 'Quản lý',
-    'EMPLOYEE': 'Nhân viên',
+    'EMPLOYEE': 'Cán bộ, viên chức',
     'TEACHER': 'Giảng viên',
     'STUDENT': 'Sinh viên',
     'GUARD': 'Bảo vệ'
@@ -266,6 +273,12 @@ const RolePermissionManagement = () => {
             setPermissionsLoading(false);
         }
     };
+
+    // Mặc định chọn vai trò đầu tiên khi vào trang (giống Nhóm camera).
+    useEffect(() => {
+        if (!selectedRole && roles.length > 0) handleSelectRole(roles[0]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [roles]);
 
     // Handle toggling a permission checkbox.
     // Enforces a one-way dependency: ticking a "write" permission auto-ticks its required "read"
@@ -619,13 +632,18 @@ const RolePermissionManagement = () => {
                                                                 <p className="text-sm font-semibold text-midnight-indigo group-hover:text-action-blue transition-colors flex items-center gap-1.5">
                                                                     {getDisplayPermissionName(p)}
                                                                     {moduleStatus && (
-                                                                        <AlertTriangle
-                                                                            className="w-3.5 h-3.5 text-amber-500 flex-shrink-0"
-                                                                            title={moduleStatus.note}
-                                                                        />
+                                                                        // Icon lucide không nhận `title` ⇒ tự vẽ tooltip khi hover.
+                                                                        <span className="relative group/warn inline-flex flex-shrink-0" aria-label={moduleStatus.note}>
+                                                                            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                                                            <span className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-2 hidden w-64 -translate-x-1/2 rounded-lg bg-slate-800 px-3 py-2 text-xs font-normal leading-snug text-white shadow-lg group-hover/warn:block">
+                                                                                <span className="block font-bold text-amber-300">
+                                                                                    {MODULE_STATUS_LABEL[moduleStatus.status] || 'Lưu ý'}
+                                                                                </span>
+                                                                                {moduleStatus.note}
+                                                                            </span>
+                                                                        </span>
                                                                     )}
                                                                 </p>
-                                                                <p className="text-xs text-slate-blue font-mono mt-0.5">{p.permissionCode}</p>
                                                             </div>
                                                         </label>
                                                         );

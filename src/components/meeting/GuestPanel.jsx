@@ -20,7 +20,7 @@ const GuestPanel = ({ meetingId, onGuestsUpdate }) => {
     const [actionLoading, setActionLoading] = useState(null); // id đang xử lý
 
     const showToast = (msg, type = 'success') => {
-        toast[type]?.(msg) ?? toast.info(msg);
+        (toast[type] || toast.info)(msg);
     };
 
     const fetchAll = useCallback(async (silent = false) => {

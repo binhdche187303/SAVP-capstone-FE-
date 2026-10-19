@@ -1,4 +1,4 @@
-import { Activity, Archive, BarChart2, Calendar, ChevronDown, Clock, Car, FileBarChart, FileCheck, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
+import { Activity, Archive, Award, BarChart2, Calendar, ChevronDown, Clock, Car, FileBarChart, FileCheck, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -93,6 +93,11 @@ const STATIC_NAVIGATION_ITEMS = [
                 label: 'Chuyên cần phòng ban',
                 to: '/manager/meeting-attendance',
                 icon: Activity,
+            },
+            {
+                label: 'Điểm chuyên cần cuộc họp',
+                to: '/manager/attendance-points',
+                icon: Award,
             },
             {
                 label: 'Lưu lượng & Heatmap',
@@ -201,13 +206,13 @@ const ManagerLayout = () => {
                         <NavLink
                             to="/manager"
                             className="flex items-center gap-2 no-underline"
-                            aria-label="SmarTracking home"
+                            aria-label="VISMA IVA home"
                         >
                             <div className="w-12 h-12 bg-white flex items-center justify-center shrink-0">
-                                <img src={logo} alt="SmarTracking Logo" className="w-full h-full object-contain scale-[1.3]" />
+                                <img src={logo} alt="VISMA IVA Logo" className="w-full h-full object-contain scale-[1.3]" />
                             </div>
                             <span className="text-midnight-indigo font-bold text-xl tracking-tight hidden sm:block">
-                                SmarTracking
+                                VISMA IVA
                             </span>
                         </NavLink>
 
@@ -469,10 +474,10 @@ const ManagerLayout = () => {
                 <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 px-6 lg:px-12 py-5">
                     <div className="flex items-center gap-4">
                         <span className="text-sm font-bold text-midnight-indigo">
-                            SmarTracking
+                            VISMA IVA
                         </span>
                         <span className="text-xs text-slate-blue">
-                            © 2026 Trung tâm Điều hành Thông minh SmarTracking. Trạng thái: Hoạt động.
+                            © 2026 VISMA Intelligent Video Analytics (IVA). Trạng thái: Hoạt động.
                         </span>
                     </div>
 

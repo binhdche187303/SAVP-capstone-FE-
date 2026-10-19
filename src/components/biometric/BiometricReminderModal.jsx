@@ -39,6 +39,7 @@ const BiometricReminderModal = () => {
     const [consentAgreed, setConsentAgreed] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
+    const [avatarBroken, setAvatarBroken] = useState(false); // file avatar 404 ⇒ coi như chưa có
 
     // Current logged-in user profile info
     const [userProfile, setUserProfile] = useState(null);
@@ -163,6 +164,13 @@ const BiometricReminderModal = () => {
         try {
             const response = await fetch(userProfile.avatarUrl);
             const blob = await response.blob();
+            // URL ảnh chết (404 trả JSON) ⇒ đừng gửi lên BE, kẻo báo nhầm "sai định dạng".
+            if (!response.ok || !blob.type.startsWith('image/')) {
+                setAvatarBroken(true);
+                setView('options');
+                setError('Ảnh đại diện hiện tại không còn trên máy chủ. Vui lòng chụp qua Webcam hoặc tải ảnh từ thiết bị.');
+                return;
+            }
             const file = new File([blob], 'avatar_biometric.jpg', { type: blob.type || 'image/jpeg' });
 
             const res = await submitBiometric(file, true);
@@ -362,7 +370,7 @@ const BiometricReminderModal = () => {
     const status = biometricData?.biometricReviewStatus || 'not_uploaded';
     const statusInfo = STATUS_LABEL[status] || STATUS_LABEL.not_uploaded;
 
-    const hasAvatar = !!userProfile?.avatarUrl;
+    const hasAvatar = !!userProfile?.avatarUrl && !avatarBroken;
 
     // Bản đồ trạng thái hướng dẫn thật (từ useFaceGuidance) -> style khung/HUD hiển thị
     const guidanceState = guidance.state; // loading | no_face | low_light | too_far | too_close | off_center | perfect
@@ -470,7 +478,7 @@ const BiometricReminderModal = () => {
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="w-12 h-12 rounded-full overflow-hidden bg-cloud-mist border border-platinum-tint flex items-center justify-center">
                                             {hasAvatar ? (
-                                                <img src={userProfile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                                <img src={userProfile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" onError={() => setAvatarBroken(true)} />
                                             ) : (
                                                 <Image className="w-5 h-5 text-slate-blue/60" />
                                             )}

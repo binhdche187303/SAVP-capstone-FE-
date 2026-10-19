@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, CalendarDays, CheckCircle2, Clock, UserCheck } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { getClassAttendanceSettings, getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
+import DashboardBanner from '../../components/common/DashboardBanner';
 
 const attendanceChartColors = {
     onTime: '#059669',
@@ -23,6 +24,7 @@ const StudentHome = () => {
 
     return (
         <div className="space-y-5 animate-fade-in-up">
+            <DashboardBanner roleName="Sinh viên" />
             <div className="bg-white border border-platinum-tint rounded-2xl p-5 shadow-sm">
                 <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-action-blue text-[11px] font-bold">
                     <BookOpen className="w-4 h-4" />

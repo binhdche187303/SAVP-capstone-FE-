@@ -1,17 +1,18 @@
 import React from 'react';
-import slide1 from "../../assets/images/Slideauth/Slide1.png";
-import slide2 from "../../assets/images/Slideauth/Slide2.png";
-import slide3 from "../../assets/images/Slideauth/Slide3.png";
-import slide4 from "../../assets/images/Slideauth/Slide4.png";
+import slide1 from "../../assets/images/Slideauth/uel/uel1.jpg";
+import slide2 from "../../assets/images/Slideauth/uel/uel2.jpg";
+import slide3 from "../../assets/images/Slideauth/uel/uel3.jpg";
+import slide4 from "../../assets/images/Slideauth/uel/uel4.jpg";
+import slide5 from "../../assets/images/Slideauth/uel/uel5.jpg";
 
 const AuthHeroPanel = ({ variant = 'login' }) => {
     
     // Header content per variant
     const headerContent = {
         login: {
-            tag: "Hệ thống giám sát thông minh",
-            title: "SMART TRACKING",
-            slogan: "Quản lý toàn diện. Vận hành tối ưu. Trải nghiệm không gian làm việc số hóa vượt trội.",
+            tag: "Trường ĐH Kinh tế – Luật · ĐHQG-HCM",
+            title: "VISMA IVA",
+            slogan: "Nền tảng camera AI cho khuôn viên số: giám sát an ninh, điểm danh và quản lý ra vào trên một hệ thống.",
         },
         forgot: {
             tag: "Bảo mật tài khoản",
@@ -54,6 +55,9 @@ const AuthHeroPanel = ({ variant = 'login' }) => {
                                         </div>
                                         <div className="rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10 bg-white/5 backdrop-blur-md p-4">
                                             <img src={slide3} className="w-full h-auto rounded-[20px] opacity-100 object-contain bg-white" alt="Slide 3" />
+                                        </div>
+                                        <div className="rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10 bg-white/5 backdrop-blur-md p-4">
+                                            <img src={slide5} className="w-full h-auto rounded-[20px] opacity-100 object-contain bg-white" alt="Slide 5" />
                                         </div>
                                     </div>
                                 ))}

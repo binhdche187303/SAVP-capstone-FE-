@@ -301,7 +301,7 @@ const ManagerFaceRegistration = () => {
                     <div className="p-4 bg-cloud-mist rounded-xl border border-outline-gray text-sm text-slate-blue leading-relaxed space-y-3 max-h-60 overflow-y-auto">
                         <p className="font-semibold text-midnight-indigo text-xs">1. Mục đích thu thập dữ liệu:</p>
                         <p className="text-xs">
-                            SmarTracking thu thập hình ảnh khuôn mặt của nhân viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh tự động tại cửa phòng họp, kiểm soát ra vào bảo mật và chống giả mạo chấm công.
+                            VISMA IVA thu thập hình ảnh khuôn mặt của nhân viên để chuyển đổi thành vector sinh trắc học duy nhất nhằm phục vụ các tính năng: Điểm danh tự động tại cửa phòng họp, kiểm soát ra vào bảo mật và chống giả mạo chấm công.
                         </p>
                         <p className="font-semibold text-midnight-indigo text-xs">2. Bảo mật và lưu trữ:</p>
                         <p className="text-xs">
@@ -321,7 +321,7 @@ const ManagerFaceRegistration = () => {
                             onChange={(e) => setPdpaAgreed(e.target.checked)}
                         />
                         <span className="text-xs text-midnight-indigo font-medium leading-relaxed">
-                            Tôi đã đọc, hiểu rõ và đồng ý cho phép hệ thống SmarTracking thu thập, xử lý và lưu trữ dữ liệu sinh trắc học khuôn mặt của tôi cho các mục đích quản lý nêu trên.
+                            Tôi đã đọc, hiểu rõ và đồng ý cho phép hệ thống VISMA IVA thu thập, xử lý và lưu trữ dữ liệu sinh trắc học khuôn mặt của tôi cho các mục đích quản lý nêu trên.
                         </span>
                     </label>
 
@@ -547,7 +547,7 @@ const ManagerFaceRegistration = () => {
                     <div className="space-y-2">
                         <h2 className="text-xl font-bold text-midnight-indigo">Đăng ký thành công FaceID</h2>
                         <p className="text-sm text-slate-blue max-w-md mx-auto leading-relaxed">
-                            Khuôn mặt của bạn đã được liên kết thành công vào tài khoản quản lý. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh ra vào các phòng họp SmarTracking.
+                            Khuôn mặt của bạn đã được liên kết thành công vào tài khoản quản lý. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh ra vào các phòng họp VISMA IVA.
                         </p>
                     </div>
 

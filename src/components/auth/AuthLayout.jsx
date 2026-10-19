@@ -20,9 +20,9 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                 <div className="flex items-center justify-between w-full shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-white flex items-center justify-center shrink-0">
-                            <img src={logo} alt="SmarTracking Logo" className="w-full h-full object-contain scale-[1.3]" />
+                            <img src={logo} alt="VISMA IVA Logo" className="w-full h-full object-contain scale-[1.3]" />
                         </div>
-                        <span className="font-gilroy font-bold text-midnight-indigo text-xl tracking-tight">SmartTracking</span>
+                        <span className="font-gilroy font-bold text-midnight-indigo text-xl tracking-tight">VISMA IVA</span>
                     </div>
                     <span className="hidden sm:flex items-center gap-1.5 text-sm font-sans text-slate-blue">
                         Cần tài khoản?
@@ -39,7 +39,7 @@ const AuthLayout = ({ children, variant = 'login' }) => {
                     Nhãn ngôn ngữ hiển thị tĩnh vì dự án chưa có hệ thống i18n thật —
                     không làm dropdown giả để tránh tạo cảm giác tính năng đã hoạt động. */}
                 <div className="flex items-center justify-between w-full shrink-0 pt-4 border-t border-platinum-tint text-xs font-sans text-slate-blue">
-                    <span>© {new Date().getFullYear()} SmartTracking</span>
+                    <span>© {new Date().getFullYear()} VISMA Intelligent Video Analytics (IVA)</span>
                     <div className="flex items-center gap-4">
                         <span className="hidden sm:inline">Liên hệ hỗ trợ</span>
                         <span>Tiếng Việt</span>

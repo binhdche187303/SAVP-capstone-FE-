@@ -16,6 +16,7 @@ import {
 } from '../../service/businessAdminServices';
 import { getMeetingMinutesById } from '../../service/minutesServices';
 import ExportMinutesModal from '../../components/minutes/ExportMinutesModal';
+import MinutesInbox from '../../components/minutes/MinutesInbox';
 
 // ─── Constants ───────────────────────────────────────────────
 const MINUTES_LIMIT = 15;
@@ -85,6 +86,16 @@ const canExportMinutesItem = (item, currentUser, isAdmin) => {
 const DocumentArchive = ({ scope = 'all' }) => {
     const isSelfScope = scope === 'self';
     const [activeTab, setActiveTab] = useState('minutes');
+    // "Cần xử lý" (trình ký biên bản) — chỉ ở Kho biên bản của tôi; tự mở khi có việc
+    const [inboxCount, setInboxCount] = useState(0);
+    const inboxAutoOpened = useRef(false);
+    const handleInboxCount = useCallback((n) => {
+        setInboxCount(n);
+        if (n > 0 && !inboxAutoOpened.current) {
+            inboxAutoOpened.current = true;
+            setActiveTab('inbox');
+        }
+    }, []);
 
     // Quyền export biên bản của user hiện tại
     const [currentUser, setCurrentUser] = useState(null);
@@ -324,12 +335,15 @@ const DocumentArchive = ({ scope = 'all' }) => {
             </div>
 
             {/* ── Tabs ── */}
-            {!isSelfScope && (
+            {(
                 <div className="flex border-b border-platinum-tint gap-1">
-                    {[
+                    {(isSelfScope ? [
+                        { id: 'inbox',   label: 'Cần xử lý', icon: ClipboardList, badge: inboxCount },
+                        { id: 'minutes', label: 'Tất cả biên bản', icon: FileText },
+                    ] : [
                         { id: 'minutes', label: 'Biên bản họp', icon: FileText },
                         { id: 'media',   label: 'Ghi hình & Âm thanh', icon: Film },
-                    ].map(tab => (
+                    ]).map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
@@ -341,8 +355,18 @@ const DocumentArchive = ({ scope = 'all' }) => {
                         >
                             <tab.icon className="w-4 h-4" />
                             {tab.label}
+                            {tab.badge > 0 && (
+                                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">{tab.badge}</span>
+                            )}
                         </button>
                     ))}
+                </div>
+            )}
+
+            {/* Luôn mount để lấy số việc cho badge; chỉ hiển thị khi đang ở tab */}
+            {isSelfScope && (
+                <div className={activeTab === 'inbox' ? '' : 'hidden'}>
+                    <MinutesInbox onOpenMinutes={handleOpenDetail} onCount={handleInboxCount} />
                 </div>
             )}
 
@@ -846,6 +870,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                 const decisions  = d.mainContent?.decisions || d._detail?.mainContent?.decisions || [];
                                 const actionItems = d.mainContent?.actionItems || d._detail?.mainContent?.actionItems || [];
                                 const attendees  = d.attendees || d._detail?.attendees || [];
+                                const bodyHtml   = d.mainContent?.minutesContent || '';
 
                                 const UserCard = ({ user, label }) => {
                                     if (!user) return null;
@@ -928,6 +953,16 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                             </section>
                                         )}
 
+                                        {/* Nội dung biên bản */}
+                                        {bodyHtml && (
+                                            <section>
+                                                <p className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2">Nội dung biên bản</p>
+                                                {/<[a-z][\s\S]*>/i.test(bodyHtml)
+                                                    ? <div className="prose prose-sm max-w-none text-midnight-indigo bg-cloud-mist/20 border border-platinum-tint rounded-xl p-4" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+                                                    : <div className="text-sm text-midnight-indigo whitespace-pre-wrap bg-cloud-mist/20 border border-platinum-tint rounded-xl p-4">{bodyHtml}</div>}
+                                            </section>
+                                        )}
+
                                         {/* Action Items */}
                                         {actionItems.length > 0 && (
                                             <section>
@@ -981,9 +1016,9 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                             </section>
                                         )}
 
-                                        {decisions.length === 0 && actionItems.length === 0 && attendees.length === 0 && !detailItem._loading && (
+                                        {!bodyHtml && decisions.length === 0 && actionItems.length === 0 && attendees.length === 0 && !detailItem._loading && (
                                             <div className="text-center py-6 text-xs text-slate-blue/60">
-                                                Nội dung chi tiết sẽ hiển thị khi BE cung cấp đầy đủ dữ liệu embed.
+                                                Biên bản chưa có nội dung.
                                             </div>
                                         )}
                                     </>

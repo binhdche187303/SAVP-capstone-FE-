@@ -1,5 +1,5 @@
 /**
- * DashboardBanner — SmarTracking Slide Banner
+ * DashboardBanner — VISMA IVA Slide Banner
  *
  * Cấu hình slide:  src/components/common/banner/slideConfig.js
  * Ảnh slide:       public/images/banner/
@@ -159,6 +159,25 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
                 style={{ borderRadius: 'inherit', background: `linear-gradient(135deg, ${slide.bgFrom} 0%, ${slide.bgTo} 100%)` }}
             />
 
+            {/* ══ photo: ảnh khuôn viên phủ full + lớp phủ tối bên trái cho chữ dễ đọc ══ */}
+            {slide.photo && (
+                <div
+                    key={`ph-${slideIndex}`}
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ zIndex: 1, opacity: visible ? 1 : 0, transition: 'opacity 0.45s ease' }}
+                >
+                    <img
+                        src={slide.photo}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
+                    />
+                    <div
+                        className="absolute inset-0"
+                        style={{ background: `linear-gradient(90deg, ${slide.bgFrom}d9 0%, ${slide.bgFrom}a6 35%, ${slide.bgTo}40 65%, transparent 90%)` }}
+                    />
+                </div>
+            )}
+
             {/* ══ fullImage: ảnh phủ full banner ═══════════════════════════ */}
             {slide.fullImage && (
                 <div
@@ -168,7 +187,7 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
                 >
                     <img
                         src={slide.image}
-                        alt="SmarTracking"
+                        alt="VISMA IVA"
                         style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
                     />
                 </div>
@@ -177,6 +196,7 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
             {/* ══ Slide thường: ảnh phải + text trái ════════════════════════ */}
             {!slide.fullImage && (
                 <>
+                    {!slide.photo && (<>
                     {/* Ảnh bên phải — bounded, không tràn */}
                     <div
                         className="absolute top-0 right-0 bottom-0 pointer-events-none"
@@ -221,6 +241,7 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
                             filter: 'blur(50px)', transition: 'background 0.9s ease',
                         }} />
                     </div>
+                    </>)}
 
                     {/* Text panel trái — CHỈ text, không có controls */}
                     <div
@@ -239,7 +260,7 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
                             <div className="flex items-center gap-2.5">
                                 <img
                                     src={websiteLogo}
-                                    alt="SmarTracking"
+                                    alt="VISMA IVA"
                                     style={{
                                         height: 28,
                                         width: 'auto',
@@ -302,7 +323,7 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
                 className="absolute inset-x-0 bottom-0 pointer-events-none"
                 style={{ zIndex: 8, height: 70, background: 'linear-gradient(to top, rgba(0,0,0,0.50) 0%, transparent 100%)' }}
             />
-            <BottomNav slideIndex={slideIndex} paused={paused} accent={slide.accent} goTo={goTo} />
+            {SLIDES.length > 1 && <BottomNav slideIndex={slideIndex} paused={paused} accent={slide.accent} goTo={goTo} />}
 
             {/* Ambient glow */}
             <div className="absolute pointer-events-none" style={{

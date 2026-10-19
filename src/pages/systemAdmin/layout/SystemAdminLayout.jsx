@@ -9,7 +9,7 @@ import {
     RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiLayoutMasonryLine, RiFilmLine,
     RiBarChartBoxLine, RiFileChartLine,
     RiUserReceivedLine, RiContactsBookLine,
-    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine, RiGroupLine
+    RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine, RiGroupLine, RiBuilding2Line
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -43,6 +43,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Thiết bị IoT',                  to: '/system-admin/devices',              icon: RiHardDriveLine },
             { label: 'Sơ đồ lắp đặt camera',          to: '/system-admin/camera-layout',        icon: RiLayoutMasonryLine },
+            { label: 'Sơ đồ camera 3D',               to: '/system-admin/camera-map-3d',        icon: RiBuilding2Line },
             { label: 'Nhóm camera',                  to: '/system-admin/camera-groups',        icon: RiGroupLine, requiredPermission: 'iot.camera_group.read' },
             { label: 'Ghi hình & lưu trữ',            to: '/system-admin/camera-recording',     icon: RiFilmLine },
             { label: 'Khu vực giám sát',              to: '/system-admin/zones',                icon: RiMapLine },
@@ -77,7 +78,6 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Hiện diện khuôn viên',          to: '/system-admin/gate-presence',        icon: RiTimeLine },
             { label: 'Hành trình khuôn viên',         to: '/system-admin/user-journey',         icon: RiMapPinLine },
-            { label: 'Bản đồ khuôn viên',             to: '/system-admin/campus-map',           icon: RiMapPin2Line },
             { label: 'Lưu lượng & Heatmap',           to: '/system-admin/zone-traffic',         icon: RiFireLine },
         ],
     },
@@ -173,7 +173,7 @@ const SystemAdminLayout = () => {
                 <header className="lg:hidden flex items-center justify-between bg-white border-b border-platinum-tint px-4 py-3 shrink-0">
                     <div className="flex items-center gap-2">
                         <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
-                        <span className="font-bold text-midnight-indigo tracking-tight">SmarTracking</span>
+                        <span className="font-bold text-midnight-indigo tracking-tight">VISMA IVA</span>
                     </div>
                     <button 
                         onClick={() => setIsMobileSidebarOpen(true)} 
