@@ -100,6 +100,13 @@ const MinutesTabContent = ({ meetingId, isHost, isSecretary = false, transcriptS
         fetchState();
     }, [fetchState]);
 
+    // Trình ký / ký duyệt ở khung "Trình ký biên bản" ⇒ quyền sửa/xoá/ban hành đổi theo.
+    useEffect(() => {
+        const onChanged = (e) => { if (e.detail?.meetingId === meetingId) fetchState(); };
+        window.addEventListener('meeting-signoff-changed', onChanged);
+        return () => window.removeEventListener('meeting-signoff-changed', onChanged);
+    }, [meetingId, fetchState]);
+
     // MKM-LIVE-01: subscribe room meeting:${meetingId} — mirror đúng pattern
     // subscribeToMeeting/getSocket đã dùng ở MeetingAttendanceBoard.jsx (KHÔNG
     // tự nghĩ cách kết nối mới). Bất kỳ tín hiệu live-share nào (bật/tắt/có
