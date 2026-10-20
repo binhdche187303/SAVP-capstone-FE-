@@ -44,12 +44,20 @@ const MeetingPrepPanel = ({ meetingId, onSeries, onOpenMeeting }) => {
 
     useEffect(() => { load(); }, [load]);
 
+    // Trình ký / ký duyệt ở nơi khác (tab Biên bản) ⇒ tải lại; ngược lại báo cho tab Biên bản.
+    useEffect(() => {
+        const onChanged = (e) => { if (e.detail?.meetingId === meetingId && e.detail.source !== 'prep') load(); };
+        window.addEventListener('meeting-signoff-changed', onChanged);
+        return () => window.removeEventListener('meeting-signoff-changed', onChanged);
+    }, [meetingId, load]);
+
     const run = async (fn, okMsg) => {
         setBusy(true);
         try {
             await fn();
             toast.success(okMsg);
             await load();
+            window.dispatchEvent(new CustomEvent('meeting-signoff-changed', { detail: { meetingId, source: 'prep' } }));
             return true;
         } catch {
             return false; // request.js đã toast lỗi
