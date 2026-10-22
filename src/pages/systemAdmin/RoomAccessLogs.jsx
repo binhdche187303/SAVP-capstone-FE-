@@ -1,6 +1,6 @@
 import {
     AlertTriangle, ArrowUpDown, Briefcase, Building, Calendar,
-    Clock, DoorOpen, Eye, Filter,
+    Clock, DoorOpen, Download, Eye, Filter, Camera,
     LogIn, LogOut, Mail, Phone, RefreshCw, RotateCw,
     Route, Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users, X, ChevronDown,
 } from 'lucide-react';
@@ -20,12 +20,18 @@ import {
     getUserById,
 } from '../../service/sysAdminServices';
 import { getUsers } from '../../service/employeeServices';
+import { downloadReport, currentUserName, fmtVN, toDate } from '../../utils/exportExcel';
+import toast from '../../utils/toast';
 
 // ─── constants ──────────────────────────────────────────────────────────────
 
 const LOGS_PER_PAGE = 10;
 // Các lượt cùng phòng + cùng hướng cách nhau ≤ 3s = camera bắt được nhiều người trong cùng khung hình.
 const GROUP_WINDOW_MS = 3000;
+
+// Họp 20/10: mọi log camera phải nói rõ camera nào / khu vực nào / nhóm nào.
+const cameraLabel = (ev) => ev.deviceName || ev.deviceCode || null;
+const cameraGroupsLabel = (ev) => (Array.isArray(ev.groupNames) && ev.groupNames.length ? ev.groupNames.join(', ') : '');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -575,6 +581,179 @@ const RoomAccessLogs = () => {
 
     const showRoomColumn = !selectedRoomId;
 
+    // Xuất đúng những gì đang lọc (ngày/phòng/hướng/trạng thái/cuộc họp/tìm kiếm), kèm tổng hợp theo người.
+    const handleExport = async () => {
+        if (allSorted.length === 0) {
+            toast.error('Chưa có dữ liệu để xuất.');
+            return;
+        }
+        try {
+            const roomName = logsData?.roomName || getSelectedRoomInfo(rooms, selectedRoomId)?.name || 'Tất cả phòng';
+            const statusLabel = { matched: 'Đã nhận diện', unmatched: 'Chưa khớp lịch/vị trí', stranger: 'Người lạ' };
+            const dirLabel = (d) => (d === 'enter' ? 'Vào' : d === 'leave' ? 'Ra' : d || '');
+            const meetingTitleOf = (ev) => {
+                if (!ev.meetingId) return '';
+                let t = ev.meetingTitle || ev.meetingName || ev.meeting_title || ev.meeting?.title;
+                if (!t) {
+                    const m = meetings.find((x) => (x.meetingId || x.meeting_id || x.id) === ev.meetingId);
+                    if (m) t = m.meeting?.title || m.title;
+                }
+                return t || '';
+            };
+            const pctOf = (ev) => {
+                const raw = ev.similarity ?? ev.reliability ?? ev.confidence;
+                if (raw == null) return '';
+                return Math.round((raw <= 1 ? raw * 100 : raw));
+            };
+            const tsOf = (ev) => toDate(ev.eventTime || ev.timestamp);
+            // Thứ tự thời gian tăng dần cho sheet chi tiết & tính lần vào đầu/ra cuối.
+            const chrono = [...allSorted].sort((x, y) => getEventTs(x) - getEventTs(y));
+
+            const detail = chrono.map((ev, i) => ({
+                stt: i + 1,
+                time: tsOf(ev),
+                person: ev.fullName || 'Không nhận diện được',
+                email: ev.user?.email || '',
+                dept: ev.user?.department || '',
+                room: ev.roomName || roomName,
+                dir: dirLabel(ev.direction),
+                status: statusLabel[getIdentityStatus(ev)] || '',
+                pct: pctOf(ev),
+                meeting: meetingTitleOf(ev),
+                camera: cameraLabel(ev) || '',
+                code: ev.deviceCode || '',
+                zone: ev.zoneName || '',
+                group: cameraGroupsLabel(ev),
+                id: ev.id || '',
+            }));
+
+            const byPerson = new Map();
+            chrono.forEach((ev) => {
+                const key = ev.userId || `unknown:${ev.fullName || ''}`;
+                const cur = byPerson.get(key) || {
+                    person: ev.fullName || 'Không nhận diện được', email: ev.user?.email || '', dept: ev.user?.department || '',
+                    status: statusLabel[getIdentityStatus(ev)] || '', enters: 0, leaves: 0, seen: 0, first: null, last: null, lastDir: '', cams: new Set(),
+                };
+                if (ev.direction === 'enter') cur.enters += 1;
+                else if (ev.direction === 'leave') cur.leaves += 1;
+                else cur.seen += 1;
+                const t = tsOf(ev);
+                if (t && !cur.first) cur.first = t;
+                if (t) cur.last = t;
+                if (ev.direction === 'enter' || ev.direction === 'leave') cur.lastDir = ev.direction;
+                const cam = cameraLabel(ev);
+                if (cam) cur.cams.add(cam);
+                byPerson.set(key, cur);
+            });
+            const people = [...byPerson.values()].sort((x, y) => (y.enters + y.leaves + y.seen) - (x.enters + x.leaves + x.seen));
+            const stillIn = people.filter((p) => p.lastDir === 'enter').length;
+            const summary = people.map((p, i) => ({
+                stt: i + 1,
+                person: p.person,
+                email: p.email,
+                dept: p.dept,
+                status: p.status,
+                enters: p.enters,
+                leaves: p.leaves,
+                seen: p.seen,
+                first: p.first,
+                last: p.last,
+                state: p.lastDir === 'enter' ? 'Có thể còn trong phòng' : p.lastDir === 'leave' ? 'Đã ra' : 'Chưa xác định',
+                cams: [...p.cams].join(', '),
+            }));
+
+            const exportedAt = new Date();
+            const filters = [
+                directionFilter && `Hướng: ${dirLabel(directionFilter)}`,
+                statusFilter && `Trạng thái: ${statusLabel[statusFilter] || statusFilter}`,
+                debouncedSearch && `Tìm tên: “${debouncedSearch}”`,
+                selectedMeetingId && `Cuộc họp: ${meetingTitleOf({ meetingId: selectedMeetingId }) || selectedMeetingId}`,
+            ].filter(Boolean);
+            const count = (st) => allSorted.filter((e) => getIdentityStatus(e) === st).length;
+
+            await downloadReport({
+                fileName: `Nhat-ky-ra-vao-phong_${String(roomName).replace(/\s+/g, '-')}_${selectedDate}`,
+                title: 'NHẬT KÝ RA/VÀO PHÒNG',
+                subtitle: 'Đối soát an ninh dựa trên camera nhận diện khuôn mặt',
+                info: [
+                    { section: 'Phạm vi báo cáo' },
+                    ['Phòng', roomName],
+                    ['Ngày', selectedDate.split('-').reverse().join('/')],
+                    ['Bộ lọc đang áp dụng', filters.length ? filters.join(' · ') : 'Không (toàn bộ lượt trong ngày)'],
+                    { section: 'Kết quả tổng hợp' },
+                    ['Tổng lượt ghi nhận', allSorted.length],
+                    ['Lượt vào', allSorted.filter((e) => e.direction === 'enter').length],
+                    ['Lượt ra', allSorted.filter((e) => e.direction === 'leave').length],
+                    ['Đã nhận diện', count('matched')],
+                    ['Chưa khớp lịch/vị trí', count('unmatched')],
+                    ['Người lạ (không nhận diện được)', count('stranger')],
+                    ['Số người khác nhau', people.length],
+                    ['Người có thể chưa ra khỏi phòng', stillIn, stillIn > 0 ? { fill: 'FEF3C7', color: 'B45309' } : undefined],
+                    { section: 'Thông tin xuất' },
+                    ['Người xuất', currentUserName()],
+                    ['Thời điểm xuất', fmtVN(exportedAt)],
+                    { section: 'Ghi chú' },
+                    ['Camera / Khu vực / Nhóm camera', 'Cho biết lượt ghi nhận do camera nào, thuộc khu vực và nhóm camera nào chụp được'],
+                    ['Có thể còn trong phòng', 'Lượt vào/ra cuối cùng của người đó trong ngày là “Vào”'],
+                    ['Độ tin cậy', 'Độ giống khuôn mặt do AI trả về (%)'],
+                ],
+                sheets: [
+                    {
+                        name: 'Tổng hợp theo người',
+                        freezeCols: 2,
+                        columns: [
+                            { header: 'STT', key: 'stt', width: 6, align: 'center' },
+                            { header: 'Người', key: 'person', width: 26 },
+                            { header: 'Email', key: 'email', width: 28 },
+                            { header: 'Phòng ban', key: 'dept', width: 22 },
+                            { header: 'Trạng thái nhận diện', key: 'status', width: 22 },
+                            { header: 'Số lượt vào', key: 'enters', width: 12 },
+                            { header: 'Số lượt ra', key: 'leaves', width: 12 },
+                            { header: 'Quan sát thấy', key: 'seen', width: 13 },
+                            { header: 'Lần đầu ghi nhận', key: 'first', width: 20 },
+                            { header: 'Lần cuối ghi nhận', key: 'last', width: 20 },
+                            { header: 'Tình trạng cuối ngày', key: 'state', width: 26 },
+                            { header: 'Camera đã ghi nhận', key: 'cams', width: 40, wrap: true },
+                        ],
+                        rows: summary,
+                        cellStyle: (row, key) => (key === 'state' && row.state.startsWith('Có thể') ? { fill: 'FEF3C7', color: 'B45309', bold: true } : undefined),
+                    },
+                    {
+                        name: 'Chi tiết lượt ra vào',
+                        freezeCols: 3,
+                        columns: [
+                            { header: 'STT', key: 'stt', width: 6, align: 'center' },
+                            { header: 'Thời gian', key: 'time', width: 20 },
+                            { header: 'Người', key: 'person', width: 26 },
+                            { header: 'Email', key: 'email', width: 28 },
+                            { header: 'Phòng ban', key: 'dept', width: 22 },
+                            { header: 'Phòng', key: 'room', width: 20 },
+                            { header: 'Hướng', key: 'dir', width: 9, align: 'center' },
+                            { header: 'Trạng thái nhận diện', key: 'status', width: 22 },
+                            { header: 'Độ tin cậy (%)', key: 'pct', width: 14, align: 'center' },
+                            { header: 'Cuộc họp', key: 'meeting', width: 30 },
+                            { header: 'Camera', key: 'camera', width: 26 },
+                            { header: 'Mã camera', key: 'code', width: 18 },
+                            { header: 'Khu vực', key: 'zone', width: 20 },
+                            { header: 'Nhóm camera', key: 'group', width: 24 },
+                            { header: 'Mã sự kiện (đối chiếu ảnh)', key: 'id', width: 38 },
+                        ],
+                        rows: detail,
+                        cellStyle: (row, key) => {
+                            if (key === 'status' && row.status === 'Người lạ') return { fill: 'FEE2E2', color: 'B91C1C', bold: true };
+                            if (key === 'status' && row.status.startsWith('Chưa khớp')) return { fill: 'FEF3C7', color: 'B45309' };
+                            if (key === 'dir') return { fill: row.dir === 'Vào' ? 'DCFCE7' : row.dir === 'Ra' ? 'DBEAFE' : undefined };
+                            return undefined;
+                        },
+                    },
+                ],
+            });
+            toast.success(`Đã xuất ${detail.length} lượt ra/vào.`);
+        } catch (err) {
+            toast.error(err?.message || 'Không xuất được file Excel.');
+        }
+    };
+
     const renderEventRow = (ev, idx, nested = false) => {
         const status   = getIdentityStatus(ev);
         const { date, time } = formatVN(ev.eventTime || ev.timestamp);
@@ -663,6 +842,16 @@ const RoomAccessLogs = () => {
                     )}
                 </td>
 
+                <td className="px-6 py-4 text-xs" title={cameraGroupsLabel(ev) ? `Nhóm: ${cameraGroupsLabel(ev)}` : undefined}>
+                    {cameraLabel(ev) ? (
+                        <>
+                            <span className="inline-flex items-center gap-1 font-semibold text-midnight-indigo"><Camera className="w-3 h-3 text-slate-400" />{cameraLabel(ev)}</span>
+                            {(ev.zoneName || cameraGroupsLabel(ev)) && (
+                                <span className="block text-[10px] text-slate-400">{[ev.zoneName, cameraGroupsLabel(ev)].filter(Boolean).join(' · ')}</span>
+                            )}
+                        </>
+                    ) : <span className="text-slate-300">—</span>}
+                </td>
                 <td className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-500">{conf}</td>
 
                 <td className="px-6 py-4 text-xs">
@@ -718,6 +907,7 @@ const RoomAccessLogs = () => {
                 </td>
                 <td className="px-6 py-4 text-center text-slate-300">—</td>
                 <td className="px-6 py-4 text-center text-slate-300">—</td>
+                <td className="px-6 py-4 text-center text-slate-300">—</td>
                 <td className="px-6 py-4 text-xs text-slate-400">Bấm để {collapsed ? 'mở' : 'thu gọn'}</td>
             </motion.tr>
         );
@@ -744,6 +934,12 @@ const RoomAccessLogs = () => {
                     <p className="text-slate-blue text-sm mt-1">Đối soát an ninh ra/vào dựa trên API camera nhận diện khuôn mặt</p>
                 </div>
                 <div className="self-start flex flex-col items-end gap-1">
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-4 py-2 bg-action-blue text-white hover:bg-blue-700 rounded-xl transition-colors text-sm font-semibold"
+                    >
+                        <Download className="w-4 h-4" /> Xuất Excel
+                    </button>
                     <button
                         onClick={() => fetchLogs()}
                         disabled={logsLoading}
@@ -949,6 +1145,7 @@ const RoomAccessLogs = () => {
                                 <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider text-center">Hướng</th>
                                 <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider text-center">Trạng thái</th>
                                 <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider text-center">Ảnh</th>
+                                <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider">Camera</th>
                                 <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider text-center">Độ tin cậy</th>
                                 <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider">Cuộc họp</th>
                             </tr>
@@ -968,13 +1165,14 @@ const RoomAccessLogs = () => {
                                         <td className="px-6 py-4 text-center"><div className="h-6 bg-gray-200 rounded-full w-14 mx-auto" /></td>
                                         <td className="px-6 py-4 text-center"><div className="h-6 bg-gray-200 rounded-full w-20 mx-auto" /></td>
                                         <td className="px-6 py-4 text-center"><div className="h-8 w-8 bg-gray-200 rounded mx-auto" /></td>
+                                        <td className="px-6 py-4"><div className="h-3.5 bg-gray-200 rounded w-20" /></td>
                                         <td className="px-6 py-4 text-center"><div className="h-3.5 bg-gray-200 rounded w-12 mx-auto" /></td>
                                         <td className="px-6 py-4"><div className="h-3.5 bg-gray-200 rounded w-24" /></td>
                                     </tr>
                                 ))
                             ) : pageGroups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={showRoomColumn ? 9 : 8} className="px-6 py-16 text-center">
+                                    <td colSpan={showRoomColumn ? 10 : 9} className="px-6 py-16 text-center">
                                         <div className="flex flex-col items-center gap-3">
                                             <div className="w-14 h-14 rounded-2xl bg-cloud-mist flex items-center justify-center">
                                                 <Users className="w-7 h-7 text-slate-blue" />

@@ -4,7 +4,7 @@ import {
     RiHome4Line,
     RiSettings3Line, RiShieldLine, RiSettings2Line,
     RiCpuLine, RiHardDriveLine, RiMapLine, RiUserUnfollowLine,
-    RiLoginBoxLine, RiCameraLine, RiCarLine, RiMapPinLine,
+    RiLoginBoxLine, RiCameraLine, RiCarLine, RiMapPinLine, RiRouteLine,
     RiAlertLine, RiMapPin2Line, RiEqualizerLine, RiShieldUserLine,
     RiFileTextLine, RiMenuLine, RiFileListLine, RiFireLine, RiLayoutMasonryLine, RiFilmLine,
     RiBarChartBoxLine, RiFileChartLine,
@@ -77,7 +77,8 @@ const STATIC_NAVIGATION_ITEMS = [
         icon: RiMapPin2Line,
         children: [
             { label: 'Hiện diện khuôn viên',          to: '/system-admin/gate-presence',        icon: RiTimeLine },
-            { label: 'Hành trình khuôn viên',         to: '/system-admin/user-journey',         icon: RiMapPinLine },
+            { label: 'Lịch sử di chuyển theo người',  to: '/system-admin/user-journey',         icon: RiMapPinLine },
+            { label: 'Truy vết theo camera / khu vực', to: '/system-admin/camera-trace',        icon: RiRouteLine, requiredPermission: 'zones.gate_log.read' },
             { label: 'Lưu lượng & Heatmap',           to: '/system-admin/zone-traffic',         icon: RiFireLine },
         ],
     },

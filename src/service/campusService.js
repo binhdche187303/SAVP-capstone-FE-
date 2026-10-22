@@ -91,3 +91,14 @@ export const getCampusMap = async (params = {}, options = {}) => {
     const query = buildQuery(params);
     return await get(`/campus-dashboard/map${query}`, options);
 };
+
+/**
+ * Truy vết theo camera / nhóm camera / khu vực (họp 20/10)
+ * GET /campus/camera-trace (zones.gate_log.read — SYSTEM_ADMIN, BUSINESS_ADMIN, MANAGER; MANAGER chỉ thấy người cùng phòng ban)
+ * @param {object} params - { groupId | deviceId | zoneId, from, to (ISO), page?, limit? }
+ * @returns {Promise<object>} { success, data: { devices: [{id, deviceCode, deviceName}], events: [{ id, time, kind, direction, userId, userName, employeeCode, plateNumber, roomName, deviceId, deviceCode, deviceName, zoneId, zoneName, groupNames, snapshotEventId }], page, limit, hasMore } }
+ */
+export const getCameraTrace = async (params = {}) => {
+    const query = buildQuery(params);
+    return await get(`/campus/camera-trace${query}`);
+};

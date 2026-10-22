@@ -48,6 +48,7 @@ import VehicleRegistrations from '../pages/systemAdmin/VehicleRegistrations';
 import RoomAccessLogs from '../pages/systemAdmin/RoomAccessLogs';
 import GatePresenceManagement from '../pages/systemAdmin/GatePresenceManagement';
 import UserJourney from '../pages/shared/UserJourney';
+import CameraTrace from '../pages/shared/CameraTrace';
 import AuditLogs from '../pages/systemAdmin/AuditLogs';
 // BusinessAdmin Layout + Pages
 import BusinessAdminLayout from '../pages/bussinessAdmin/layout/BusinessAdminLayout';
@@ -250,6 +251,10 @@ export const router = [
                 element: <UserJourney />
             },
             {
+                path: 'camera-trace',
+                element: <CameraTrace />
+            },
+            {
                 path: 'audit-logs',
                 element: <AuditLogs />
             },
@@ -360,6 +365,10 @@ export const router = [
             {
                 path: 'zone-traffic',
                 element: <ZoneTrafficAnalytics />
+            },
+            {
+                path: 'camera-trace',
+                element: <CameraTrace />
             },
             {
                 path: 'camera-map-3d',

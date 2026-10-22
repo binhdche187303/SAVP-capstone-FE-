@@ -19,6 +19,7 @@ import {
     Clock,
     Fingerprint,
     Flame,
+    Route,
     GraduationCap,
     Map as MapIcon,
     FileBarChart,
@@ -76,6 +77,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Hiệu suất phòng họp', to: '/business-admin/room-analytics', icon: PieChart },
             { label: 'Lưu lượng & Heatmap', to: '/business-admin/zone-traffic', icon: Flame },
+            { label: 'Truy vết theo camera / khu vực', to: '/business-admin/camera-trace', icon: Route },
             { label: 'Sơ đồ camera 3D', to: '/business-admin/camera-map-3d', icon: MapIcon },
         ],
     },

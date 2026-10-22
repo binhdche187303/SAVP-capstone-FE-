@@ -1,8 +1,10 @@
-import { Camera, Plus, RefreshCw, Search, Trash2, X, Edit2, AlertTriangle } from 'lucide-react';
+import { Camera, Plus, RefreshCw, Route, Search, Trash2, X, Edit2, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import toast from '../../utils/toast';
 import { getDevices } from '../../service/sysAdminServices';
+import { getZones } from '../../service/zoneServices';
 import {
     addCameraGroupDevices, createCameraGroup, deleteCameraGroup, getCameraGroupById,
     getCameraGroups, removeCameraGroupDevice, updateCameraGroup,
@@ -36,10 +38,14 @@ const Modal = ({ title, onClose, children }) => createPortal(
     document.body
 );
 
-const GroupForm = ({ initial, onSubmit, onCancel, busy }) => {
+const PURPOSE_SUGGESTIONS = ['Truy vết mất đồ', 'Cổng ra vào', 'Nhà xe', 'Phòng học', 'Phòng họp', 'Hành lang'];
+
+const GroupForm = ({ initial, zones = [], onSubmit, onCancel, busy }) => {
     const [code, setCode] = useState(initial?.group_code || '');
     const [name, setName] = useState(initial?.group_name || '');
     const [desc, setDesc] = useState(initial?.description || '');
+    const [zoneId, setZoneId] = useState(initial?.zone_id || '');
+    const [purpose, setPurpose] = useState(initial?.purpose || '');
     // Khớp rule BE (CreateCameraGroupDto.groupCode); chỉ báo lỗi khi đã nhập để form mới mở không đỏ sẵn.
     const codeError = !initial && code
         ? (code.length < 2 || code.length > 50 ? 'Mã nhóm phải từ 2 đến 50 ký tự'
@@ -47,7 +53,7 @@ const GroupForm = ({ initial, onSubmit, onCancel, busy }) => {
         : '';
     const valid = (initial || (code && !codeError)) && name.trim();
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onSubmit({ code, name: name.trim(), desc }); }} className="space-y-3">
+        <form onSubmit={(e) => { e.preventDefault(); onSubmit({ code, name: name.trim(), desc, zoneId, purpose: purpose.trim() }); }} className="space-y-3">
             <label className="block text-xs font-bold text-slate-blue uppercase">Mã nhóm
                 <input value={code} onChange={(e) => setCode(e.target.value)} disabled={!!initial} placeholder="VD: TOA-A" maxLength={50}
                     aria-invalid={!!codeError}
@@ -59,6 +65,19 @@ const GroupForm = ({ initial, onSubmit, onCancel, busy }) => {
             <label className="block text-xs font-bold text-slate-blue uppercase">Tên nhóm
                 <input value={name} onChange={(e) => setName(e.target.value)} maxLength={150} placeholder="VD: Camera tòa A"
                     className="mt-1 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-normal" />
+            </label>
+            <label className="block text-xs font-bold text-slate-blue uppercase">Khu vực phụ trách
+                <select value={zoneId} onChange={(e) => setZoneId(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-normal bg-white">
+                    <option value="">— Không gán khu vực —</option>
+                    {zones.map((z) => <option key={z.id} value={z.id}>{z.zone_name ?? z.zoneName}</option>)}
+                </select>
+            </label>
+            <label className="block text-xs font-bold text-slate-blue uppercase">Mục đích sử dụng
+                <input value={purpose} onChange={(e) => setPurpose(e.target.value)} maxLength={100} list="camera-group-purposes"
+                    placeholder="VD: Truy vết mất đồ"
+                    className="mt-1 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-normal" />
+                <datalist id="camera-group-purposes">{PURPOSE_SUGGESTIONS.map((x) => <option key={x} value={x} />)}</datalist>
             </label>
             <label className="block text-xs font-bold text-slate-blue uppercase">Mô tả
                 <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} maxLength={1000}
@@ -123,6 +142,11 @@ const CameraGroups = () => {
     const [detail, setDetail] = useState(null);
     const [modal, setModal] = useState(null); // 'create' | 'edit' | 'add' | 'delete'
     const [busy, setBusy] = useState(false);
+    const [zones, setZones] = useState([]);
+
+    useEffect(() => {
+        getZones({ limit: 100 }).then((r) => setZones(list(r))).catch((e) => void e);
+    }, []);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -150,12 +174,17 @@ const CameraGroups = () => {
         finally { setBusy(false); }
     };
 
-    const create = ({ code, name, desc }) => run(async () => {
-        const res = await createCameraGroup({ group_code: code, group_name: name, ...(desc ? { description: desc } : {}) });
+    const create = ({ code, name, desc, zoneId, purpose }) => run(async () => {
+        const res = await createCameraGroup({
+            group_code: code, group_name: name,
+            ...(desc ? { description: desc } : {}),
+            ...(zoneId ? { zone_id: zoneId } : {}),
+            ...(purpose ? { purpose } : {}),
+        });
         await load(); setDetail(res.data);
     }, 'Đã tạo nhóm camera', 'Không tạo được nhóm');
-    const edit = ({ name, desc }) => run(async () => {
-        const res = await updateCameraGroup(detail.id, { group_name: name, description: desc });
+    const edit = ({ name, desc, zoneId, purpose }) => run(async () => {
+        const res = await updateCameraGroup(detail.id, { group_name: name, description: desc, zone_id: zoneId || null, purpose });
         setDetail(res.data); await load();
     }, 'Đã cập nhật nhóm', 'Không cập nhật được nhóm');
     const remove = () => run(async () => { await deleteCameraGroup(detail.id); setDetail(null); await load(); }, 'Đã xóa nhóm', 'Không xóa được nhóm');
@@ -197,6 +226,9 @@ const CameraGroups = () => {
                                 <span className="font-semibold text-midnight-indigo">{g.group_name}</span>
                                 <span className="text-[11px] text-slate-400">{g.group_code}</span>
                             </div>
+                            {(g.zone_name || g.purpose) && (
+                                <p className="mt-1 text-[11px] text-slate-blue">{[g.zone_name, g.purpose].filter(Boolean).join(' · ')}</p>
+                            )}
                             <div className="mt-1 flex items-center gap-3 text-xs text-slate-blue">
                                 <span className="inline-flex items-center gap-1"><Camera className="w-3.5 h-3.5" />{g.device_count} camera</span>
                                 {g.offline_count > 0 && <span className="inline-flex items-center gap-1 text-red-600"><AlertTriangle className="w-3.5 h-3.5" />{g.offline_count} offline</span>}
@@ -214,9 +246,19 @@ const CameraGroups = () => {
                                 <div>
                                     <h2 className="text-lg font-bold text-midnight-indigo">{detail.group_name}</h2>
                                     <p className="text-xs text-slate-400">{detail.group_code}</p>
+                                    {(detail.zone_name || detail.purpose) && (
+                                        <p className="mt-1 text-xs text-slate-blue">
+                                            {detail.zone_name && <span>Khu vực: <b>{detail.zone_name}</b></span>}
+                                            {detail.zone_name && detail.purpose && ' · '}
+                                            {detail.purpose && <span>Mục đích: <b>{detail.purpose}</b></span>}
+                                        </p>
+                                    )}
                                     {detail.description && <p className="mt-2 text-sm text-slate-blue">{detail.description}</p>}
                                 </div>
                                 <div className="flex gap-1.5">
+                                    <Link to={`/system-admin/camera-trace?groupId=${detail.id}`} className="inline-flex items-center gap-1 px-3 py-2 border border-platinum-tint rounded-lg text-xs font-semibold text-action-blue no-underline hover:bg-blue-50">
+                                        <Route className="w-4 h-4" />Truy vết
+                                    </Link>
                                     <button onClick={() => setModal('edit')} aria-label="Sửa nhóm" className="p-2 border border-platinum-tint rounded-lg"><Edit2 className="w-4 h-4" /></button>
                                     <button onClick={() => setModal('delete')} aria-label="Xóa nhóm" className="p-2 border border-red-200 text-red-600 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                                 </div>
@@ -243,8 +285,8 @@ const CameraGroups = () => {
                 </div>
             </div>
 
-            {modal === 'create' && <Modal title="Tạo nhóm camera" onClose={() => setModal(null)}><GroupForm onSubmit={create} onCancel={() => setModal(null)} busy={busy} /></Modal>}
-            {modal === 'edit' && detail && <Modal title="Sửa nhóm camera" onClose={() => setModal(null)}><GroupForm initial={detail} onSubmit={edit} onCancel={() => setModal(null)} busy={busy} /></Modal>}
+            {modal === 'create' && <Modal title="Tạo nhóm camera" onClose={() => setModal(null)}><GroupForm zones={zones} onSubmit={create} onCancel={() => setModal(null)} busy={busy} /></Modal>}
+            {modal === 'edit' && detail && <Modal title="Sửa nhóm camera" onClose={() => setModal(null)}><GroupForm initial={detail} zones={zones} onSubmit={edit} onCancel={() => setModal(null)} busy={busy} /></Modal>}
             {modal === 'add' && detail && <AddDevicesModal group={detail} onClose={() => setModal(null)} onDone={async () => { setModal(null); await refreshAll(); }} />}
             {modal === 'delete' && detail && (
                 <Modal title="Xóa nhóm camera?" onClose={() => setModal(null)}>

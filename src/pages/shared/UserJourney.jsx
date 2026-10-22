@@ -273,10 +273,13 @@ const UserJourney = () => {
                 'Nơi': getPlace(e) || '',
                 'Biển số': e.plateNumber || '',
                 'Chi tiết': e.detail || '',
+                'Camera': e.deviceName || '',
+                'Mã camera': e.deviceCode || '',
+                'Nhóm camera': (e.groupNames || []).join(', '),
             };
         });
         const ws = XLSX.utils.json_to_sheet(rows);
-        ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 24 }, { wch: 14 }, { wch: 60 }];
+        ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 24 }, { wch: 14 }, { wch: 60 }, { wch: 24 }, { wch: 16 }, { wch: 24 }];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Hành trình');
         const who = (selectedUser?.fullName || journeyData?.fullName || 'nhan-vien').replace(/[\\/:*?"<>|]/g, '');
@@ -400,6 +403,15 @@ const UserJourney = () => {
                         </div>
                     )}
 
+                    {/* Camera nguồn (họp 20/10: mọi log camera phải cho biết camera nào / nhóm nào) */}
+                    {(event.deviceName || event.deviceCode) && (
+                        <div className="text-[11px] bg-slate-50 border border-platinum-tint rounded-xl px-3 py-1.5 font-semibold text-slate-blue flex flex-col shadow-sm whitespace-nowrap"
+                            title={event.groupNames?.length ? `Nhóm: ${event.groupNames.join(', ')}` : undefined}>
+                            <span>📷 {event.deviceName || event.deviceCode}</span>
+                            {event.groupNames?.length > 0 && <span className="text-[10px] font-normal text-slate-400">{event.groupNames.join(', ')}</span>}
+                        </div>
+                    )}
+
                     {/* Zone badge */}
                     {type === 'zone' && event.zoneName && (
                         <div className="text-xs bg-white border border-platinum-tint rounded-xl px-3 py-1.5 font-bold text-royal-amethyst flex items-center gap-1.5 shadow-sm whitespace-nowrap">
@@ -444,7 +456,7 @@ const UserJourney = () => {
                             <Map className="w-3.5 h-3.5" />
                             Hành trình
                         </span>
-                        <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Hành trình khuôn viên</h1>
+                        <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Lịch sử di chuyển theo người</h1>
                         <p className="text-slate-blue text-sm mt-0.5">
                             {isSelfOnly
                                 ? 'Xem lại hành trình di chuyển (ra/vào cổng, phòng họp, khu vực) của bạn trong ngày.'

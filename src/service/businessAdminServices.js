@@ -562,3 +562,20 @@ export const getCalendarRoles = async () => {
 export const updateCalendarRoles = async (payload) => {
     return await put('/meeting-calendar-roles', payload);
 };
+
+/**
+ * Hậu kiểm AI (họp 20/10) — các cuộc họp có thể gán cho một sự kiện người lạ.
+ * GET /face-access/stranger-alerts/events/:eventId/candidate-meetings (face.stranger.review)
+ */
+export const getStrangerCandidateMeetings = async (eventId) => {
+    return await get(`/face-access/stranger-alerts/events/${eventId}/candidate-meetings`);
+};
+
+/**
+ * Hậu kiểm AI — xác nhận các lần xuất hiện là một người cụ thể.
+ * POST /face-access/stranger-alerts/review (face.stranger.review)
+ * @param {{ eventIds: string[], userId: string, meetingId?: string, note?: string }} data
+ */
+export const reviewStrangerEvents = async (data) => {
+    return await post(`/face-access/stranger-alerts/review`, data);
+};

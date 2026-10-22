@@ -66,7 +66,7 @@ const STATIC_NAVIGATION_ITEMS = [
         icon: Monitor,
     },
     {
-        label: 'Hành trình',
+        label: 'Lịch sử di chuyển',
         to: '/manager/user-journey',
         icon: MapPin,
     },
