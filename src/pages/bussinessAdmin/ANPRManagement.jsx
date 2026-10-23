@@ -369,8 +369,18 @@ const ANPRManagement = ({ guardMode = false }) => {
                     </div>
 
                     {/* Table */}
-                    <div className="overflow-x-auto rounded-xl border border-platinum-tint">
-                        <table className="w-full text-left border-collapse">
+                    <div className="overflow-hidden rounded-xl border border-platinum-tint">
+                        <table className="w-full table-fixed text-left border-collapse">
+                            <colgroup>
+                                <col className="w-[13%]" />
+                                <col className="w-[9%]" />
+                                <col className="w-[16%]" />
+                                <col className="w-[14%]" />
+                                <col className="w-[11%]" />
+                                <col className="w-[11%]" />
+                                <col className="w-[16%]" />
+                                <col className="w-[9%]" />
+                            </colgroup>
                             <thead>
                                 <tr className="bg-cloud-mist border-b border-platinum-tint">
                                     <th className="py-3 px-4 text-[11px] font-extrabold text-slate-blue uppercase tracking-wider whitespace-nowrap">Thời điểm</th>
@@ -398,7 +408,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                         return (
                                             <tr key={item.id || idx} className="hover:bg-cloud-mist/40 transition-colors">
                                                 {/* Thời điểm */}
-                                                <td className="py-3 px-4 whitespace-nowrap">
+                                                <td className="py-3 px-2 whitespace-nowrap">
                                                     <p className="text-sm font-semibold text-midnight-indigo">
                                                         {evtDate ? evtDate.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—'}
                                                     </p>
@@ -408,7 +418,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                 </td>
 
                                                 {/* Hướng */}
-                                                <td className="py-3 px-4 text-center whitespace-nowrap">
+                                                <td className="py-3 px-2 text-center break-words">
                                                     {isEnter ? (
                                                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                             ↓ Vào
@@ -425,12 +435,15 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                 </td>
 
                                                 {/* Camera */}
-                                                <td className="py-3 px-4 text-center whitespace-nowrap">
-                                                    <span className="text-xs font-semibold text-slate-blue">{item.channelId || 'Main Gate'}</span>
+                                                <td className="py-3 px-2 text-center break-words">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-xs font-semibold text-slate-blue">{item.cameraName || 'Chưa xác định'}</span>
+                                                        <span className="text-[11px] text-slate-blue">{item.zoneName || 'Chưa xác định'}</span>
+                                                    </div>
                                                 </td>
 
                                                 {/* Biển số */}
-                                                <td className="py-3 px-4 text-center whitespace-nowrap">
+                                                <td className="py-3 px-2 text-center break-words">
                                                     <div className="inline-flex flex-col items-center gap-1">
                                                         <span className="font-bold text-midnight-indigo border border-slate-300 px-2.5 py-0.5 rounded-md bg-white shadow-sm font-mono text-sm tracking-wider">
                                                             {item.plateNumber}
@@ -444,14 +457,14 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                 </td>
 
                                                 {/* Loại xe */}
-                                                <td className="py-3 px-4 text-center whitespace-nowrap">
+                                                <td className="py-3 px-2 text-center break-words">
                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-50 text-slate-blue border border-platinum-tint">
                                                         {getVehicleTypeLabel(item.vehicleType || item.vehicle_type)}
                                                     </span>
                                                 </td>
 
                                                 {/* Đối soát */}
-                                                <td className="py-3 px-4 text-center whitespace-nowrap">
+                                                <td className="py-3 px-2 text-center break-words">
                                                     {item.matchState === 'matched' ? (
                                                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Khớp</span>
                                                     ) : (
@@ -460,18 +473,18 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                 </td>
 
                                                 {/* Chủ xe */}
-                                                <td className="py-3 px-4">
+                                                <td className="py-3 px-2 break-words">
                                                     {item.owner ? (
                                                         <div
-                                                            className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg transition-colors group w-fit max-w-[160px]"
+                                                            className="flex min-w-0 w-full items-center gap-1.5 cursor-pointer hover:bg-slate-50 px-1 py-1.5 rounded-lg transition-colors group"
                                                             onClick={() => { setSelectedOwner(item.owner); setIsOwnerModalOpen(true); }}
                                                         >
                                                             <UserAvatar
                                                                 user={item.owner}
                                                                 name={item.owner.fullName}
-                                                                className="w-7 h-7 rounded-full text-xs shadow-sm border border-platinum-tint group-hover:border-action-blue flex-shrink-0"
+                                                                className="w-8 h-8 rounded-full text-xs shadow-sm border border-platinum-tint group-hover:border-action-blue flex-shrink-0"
                                                             />
-                                                            <span className="text-sm font-semibold text-action-blue group-hover:text-blue-700 truncate" title={item.owner.fullName}>
+                                                            <span className="min-w-0 text-xs font-semibold text-action-blue group-hover:text-blue-700 whitespace-nowrap" title={item.owner.fullName}>
                                                                 {item.owner.fullName}
                                                             </span>
                                                         </div>
@@ -481,10 +494,11 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                 </td>
 
                                                 {/* Ảnh */}
-                                                <td className="py-3 px-4">
+                                                <td className="py-3 px-2">
                                                     <div className="flex justify-center">
                                                         <ThumbnailImage
                                                             eventId={item.id}
+                                                            className="w-full max-w-[92px] aspect-video"
                                                             onClick={() => { setSnapshotEventId(item.id); setIsSnapshotOpen(true); }}
                                                         />
                                                     </div>
@@ -547,7 +561,10 @@ const ANPRManagement = ({ guardMode = false }) => {
                                         </div>
                                         <p className="text-xs font-semibold text-slate-blue mt-2">Phát hiện lúc:</p>
                                         <p className="text-sm font-bold text-midnight-indigo">{new Date(item.eventTime).toLocaleString('vi-VN')}</p>
-                                        <p className="text-xs text-slate-blue mt-1">Camera: {item.channelId || 'Unknown'}</p>
+                                        <div className="mt-1 space-y-0.5 text-xs text-slate-blue">
+                                            <p><span className="font-semibold">Khu vực/cổng:</span> {item.zoneName || 'Chưa xác định'}</p>
+                                            <p><span className="font-semibold">Camera:</span> {item.cameraName || 'Chưa xác định'}</p>
+                                        </div>
                                         <ThumbnailImage
                                             eventId={item.id}
                                             className="w-full h-24 mt-3 object-cover shadow-sm border border-orange-200 rounded-lg hover:border-action-blue"

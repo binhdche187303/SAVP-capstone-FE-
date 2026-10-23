@@ -8,6 +8,7 @@ import {
     evaluateGateAttempt, availableActions, isOnSite, overstayLevel, shouldMarkExitUnrecorded,
 } from './visitStateMachine';
 import { hashSeed, mulberry32 } from './prng';
+import { emitVisitorAlertChanged } from '../../utils/visitorRealtime';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -18,6 +19,7 @@ const CLOSED_STATUSES = ['rejected', 'cancelled', 'revoked', 'expired', 'exit_un
 const SYSTEM_ACTIONS = ['expire', 'mark_unrecorded'];
 const ATTENTION_ORDER = ['must_leave', 'overstay', 'exit_unrecorded', 'manual_review', 'no_photo'];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const returningVerificationStore = new Map();
 
 const GATE_REASON_NOTES = {
     outside_window: 'Ngoài khung giờ được cấp',
@@ -104,6 +106,7 @@ const write = (fn) => {
     sweep(state, now);
     const result = fn(state, now);
     saveState(state);
+    emitVisitorAlertChanged({ result });
     return result;
 };
 
@@ -545,6 +548,52 @@ export const getPublicRegistration = (code) =>
         };
     });
 
+const contactValue = (value) => String(value || '').trim().toLowerCase();
+const maskContact = (value) => {
+    const contact = String(value || '').trim();
+    if (contact.includes('@')) {
+        const [name, domain] = contact.split('@');
+        return `${name.slice(0, 2)}***@${domain}`;
+    }
+    return `${contact.slice(0, 3)}****${contact.slice(-3)}`;
+};
+
+// Khách quay lại: chỉ trả thông tin sau khi đã xác thực mã gửi qua Zalo OA.
+export const requestReturningVisitorVerification = ({ contact } = {}) =>
+    read((state, now) => {
+        const wanted = contactValue(contact);
+        if (!wanted) fail('Vui lòng nhập số điện thoại hoặc email đã đăng ký');
+        const visit = state.visits.find((item) =>
+            contactValue(item.visitor.phone) === wanted || contactValue(item.visitor.email) === wanted);
+        if (!visit) fail('Không tìm thấy thông tin khách. Vui lòng chọn đăng ký lần đầu.');
+        const verificationId = `rv-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
+        returningVerificationStore.set(verificationId, wanted);
+        return {
+            verificationId,
+            channel: 'zalo_oa',
+            maskedContact: maskContact(contact),
+            // Chỉ hiển thị trong chế độ mock để người kiểm thử hoàn tất được luồng.
+            demoCode: '123456',
+            expiresInSeconds: 300,
+        };
+    });
+
+export const verifyReturningVisitor = ({ verificationId, code } = {}) =>
+    read((state, now) => {
+        const wanted = returningVerificationStore.get(verificationId);
+        if (!wanted) fail('Mã xác thực đã hết hạn. Vui lòng yêu cầu mã mới.');
+        if (String(code || '').trim() !== '123456') fail('Mã xác thực không đúng');
+        const visit = state.visits.find((item) =>
+            contactValue(item.visitor.phone) === wanted || contactValue(item.visitor.email) === wanted);
+        returningVerificationStore.delete(verificationId);
+        if (!visit) fail('Không tìm thấy hồ sơ khách');
+        return {
+            verified: true,
+            visitor: { ...visit.visitor },
+            verifiedAt: now.toISOString(),
+        };
+    });
+
 // Hàng "Cần xử lý" của chốt bảo vệ: chỉ các ngoại lệ, đường thông thường không cần người trực.
 const buildAttention = (state, now, today) => {
     const weekAgo = now.getTime() - 7 * DAY;
@@ -564,9 +613,9 @@ const buildAttention = (state, now, today) => {
         ATTENTION_ORDER.indexOf(a.kind) - ATTENTION_ORDER.indexOf(b.kind) || new Date(a.since) - new Date(b.since));
 };
 
-export const getDeskToday = () =>
+export const getDesk = ({ date } = {}) =>
     read((state, now) => {
-        const today = localYmd(now);
+        const today = date || localYmd(now);
         const scheduledToday = state.visits.filter((v) => localYmd(v.scheduledFrom) === today);
         const carriedOver = state.visits.filter((v) => isOnSite(v) && localYmd(v.scheduledFrom) !== today);
         const items = [...scheduledToday, ...carriedOver].sort((a, b) => new Date(a.scheduledFrom) - new Date(b.scheduledFrom));
@@ -596,6 +645,8 @@ export const getDeskToday = () =>
             attention: buildAttention(state, now, today),
         };
     });
+
+export const getDeskToday = () => getDesk();
 
 export const getMyVisits = () =>
     read((state, now) => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Check, CheckCircle2 } from 'lucide-react';
-import { getPublicPurposes, getPublicHost, createPublicRegistration } from '../../service/visitorService';
+import { getPublicPurposes, getPublicHost, createPublicRegistration, requestReturningVisitorVerification, verifyReturningVisitor } from '../../service/visitorService';
 import PublicShell from '../../components/visitor/PublicShell';
 import FaceCapture from '../../components/visitor/FaceCapture';
 import HostPicker from '../../components/visitor/HostPicker';
@@ -33,7 +33,7 @@ const validateStep = (step, form) => {
         if (to - from > 7 * DAY_MS) return 'Khung giờ hẹn tối đa 7 ngày';
     }
     if (step === 2) {
-        if (!visitor.photo) return 'Vui lòng chụp hoặc tải ảnh khuôn mặt';
+        if (!visitor.photo && !visitor.reuseFaceProfile) return 'Vui lòng chụp hoặc tải ảnh khuôn mặt';
         if (!consent) return 'Cần đồng ý xử lý dữ liệu sinh trắc để tiếp tục';
     }
     return null;
@@ -48,6 +48,93 @@ const SummaryRow = ({ label, children }) => (
     </div>
 );
 
+const ReturningVisitorPanel = ({ onBackToNew, onVerified }) => {
+    const [contact, setContact] = useState('');
+    const [code, setCode] = useState('');
+    const [request, setRequest] = useState(null);
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    const sendVerification = async (event) => {
+        event.preventDefault();
+        setLoading(true);
+        setError(null);
+        const res = await requestReturningVisitorVerification({ contact: contact.trim() });
+        if (res?.success) setRequest(res.data);
+        else setError(res?.message || 'Không gửi được yêu cầu xác thực');
+        setLoading(false);
+    };
+
+    const verify = async (event) => {
+        event.preventDefault();
+        setLoading(true);
+        setError(null);
+        const res = await verifyReturningVisitor({ verificationId: request.verificationId, code: code.trim() });
+        if (res?.success) onVerified(res.data.visitor);
+        else setError(res?.message || 'Xác thực không thành công');
+        setLoading(false);
+    };
+
+    return (
+        <div className={`${cardCls} p-6 space-y-5`}>
+            <div>
+                <p className="text-lg font-bold text-midnight-indigo">Khách đã đăng ký</p>
+                <p className="text-xs text-slate-blue mt-1">Nhập số điện thoại hoặc email đã dùng trước đây để nhận mã xác thực qua Zalo OA.</p>
+            </div>
+
+            {!request ? (
+                <form onSubmit={sendVerification} className="space-y-4">
+                    <Field label="Số điện thoại hoặc email" htmlFor="returning-contact" required>
+                        <input
+                            id="returning-contact"
+                            className={`${inputCls} w-full`}
+                            value={contact}
+                            onChange={(event) => setContact(event.target.value)}
+                            placeholder="09xxxxxxxx hoặc email đã đăng ký"
+                            autoComplete="email tel"
+                        />
+                    </Field>
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+                        Hệ thống sẽ gửi yêu cầu xác thực qua Zalo OA. Bạn chỉ được tiếp tục đăng ký sau khi xác thực thành công.
+                    </div>
+                    {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
+                    <div className="flex justify-between gap-3">
+                        <button type="button" className={btnGhost} onClick={onBackToNew}>Đăng ký lần đầu</button>
+                        <button type="submit" className={btnPrimary} disabled={loading || !contact.trim()}>
+                            {loading ? 'Đang kiểm tra…' : 'Gửi xác thực qua Zalo OA'}
+                        </button>
+                    </div>
+                </form>
+            ) : (
+                <form onSubmit={verify} className="space-y-4">
+                    <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-xs text-green-800">
+                        Mã xác thực đã được gửi qua Zalo OA đến <strong>{request.maskedContact}</strong>.
+                    </div>
+                    <Field label="Mã xác thực Zalo OA" htmlFor="returning-code" required>
+                        <input
+                            id="returning-code"
+                            className={`${inputCls} w-full font-sans tracking-normal`}
+                            value={code}
+                            onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="Nhập 6 chữ số"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                        />
+                    </Field>
+                    {request.demoCode && <p className="text-[11px] text-slate-blue">Mã mô phỏng để kiểm thử: <strong>{request.demoCode}</strong></p>}
+                    {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
+                    <div className="flex justify-between gap-3">
+                        <button type="button" className={btnGhost} onClick={() => { setRequest(null); setCode(''); setError(null); }}>Đổi thông tin</button>
+                        <button type="submit" className={btnPrimary} disabled={loading || code.length !== 6}>
+                            {loading ? 'Đang xác thực…' : 'Xác thực và tiếp tục'}
+                        </button>
+                    </div>
+                </form>
+            )}
+        </div>
+    );
+};
+
 const VisitorRegister = () => {
     const [purposes, setPurposes] = useState([]);
     const [step, setStep] = useState(0);
@@ -55,6 +142,8 @@ const VisitorRegister = () => {
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [created, setCreated] = useState(null);
+    const [registrationMode, setRegistrationMode] = useState('new');
+    const [returningVerified, setReturningVerified] = useState(false);
     const [searchParams] = useSearchParams();
     const invitedHostId = searchParams.get('host');
 
@@ -98,7 +187,19 @@ const VisitorRegister = () => {
         setSubmitting(false);
     };
 
-    const restart = () => { setCreated(null); setForm(initialForm()); setStep(0); setError(null); };
+    const restart = () => { setCreated(null); setForm(initialForm()); setStep(0); setError(null); setRegistrationMode('new'); setReturningVerified(false); };
+    const switchToNew = () => { setRegistrationMode('new'); setReturningVerified(false); };
+    const switchToReturning = () => { setRegistrationMode('returning'); setReturningVerified(false); };
+    const continueAsReturningVisitor = (visitor) => {
+        setForm((prev) => ({
+            ...prev,
+            visitor: { ...prev.visitor, ...visitor, reuseFaceProfile: Boolean(visitor.hasFaceProfile) },
+            consent: Boolean(visitor.hasFaceProfile),
+        }));
+        setReturningVerified(true);
+        setStep(1);
+        setError(null);
+    };
 
     if (created) {
         return (
@@ -121,6 +222,24 @@ const VisitorRegister = () => {
 
     return (
         <PublicShell title="Đăng ký khách đến làm việc" subtitle="Đăng ký trước để được cấp quyền ra vào và xác thực nhanh bằng khuôn mặt tại cổng.">
+            <div className={`${cardCls} p-4 space-y-3`}>
+                <div>
+                    <p className="text-sm font-bold text-midnight-indigo">Bạn đã từng đăng ký với nhà trường?</p>
+                    <p className="text-xs text-slate-blue mt-1">Chọn đúng loại đăng ký để không phải nhập lại thông tin.</p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2" role="tablist" aria-label="Loại đăng ký khách">
+                    <button type="button" role="tab" aria-selected={registrationMode === 'new'} className={`${registrationMode === 'new' ? btnPrimary : btnGhost} w-full`} onClick={switchToNew}>
+                        Khách lần đầu
+                    </button>
+                    <button type="button" role="tab" aria-selected={registrationMode === 'returning'} className={`${registrationMode === 'returning' ? btnPrimary : btnGhost} w-full`} onClick={switchToReturning}>
+                        Khách đã đăng ký
+                    </button>
+                </div>
+            </div>
+
+            {registrationMode === 'returning' && !returningVerified && <ReturningVisitorPanel onBackToNew={switchToNew} onVerified={continueAsReturningVisitor} />}
+
+            {(registrationMode === 'new' || returningVerified) && <>
             <ol className="flex items-center justify-between gap-2">
                 {STEPS.map((label, i) => (
                     <li key={label} className="flex-1 flex flex-col items-center gap-1.5">
@@ -181,7 +300,25 @@ const VisitorRegister = () => {
 
                 {step === 2 && (
                     <div className="space-y-4">
-                        <FaceCapture value={form.visitor.photo} onChange={(photo) => setV({ photo })} />
+                        {form.visitor.reuseFaceProfile ? (
+                            <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-4 text-sm text-green-800 space-y-3">
+                                <p>Face ID đã được xác thực và sẽ được dùng lại cho lượt đăng ký này.</p>
+                                {form.visitor.photoPreview && <img src={form.visitor.photoPreview} alt="Face ID đã lưu" className="w-28 h-28 rounded-2xl object-cover border border-green-200" />}
+                                <button
+                                    type="button"
+                                    className={btnGhost}
+                                    onClick={() => setForm((prev) => ({
+                                        ...prev,
+                                        visitor: { ...prev.visitor, reuseFaceProfile: false, photo: null, photoPreview: null },
+                                        consent: false,
+                                    }))}
+                                >
+                                    Chụp lại Face ID
+                                </button>
+                            </div>
+                        ) : (
+                            <FaceCapture value={form.visitor.photo} onChange={(photo) => setV({ photo })} />
+                        )}
                         <label className="flex items-start gap-2 text-xs text-midnight-indigo">
                             <input type="checkbox" className="mt-0.5" checked={form.consent} onChange={(e) => patch({ consent: e.target.checked })} />
                             {CONSENT_TEXT}
@@ -191,7 +328,7 @@ const VisitorRegister = () => {
 
                 {step === 3 && (
                     <div className="flex flex-col sm:flex-row gap-5">
-                        <img src={form.visitor.photo} alt="Ảnh khuôn mặt đã chụp" className="w-28 h-28 rounded-2xl object-cover border border-platinum-tint mx-auto sm:mx-0" />
+                        <img src={form.visitor.photoPreview || form.visitor.photo} alt="Ảnh khuôn mặt đã chụp" className="w-28 h-28 rounded-2xl object-cover border border-platinum-tint mx-auto sm:mx-0" />
                         <div className="flex-1">
                             <SummaryRow label="Khách">{form.visitor.fullName}</SummaryRow>
                             <SummaryRow label="Liên hệ">{form.visitor.phone} · {form.visitor.email}</SummaryRow>
@@ -217,6 +354,7 @@ const VisitorRegister = () => {
             <p className="text-center text-xs text-slate-blue">
                 Đã đăng ký? <Link to="/visitor/status" className="font-semibold text-action-blue hover:underline">Tra cứu trạng thái</Link>
             </p>
+            </>}
         </PublicShell>
     );
 };

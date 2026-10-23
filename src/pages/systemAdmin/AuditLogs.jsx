@@ -49,7 +49,10 @@ const ENTITY_TRANSLATIONS = {
     'attendance_records': 'Bản ghi điểm danh',
     'analytics_dashboard': 'Bảng thống kê',
     'audit_logs': 'Nhật ký hệ thống',
-    'zones': 'Khu vực giám sát'
+    'zones': 'Khu vực giám sát',
+    'visitor_visits': 'Quản lý lượt khách',
+    'visitor_visit': 'Quản lý lượt khách',
+    'visitors': 'Quản lý khách'
 };
 
 // So khớp không phân biệt hoa/thường và dấu tiếng Việt
@@ -224,7 +227,14 @@ const AuditLogs = () => {
             const res = await getAuditLogs(params);
             if (res?.success) {
                 setLogsList(res.data || []);
-                setMeta(res.meta || { page: pageNumber, limit: pageLimit, total: res.data?.length || 0, totalPages: 1 });
+                const serverMeta = res.meta || {};
+                setMeta({
+                    ...serverMeta,
+                    page: Number(serverMeta.page) || pageNumber,
+                    limit: Number(serverMeta.limit) || pageLimit,
+                    total: Number(serverMeta.total) || res.data?.length || 0,
+                    totalPages: Number(serverMeta.totalPages) || 1
+                });
             } else {
                 throw new Error('Fallback to mock data');
             }
@@ -348,6 +358,19 @@ const AuditLogs = () => {
             setExporting(false);
         }
     };
+
+    // Một số bản backend cũ có thể trả toàn bộ danh sách dù đã nhận limit.
+    // Cắt thêm ở FE để bảng luôn hiển thị đúng số dòng mỗi trang.
+    const pageLimit = meta.limit || 10;
+    const currentPage = Number(meta.page) || 1;
+    const effectiveTotal = Math.max(Number(meta.total) || 0, logsList.length);
+    const effectiveTotalPages = Math.max(
+        Number(meta.totalPages) || 1,
+        Math.ceil(effectiveTotal / pageLimit)
+    );
+    const visibleLogs = logsList.length > pageLimit
+        ? logsList.slice((currentPage - 1) * pageLimit, currentPage * pageLimit)
+        : logsList;
 
     // Helper badges styling
     const getActionBadge = (action) => {
@@ -539,7 +562,7 @@ const AuditLogs = () => {
 
             {/* Logs Data Table */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
-                {loading ? (
+                {loading && logsList.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20">
                         <div className="w-10 h-10 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin"></div>
                         <p className="text-slate-blue text-sm mt-4">Đang tải lịch sử nhật ký hệ thống...</p>
@@ -566,7 +589,7 @@ const AuditLogs = () => {
                                         </td>
                                     </tr>
                                 ) : (
-                                    logsList.map(log => (
+                                    visibleLogs.map(log => (
                                         <tr key={log.id} className="hover:bg-cloud-mist/30 transition-colors">
                                             {/* Thời gian — gộp ngày + giờ */}
                                             <td className="py-4 px-6 whitespace-nowrap">
@@ -668,21 +691,23 @@ const AuditLogs = () => {
                                 <option value={50}>50 dòng</option>
                             </select>
                             <span className="text-xs text-slate-blue">
-                                Hiển thị {(meta.page - 1) * meta.limit + 1} - {Math.min(meta.page * meta.limit, meta.total)} trên {meta.total} dòng
+                                Hiển thị {(currentPage - 1) * pageLimit + 1} - {Math.min(currentPage * pageLimit, effectiveTotal)} trên {effectiveTotal} dòng
                             </span>
                         </div>
 
                         <div className="flex gap-2">
                             <button
-                                disabled={meta.page <= 1}
-                                onClick={() => fetchLogs(meta.page - 1, meta.limit)}
+                                type="button"
+                                disabled={currentPage <= 1}
+                                onClick={() => fetchLogs(currentPage - 1, pageLimit)}
                                 className="px-3 py-1.5 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 Trước
                             </button>
                             <button
-                                disabled={meta.page >= meta.totalPages}
-                                onClick={() => fetchLogs(meta.page + 1, meta.limit)}
+                                type="button"
+                                disabled={currentPage >= effectiveTotalPages}
+                                onClick={() => fetchLogs(currentPage + 1, pageLimit)}
                                 className="px-3 py-1.5 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 Sau

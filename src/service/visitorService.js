@@ -37,6 +37,8 @@ export const getPublicPurposes = () => call(() => ({ purposes: mock.getVisitorLo
 export const searchHosts = (q) => call(() => mock.searchHosts(q), () => get(`/public/visitor-hosts${qs({ q })}`));
 export const getPublicHost = (id) => call(() => mock.getPublicHost(id), () => get(`/public/visitor-hosts/${encodeURIComponent(id)}`));
 export const createPublicRegistration = (payload) => call(() => mock.createPublicRegistration(payload), () => post('/public/visitor-registrations', payload));
+export const requestReturningVisitorVerification = (contact) => call(() => mock.requestReturningVisitorVerification(contact), () => post('/public/visitor-verifications/request', contact));
+export const verifyReturningVisitor = (payload) => call(() => mock.verifyReturningVisitor(payload), () => post('/public/visitor-verifications/verify', payload));
 export const getPublicRegistration = (code) => call(() => mock.getPublicRegistration(code), () => get(`/public/visitor-registrations/${encodeURIComponent(code)}`));
 export const listVisits = (params) => call(() => mock.listVisits(params), () => get(`/visitors/visits${qs(params)}`));
 export const getVisit = (id) => call(() => mock.getVisit(id), () => get(`/visitors/visits/${id}`));
@@ -55,6 +57,7 @@ export const checkOutVisit = (id) => call(() => mock.checkOutVisit(id), () => po
 export const closeVisitManually = (id, body) => call(() => mock.closeVisitManually(id, body), () => post(`/visitors/visits/${id}/close-manual`, body));
 export const scanAtGate = (code, body) => call(() => mock.scanAtGate(code, body), () => post('/dev/mock-visitor-scan', { ...body, code }));
 export const getDeskToday = () => call(() => mock.getDeskToday(), () => get('/visitors/desk/today'));
+export const getDesk = (params) => call(() => mock.getDesk(params), () => get(`/visitors/desk${qs(params)}`));
 export const getMyVisits = () => call(() => mock.getMyVisits(), () => get('/visitors/my-visits'));
 export const getMyNotifications = () => call(() => mock.getMyNotifications(), () => get('/visitors/my-notifications'));
 export const markMyNotificationsRead = () => call(() => mock.markMyNotificationsRead(), () => post('/visitors/my-notifications/read'));

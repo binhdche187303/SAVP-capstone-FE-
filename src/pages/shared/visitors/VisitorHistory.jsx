@@ -9,10 +9,23 @@ import SimpleModal from '../../../components/common/SimpleModal';
 import VisitDetailDrawer from '../../../components/visitor/VisitDetailDrawer';
 import VisitStatusBadge from '../../../components/visitor/VisitStatusBadge';
 import { fmtDateTime, fmtTimeRange, fmtScore } from '../../../components/visitor/visitLabels';
-import { pageCls, cardCls, inputCls, searchInputCls, labelCls, btnGhost, thCls, tdCls, errorBoxCls } from '../../../components/common/uiClasses';
+import { pageCls, cardCls, inputCls, searchInputCls, labelCls, btnGhost, errorBoxCls } from '../../../components/common/uiClasses';
 
 // S6 (2.10): tra cứu lịch sử khách đến theo khách, đơn vị, người gặp, thời gian.
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 10;
+const historyThCls = 'px-2 py-3 text-left text-[10px] font-bold text-slate-blue uppercase whitespace-normal';
+const historyTdCls = 'px-2 py-3 text-xs text-midnight-indigo whitespace-normal break-words align-top';
+const formatVisitDate = (value) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+};
+const formatVisitTime = (from, to) => {
+    if (!from || !to) return '—';
+    const start = new Date(from);
+    const end = new Date(to);
+    return `${pad(start.getHours())}:${pad(start.getMinutes())} – ${pad(end.getHours())}:${pad(end.getMinutes())}`;
+};
 const pad = (n) => String(n).padStart(2, '0');
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const last30Days = () => {
@@ -118,11 +131,24 @@ const VisitorHistory = () => {
             {error && <div className={errorBoxCls}>{error}</div>}
 
             <div className={`${cardCls} overflow-hidden`}>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
+                <div className="overflow-hidden">
+                    <table className="w-full table-fixed">
+                        <colgroup>
+                            <col className="w-[8%]" />
+                            <col className="w-[10%]" />
+                            <col className="w-[11%]" />
+                            <col className="w-[13%]" />
+                            <col className="w-[9%]" />
+                            <col className="w-[9%]" />
+                            <col className="w-[9%]" />
+                            <col className="w-[8%]" />
+                            <col className="w-[7%]" />
+                            <col className="w-[10%]" />
+                            <col className="w-[6%]" />
+                        </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
-                                {['Giờ hẹn', 'Khách', 'Đơn vị công tác', 'Người gặp / Đơn vị tiếp', 'Mục đích', 'Giờ vào', 'Giờ ra', 'Lưu trú', 'Độ khớp', 'Trạng thái', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
+                                {['Giờ hẹn', 'Khách', 'Đơn vị công tác', 'Người gặp / Đơn vị tiếp', 'Mục đích', 'Giờ vào', 'Giờ ra', 'Lưu trú', 'Độ khớp', 'Trạng thái', ''].map((h) => <th key={h} className={historyThCls}>{h}</th>)}
                             </tr>
                         </thead>
                         <tbody>
@@ -130,22 +156,27 @@ const VisitorHistory = () => {
                                 <tr><td colSpan={11} className="px-4 py-10 text-center text-xs text-slate-blue">{data ? 'Không có lượt khách nào trong khoảng đã chọn' : 'Đang tải dữ liệu…'}</td></tr>
                             ) : items.map((visit) => (
                                 <tr key={visit.id} className="border-b border-pale-gray last:border-0 hover:bg-cloud-mist/40">
-                                    <td className={tdCls}>{fmtTimeRange(visit.scheduledFrom, visit.scheduledTo)}</td>
-                                    <td className={tdCls}>
+                                    <td className={historyTdCls}>
+                                        <div className="whitespace-nowrap">
+                                            <p>{formatVisitDate(visit.scheduledFrom)}</p>
+                                            <p className="text-[11px] text-slate-blue mt-0.5">{formatVisitTime(visit.scheduledFrom, visit.scheduledTo)}</p>
+                                        </div>
+                                    </td>
+                                    <td className={historyTdCls}>
                                         <button type="button" aria-label={`Xem các lượt của ${visit.visitor.fullName}`} className="font-semibold text-action-blue hover:underline" onClick={() => openProfile(visit)}>{visit.visitor.fullName}</button>
                                     </td>
-                                    <td className={tdCls}>{visit.visitor.organization || '—'}</td>
-                                    <td className={tdCls}>
+                                    <td className={historyTdCls}>{visit.visitor.organization || '—'}</td>
+                                    <td className={historyTdCls}>
                                         <p className="font-semibold">{visit.hostName}</p>
                                         <p className="text-[11px] text-slate-blue">{visit.departmentName}</p>
                                     </td>
-                                    <td className={tdCls}>{visit.purpose}</td>
-                                    <td className={tdCls}>{fmtDateTime(visit.checkInAt)}</td>
-                                    <td className={tdCls}>{fmtDateTime(visit.checkOutAt)}</td>
-                                    <td className={tdCls}>{formatDuration(staySeconds(visit))}</td>
-                                    <td className={tdCls}>{fmtScore(visit.faceScore)}</td>
-                                    <td className={tdCls}><VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} /></td>
-                                    <td className={`${tdCls} text-right`}>
+                                    <td className={historyTdCls}>{visit.purpose}</td>
+                                    <td className={historyTdCls}>{fmtDateTime(visit.checkInAt)}</td>
+                                    <td className={historyTdCls}>{fmtDateTime(visit.checkOutAt)}</td>
+                                    <td className={historyTdCls}>{formatDuration(staySeconds(visit))}</td>
+                                    <td className={historyTdCls}>{fmtScore(visit.faceScore)}</td>
+                                    <td className={historyTdCls}><VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} /></td>
+                                    <td className={`${historyTdCls} text-right`}>
                                         <button type="button" className="text-action-blue font-semibold hover:underline" onClick={() => setDetailId(visit.id)}>Chi tiết</button>
                                     </td>
                                 </tr>

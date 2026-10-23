@@ -13,6 +13,7 @@ import { getMeetingById, updateMeeting, updateMeetingTime, updateMeetingRoom, up
 import UserAvatar from '../../components/common/UserAvatar';
 import MeetingAttendanceBoard from '../../components/meeting/MeetingAttendanceBoard';
 import MeetingPresenceIVSS from '../../components/meeting/MeetingPresenceIVSS';
+import MeetingAccessLogTab from '../../components/meeting/MeetingAccessLogTab';
 import NotificationActionsPanel from '../../components/common/NotificationActionsPanel';
 import AddParticipantsModal from '../../components/meeting/AddParticipantsModal';
 import MinutesTabContent from '../../components/minutes/MinutesTabContent';
@@ -154,7 +155,7 @@ const ManagerMeetingDetail = () => {
     const [searchParams] = useSearchParams();
     const initialTab = searchParams.get('tab') || 'transcript';
     const [activeRightTab, setActiveRightTab] = useState(initialTab);
-    const [activeAttendanceTab, setActiveAttendanceTab] = useState('attendance'); // 'attendance' or 'ivss'
+    const [activeAttendanceTab, setActiveAttendanceTab] = useState('attendance'); // attendance | ivss | access-log
     const [refreshTranscriptKey, setRefreshTranscriptKey] = useState(0);
     const [runningSttSessionIds, setRunningSttSessionIds] = useState(() => new Set());
     const [audioPage, setAudioPage] = useState(1);
@@ -1494,18 +1495,30 @@ const ManagerMeetingDetail = () => {
                             >
                                 Hiện diện thực tế (Camera AI - IVSS)
                             </button>
+                            <button
+                                onClick={() => setActiveAttendanceTab('access-log')}
+                                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors ${
+                                    activeAttendanceTab === 'access-log'
+                                        ? 'border-action-blue text-action-blue font-extrabold'
+                                        : 'border-transparent text-slate-blue hover:text-midnight-indigo'
+                                }`}
+                            >
+                                Nhật ký ra/vào phòng họp
+                            </button>
                         </div>
 
                         {activeAttendanceTab === 'attendance' ? (
                             meeting.attendanceEnabled === false
                                 ? <div className="p-6 text-center text-sm text-slate-blue bg-slate-50 rounded-2xl border border-platinum-tint">Cuộc họp này không yêu cầu điểm danh.</div>
                                 : <MeetingAttendanceBoard meetingId={meeting.id} />
-                        ) : (
+                        ) : activeAttendanceTab === 'ivss' ? (
                             <MeetingPresenceIVSS 
                                 meetingId={meeting.id} 
                                 meetingStartTime={meeting.startTime} 
                                 meetingEndTime={meeting.endTime} 
                             />
+                        ) : (
+                            <MeetingAccessLogTab meetingId={meeting.id} />
                         )}
                     </div>
                 )}

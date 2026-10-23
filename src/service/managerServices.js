@@ -201,6 +201,11 @@ export const getMeetingPresence = async (meetingId) => {
     return await get(`/ivss/meetings/${meetingId}/presence`);
 };
 
+export const getMeetingAccessEvents = async (meetingId) => {
+    return await get(`/ivss/meetings/${meetingId}/access-events`);
+};
+
+
 export const getUserPresence = async (meetingId, userId) => {
     return await get(`/ivss/meetings/${meetingId}/presence/${userId}`);
 };

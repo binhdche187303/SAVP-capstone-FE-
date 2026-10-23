@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Bell, Car, ChevronDown, KeyRound, LogOut, Shield, ShieldAlert, User, UserCheck } from 'lucide-react';
+import { Bell, Car, ChevronDown, KeyRound, LogOut, Shield, ShieldAlert, User, UserCheck, UserRound } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import UserAvatar from '../../components/common/UserAvatar';
 import NotificationBell from '../../components/common/NotificationBell';
@@ -11,6 +11,7 @@ import { getCurrentUser, logout } from '../../service/authService';
 const NAV_ITEMS = [
     { to: '/guard', label: 'Trực cổng', icon: Shield, end: true },
     { to: '/guard/security-alerts', label: 'Cảnh báo an ninh', icon: ShieldAlert },
+    { to: '/guard/visitor-alerts', label: 'Cảnh báo khách', icon: UserRound },
     { to: '/guard/anpr', label: 'Xe vào ra', icon: Car },
     { to: '/guard/visitors/desk', label: 'Khách tại cổng', icon: UserCheck },
 ];

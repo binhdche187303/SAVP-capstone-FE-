@@ -8,9 +8,11 @@ import {
     exportClassAttendanceCsv,
     fetchClassAttendanceClasses,
     fetchClassAttendanceRows,
+    fetchClassAttendanceEvents,
     fetchClassAttendanceSettings,
     getClassAttendanceSettings,
     getClassSession,
+    getClassAttendanceEvents,
     scanClassAttendance,
     mockClassFaceScan,
     mockClassrooms
@@ -153,7 +155,9 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState(queryAdministrativeClass);
     const [classPage, setClassPage] = useState(1);
+    const [eventPage, setEventPage] = useState(1);
     const [rows, setRows] = useState([]);
+    const [attendanceEvents, setAttendanceEvents] = useState([]);
     const [settings, setSettings] = useState(getClassAttendanceSettings(mode === 'teacher' ? undefined : mockClassrooms[0].id));
     const [scanDirection, setScanDirection] = useState('in');
     const [autoScan, setAutoScan] = useState(false);
@@ -259,6 +263,13 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         missing: filteredRows.filter(row => !row.checkInAt).length
     }), [filteredRows]);
 
+    const eventsPerPage = 5;
+    const eventPageCount = Math.max(1, Math.ceil(attendanceEvents.length / eventsPerPage));
+    const visibleAttendanceEvents = useMemo(
+        () => attendanceEvents.slice((eventPage - 1) * eventsPerPage, eventPage * eventsPerPage),
+        [attendanceEvents, eventPage]
+    );
+
     const refresh = useCallback(() => {
         let cancelled = false;
         const load = async () => {
@@ -288,23 +299,27 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                     setSettings(getClassAttendanceSettings());
                     return;
                 }
-                const [apiRows, apiSettings] = await Promise.all([
+                const [apiRows, apiSettings, apiEvents] = await Promise.all([
                     fetchClassAttendanceRows(nextClassId, selectedDate),
-                    fetchClassAttendanceSettings(nextClassId, selectedAdministrativeClass).catch(() => getClassAttendanceSettings(nextClassId, selectedAdministrativeClass))
+                    fetchClassAttendanceSettings(nextClassId, selectedAdministrativeClass).catch(() => getClassAttendanceSettings(nextClassId, selectedAdministrativeClass)),
+                    fetchClassAttendanceEvents(nextClassId, selectedDate).catch(() => [])
                 ]);
                 if (cancelled) return;
                 setClassrooms(nextClasses);
                 if (nextClassId !== selectedClassId) setSelectedClassId(nextClassId);
                 setRows(apiRows.length ? apiRows : buildClassAttendanceRows(nextClassId, selectedDate));
+                setAttendanceEvents(apiEvents);
                 setSettings({ ...getClassAttendanceSettings(nextClassId, selectedAdministrativeClass), ...apiSettings });
             } catch {
                 if (cancelled) return;
                 setClassrooms(mockClassrooms);
                 if (mode === 'teacher' && !selectedClassId) {
                     setRows([]);
+                    setAttendanceEvents([]);
                     setSettings(getClassAttendanceSettings());
                 } else {
                     setRows(buildClassAttendanceRows(selectedClassId, selectedDate));
+                    setAttendanceEvents(getClassAttendanceEvents(selectedClassId, selectedDate));
                     setSettings(getClassAttendanceSettings(selectedClassId, selectedAdministrativeClass));
                 }
             }
@@ -318,6 +333,14 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     useEffect(() => {
         if (classPage > classPageCount) setClassPage(classPageCount);
     }, [classPage, classPageCount]);
+
+    useEffect(() => {
+        if (eventPage > eventPageCount) setEventPage(eventPageCount);
+    }, [eventPage, eventPageCount]);
+
+    useEffect(() => {
+        setEventPage(1);
+    }, [selectedClassId, selectedDate, selectedAdministrativeClass]);
 
     useEffect(() => {
         if (selectedAdministrativeClass && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
@@ -335,6 +358,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         if (selectedClassId && !subjectClassrooms.some(item => item.id === selectedClassId)) {
             setSelectedClassId(mode === 'teacher' ? '' : subjectClassrooms[0]?.id || '');
             setRows([]);
+                    setAttendanceEvents([]);
             setSelectedAdministrativeClass('');
         }
     }, [mode, selectedClassId, semesterClassrooms, subjectClassrooms]);
@@ -352,6 +376,12 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
             window.removeEventListener('class-attendance-updated', handler);
         };
     }, [refresh]);
+
+    useEffect(() => {
+        if (!selectedClassId || selectedDate !== getTodayKey()) return undefined;
+        const timer = setInterval(() => refresh(), 5000);
+        return () => clearInterval(timer);
+    }, [refresh, selectedClassId, selectedDate]);
 
     useEffect(() => () => {
         streamRef.current?.getTracks?.().forEach(track => track.stop());
@@ -709,6 +739,66 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         </tbody>
                     </table>
                 </div>
+            </div>
+            <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10 flex items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">Nhật ký vào/ra lớp</h2>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-blue">{attendanceEvents.length} lượt ghi nhận</span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
+                            <tr><th className="text-left px-5 py-3">Thời gian</th><th className="text-left px-5 py-3">Sinh viên</th><th className="text-left px-5 py-3">Sự kiện</th><th className="text-left px-5 py-3">Nguồn</th><th className="text-left px-5 py-3">Camera / zone</th><th className="text-left px-5 py-3">Ghi chú</th></tr>
+                        </thead>
+                        <tbody>
+                            {visibleAttendanceEvents.map(event => (
+                                <tr key={event.id} className="border-t border-platinum-tint/70">
+                                    <td className="px-5 py-3 text-xs font-semibold text-midnight-indigo">{event.occurredAt ? new Date(event.occurredAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}</td>
+                                    <td className="px-5 py-3"><p className="font-bold text-midnight-indigo">{event.studentName}</p><p className="text-xs text-slate-blue">{event.studentCode}</p></td>
+                                    <td className="px-5 py-3 font-semibold text-midnight-indigo">{event.direction === 'out' ? 'Đã rời lớp' : 'Đã vào lớp'}</td>
+                                    <td className="px-5 py-3"><span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${event.source === 'manual' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>{event.sourceLabel || (event.source === 'manual' ? 'Thủ công' : 'Tự động')}</span>{event.actorName && <p className="text-[11px] text-slate-blue mt-1">{event.actorName}</p>}</td>
+                                    <td className="px-5 py-3 text-xs text-slate-blue">{event.cameraGroupId || event.cameraId || event.zoneId ? `${event.cameraGroupId || '—'} / ${event.cameraId || '—'} / ${event.zoneId || '—'}` : 'Chưa có dữ liệu camera'}</td>
+                                    <td className="px-5 py-3 text-xs text-slate-blue">{event.reason || '—'}</td>
+                                </tr>
+                            ))}
+                            {!attendanceEvents.length && <tr><td colSpan="6" className="px-5 py-8 text-center text-sm text-slate-blue">Chưa có lượt vào/ra được ghi nhận trong ngày.</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+                {attendanceEvents.length > 0 && (
+                    <div className="flex items-center justify-between gap-3 border-t border-platinum-tint px-5 py-3">
+                        <span className="text-xs text-slate-blue">
+                            Hiển thị {(eventPage - 1) * eventsPerPage + 1}–{Math.min(eventPage * eventsPerPage, attendanceEvents.length)} trong {attendanceEvents.length} lượt ghi nhận
+                        </span>
+                        {eventPageCount > 1 && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setEventPage(page => Math.max(1, page - 1))}
+                                    disabled={eventPage === 1}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-platinum-tint px-3 py-1.5 text-xs font-semibold text-midnight-indigo disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <ChevronLeft className="h-3.5 w-3.5" />
+                                    Trước
+                                </button>
+                                <span className="min-w-[70px] text-center text-xs font-semibold text-slate-blue">
+                                    Trang {eventPage}/{eventPageCount}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setEventPage(page => Math.min(eventPageCount, page + 1))}
+                                    disabled={eventPage === eventPageCount}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-platinum-tint px-3 py-1.5 text-xs font-semibold text-midnight-indigo disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    Sau
+                                    <ChevronRight className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
             </>}
         </div>

@@ -3,7 +3,7 @@ import {
     ClipboardList, Clock, Cpu, Download, ExternalLink, Eye, FileText, Film, Loader, Mail, Mic, MicOff,
     MonitorUp, Play, Plus, RefreshCw, Shield, Smile,
     StickyNote, Timer, UserCheck, UserX, Users, Video as VideoIcon, VideoOff,
-    VolumeX, X, Edit2, MessageSquare
+    VolumeX, X, Edit2, MessageSquare, List
 } from 'lucide-react';
 import { IoMic, IoMicOff, IoHandLeft, IoVolumeHigh, IoHappy, IoTime, IoCall, IoArrowBack } from 'react-icons/io5';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -72,6 +72,7 @@ import RecordingsTab from '../../components/meeting/RecordingsTab';
 import { startRecordingMarker, createLiveSpeakerTag } from '../../service/transcriptionServices';
 import { LIVE_SPEAKER_TAGGING_ENABLED } from '../../config/featureFlags';
 import useFaceGuidance from '../../hooks/useFaceGuidance';
+import MeetingAccessLogTab from '../../components/meeting/MeetingAccessLogTab';
 
 // pptxviewjs vừa ghi đè window.FileReader khi nạp module (xem utils/nativeFileReader.js) → trả lại bản gốc.
 restoreNativeFileReader();
@@ -1859,6 +1860,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
         { id: 'notes', label: 'Ghi chú', fullLabel: 'Ghi chú', icon: StickyNote },
         { id: 'minutes', label: 'Biên bản', fullLabel: 'Biên bản họp', icon: ClipboardList },
         { id: 'attendance', label: 'T.Gia', fullLabel: 'Người tham gia', icon: Users },
+        { id: 'access-log', label: 'Lịch sử', fullLabel: 'Nhật ký ra/vào phòng họp', icon: List },
         ...(isHost ? [{ id: 'guests', label: 'Khách', fullLabel: 'Khách', icon: UserCheck }] : []),
         ...(isHost ? [{ id: 'recordings', label: 'Ghi âm', fullLabel: 'Quản lý ghi âm', icon: Film }] : []),
     ];
@@ -3349,6 +3351,13 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     >
                                         <RefreshCw className="w-3.5 h-3.5" /> Làm mới
                                     </button>
+                                </div>
+                            )}
+
+                            {/* ── TAB: Nhật ký ra/vào phòng họp ── */}
+                            {activeChatTab === 'access-log' && (
+                                <div className="p-3">
+                                    <MeetingAccessLogTab meetingId={id} compact />
                                 </div>
                             )}
 

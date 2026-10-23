@@ -13,8 +13,34 @@ import NoShowInlineAction from '../../components/common/NoShowInlineAction';
 // Strips any <script> tags as a basic safeguard.
 const sanitizeBody = (html) => {
     if (!html) return '';
-    return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    return html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/\s*\(visitor_[a-z0-9_]+\)/gi, '');
 };
+
+const NOTIFICATION_PRIORITY_META = {
+    critical: { label: 'Nghiêm trọng', className: 'bg-red-50 text-red-700 border-red-200', dotClassName: 'bg-red-500' },
+    urgent: { label: 'Cao', className: 'bg-red-50 text-red-700 border-red-200', dotClassName: 'bg-red-500' },
+    high: { label: 'Cao', className: 'bg-red-50 text-red-700 border-red-200', dotClassName: 'bg-red-500' },
+    warning: { label: 'Trung bình', className: 'bg-amber-50 text-amber-700 border-amber-200', dotClassName: 'bg-amber-500' },
+    medium: { label: 'Trung bình', className: 'bg-amber-50 text-amber-700 border-amber-200', dotClassName: 'bg-amber-500' },
+    low: { label: 'Thấp', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', dotClassName: 'bg-emerald-500' },
+    info: { label: 'Thấp', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', dotClassName: 'bg-emerald-500' }
+};
+
+const getNotificationPriority = (notification) => {
+    const priority = String(notification?.priority || '').toLowerCase();
+    if (NOTIFICATION_PRIORITY_META[priority]) return NOTIFICATION_PRIORITY_META[priority];
+
+    const body = String(notification?.body || '');
+    if (/mức\s+(nghiêm trọng|cao)/i.test(body)) return NOTIFICATION_PRIORITY_META.high;
+    if (/mức\s+trung bình/i.test(body)) return NOTIFICATION_PRIORITY_META.medium;
+    if (/mức\s+thấp/i.test(body)) return NOTIFICATION_PRIORITY_META.low;
+    return null;
+};
+
+const removePriorityText = (html) => html
+    .replace(/\s*[-–—·]?\s*mức\s+(nghiêm trọng|cao|trung bình|thấp)\.?/gi, '');
 
 const Notifications = () => {
     const [notificationsList, setNotificationsList] = useState([]);
@@ -239,6 +265,9 @@ const Notifications = () => {
                                 key={noti.id}
                                 className={`p-4 rounded-xl border flex items-start justify-between gap-4 transition-all duration-200 ${getBgColor(noti.type, noti.read)}`}
                             >
+                                {(() => {
+                                    const priorityMeta = getNotificationPriority(noti);
+                                    return (
                                 <div className="flex items-start gap-3 flex-1">
                                     <div className="mt-0.5 p-2 bg-white rounded-lg shadow-sm border border-platinum-tint/50">
                                         {getIcon(noti.type)}
@@ -252,8 +281,14 @@ const Notifications = () => {
                                         </div>
                                         <p
                                             className="text-xs text-slate-blue leading-relaxed"
-                                            dangerouslySetInnerHTML={{ __html: sanitizeBody(noti.body) }}
+                                            dangerouslySetInnerHTML={{ __html: removePriorityText(sanitizeBody(noti.body)) }}
                                         />
+                                        {priorityMeta && (
+                                            <span className={`inline-flex items-center gap-1.5 w-fit px-2 py-0.5 rounded-full border text-[10px] font-bold ${priorityMeta.className}`}>
+                                                <span className={`h-1.5 w-1.5 rounded-full ${priorityMeta.dotClassName}`} />
+                                                Mức độ: {priorityMeta.label}
+                                            </span>
+                                        )}
                                         {/* [Fix 2026-08-21, Bug 2] Cùng component NoShowInlineAction với
                                             NotificationBell.jsx — trước fix, trang đầy đủ này KHÔNG có bất kỳ
                                             xử lý riêng nào cho notificationType='no_show_alert', chỉ hiện text thô. */}
@@ -281,6 +316,8 @@ const Notifications = () => {
                                         </div>
                                     </div>
                                 </div>
+                                    );
+                                })()}
 
                                 <div className="flex-shrink-0">
                                     {!noti.read ? (
