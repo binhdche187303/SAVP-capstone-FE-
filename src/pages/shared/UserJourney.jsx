@@ -1,11 +1,13 @@
 import {
     AlertCircle, ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck,
     Car, Check, Clock, Eye, Image as ImageIcon, Map, MapPin, RefreshCw,
-    Download, Filter, Search, Sparkles, Timer, User, Video,
+    Filter, Search, Sparkles, Timer, User, Video,
 } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import * as XLSX from 'xlsx';
+import ExportMenu from '../../components/report/ExportMenu';
+import { downloadReport, currentUserName, fmtVN } from '../../utils/exportExcel';
+import toast from '../../utils/toast';
 
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
@@ -132,6 +134,7 @@ const UserJourney = () => {
         : dayDiff(date, dateTo) + 1 > MAX_RANGE_DAYS ? `Chỉ xem tối đa ${MAX_RANGE_DAYS} ngày một lần.` : null;
 
     const [journeyData, setJourneyData] = useState(null);
+    const [busyFormat, setBusyFormat] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -259,31 +262,77 @@ const UserJourney = () => {
 
     useEffect(() => { setPage(1); }, [typeFilter, placeFilter]);
 
-    const handleExport = () => {
-        const rows = sortedEvents.map(e => {
-            const type = (e.type || '').toLowerCase();
-            const dir = (e.direction || '').toLowerCase();
-            return {
-                'Ngày': formatDateVN(toVNDateKey(e.time)),
-                'Giờ': toVNTime(e.time),
-                'Đến': e.endTime ? toVNTime(e.endTime) : '',
-                'Thời lượng': formatDuration(e.durationMs) || '',
-                'Loại': TYPE_LABELS[type] || type,
-                'Hướng': dir === 'enter' ? 'Vào' : dir === 'leave' || dir === 'exit' ? 'Ra' : '',
-                'Nơi': getPlace(e) || '',
-                'Biển số': e.plateNumber || '',
-                'Chi tiết': e.detail || '',
-                'Camera': e.deviceName || '',
-                'Mã camera': e.deviceCode || '',
-                'Nhóm camera': (e.groupNames || []).join(', '),
-            };
-        });
-        const ws = XLSX.utils.json_to_sheet(rows);
-        ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 24 }, { wch: 14 }, { wch: 60 }, { wch: 24 }, { wch: 16 }, { wch: 24 }];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Hành trình');
-        const who = (selectedUser?.fullName || journeyData?.fullName || 'nhan-vien').replace(/[\\/:*?"<>|]/g, '');
-        XLSX.writeFile(wb, `Hanh-trinh_${who}_${date}${isRange ? `_den_${dateTo}` : ''}.xlsx`);
+    const handleExport = async (format) => {
+        if (sortedEvents.length === 0) return;
+        setBusyFormat(format);
+        try {
+            const rows = sortedEvents.map(e => {
+                const type = (e.type || '').toLowerCase();
+                const dir = (e.direction || '').toLowerCase();
+                return {
+                    day: formatDateVN(toVNDateKey(e.time)),
+                    time: toVNTime(e.time),
+                    until: e.endTime ? toVNTime(e.endTime) : '',
+                    duration: formatDuration(e.durationMs) || '',
+                    type: TYPE_LABELS[type] || type,
+                    dir: dir === 'enter' ? 'Vào' : dir === 'leave' || dir === 'exit' ? 'Ra' : '',
+                    place: getPlace(e) || '',
+                    plate: e.plateNumber || '',
+                    detail: e.detail || '',
+                    camera: e.deviceName || '',
+                    camCode: e.deviceCode || '',
+                    group: (e.groupNames || []).join(', '),
+                };
+            });
+            const who = (selectedUser?.fullName || journeyData?.fullName || 'nhan-vien').replace(/[\\/:*?"<>|]/g, '');
+            const exportedAt = new Date();
+            const byType = {};
+            sortedEvents.forEach(e => { const t = TYPE_LABELS[(e.type || '').toLowerCase()] || e.type || 'Khác'; byType[t] = (byType[t] || 0) + 1; });
+            await downloadReport({
+                format,
+                fileName: `Hanh-trinh_${who}_${date}${isRange ? `_den_${dateTo}` : ''}`,
+                title: 'BÁO CÁO LỊCH SỬ DI CHUYỂN THEO NGƯỜI',
+                subtitle: 'Các lần camera ghi nhận một người (cổng, phòng họp, khu vực) trong khoảng thời gian đã chọn',
+                info: [
+                    { section: 'Phạm vi báo cáo' },
+                    ['Họ tên', selectedUser?.fullName || journeyData?.fullName || ''],
+                    ['Mã nhân sự', selectedUser?.employeeCode || selectedUser?.employee_code || ''],
+                    ['Khoảng thời gian', rangeLabel],
+                    ['Bộ lọc loại', typeFilter ? (TYPE_LABELS[typeFilter] || typeFilter) : 'Tất cả loại'],
+                    ['Bộ lọc nơi', placeFilter || 'Tất cả nơi'],
+                    { section: 'Kết quả tổng hợp' },
+                    ['Tổng số sự kiện', sortedEvents.length],
+                    ...Object.entries(byType).map(([t, n]) => [`Số sự kiện: ${t}`, n]),
+                    { section: 'Thông tin xuất' },
+                    ['Người xuất', currentUserName()],
+                    ['Thời điểm xuất', fmtVN(exportedAt)],
+                ],
+                sheets: [{
+                    name: 'Hành trình',
+                    freezeCols: 2,
+                    columns: [
+                        { header: 'Ngày', key: 'day', width: 12 },
+                        { header: 'Giờ', key: 'time', width: 9 },
+                        { header: 'Đến', key: 'until', width: 9 },
+                        { header: 'Thời lượng', key: 'duration', width: 12 },
+                        { header: 'Loại', key: 'type', width: 14 },
+                        { header: 'Hướng', key: 'dir', width: 8, align: 'center' },
+                        { header: 'Nơi', key: 'place', width: 26 },
+                        { header: 'Biển số', key: 'plate', width: 13 },
+                        { header: 'Chi tiết', key: 'detail', width: 46, wrap: true },
+                        { header: 'Camera', key: 'camera', width: 26 },
+                        { header: 'Mã camera', key: 'camCode', width: 17 },
+                        { header: 'Nhóm camera', key: 'group', width: 26, wrap: true },
+                    ],
+                    rows,
+                }],
+            });
+            toast.success(format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${rows.length} sự kiện (${{ xlsx: 'Excel', docx: 'Word' }[format]}).`);
+        } catch (err) {
+            toast.error(err?.message || 'Không xuất được báo cáo.');
+        } finally {
+            setBusyFormat(null);
+        }
     };
 
     const rangeLabel = isRange ? `${formatDateVN(date)} → ${formatDateVN(dateTo)}` : formatDateVN(date);
@@ -724,10 +773,9 @@ const UserJourney = () => {
                             {(typeFilter || placeFilter) && (
                                 <button onClick={() => { setTypeFilter(''); setPlaceFilter(''); }} className="text-xs font-semibold text-action-blue hover:underline">Bỏ lọc</button>
                             )}
-                            <button onClick={handleExport} disabled={sortedEvents.length === 0}
-                                className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 bg-action-blue hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50">
-                                <Download className="w-3.5 h-3.5" /> Xuất Excel ({sortedEvents.length})
-                            </button>
+                            <div className="ml-auto">
+                                <ExportMenu compact onExport={handleExport} busyFormat={busyFormat} disabled={sortedEvents.length === 0} label={`Xuất báo cáo (${sortedEvents.length})`} />
+                            </div>
                         </div>
 
                         {/* legend */}

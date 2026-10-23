@@ -32,7 +32,7 @@ const StrangerReviewModal = ({ stranger, onClose, onDone }) => {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        getStrangerSightings(stranger.deviceId, stranger.strangerId)
+        getStrangerSightings(stranger.deviceId, stranger.strangerId, stranger.dismissedAt ? 'dismissed' : undefined)
             .then((res) => {
                 const list = res?.data || [];
                 setSightings(list);

@@ -1,4 +1,4 @@
-import { Activity, Download, Flame, Info, MapPin, RefreshCw, Users } from 'lucide-react';
+import { Activity, Flame, Info, MapPin, RefreshCw, Users } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -8,6 +8,7 @@ import { getZoneTraffic } from '../../service/campusService';
 import { getZones } from '../../service/zoneServices';
 import { getCameraGroups } from '../../service/cameraGroupServices';
 import { downloadReport, currentUserName, fmtVN, toDate } from '../../utils/exportExcel';
+import ExportMenu from '../../components/report/ExportMenu';
 import toast from '../../utils/toast';
 
 // UC-120 (2.6): lưu lượng người + heatmap khu vực công cộng.
@@ -73,6 +74,7 @@ const ZoneTrafficAnalytics = () => {
     const [groupId, setGroupId] = useState('');
     const [groups, setGroups] = useState([]);
     const [autoRefresh, setAutoRefresh] = useState(true);
+    const [busyFormat, setBusyFormat] = useState(null);
     const [lastUpdated, setLastUpdated] = useState(null);
     const short = isShortPreset(preset);
 
@@ -241,14 +243,17 @@ const ZoneTrafficAnalytics = () => {
             Object.entries(hours).forEach(([h, v]) => { sums[h] = (sums[h] || 0) + v; })
         );
         const best = Object.entries(sums).sort((a, b) => b[1] - a[1])[0];
-        return best ? `${String(best[0]).padStart(2, '0')}:00` : null;
-    }, [matrix]);
+        if (!best) return null;
+        // Chế độ ngắn: khóa cột là mốc thời gian (ms) → hiển thị giờ:phút thay vì ép thành 'giờ' (ra số dài vô nghĩa).
+        return short ? fmtHM(Number(best[0])) : `${String(best[0]).padStart(2, '0')}:00`;
+    }, [matrix, short]);
 
-    const handleExport = async () => {
+    const handleExport = async (format) => {
         if (!zones.length) {
             toast.error('Chưa có dữ liệu để xuất.');
             return;
         }
+        setBusyFormat(format);
         try {
             const groupName = groups.find((g) => g.id === groupId)?.group_name || '';
             const end = short ? new Date() : new Date(`${to}T23:59:59`);
@@ -304,6 +309,7 @@ const ZoneTrafficAnalytics = () => {
                 });
 
             await downloadReport({
+                format,
                 fileName: `Heatmap-luu-luong_${exportedAt.toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
                 title: 'BÁO CÁO LƯU LƯỢNG & BẢN ĐỒ NHIỆT KHU VỰC',
                 subtitle: 'Số người ghi nhận bởi camera đếm người tại các khu vực công cộng',
@@ -377,18 +383,20 @@ const ZoneTrafficAnalytics = () => {
                     },
                 ],
             });
-            toast.success('Đã xuất báo cáo Excel.');
+            toast.success(format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất báo cáo ${({ xlsx: 'Excel', pdf: 'PDF', docx: 'Word' })[format]}.`);
         } catch (err) {
-            toast.error(err?.message || 'Không xuất được file Excel.');
+            toast.error(err?.message || 'Không xuất được báo cáo.');
+        } finally {
+            setBusyFormat(null);
         }
     };
 
-    const inputCls = 'px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo';
+    const inputCls = 'px-[0.75rem] py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo';
 
     return (
         <div className="space-y-6 p-6 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="border-b border-platinum-tint pb-5">
+            <div className="border-b border-platinum-tint pb-[1.25rem]">
                 <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                     <Activity className="w-6 h-6 text-action-blue" />
                     Lưu lượng & Bản đồ nhiệt khu vực công cộng
@@ -399,7 +407,7 @@ const ZoneTrafficAnalytics = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-4 items-end">
+            <div className="bg-white p-[1rem] rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-[1rem] items-end">
                 <div className="space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Bộ lọc nhanh</label>
                     <select value={preset} onChange={(e) => handlePreset(e.target.value)} className={`${inputCls} font-semibold`}>
@@ -456,24 +464,22 @@ const ZoneTrafficAnalytics = () => {
                     </select>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    <button type="button" onClick={() => fetchData(false)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-platinum-tint text-xs font-semibold text-midnight-indigo hover:bg-cloud-mist">
+                    <button type="button" onClick={() => fetchData(false)} className="inline-flex items-center gap-1.5 px-[0.75rem] py-2 rounded-xl border border-platinum-tint text-xs font-semibold text-midnight-indigo hover:bg-cloud-mist">
                         <RefreshCw className="w-3.5 h-3.5" />Làm mới
                     </button>
-                    <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-action-blue text-white text-xs font-semibold hover:bg-blue-700">
-                        <Download className="w-3.5 h-3.5" />Xuất Excel
-                    </button>
+                    <ExportMenu compact onExport={handleExport} busyFormat={busyFormat} disabled={loading || !zones.length} />
                 </div>
             </div>
 
             {error && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-start text-sm">
+                <div className="p-[1rem] bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-start text-sm">
                     <Info className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
                     <p>{error}</p>
                 </div>
             )}
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1rem]">
                 <SummaryCard label="Khu vực có dữ liệu" value={zones.length} icon={MapPin} loading={loading} />
                 <SummaryCard label="Tổng số người TB" value={totalAvg ?? '—'} sub="Cộng TB các khu" icon={Users} loading={loading} />
                 <SummaryCard label="Khu đông nhất" value={busiest?.zoneName || '—'} sub={busiest ? `Đỉnh ${busiest.peakOccupancy} người` : null} icon={Flame} loading={loading} small />
@@ -482,7 +488,7 @@ const ZoneTrafficAnalytics = () => {
 
             {/* Heatmap matrix */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex flex-wrap items-center justify-between gap-3">
+                <div className="px-6 py-[1rem] border-b border-platinum-tint bg-cloud-mist/30 flex flex-wrap items-center justify-between gap-[0.75rem]">
                     <h3 className="font-bold text-midnight-indigo text-sm">
                         {short ? `Bản đồ nhiệt theo khu vực × phút (${SHORT_PRESETS[preset]} phút gần nhất)` : 'Bản đồ nhiệt theo khu vực × giờ trong ngày'}
                     </h3>
@@ -494,14 +500,14 @@ const ZoneTrafficAnalytics = () => {
                         Đông
                     </div>
                 </div>
-                <div className="overflow-x-auto p-4">
+                <div className="overflow-x-auto p-[1rem]">
                     {loading ? (
                         <div className="h-40 bg-slate-50 animate-pulse rounded-xl" />
                     ) : zones.length ? (
                         <table className="border-separate" style={{ borderSpacing: 3 }}>
                             <thead>
                                 <tr>
-                                    <th className="text-left text-[10px] font-bold text-slate-blue uppercase pr-3 min-w-[160px]">Khu vực</th>
+                                    <th className="text-left text-[10px] font-bold text-slate-blue uppercase pr-[0.75rem] min-w-[160px]">Khu vực</th>
                                     {activeHours.map((h) => (
                                         <th key={h} className={`text-[10px] font-semibold text-slate-blue text-center ${short ? 'w-12' : 'w-9'}`}>{columnLabel(h)}</th>
                                     ))}
@@ -510,7 +516,7 @@ const ZoneTrafficAnalytics = () => {
                             <tbody>
                                 {zones.map((z) => (
                                     <tr key={z.zoneId}>
-                                        <td className="text-xs font-bold text-midnight-indigo pr-3 whitespace-nowrap">
+                                        <td className="text-xs font-bold text-midnight-indigo pr-[0.75rem] whitespace-nowrap">
                                             {z.zoneName}
                                             {(z.building || z.floor) && (
                                                 <span className="block text-[10px] font-medium text-slate-400">
@@ -544,7 +550,7 @@ const ZoneTrafficAnalytics = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Line chart */}
-                <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-4 lg:col-span-2">
+                <div className="bg-white p-[1.25rem] rounded-2xl border border-platinum-tint shadow-sm space-y-4 lg:col-span-2">
                     <h3 className="font-bold text-midnight-indigo text-sm">Lưu lượng người theo thời gian (TB mỗi {short ? 'phút' : 'giờ'})</h3>
                     <div className="h-72">
                         {loading ? (
@@ -584,7 +590,7 @@ const ZoneTrafficAnalytics = () => {
 
                 {/* Zone ranking */}
                 <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
-                    <div className="px-5 py-4 border-b border-platinum-tint bg-cloud-mist/30">
+                    <div className="px-[1.25rem] py-[1rem] border-b border-platinum-tint bg-cloud-mist/30">
                         <h3 className="font-bold text-midnight-indigo text-sm">Mật độ theo khu vực</h3>
                     </div>
                     <div className="divide-y divide-platinum-tint">
@@ -594,7 +600,7 @@ const ZoneTrafficAnalytics = () => {
                             zones.map((z) => {
                                 const lbl = densityLabel(z.relativeDensity || 0);
                                 return (
-                                    <div key={z.zoneId} className="px-5 py-3 space-y-1.5">
+                                    <div key={z.zoneId} className="px-[1.25rem] py-[0.75rem] space-y-1.5">
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-xs font-bold text-midnight-indigo truncate">{z.zoneName}</span>
                                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${lbl.cls}`}>{lbl.text}</span>
@@ -622,7 +628,7 @@ const ZoneTrafficAnalytics = () => {
 };
 
 const SummaryCard = ({ label, value, sub, icon: Icon, loading, small }) => (
-    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-2">
+    <div className="bg-white p-[1.25rem] rounded-2xl border border-platinum-tint shadow-sm space-y-2">
         <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider flex items-center gap-1.5">
             {Icon && <Icon className="w-3.5 h-3.5" />}
             {label}

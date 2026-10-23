@@ -1,6 +1,6 @@
 import {
     AlertTriangle, ArrowUpDown, Briefcase, Building, Calendar,
-    Clock, DoorOpen, Download, Eye, Filter, Camera,
+    Clock, DoorOpen, Eye, Filter, Camera,
     LogIn, LogOut, Mail, Phone, RefreshCw, RotateCw,
     Route, Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users, X, ChevronDown,
 } from 'lucide-react';
@@ -21,6 +21,7 @@ import {
 } from '../../service/sysAdminServices';
 import { getUsers } from '../../service/employeeServices';
 import { downloadReport, currentUserName, fmtVN, toDate } from '../../utils/exportExcel';
+import ExportMenu from '../../components/report/ExportMenu';
 import toast from '../../utils/toast';
 
 // ─── constants ──────────────────────────────────────────────────────────────
@@ -325,6 +326,7 @@ const StatusBadge = ({ status }) => {
 const RoomAccessLogs = () => {
     const [rooms, setRooms]                     = useState([]);
     const [selectedRoomId, setSelectedRoomId]   = useState('');
+    const [busyFormat, setBusyFormat]           = useState(null);
     const [selectedDate, setSelectedDate]       = useState(getTodayVNString());
     const [meetings, setMeetings]               = useState([]);
     const [selectedMeetingId, setSelectedMeetingId] = useState('');
@@ -582,11 +584,12 @@ const RoomAccessLogs = () => {
     const showRoomColumn = !selectedRoomId;
 
     // Xuất đúng những gì đang lọc (ngày/phòng/hướng/trạng thái/cuộc họp/tìm kiếm), kèm tổng hợp theo người.
-    const handleExport = async () => {
+    const handleExport = async (format) => {
         if (allSorted.length === 0) {
             toast.error('Chưa có dữ liệu để xuất.');
             return;
         }
+        setBusyFormat(format);
         try {
             const roomName = logsData?.roomName || getSelectedRoomInfo(rooms, selectedRoomId)?.name || 'Tất cả phòng';
             const statusLabel = { matched: 'Đã nhận diện', unmatched: 'Chưa khớp lịch/vị trí', stranger: 'Người lạ' };
@@ -672,6 +675,7 @@ const RoomAccessLogs = () => {
             const count = (st) => allSorted.filter((e) => getIdentityStatus(e) === st).length;
 
             await downloadReport({
+                format,
                 fileName: `Nhat-ky-ra-vao-phong_${String(roomName).replace(/\s+/g, '-')}_${selectedDate}`,
                 title: 'NHẬT KÝ RA/VÀO PHÒNG',
                 subtitle: 'Đối soát an ninh dựa trên camera nhận diện khuôn mặt',
@@ -748,9 +752,11 @@ const RoomAccessLogs = () => {
                     },
                 ],
             });
-            toast.success(`Đã xuất ${detail.length} lượt ra/vào.`);
+            toast.success(format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${detail.length} lượt ra/vào (${({ xlsx: 'Excel', pdf: 'PDF', docx: 'Word' })[format]}).`);
         } catch (err) {
-            toast.error(err?.message || 'Không xuất được file Excel.');
+            toast.error(err?.message || 'Không xuất được báo cáo.');
+        } finally {
+            setBusyFormat(null);
         }
     };
 
@@ -842,7 +848,7 @@ const RoomAccessLogs = () => {
                     )}
                 </td>
 
-                <td className="px-6 py-4 text-xs" title={cameraGroupsLabel(ev) ? `Nhóm: ${cameraGroupsLabel(ev)}` : undefined}>
+                <td className="px-6 py-4 text-xs min-w-[14rem]" title={cameraGroupsLabel(ev) ? `Nhóm: ${cameraGroupsLabel(ev)}` : undefined}>
                     {cameraLabel(ev) ? (
                         <>
                             <span className="inline-flex items-center gap-1 font-semibold text-midnight-indigo"><Camera className="w-3 h-3 text-slate-400" />{cameraLabel(ev)}</span>
@@ -934,12 +940,7 @@ const RoomAccessLogs = () => {
                     <p className="text-slate-blue text-sm mt-1">Đối soát an ninh ra/vào dựa trên API camera nhận diện khuôn mặt</p>
                 </div>
                 <div className="self-start flex flex-col items-end gap-1">
-                    <button
-                        onClick={handleExport}
-                        className="flex items-center gap-2 px-4 py-2 bg-action-blue text-white hover:bg-blue-700 rounded-xl transition-colors text-sm font-semibold"
-                    >
-                        <Download className="w-4 h-4" /> Xuất Excel
-                    </button>
+                    <ExportMenu onExport={handleExport} busyFormat={busyFormat} disabled={logsLoading || allSorted.length === 0} />
                     <button
                         onClick={() => fetchLogs()}
                         disabled={logsLoading}

@@ -266,8 +266,8 @@ export const getStrangerAlerts = async (params = {}) => {
 };
 
 /** Các lần xuất hiện của 1 người lạ (trang Người lạ). strangerId null = thiết bị không gán mã. */
-export const getStrangerSightings = async (deviceId, strangerId) => {
-    const query = buildQuery(strangerId ? { strangerId } : {});
+export const getStrangerSightings = async (deviceId, strangerId, status) => {
+    const query = buildQuery({ ...(strangerId ? { strangerId } : {}), ...(status ? { status } : {}) });
     return await get(`/face-access/stranger-alerts/${deviceId}/sightings${query}`);
 };
 
@@ -578,4 +578,18 @@ export const getStrangerCandidateMeetings = async (eventId) => {
  */
 export const reviewStrangerEvents = async (data) => {
     return await post(`/face-access/stranger-alerts/review`, data);
+};
+
+/**
+ * Đóng cảnh báo người lạ (thay cho 'Bỏ qua' cục bộ) — bắt buộc lý do, có audit.
+ * POST /face-access/stranger-alerts/dismiss (face.stranger.review)
+ * @param {{ eventIds: string[], reason: 'legit_visitor'|'ai_false_positive'|'handled_offline'|'other', note?: string }} data
+ */
+export const dismissStrangerEvents = async (data) => {
+    return await post('/face-access/stranger-alerts/dismiss', data);
+};
+
+/** Mở lại các sự kiện đã đóng. POST /face-access/stranger-alerts/reopen (face.stranger.review) */
+export const reopenStrangerEvents = async (eventIds) => {
+    return await post('/face-access/stranger-alerts/reopen', { eventIds });
 };
