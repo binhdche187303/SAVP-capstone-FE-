@@ -8,6 +8,7 @@ import {
     Share2, Download, Trash2, PenLine, Radio
 } from 'lucide-react';
 import { updateMeetingMinutes, issueMeetingMinutes, distributeMeetingMinutes, deleteMeetingMinutes, toggleLiveShareMinutes } from '../../service/minutesServices';
+import { submitMinutesSignoff } from '../../service/employeeServices';
 import ExportMinutesModal from './ExportMinutesModal';
 import ShareMinutesModal from './ShareMinutesModal';
 
@@ -25,6 +26,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
     const [isDeleting, setIsDeleting] = useState(false);
     const [distributing, setDistributing] = useState(false);
     const [isTogglingLive, setIsTogglingLive] = useState(false);
+    const [isSubmittingSignoff, setIsSubmittingSignoff] = useState(false);
 
     const showToast = (message, type = 'success') => {
         (toast[type] || toast.info)(message);
@@ -74,6 +76,21 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
             }
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleSubmitSignoff = async () => {
+        setIsSubmittingSignoff(true);
+        try {
+            await submitMinutesSignoff(meetingId, { minutesId: minutes.id });
+            showToast('Đã trình ký biên bản');
+            // Báo khung "Trình ký biên bản" (MeetingPrepPanel) tải lại trạng thái.
+            window.dispatchEvent(new CustomEvent('meeting-signoff-changed', { detail: { meetingId } }));
+            if (onRefresh) onRefresh();
+        } catch {
+            // request.js đã toast lỗi
+        } finally {
+            setIsSubmittingSignoff(false);
         }
     };
 
@@ -173,7 +190,9 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
     // BE khoá sửa/xoá khi biên bản đang chờ ký hoặc đã ký duyệt (permissions.signoffLocked)
     const locked = !!minutes.permissions?.signoffLocked;
     const canEdit = !locked && (isHost || isSecretary || minutes.permissions?.canEdit) && minutes.status === 'draft';
-    const canIssue = (isHost || minutes.permissions?.canIssue) && minutes.status === 'draft';
+    // Ban hành: theo BE (chỉ chủ trì; cuộc họp cần trình ký thì phải ký duyệt xong mới ban hành).
+    const canIssue = (minutes.permissions ? minutes.permissions.canIssue : isHost) && minutes.status === 'draft';
+    const canSubmitSignoff = !!minutes.permissions?.canSubmitSignoff;
     const canDelete = !locked && minutes.status === 'draft' && (isHost || isOwner || isAdmin || minutes.permissions?.canDelete);
     const canLiveShare = minutes.status === 'draft' && (minutes.permissions?.canLiveShare ?? isHost);
     // Xuất file: chỉ Host / người soạn thảo (preparedBy) / Admin — khớp ownership-or-admin
@@ -283,6 +302,16 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                                     title={minutes.status !== 'draft' ? "Chỉ có thể xoá biên bản ở trạng thái nháp (draft)" : "Xoá biên bản nháp"}
                                 >
                                     <Trash2 className="w-3.5 h-3.5" /> Xóa
+                                </button>
+                            )}
+                            {canSubmitSignoff && (
+                                <button
+                                    onClick={handleSubmitSignoff}
+                                    disabled={isSubmittingSignoff}
+                                    className="px-3 py-1.5 bg-action-blue text-white rounded-xl text-xs font-bold hover:bg-glacier-blue transition-colors flex items-center gap-1 shadow-sm disabled:opacity-50"
+                                >
+                                    {isSubmittingSignoff ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PenLine className="w-3.5 h-3.5" />}
+                                    Trình ký
                                 </button>
                             )}
                             {canIssue && (

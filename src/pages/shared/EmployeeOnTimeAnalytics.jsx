@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { getAttendanceAnalytics, getAttendanceUserStats, getUsers, getDepartments } from '../../service/sysAdminServices';
 import { get } from '../../utils/request';
+import { isSchoolLeader } from '../../utils/calendarRoleLabel';
 
 const COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#64748b'];
 
@@ -102,9 +103,10 @@ const EmployeeOnTimeAnalytics = () => {
         } catch { return null; }
     });
 
+    // BGH không thuộc đơn vị nào ⇒ xem toàn trường như admin (BE đã cho BGH phạm vi mọi phòng ban).
     const isManager = currentUser?.roles?.some(
         r => (typeof r === 'string' ? r : (r.roleCode || r.role_code || '')).toUpperCase() === 'MANAGER'
-    );
+    ) && !(isSchoolLeader(currentUser) && !currentUser?.departmentId);
     const managerDeptId = isManager
         ? (currentUser?.departmentId || currentUser?.department_id || '')
         : '';

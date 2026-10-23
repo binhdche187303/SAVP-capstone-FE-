@@ -243,7 +243,10 @@ const BookMeeting = () => {
     // Participant search states (server-side, debounced)
     const [searchEmail, setSearchEmail] = useState('');
     const [searchFocused, setSearchFocused] = useState(false);
-    const [defaultSuggestions, setDefaultSuggestions] = useState([]);
+    const [unitSuggestions, setUnitSuggestions] = useState([]);
+    const [schoolSuggestions, setSchoolSuggestions] = useState([]);
+    // Lịch đơn vị gợi ý người cùng đơn vị; lịch trường gợi ý toàn trường.
+    const defaultSuggestions = calendarType === 'UNIT' ? unitSuggestions : schoolSuggestions;
     const [searchResults, setSearchResults] = useState([]);
     // Dong vua bam chon: tam tat hieu ung hover "Bo chon" (X do) cho den khi chuot roi khoi dong,
     // tranh viec vua bam + da hien X do khien nguoi dung tuong la loi.
@@ -316,7 +319,7 @@ const BookMeeting = () => {
                     .then(res => { if (res?.success) setBookingCtx(res.data); })
                     .catch(err => console.error('Failed to load calendar booking context', err));
 
-                const deptsRes = await getDepartments().catch(err => {
+                const deptsRes = await getDepartments({ limit: 100 }).catch(err => {
                     console.error('Failed to load departments', err);
                     return { success: false };
                 });
@@ -360,8 +363,18 @@ const BookMeeting = () => {
                     }
                 }
                 mergeUsers(suggestions, suggestionsDeptId);
-                setDefaultSuggestions(suggestions);
+                setUnitSuggestions(suggestions);
                 setSearchResults(suggestions);
+
+                try {
+                    const schoolRes = await getUsers({ limit: 100, meetingEligibleOnly: true });
+                    if (schoolRes?.success) {
+                        mergeUsers(schoolRes.data || [], null);
+                        setSchoolSuggestions(schoolRes.data || []);
+                    }
+                } catch (err) {
+                    console.error('Failed to load school-wide users', err);
+                }
             } catch (err) {
                 console.error('Error fetching initial data', err);
                 setErrorMsg('Không thể tải danh sách phòng ban hoặc nhân sự.');

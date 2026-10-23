@@ -336,8 +336,8 @@ export const getMeetingAttendance = async (meetingId, params = {}) => {
     return await get(`/meetings/${meetingId}/attendance${query}`);
 };
 
-export const manualAttendanceCheckIn = async (meetingId, data) => {
-    return await post(`/meetings/${meetingId}/attendance`, data);
+export const manualAttendanceCheckIn = async (meetingId, data, options) => {
+    return await post(`/meetings/${meetingId}/attendance`, data, options);
 };
 
 export const updateAttendanceStatus = async (meetingId, recordId, data) => {

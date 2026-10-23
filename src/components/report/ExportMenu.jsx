@@ -8,7 +8,10 @@ const FORMATS = [
     { format: 'docx', label: 'Word', hint: 'Tệp mở bằng Microsoft Word', icon: FileText },
 ];
 
-const ExportMenu = ({ onExport, disabled, busyFormat }) => {
+// compact: nút nhỏ (text-xs) cho thanh công cụ dày; mặc định là nút lớn của Trung tâm báo cáo.
+const COMPACT_BTN = 'inline-flex items-center justify-center gap-1.5 bg-action-blue text-white rounded-xl px-3 py-2 text-xs font-semibold hover:bg-glacier-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
+
+const ExportMenu = ({ onExport, disabled, busyFormat, compact = false, label = 'Xuất báo cáo' }) => {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
 
@@ -22,10 +25,10 @@ const ExportMenu = ({ onExport, disabled, busyFormat }) => {
 
     return (
         <div className="relative" ref={ref}>
-            <button type="button" className={btnPrimary} disabled={disabled || Boolean(busyFormat)} onClick={() => setOpen((v) => !v)}>
-                <Download className="w-4 h-4" />
-                {busyFormat ? 'Đang xuất…' : 'Xuất báo cáo'}
-                <ChevronDown className="w-4 h-4" />
+            <button type="button" className={compact ? COMPACT_BTN : btnPrimary} disabled={disabled || Boolean(busyFormat)} onClick={() => setOpen((v) => !v)}>
+                <Download className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+                {busyFormat ? 'Đang xuất…' : label}
+                <ChevronDown className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
             {open && (
                 <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl border border-platinum-tint shadow-sm-2 z-20 overflow-hidden">
