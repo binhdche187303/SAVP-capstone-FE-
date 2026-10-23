@@ -274,9 +274,17 @@ const handleResponse = async (response, options = {}) => {
 
     let result;
     try {
-        const parsed = await response.json();
+        const rawBody = await response.text();
+        if (!rawBody.trim()) throw new Error('Empty response body');
+        const parsed = JSON.parse(rawBody);
         result = decodeUnicodeEscapes(parsed);
     } catch (e) {
+        console.error('[request] Invalid JSON response', {
+            url: response.url,
+            status: response.status,
+            contentType,
+            reason: e?.message,
+        });
         const parseError = {
             success: false,
             error: {

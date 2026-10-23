@@ -36,7 +36,7 @@ const VisitorGate = () => {
     const clearRef = useRef(null);
     const [cameraOn, setCameraOn] = useState(false);
     const [zones, setZones] = useState([]);
-    const [zoneId, setZoneId] = useState('zone-gate-main');
+    const [zoneId, setZoneId] = useState('');
     const [direction, setDirection] = useState('in');
     const [code, setCode] = useState(searchParams.get('code') || '');
     const [scenario, setScenario] = useState('normal');
@@ -46,7 +46,13 @@ const VisitorGate = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        getVisitorLookups().then((res) => { if (res?.success) setZones(res.data.zones); });
+        getVisitorLookups().then((res) => {
+            if (!res?.success) return;
+            const nextZones = res.data.zones || [];
+            setZones(nextZones);
+            // Không dùng mã zone giả trước đây; chọn zone thật đầu tiên của backend.
+            setZoneId((current) => nextZones.some((zone) => zone.id === current) ? current : (nextZones[0]?.id || ''));
+        });
     }, []);
 
     // Bật webcam ngay khi mở màn hình; không có camera thì vẫn mô phỏng được.
@@ -104,7 +110,9 @@ const VisitorGate = () => {
         setSnapshot(takeSnapshot());
         setScanning(true);
         await new Promise((resolve) => setTimeout(resolve, SCAN_MS));
-        const res = await scanAtGate(code, { zoneId, direction, scenario });
+        // Khi màn cổng chưa tải được danh mục zone (màn public không có JWT),
+        // gửi null để backend chọn cổng được cấp đầu tiên, không gửi chuỗi rỗng.
+        const res = await scanAtGate(code, { zoneId: zoneId || null, direction, scenario });
         setScanning(false);
         if (!res?.success) {
             setError(res?.message || 'Không quét được');

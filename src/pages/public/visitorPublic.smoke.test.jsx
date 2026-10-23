@@ -77,6 +77,29 @@ describe('VisitorRegister', () => {
         expect(screen.getByText(/demo@example.com/)).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Tra cứu trạng thái' })).toHaveAttribute('href', `/visitor/status/${code.textContent}`);
     });
+
+    test('khách quay lại xác thực qua Zalo OA rồi mới tiếp tục đăng ký', async () => {
+        const existing = await visitorService.createPublicRegistration({
+            visitor: { fullName: 'Khách Đã Đăng Ký', idNumber: '001099000333', phone: '0912345678', email: 'returning@example.com', organization: 'Công ty Demo', plateNumber: '', photo: 'data:image/png;base64,AAAA' },
+            hostId: 'host-me',
+            purpose: 'Làm việc với đơn vị',
+            companions: 0,
+            scheduledFrom: new Date(Date.now() + 3600000).toISOString(),
+            scheduledTo: new Date(Date.now() + 3 * 3600000).toISOString(),
+            consent: true,
+        });
+
+        renderAt('/visitor/register', route);
+        fireEvent.click(screen.getByRole('tab', { name: 'Khách đã đăng ký' }));
+        fireEvent.change(screen.getByLabelText(/Số điện thoại hoặc email/), { target: { value: existing.data.visitor.phone } });
+        fireEvent.click(screen.getByRole('button', { name: 'Gửi xác thực qua Zalo OA' }));
+        expect(await screen.findByText(/Mã xác thực đã được gửi qua Zalo OA/)).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/Mã xác thực Zalo OA/), { target: { value: '123456' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Xác thực và tiếp tục' }));
+        expect(await screen.findByText('Chuyến thăm')).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'Khách lần đầu' })).toHaveAttribute('aria-selected', 'true');
+    });
 });
 
 describe('VisitorStatus', () => {

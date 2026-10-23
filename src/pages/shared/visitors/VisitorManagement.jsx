@@ -7,6 +7,7 @@ import VisitorAvatar from '../../../components/visitor/VisitorAvatar';
 import VisitStatusBadge from '../../../components/visitor/VisitStatusBadge';
 import { VISIT_CHANNEL_LABELS, fmtTimeRange } from '../../../components/visitor/visitLabels';
 import { pageCls, cardCls, inputCls, searchInputCls, labelCls, thCls, tdCls, errorBoxCls } from '../../../components/common/uiClasses';
+import { subscribeToVisitorAlertChanges } from '../../../utils/visitorRealtime';
 
 // S3 (2.10): duyệt và quản lý lượt khách theo trạng thái.
 const TABS = [
@@ -52,6 +53,27 @@ const VisitorManagement = () => {
     }, [filters, tab, page]);
 
     useEffect(() => { load(); }, [load]);
+
+    // Đồng bộ ngay khi đăng ký khách ở tab/cửa sổ khác, không cần F5.
+    useEffect(() => {
+        const unsubscribe = subscribeToVisitorAlertChanges(load);
+        const onStorage = (event) => {
+            if (event.key === 'savp.visitorReportMock') load();
+        };
+        const onFocus = () => load();
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') load();
+        };
+        window.addEventListener('storage', onStorage);
+        window.addEventListener('focus', onFocus);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            unsubscribe();
+            window.removeEventListener('storage', onStorage);
+            window.removeEventListener('focus', onFocus);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [load]);
 
     const changeFilter = (patch) => { setPage(1); setFilters((f) => ({ ...f, ...patch })); };
     const changeTab = (key) => { setPage(1); setTab(key); };
@@ -143,6 +165,15 @@ const VisitorManagement = () => {
                                     <td className={tdCls}>{VISIT_CHANNEL_LABELS[visit.channel]}</td>
                                     <td className={tdCls}><VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} /></td>
                                     <td className={`${tdCls} text-right`}>
+                                        {visit.status === 'pending_approval' && (
+                                            <button
+                                                type="button"
+                                                className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-semibold hover:bg-glacier-blue"
+                                                onClick={(event) => { event.stopPropagation(); setSelectedId(visit.id); }}
+                                            >
+                                                Duyệt
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -156,7 +187,7 @@ const VisitorManagement = () => {
             </div>
 
             {selectedId && (
-                <VisitDetailDrawer canReassign visitId={selectedId} zones={lookups.zones} onClose={() => setSelectedId(null)} onChanged={load} />
+                <VisitDetailDrawer canManage canReassign visitId={selectedId} zones={lookups.zones} onClose={() => setSelectedId(null)} onChanged={load} />
             )}
         </div>
     );

@@ -277,11 +277,9 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
                                 </div>
                             </div>
 
-                            {detail.consentAt && (
-                                <div className="text-xs text-slate-blue">
-                                    Đồng ý sử dụng ảnh: {new Date(detail.consentAt).toLocaleString("vi-VN")}
-                                </div>
-                            )}
+                            <div className="text-xs text-slate-blue">
+                                Đã xác nhận đồng ý: {detail.consentAt ? new Date(detail.consentAt).toLocaleString("vi-VN") : "Chưa xác nhận"}
+                            </div>
 
                             {detail.imageFile && (
                                 <div className="text-xs text-slate-blue space-y-0.5">
@@ -673,7 +671,7 @@ const BiometricSubmissionsReview = () => {
                                             ""
                                         }</td>
                                         <td className="px-4 py-3">
-                                            <span className={"inline-flex text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_MAP[sub.status] || STATUS_MAP.pending_review).badge)}>
+                                            <span className={"inline-flex whitespace-nowrap text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_MAP[sub.status] || STATUS_MAP.pending_review).badge)}>
                                                 {(STATUS_MAP[sub.status] || STATUS_MAP.pending_review).label}
                                             </span>
                                         </td>

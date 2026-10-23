@@ -37,6 +37,8 @@ export const getPublicPurposes = () => call(() => ({ purposes: mock.getVisitorLo
 export const searchHosts = (q) => call(() => mock.searchHosts(q), () => get(`/public/visitor-hosts${qs({ q })}`));
 export const getPublicHost = (id) => call(() => mock.getPublicHost(id), () => get(`/public/visitor-hosts/${encodeURIComponent(id)}`));
 export const createPublicRegistration = (payload) => call(() => mock.createPublicRegistration(payload), () => post('/public/visitor-registrations', payload));
+export const requestReturningVisitorVerification = (contact) => call(() => mock.requestReturningVisitorVerification(contact), () => post('/public/visitor-verifications/request', contact));
+export const verifyReturningVisitor = (payload) => call(() => mock.verifyReturningVisitor(payload), () => post('/public/visitor-verifications/verify', payload));
 export const getPublicRegistration = (code) => call(() => mock.getPublicRegistration(code), () => get(`/public/visitor-registrations/${encodeURIComponent(code)}`));
 export const listVisits = (params) => call(() => mock.listVisits(params), () => get(`/visitors/visits${qs(params)}`));
 export const getVisit = (id) => call(() => mock.getVisit(id), () => get(`/visitors/visits/${id}`));

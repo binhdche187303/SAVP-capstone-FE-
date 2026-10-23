@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Camera, Car, CheckCircle2, Clock, LogIn, LogOut, RefreshCw, ShieldAlert, UserCheck, XCircle } from 'lucide-react';
-import { getSecurityAlerts } from '../../service/securityAlertService';
+import { acknowledgeSecurityAlert, getSecurityAlerts, resolveSecurityAlert } from '../../service/securityAlertService';
 import { getAdminGateAccessLogs } from '../../service/sysAdminServices';
 import { getAlertTypeLabel } from '../../constants/alertType';
 import { subscribeToSecurityAlerts } from '../../utils/socket';
 import { fetchGuardGateEvents, guardGates, scanGuardGateEvent } from '../../service/guardAccessService';
 import useFaceGuidance from '../../hooks/useFaceGuidance';
 import DashboardBanner from '../../components/common/DashboardBanner';
+import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 
 const REFRESH_MS = 15000;
 const AUTO_SCAN_COOLDOWN_MS = 4000;
@@ -27,6 +28,24 @@ const startOfToday = () => {
 };
 
 const formatTime = (value) => (value ? new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--');
+
+const alertPayload = (alert) => alert?.payload_json || {};
+const getAlertLocation = (alert) => {
+    const payload = alertPayload(alert);
+    return payload.zoneName || payload.zone_name || alert?.zone?.zone_name || alert?.zone_name || 'Chưa xác định';
+};
+const getAlertCamera = (alert) => {
+    const payload = alertPayload(alert);
+    return payload.cameraName || payload.camera_name || payload.cameraId || payload.camera_id || 'Chưa xác định';
+};
+const getAlertCameraGroup = (alert) => {
+    const payload = alertPayload(alert);
+    return payload.cameraGroupName || payload.camera_group_name || payload.cameraGroupId || payload.camera_group_id || 'Chưa xác định';
+};
+const getAlertSubject = (alert) => {
+    const payload = alertPayload(alert);
+    return payload.visitorName || payload.fullName || payload.visitor_name || payload.code || payload.plateNumber || null;
+};
 
 const captureFrame = (videoRef) => {
     const video = videoRef.current;
@@ -109,6 +128,8 @@ const GuardDashboard = () => {
     const [traffic, setTraffic] = useState({ in: null, out: null });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [alertActionId, setAlertActionId] = useState(null);
+    const [snapshotEventId, setSnapshotEventId] = useState(null);
 
     const [selectedGateId, setSelectedGateId] = useState(guardGates[0]?.id || 'main-in');
     const [scenario, setScenario] = useState('authorized');
@@ -151,6 +172,36 @@ const GuardDashboard = () => {
             setLoading(false);
         }
     }, []);
+
+    const handleAcknowledge = async (alertId) => {
+        setAlertActionId(alertId);
+        try {
+            await acknowledgeSecurityAlert(alertId);
+            await load();
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            setAlertActionId(null);
+        }
+    };
+
+    const handleResolve = async (alert) => {
+        const note = window.prompt('Nhập ghi chú xử lý cảnh báo:', 'Đã kiểm tra và xử lý tại hiện trường');
+        if (note === null) return;
+        if (!note.trim()) {
+            setError('Vui lòng nhập ghi chú trước khi đóng cảnh báo.');
+            return;
+        }
+        setAlertActionId(alert.id);
+        try {
+            await resolveSecurityAlert(alert.id, { resolution_note: note.trim() });
+            await load();
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            setAlertActionId(null);
+        }
+    };
 
     useEffect(() => {
         load();
@@ -447,27 +498,44 @@ const GuardDashboard = () => {
                         <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
                             <ShieldAlert className="w-5 h-5 text-red-500" /> Cảnh báo cần xử lý
                         </h2>
-                        <Link to="/guard/security-alerts" className="text-xs font-bold text-action-blue no-underline">Xem tất cả →</Link>
+                        <Link to="/guard/visitor-alerts" className="text-xs font-bold text-action-blue no-underline">Cảnh báo khách →</Link>
                     </div>
                     {alerts.length === 0 ? (
                         <p className="text-sm text-slate-blue py-8 text-center">Không có cảnh báo đang chờ.</p>
                     ) : (
                         <ul className="space-y-2">
-                            {alerts.map(alert => (
-                                <li key={alert.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-platinum-tint">
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-bold text-midnight-indigo truncate">
-                                            {getAlertTypeLabel(alert.alert_type)}
-                                            {alert.payload_json?.plateNumber && <span className="ml-2 font-mono text-xs px-1.5 py-0.5 bg-slate-900 text-white rounded">{alert.payload_json.plateNumber}</span>}
-                                        </p>
-                                        <p className="text-xs text-slate-blue">{formatTime(alert.triggered_at || alert.created_at)} · {alert.status === 'new' ? 'Mới' : 'Đã tiếp nhận'}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${SEVERITY_CLS[alert.severity] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{alert.severity || 'low'}</span>
-                                        <Link to="/guard/security-alerts" className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-xs font-bold no-underline">Xử lý</Link>
-                                    </div>
-                                </li>
-                            ))}
+                            {alerts.map(alert => {
+                                const payload = alertPayload(alert);
+                                const subject = getAlertSubject(alert);
+                                const evidenceId = alert.source_event_id || payload.sourceEventId || payload.source_event_id;
+                                const busy = alertActionId === alert.id;
+                                return (
+                                    <li key={alert.id} className="p-3 rounded-xl border border-platinum-tint space-y-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-midnight-indigo">
+                                                    {getAlertTypeLabel(alert.alert_type)}
+                                                    {subject && <span className="ml-2 font-semibold text-slate-blue">· {subject}</span>}
+                                                </p>
+                                                <p className="text-xs text-slate-blue mt-1">{formatTime(alert.triggered_at || alert.created_at)} · {alert.status === 'new' ? 'Mới' : 'Đã tiếp nhận'}</p>
+                                            </div>
+                                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border shrink-0 ${SEVERITY_CLS[alert.severity] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{alert.severity || 'low'}</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px] text-slate-blue">
+                                            <span><b className="text-midnight-indigo">Zone/cổng:</b> {getAlertLocation(alert)}</span>
+                                            <span><b className="text-midnight-indigo">Nhóm camera:</b> {getAlertCameraGroup(alert)}</span>
+                                            <span><b className="text-midnight-indigo">Camera:</b> {getAlertCamera(alert)}</span>
+                                        </div>
+                                        {(payload.detail || payload.reason || payload.message) && <p className="text-[11px] text-slate-blue">{payload.detail || payload.reason || payload.message}</p>}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {evidenceId && <button type="button" onClick={() => setSnapshotEventId(evidenceId)} className="px-2.5 py-1.5 rounded-lg border border-platinum-tint text-[11px] font-bold text-slate-blue hover:text-action-blue">Xem ảnh bằng chứng</button>}
+                                            {alert.status === 'new' && <button type="button" disabled={busy} onClick={() => handleAcknowledge(alert.id)} className="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold disabled:opacity-60">{busy ? 'Đang xử lý...' : 'Tiếp nhận'}</button>}
+                                            {alert.status === 'acknowledged' && <button type="button" disabled={busy} onClick={() => handleResolve(alert)} className="px-2.5 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-bold disabled:opacity-60">{busy ? 'Đang xử lý...' : 'Đóng cảnh báo'}</button>}
+                                            <Link to="/guard/security-alerts" className="px-2.5 py-1.5 rounded-lg border border-action-blue/30 text-action-blue text-[11px] font-bold no-underline">Mở trung tâm</Link>
+                                        </div>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
                 </section>
@@ -513,6 +581,11 @@ const GuardDashboard = () => {
                     </div>
                 </section>
             </div>
+            <EventSnapshotModal
+                isOpen={Boolean(snapshotEventId)}
+                eventId={snapshotEventId}
+                onClose={() => setSnapshotEventId(null)}
+            />
         </div>
     );
 };

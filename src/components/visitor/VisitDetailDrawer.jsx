@@ -40,7 +40,8 @@ const TEXT_ACTIONS = {
 // Ngăn chi tiết một lượt khách + mọi thao tác trên lượt (S3, dùng lại ở S4–S6).
 // deskMode: màn chốt bảo vệ — mới có check-in / check-out / chụp ảnh (BE: visitor.desk.use).
 // canReassign: màn quản lý của admin — chuyển người duyệt cho lượt đang chờ duyệt.
-const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode = false, canReassign = false }) => {
+// canManage: Business Admin/System Admin được duyệt hoặc từ chối thay người được gặp.
+const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode = false, canReassign = false, canManage = false }) => {
     const [visit, setVisit] = useState(null);
     const [loadError, setLoadError] = useState(null);
     const [action, setAction] = useState(null);
@@ -105,11 +106,11 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
         onChanged?.();
     };
 
-    // Duyệt / từ chối: chỉ chính người được gặp (BE cũng chặn) — admin, bảo vệ không duyệt thay.
+    // Host tự duyệt; Business Admin/System Admin được xử lý thay theo quyền visitor.visit.manage.
     const isHost = (() => { try { return visit?.hostId === JSON.parse(localStorage.getItem('user') || '{}').id; } catch { return false; } })();
     const DESK_ACTIONS = ['check_in', 'check_out'];
     const can = (name) => visit?.availableActions.includes(name)
-        && (!['approve', 'reject'].includes(name) || isHost)
+        && (!['approve', 'reject'].includes(name) || isHost || canManage)
         && (!DESK_ACTIONS.includes(name) || deskMode);
     const canExtend = visit && ['approved', 'checked_in'].includes(visit.status);
     const needsPhoto = deskMode && visit && visit.visitor.hasPhoto === false && ['approved', 'pending_approval'].includes(visit.status);

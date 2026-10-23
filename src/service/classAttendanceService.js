@@ -584,6 +584,36 @@ export const fetchClassAttendanceSummary = async (classId, date = todayKey()) =>
     return response?.data || null;
 };
 
+export const fetchClassAttendanceEvents = async (classId, date = todayKey()) => {
+    try {
+        const response = await get(`/class-attendance/classes/${classId}/events${buildQuery({ date })}`, { skipToast: true });
+        return response?.data || [];
+    } catch {
+        return getClassAttendanceEvents(classId, date);
+    }
+};
+
+export const getClassAttendanceEvents = (classId = mockClassrooms[0].id, date = todayKey()) => {
+    const klass = mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
+    return getClassAttendanceRecords()
+        .filter(record => record.classId === klass.id && record.date === date)
+        .flatMap(record => [
+            record.checkInAt ? {
+                id: `${record.id}-in`, studentId: record.studentId, studentCode: record.studentCode, studentName: record.studentName,
+                direction: 'in', status: record.status, source: record.source === 'manual' ? 'manual' : 'automatic_camera',
+                sourceLabel: record.source === 'manual' ? 'Thủ công' : 'Tự động', actorName: record.actor || null,
+                reason: record.manualReason || null, occurredAt: record.checkInAt, evidenceImage: record.evidenceImage || null
+            } : null,
+            record.checkOutAt ? {
+                id: `${record.id}-out`, studentId: record.studentId, studentCode: record.studentCode, studentName: record.studentName,
+                direction: 'out', status: 'left', source: record.source === 'manual' ? 'manual' : 'automatic_camera',
+                sourceLabel: record.source === 'manual' ? 'Thủ công' : 'Tự động', actorName: record.actor || null,
+                reason: record.manualReason || null, occurredAt: record.checkOutAt, evidenceImage: record.evidenceImage || null
+            } : null
+        ].filter(Boolean))
+        .sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt));
+};
+
 export const scanClassAttendance = async ({ classId, administrativeClass, direction = 'in', snapshotImageBase64 } = {}) => {
     const response = await post('/class-attendance/scan', {
         classId,

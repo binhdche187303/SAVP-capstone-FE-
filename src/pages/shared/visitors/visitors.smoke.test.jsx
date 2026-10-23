@@ -26,16 +26,16 @@ beforeEach(() => resetState());
 describe('VisitorManagement', () => {
     const route = <Route path="/business-admin/visitors" element={<VisitorManagement />} />;
 
-    test('admin không duyệt thay: không có nút duyệt nhanh, ngăn chi tiết không có Duyệt / Từ chối', async () => {
+    test('admin có thể mở duyệt nhanh và xử lý lượt khách chờ duyệt', async () => {
         renderAt('/business-admin/visitors', route);
         await waitFor(() => expect(tabCount(/Chờ duyệt/)).toBeGreaterThanOrEqual(3));
         await waitFor(() => expect(dataRows().length).toBeGreaterThan(0));
-        expect(screen.queryByRole('button', { name: 'Duyệt nhanh' })).not.toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: 'Duyệt' }).length).toBeGreaterThan(0);
         fireEvent.click(within(dataRows()[0]).getAllByRole('cell')[0]);
         const drawer = await screen.findByRole('dialog', { name: 'Chi tiết lượt khách' });
         expect(await within(drawer).findByText('Quyền ra vào')).toBeInTheDocument();
-        expect(within(drawer).queryByRole('button', { name: 'Duyệt' })).not.toBeInTheDocument();
-        expect(within(drawer).queryByRole('button', { name: 'Từ chối' })).not.toBeInTheDocument();
+        expect(within(drawer).getByRole('button', { name: 'Duyệt' })).toBeInTheDocument();
+        expect(within(drawer).getByRole('button', { name: 'Từ chối' })).toBeInTheDocument();
     });
 
     test('ngăn chi tiết: gia hạn lùi giờ bị chặn', async () => {

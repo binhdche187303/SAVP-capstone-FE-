@@ -150,6 +150,14 @@ export const subscribeToSecurityAlerts = (onNew, onUpdated) => {
   };
 };
 
+// Tín hiệu chung của phân hệ Khách. Payload chỉ yêu cầu màn hình gọi lại API,
+// vì vậy dữ liệu chi tiết vẫn luôn đi qua endpoint có phân quyền.
+export const subscribeToVisitorVisitChanges = (onChanged) => {
+  const s = getSocket();
+  s.on('visitor.visit.changed', onChanged);
+  return () => s.off('visitor.visit.changed', onChanged);
+};
+
 // Dùng ở ZoneManagement (ZoneAccessLogCard/ZoneTimelineCard) — nhận
 // `zone.presence.updated` realtime khi BE bật ZONE_REALTIME_ENABLED (mặc định
 // OFF — khi tắt, subscribe vẫn join room bình thường nhưng không bao giờ

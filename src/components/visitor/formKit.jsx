@@ -24,6 +24,6 @@ export const defaultSchedule = (startNow = false) => {
     };
 };
 
-export const emptyVisitor = () => ({ fullName: '', idNumber: '', phone: '', email: '', organization: '', plateNumber: '', photo: null });
+export const emptyVisitor = () => ({ fullName: '', idNumber: '', phone: '', email: '', organization: '', plateNumber: '', photo: null, photoPreview: null, reuseFaceProfile: false });
 
 export const CONSENT_TEXT = 'Tôi đồng ý cho nhà trường xử lý ảnh khuôn mặt để xác thực ra vào trong thời gian chuyến thăm';
