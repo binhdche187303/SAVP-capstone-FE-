@@ -20,6 +20,12 @@ const SEVERITY_CLS = {
     high: 'bg-orange-50 text-orange-700 border-orange-200',
     medium: 'bg-yellow-50 text-yellow-700 border-yellow-200',
 };
+const SEVERITY_LABEL = {
+    critical: 'Nghiêm trọng',
+    high: 'Cao',
+    medium: 'Trung bình',
+    low: 'Thấp',
+};
 
 const startOfToday = () => {
     const d = new Date();
@@ -519,7 +525,7 @@ const GuardDashboard = () => {
                                                 </p>
                                                 <p className="text-xs text-slate-blue mt-1">{formatTime(alert.triggered_at || alert.created_at)} · {alert.status === 'new' ? 'Mới' : 'Đã tiếp nhận'}</p>
                                             </div>
-                                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border shrink-0 ${SEVERITY_CLS[alert.severity] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{alert.severity || 'low'}</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border shrink-0 ${SEVERITY_CLS[alert.severity] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{SEVERITY_LABEL[alert.severity] || 'Thấp'}</span>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px] text-slate-blue">
                                             <span><b className="text-midnight-indigo">Zone/cổng:</b> {getAlertLocation(alert)}</span>

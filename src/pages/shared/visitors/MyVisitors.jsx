@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, Link2, UserCheck, UserPlus } from 'lucide-react';
 import {
-    getMyVisits, getMyNotifications, markMyNotificationsRead, approveVisit, rejectVisit, createVisit, getVisitorLookups,
+    getMyVisits, getMyNotifications, markMyNotificationsRead, rejectVisit, createVisit, getVisitorLookups,
 } from '../../../service/visitorService';
 import toast from '../../../utils/toast';
 import { VISITOR_MOCK_ENABLED } from '../../../config/featureFlags';
@@ -26,7 +26,22 @@ const myHostId = () => {
 
 // S5 (2.10): màn của người được gặp — duyệt khách xin gặp mình, mời khách, nhận thông báo.
 const REFRESH_MS = 20000;
-const PAST_PAGE = 10;
+const PAGE_SIZE = 10;
+const VISIT_STATUS_OPTIONS = [
+    ['', 'Tất cả trạng thái'],
+    ['pending_approval', 'Chờ duyệt'],
+    ['approved', 'Đã duyệt'],
+    ['checked_in', 'Đang trong khuôn viên'],
+    ['must_leave', 'Phải rời khuôn viên'],
+    ['checked_out', 'Đã rời'],
+    ['rejected', 'Từ chối'],
+    ['cancelled', 'Đã hủy'],
+];
+const localDateKey = (value) => {
+    const date = new Date(value);
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+};
 
 const VisitLine = ({ visit, onOpen, children }) => (
     <li className="px-6 py-3 flex flex-wrap items-center gap-3">
@@ -44,13 +59,63 @@ const VisitLine = ({ visit, onOpen, children }) => (
     </li>
 );
 
-const Block = ({ title, countId, count, empty, children }) => (
+const Pager = ({ page, total, onChange }) => {
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (pages <= 1) return null;
+    return (
+        <div className="px-6 py-3 border-t border-pale-gray flex items-center justify-between gap-3 text-xs">
+            <span className="text-slate-blue">Trang {page}/{pages}</span>
+            <div className="flex gap-2">
+                <button type="button" className="px-3 py-1.5 rounded-lg border border-platinum-tint text-midnight-indigo font-semibold disabled:opacity-40" disabled={page <= 1} onClick={() => onChange(page - 1)}>Trước</button>
+                <button type="button" className="px-3 py-1.5 rounded-lg border border-platinum-tint text-midnight-indigo font-semibold disabled:opacity-40" disabled={page >= pages} onClick={() => onChange(page + 1)}>Sau</button>
+            </div>
+        </div>
+    );
+};
+
+const StatusFilter = ({ value, onChange }) => {
+    const [open, setOpen] = useState(false);
+    const selected = VISIT_STATUS_OPTIONS.find(([option]) => option === value) || VISIT_STATUS_OPTIONS[0];
+    return (
+        <div className="relative min-w-[190px]">
+            <button
+                id="my-visitors-status"
+                type="button"
+                className={`${inputCls} w-full flex items-center justify-between gap-3 text-xs font-semibold text-left`}
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                onClick={() => setOpen((current) => !current)}
+            >
+                <span className="truncate">{selected[1]}</span>
+                <span className="text-[10px] text-slate-blue">▾</span>
+            </button>
+            {open && (
+                <div className="absolute left-0 top-full z-30 mt-1 min-w-[220px] overflow-hidden rounded-xl border border-platinum-tint bg-white p-1 shadow-lg" role="listbox" aria-label="Trạng thái">
+                    {VISIT_STATUS_OPTIONS.map(([option, label]) => (
+                        <button
+                            key={option || 'all'}
+                            type="button"
+                            role="option"
+                            aria-selected={option === value}
+                            className={`block w-full whitespace-nowrap rounded-lg px-3 py-2 text-left text-xs leading-5 font-sans ${option === value ? 'bg-blue-50 font-semibold text-action-blue' : 'text-midnight-indigo hover:bg-cloud-mist'}`}
+                            onClick={() => { onChange(option); setOpen(false); }}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const Block = ({ title, countId, count, empty, footer, children }) => (
     <div className={`${cardCls} overflow-hidden`}>
         <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex items-center justify-between">
             <h3 className="font-bold text-midnight-indigo text-sm">{title}</h3>
             <span data-testid={countId} className="px-2 py-0.5 rounded-md bg-pale-gray text-[11px] font-bold text-midnight-indigo">{count}</span>
         </div>
-        {count === 0 ? <p className="px-6 py-8 text-center text-xs text-slate-blue">{empty}</p> : <ul className="divide-y divide-pale-gray">{children}</ul>}
+        {count === 0 ? <p className="px-6 py-8 text-center text-xs text-slate-blue">{empty}</p> : <><ul className="divide-y divide-pale-gray">{children}</ul>{footer}</>}
     </div>
 );
 
@@ -67,8 +132,9 @@ const MyVisitors = () => {
     const [inviteError, setInviteError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [invited, setInvited] = useState(null);
-    const [pastShown, setPastShown] = useState(PAST_PAGE);
+    const [pages, setPages] = useState({ pending: 1, upcoming: 1, past: 1 });
     const [inviteLink, setInviteLink] = useState(null);
+    const [filter, setFilter] = useState({ q: '', status: '', from: '', to: '' });
     const lastUnread = useRef(null);
 
     const load = useCallback(async () => {
@@ -93,16 +159,6 @@ const MyVisitors = () => {
         const timer = setInterval(load, REFRESH_MS);
         return () => clearInterval(timer);
     }, [load]);
-
-    const approve = async (visit) => {
-        const res = await approveVisit(visit.id, {});
-        if (res?.success) {
-            toast.success(`Đã duyệt ${visit.visitor.fullName}`);
-            load();
-        } else {
-            toast.error(res?.message || 'Không duyệt được');
-        }
-    };
 
     const confirmReject = async () => {
         const res = await rejectVisit(rejecting.id, { reason });
@@ -147,6 +203,50 @@ const MyVisitors = () => {
     };
 
     const unreadCount = notifications.filter((n) => !n.read).length;
+    const filteredVisits = useMemo(() => {
+        if (!visits) return null;
+        const q = filter.q.trim().toLocaleLowerCase('vi-VN');
+        const matches = (visit) => {
+            const haystack = [
+                visit.visitor.fullName,
+                visit.code,
+                visit.visitor.phone,
+                visit.visitor.email,
+                visit.visitor.organization,
+                visit.purpose,
+            ].filter(Boolean).join(' ').toLocaleLowerCase('vi-VN');
+            const day = localDateKey(visit.scheduledFrom);
+            return (!q || haystack.includes(q))
+                && (!filter.status || visit.status === filter.status || (filter.status === 'checked_in' && visit.status === 'must_leave'))
+                && (!filter.from || day >= filter.from)
+                && (!filter.to || day <= filter.to);
+        };
+        return {
+            pending: visits.pending.filter(matches),
+            upcoming: visits.upcoming.filter(matches),
+            past: visits.past.filter(matches),
+        };
+    }, [visits, filter]);
+
+    const clearFilter = () => {
+        setFilter({ q: '', status: '', from: '', to: '' });
+        setPages({ pending: 1, upcoming: 1, past: 1 });
+    };
+
+    const visibleVisits = useMemo(() => {
+        if (!filteredVisits) return null;
+        const slice = (items, page) => items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+        return {
+            pending: slice(filteredVisits.pending, pages.pending),
+            upcoming: slice(filteredVisits.upcoming, pages.upcoming),
+            past: slice(filteredVisits.past, pages.past),
+        };
+    }, [filteredVisits, pages]);
+
+    const updateFilter = (changes) => {
+        setFilter((prev) => ({ ...prev, ...changes }));
+        setPages({ pending: 1, upcoming: 1, past: 1 });
+    };
 
     return (
         <div className={pageCls}>
@@ -181,42 +281,62 @@ const MyVisitors = () => {
                     <p>Khách chưa có ảnh khuôn mặt, bảo vệ sẽ chụp khi khách đến.</p>
                 </div>
             )}
+            <div className={`${cardCls} p-4 flex flex-wrap items-end gap-3 font-sans`}>
+                <div className="flex-1 min-w-[220px]">
+                    <label htmlFor="my-visitors-search" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Tìm kiếm</label>
+                    <input
+                        id="my-visitors-search"
+                        className={`${inputCls} w-full text-sm`}
+                        value={filter.q}
+                        onChange={(e) => updateFilter({ q: e.target.value })}
+                        placeholder="Tên khách, mã lượt, email, số điện thoại..."
+                    />
+                </div>
+                <div className="min-w-[180px]">
+                    <label htmlFor="my-visitors-status" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Trạng thái</label>
+                    <StatusFilter value={filter.status} onChange={(status) => updateFilter({ status })} />
+                </div>
+                <div>
+                    <label htmlFor="my-visitors-from" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Từ ngày</label>
+                    <input id="my-visitors-from" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.from} onChange={(e) => updateFilter({ from: e.target.value })} />
+                </div>
+                <div>
+                    <label htmlFor="my-visitors-to" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Đến ngày</label>
+                    <input id="my-visitors-to" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.to} onChange={(e) => updateFilter({ to: e.target.value })} />
+                </div>
+                <button type="button" className={btnGhost} onClick={clearFilter} disabled={!filter.q && !filter.status && !filter.from && !filter.to}>Xóa lọc</button>
+            </div>
             {error && <div className={errorBoxCls}>{error}</div>}
             {!error && !visits && <div className="flex items-center justify-center h-64"><div className={spinnerCls} /></div>}
 
             {visits && (
                 <div className="grid lg:grid-cols-3 gap-6 items-start">
                     <div className="lg:col-span-2 space-y-6">
-                        <Block title="Cần bạn duyệt" countId="my-pending-count" count={visits.pending.length} empty="Không có khách nào đang chờ bạn duyệt">
-                            {visits.pending.map((visit) => (
+                        <Block title="Cần bạn duyệt" countId="my-pending-count" count={filteredVisits.pending.length} empty="Không có khách nào phù hợp" footer={<Pager page={pages.pending} total={filteredVisits.pending.length} onChange={(page) => setPages((prev) => ({ ...prev, pending: page }))} />}>
+                            {visibleVisits.pending.map((visit) => (
                                 <VisitLine key={visit.id} visit={visit} onOpen={setDetailId}>
                                     <div className="flex gap-2">
-                                        <button type="button" aria-label="Duyệt" className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-semibold hover:bg-glacier-blue" onClick={() => approve(visit)}>Duyệt</button>
+                                        <button type="button" aria-label="Duyệt" className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-semibold hover:bg-glacier-blue" onClick={() => setDetailId(visit.id)}>Duyệt</button>
                                         <button type="button" className="px-3 py-1.5 rounded-lg border border-platinum-tint text-[11px] font-semibold text-midnight-indigo hover:bg-cloud-mist" onClick={() => { setRejecting(visit); setReason(''); setRejectError(null); }}>Từ chối</button>
                                     </div>
                                 </VisitLine>
                             ))}
                         </Block>
 
-                        <Block title="Sắp đến / đang tiếp" countId="my-upcoming-count" count={visits.upcoming.length} empty="Chưa có khách nào sắp đến">
-                            {visits.upcoming.map((visit) => (
+                        <Block title="Sắp đến / đang tiếp" countId="my-upcoming-count" count={filteredVisits.upcoming.length} empty="Không có khách nào phù hợp" footer={<Pager page={pages.upcoming} total={filteredVisits.upcoming.length} onChange={(page) => setPages((prev) => ({ ...prev, upcoming: page }))} />}>
+                            {visibleVisits.upcoming.map((visit) => (
                                 <VisitLine key={visit.id} visit={visit} onOpen={setDetailId}>
                                     <VisitStatusBadge status={visit.status} overstay={visit.overstay} />
                                 </VisitLine>
                             ))}
                         </Block>
 
-                        <Block title="Đã tiếp" countId="my-past-count" count={visits.past.length} empty="Chưa có lượt khách nào trước đây">
-                            {visits.past.slice(0, pastShown).map((visit) => (
+                        <Block title="Đã tiếp" countId="my-past-count" count={filteredVisits.past.length} empty="Không có khách nào phù hợp" footer={<Pager page={pages.past} total={filteredVisits.past.length} onChange={(page) => setPages((prev) => ({ ...prev, past: page }))} />}>
+                            {visibleVisits.past.map((visit) => (
                                 <VisitLine key={visit.id} visit={visit} onOpen={setDetailId}>
                                     <VisitStatusBadge status={visit.status} />
                                 </VisitLine>
                             ))}
-                            {visits.past.length > pastShown && (
-                                <li className="px-6 py-3 text-center">
-                                    <button type="button" className="text-xs font-semibold text-action-blue hover:underline" onClick={() => setPastShown((n) => n + PAST_PAGE)}>Xem thêm</button>
-                                </li>
-                            )}
                         </Block>
                     </div>
 
@@ -270,7 +390,7 @@ const MyVisitors = () => {
                 <VisitForm mode="host_invite" lookups={lookups} onSubmit={invite} submitting={submitting} error={inviteError} />
             </SimpleModal>
 
-            {detailId && <VisitDetailDrawer visitId={detailId} zones={lookups.zones} onClose={() => setDetailId(null)} onChanged={load} />}
+            {detailId && <VisitDetailDrawer canManage visitId={detailId} zones={lookups.zones} onClose={() => setDetailId(null)} onChanged={load} />}
         </div>
     );
 };

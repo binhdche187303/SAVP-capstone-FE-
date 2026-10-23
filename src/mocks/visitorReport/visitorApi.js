@@ -613,9 +613,9 @@ const buildAttention = (state, now, today) => {
         ATTENTION_ORDER.indexOf(a.kind) - ATTENTION_ORDER.indexOf(b.kind) || new Date(a.since) - new Date(b.since));
 };
 
-export const getDeskToday = () =>
+export const getDesk = ({ date } = {}) =>
     read((state, now) => {
-        const today = localYmd(now);
+        const today = date || localYmd(now);
         const scheduledToday = state.visits.filter((v) => localYmd(v.scheduledFrom) === today);
         const carriedOver = state.visits.filter((v) => isOnSite(v) && localYmd(v.scheduledFrom) !== today);
         const items = [...scheduledToday, ...carriedOver].sort((a, b) => new Date(a.scheduledFrom) - new Date(b.scheduledFrom));
@@ -645,6 +645,8 @@ export const getDeskToday = () =>
             attention: buildAttention(state, now, today),
         };
     });
+
+export const getDeskToday = () => getDesk();
 
 export const getMyVisits = () =>
     read((state, now) => {

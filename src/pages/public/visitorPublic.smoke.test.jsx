@@ -98,7 +98,7 @@ describe('VisitorRegister', () => {
         fireEvent.change(screen.getByLabelText(/Mã xác thực Zalo OA/), { target: { value: '123456' } });
         fireEvent.click(screen.getByRole('button', { name: 'Xác thực và tiếp tục' }));
         expect(await screen.findByText('Chuyến thăm')).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: 'Khách lần đầu' })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByRole('tab', { name: 'Khách đã đăng ký' })).toHaveAttribute('aria-selected', 'true');
     });
 });
 

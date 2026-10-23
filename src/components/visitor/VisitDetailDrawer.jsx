@@ -41,7 +41,7 @@ const TEXT_ACTIONS = {
 // deskMode: màn chốt bảo vệ — mới có check-in / check-out / chụp ảnh (BE: visitor.desk.use).
 // canReassign: màn quản lý của admin — chuyển người duyệt cho lượt đang chờ duyệt.
 // canManage: Business Admin/System Admin được duyệt hoặc từ chối thay người được gặp.
-const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode = false, canReassign = false, canManage = false }) => {
+const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode = false, canReassign = false, canManage = false, canExtendPermission = true, canRevokePermission = true }) => {
     const [visit, setVisit] = useState(null);
     const [loadError, setLoadError] = useState(null);
     const [action, setAction] = useState(null);
@@ -60,6 +60,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
         const res = await getVisit(visitId);
         if (res?.success) {
             setVisit(res.data);
+            if (res.data.status === 'pending_approval') setAccess({ ...res.data.access });
             setLoadError(null);
         } else {
             setLoadError(res?.message || 'Không tải được lượt khách');
@@ -112,7 +113,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
     const can = (name) => visit?.availableActions.includes(name)
         && (!['approve', 'reject'].includes(name) || isHost || canManage)
         && (!DESK_ACTIONS.includes(name) || deskMode);
-    const canExtend = visit && ['approved', 'checked_in'].includes(visit.status);
+    const canExtend = canExtendPermission && visit && ['approved', 'checked_in'].includes(visit.status);
     const needsPhoto = deskMode && visit && visit.visitor.hasPhoto === false && ['approved', 'pending_approval'].includes(visit.status);
     const textAction = TEXT_ACTIONS[action];
 
@@ -154,7 +155,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                             )}
 
                             <div className="flex flex-wrap gap-2">
-                                {can('approve') && <button type="button" className={btnPrimary} onClick={() => open('approve')}>Duyệt</button>}
+                                {can('approve') && <button type="button" className={btnPrimary} disabled={busy || !access?.zoneIds?.length} onClick={() => perform(() => approveVisit(visit.id, { access }), 'Đã duyệt lượt khách')}>Duyệt</button>}
                                 {can('reject') && <button type="button" className={btnGhost} onClick={() => open('reject')}>Từ chối</button>}
                                 {can('check_in') && <button type="button" className={btnPrimary} onClick={() => open('check_in')}>Check-in tay</button>}
                                 {can('check_out') && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => checkOutVisit(visit.id), 'Đã ghi nhận khách rời khuôn viên')}>{visit.status === 'must_leave' ? 'Xác nhận khách đã rời' : 'Check-out'}</button>}
@@ -162,18 +163,12 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                 {canExtend && <button type="button" className={btnGhost} onClick={() => open('extend')}>Gia hạn</button>}
                                 {needsPhoto && <button type="button" className={btnGhost} onClick={() => open('photo')}>Chụp bổ sung ảnh</button>}
                                 {canReassign && visit.status === 'pending_approval' && <button type="button" className={btnGhost} onClick={() => open('reassign')}>Chuyển người duyệt</button>}
-                                {can('revoke') && <button type="button" className={btnGhost} onClick={() => open('revoke')}>Thu hồi quyền</button>}
+                                {canRevokePermission && can('revoke') && <button type="button" className={btnGhost} onClick={() => open('revoke')}>Thu hồi quyền</button>}
                                 {can('cancel') && <button type="button" className={btnGhost} disabled={busy} onClick={() => perform(() => cancelVisit(visit.id), 'Đã hủy lượt khách')}>Hủy lượt</button>}
                             </div>
 
                             {action && (
                                 <div className="rounded-xl border border-action-blue/30 bg-blue-50/40 p-4 space-y-3">
-                                    {action === 'approve' && (
-                                        <>
-                                            <p className="text-xs font-semibold text-midnight-indigo">Kiểm tra quyền ra vào trước khi duyệt</p>
-                                            <AccessGrantCard access={access} zones={zones} editable onChange={setAccess} />
-                                        </>
-                                    )}
                                     {textAction && (
                                         <div className="space-y-1">
                                             <label className={labelCls} htmlFor="visit-action-text">{textAction.field}</label>
@@ -230,7 +225,6 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                     {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
                                     <div className="flex justify-end gap-2">
                                         <button type="button" className={btnGhost} onClick={() => setAction(null)} disabled={busy}>Bỏ qua</button>
-                                        {action === 'approve' && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => approveVisit(visit.id, { access }), 'Đã duyệt lượt khách')}>Xác nhận duyệt</button>}
                                         {textAction && <button type="button" className={textAction.danger ? btnDanger : btnPrimary} disabled={busy} onClick={() => perform(() => textAction.run(visit.id, text), textAction.done)}>{textAction.confirm}</button>}
                                         {action === 'extend' && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => extendVisit(visit.id, { validTo: fromLocalInput(extendTo) }), 'Đã gia hạn quyền ra vào')}>Xác nhận gia hạn</button>}
                                         {action === 'close' && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => closeVisitManually(visit.id, { reason: closeForm.reason, exitAt: closeForm.reason === 'left_unrecorded' ? fromLocalInput(closeForm.exitAt) : undefined, note: closeForm.note }), 'Đã đóng lượt khách')}>Xác nhận đóng lượt</button>}
@@ -239,6 +233,8 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                     </div>
                                 </div>
                             )}
+
+                            {can('approve') && <AccessGrantCard access={access || visit.access} zones={zones} editable showValidity={false} onChange={setAccess} />}
 
                             <Section title="Thông tin khách">
                                 <Row label="Số CCCD / hộ chiếu">{visit.visitor.idNumber}</Row>
@@ -266,7 +262,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                             </Section>
 
                             <Section title="Quyền ra vào">
-                                <AccessGrantCard access={visit.access} zones={zones} />
+                                <AccessGrantCard access={can('approve') ? (access || visit.access) : visit.access} zones={zones} />
                             </Section>
 
                             <Section title="Dòng thời gian">

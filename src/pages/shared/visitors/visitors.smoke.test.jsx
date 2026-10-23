@@ -158,6 +158,9 @@ describe('MyVisitors', () => {
         const upcoming = count('upcoming');
         expect(pending).toBeGreaterThanOrEqual(2);
         fireEvent.click(approveButtons[0]);
+        const drawer = await screen.findByRole('dialog', { name: 'Chi tiết lượt khách' });
+        fireEvent.click(await within(drawer).findByRole('button', { name: 'Duyệt' }));
+        fireEvent.click(await within(drawer).findByRole('button', { name: 'Xác nhận duyệt' }));
         await waitFor(() => expect(count('pending')).toBe(pending - 1));
         expect(count('upcoming')).toBe(upcoming + 1);
     });

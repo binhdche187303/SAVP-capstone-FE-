@@ -113,7 +113,7 @@ const ReturningVisitorPanel = ({ onBackToNew, onVerified }) => {
                     <Field label="Mã xác thực Zalo OA" htmlFor="returning-code" required>
                         <input
                             id="returning-code"
-                            className={`${inputCls} w-full tracking-[0.3em]`}
+                            className={`${inputCls} w-full font-sans tracking-normal`}
                             value={code}
                             onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
                             placeholder="Nhập 6 chữ số"
@@ -143,6 +143,7 @@ const VisitorRegister = () => {
     const [submitting, setSubmitting] = useState(false);
     const [created, setCreated] = useState(null);
     const [registrationMode, setRegistrationMode] = useState('new');
+    const [returningVerified, setReturningVerified] = useState(false);
     const [searchParams] = useSearchParams();
     const invitedHostId = searchParams.get('host');
 
@@ -186,14 +187,16 @@ const VisitorRegister = () => {
         setSubmitting(false);
     };
 
-    const restart = () => { setCreated(null); setForm(initialForm()); setStep(0); setError(null); };
+    const restart = () => { setCreated(null); setForm(initialForm()); setStep(0); setError(null); setRegistrationMode('new'); setReturningVerified(false); };
+    const switchToNew = () => { setRegistrationMode('new'); setReturningVerified(false); };
+    const switchToReturning = () => { setRegistrationMode('returning'); setReturningVerified(false); };
     const continueAsReturningVisitor = (visitor) => {
         setForm((prev) => ({
             ...prev,
             visitor: { ...prev.visitor, ...visitor, reuseFaceProfile: Boolean(visitor.hasFaceProfile) },
             consent: Boolean(visitor.hasFaceProfile),
         }));
-        setRegistrationMode('new');
+        setReturningVerified(true);
         setStep(1);
         setError(null);
     };
@@ -225,18 +228,18 @@ const VisitorRegister = () => {
                     <p className="text-xs text-slate-blue mt-1">Chọn đúng loại đăng ký để không phải nhập lại thông tin.</p>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2" role="tablist" aria-label="Loại đăng ký khách">
-                    <button type="button" role="tab" aria-selected={registrationMode === 'new'} className={`${registrationMode === 'new' ? btnPrimary : btnGhost} w-full`} onClick={() => setRegistrationMode('new')}>
+                    <button type="button" role="tab" aria-selected={registrationMode === 'new'} className={`${registrationMode === 'new' ? btnPrimary : btnGhost} w-full`} onClick={switchToNew}>
                         Khách lần đầu
                     </button>
-                    <button type="button" role="tab" aria-selected={registrationMode === 'returning'} className={`${registrationMode === 'returning' ? btnPrimary : btnGhost} w-full`} onClick={() => setRegistrationMode('returning')}>
+                    <button type="button" role="tab" aria-selected={registrationMode === 'returning'} className={`${registrationMode === 'returning' ? btnPrimary : btnGhost} w-full`} onClick={switchToReturning}>
                         Khách đã đăng ký
                     </button>
                 </div>
             </div>
 
-            {registrationMode === 'returning' && <ReturningVisitorPanel onBackToNew={() => setRegistrationMode('new')} onVerified={continueAsReturningVisitor} />}
+            {registrationMode === 'returning' && !returningVerified && <ReturningVisitorPanel onBackToNew={switchToNew} onVerified={continueAsReturningVisitor} />}
 
-            {registrationMode === 'new' && <>
+            {(registrationMode === 'new' || returningVerified) && <>
             <ol className="flex items-center justify-between gap-2">
                 {STEPS.map((label, i) => (
                     <li key={label} className="flex-1 flex flex-col items-center gap-1.5">

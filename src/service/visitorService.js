@@ -57,6 +57,7 @@ export const checkOutVisit = (id) => call(() => mock.checkOutVisit(id), () => po
 export const closeVisitManually = (id, body) => call(() => mock.closeVisitManually(id, body), () => post(`/visitors/visits/${id}/close-manual`, body));
 export const scanAtGate = (code, body) => call(() => mock.scanAtGate(code, body), () => post('/dev/mock-visitor-scan', { ...body, code }));
 export const getDeskToday = () => call(() => mock.getDeskToday(), () => get('/visitors/desk/today'));
+export const getDesk = (params) => call(() => mock.getDesk(params), () => get(`/visitors/desk${qs(params)}`));
 export const getMyVisits = () => call(() => mock.getMyVisits(), () => get('/visitors/my-visits'));
 export const getMyNotifications = () => call(() => mock.getMyNotifications(), () => get('/visitors/my-notifications'));
 export const markMyNotificationsRead = () => call(() => mock.markMyNotificationsRead(), () => post('/visitors/my-notifications/read'));

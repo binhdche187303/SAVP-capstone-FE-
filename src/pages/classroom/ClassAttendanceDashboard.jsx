@@ -155,6 +155,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState(queryAdministrativeClass);
     const [classPage, setClassPage] = useState(1);
+    const [eventPage, setEventPage] = useState(1);
     const [rows, setRows] = useState([]);
     const [attendanceEvents, setAttendanceEvents] = useState([]);
     const [settings, setSettings] = useState(getClassAttendanceSettings(mode === 'teacher' ? undefined : mockClassrooms[0].id));
@@ -262,6 +263,13 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         missing: filteredRows.filter(row => !row.checkInAt).length
     }), [filteredRows]);
 
+    const eventsPerPage = 5;
+    const eventPageCount = Math.max(1, Math.ceil(attendanceEvents.length / eventsPerPage));
+    const visibleAttendanceEvents = useMemo(
+        () => attendanceEvents.slice((eventPage - 1) * eventsPerPage, eventPage * eventsPerPage),
+        [attendanceEvents, eventPage]
+    );
+
     const refresh = useCallback(() => {
         let cancelled = false;
         const load = async () => {
@@ -325,6 +333,14 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     useEffect(() => {
         if (classPage > classPageCount) setClassPage(classPageCount);
     }, [classPage, classPageCount]);
+
+    useEffect(() => {
+        if (eventPage > eventPageCount) setEventPage(eventPageCount);
+    }, [eventPage, eventPageCount]);
+
+    useEffect(() => {
+        setEventPage(1);
+    }, [selectedClassId, selectedDate, selectedAdministrativeClass]);
 
     useEffect(() => {
         if (selectedAdministrativeClass && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
@@ -728,7 +744,6 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                 <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10 flex items-center justify-between gap-3">
                     <div>
                         <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">Nhật ký vào/ra lớp</h2>
-                        <p className="text-xs text-slate-blue mt-1">Cập nhật tự động mỗi 5 giây trong ngày học.</p>
                     </div>
                     <span className="text-xs font-semibold text-slate-blue">{attendanceEvents.length} lượt ghi nhận</span>
                 </div>
@@ -738,7 +753,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                             <tr><th className="text-left px-5 py-3">Thời gian</th><th className="text-left px-5 py-3">Sinh viên</th><th className="text-left px-5 py-3">Sự kiện</th><th className="text-left px-5 py-3">Nguồn</th><th className="text-left px-5 py-3">Camera / zone</th><th className="text-left px-5 py-3">Ghi chú</th></tr>
                         </thead>
                         <tbody>
-                            {attendanceEvents.map(event => (
+                            {visibleAttendanceEvents.map(event => (
                                 <tr key={event.id} className="border-t border-platinum-tint/70">
                                     <td className="px-5 py-3 text-xs font-semibold text-midnight-indigo">{event.occurredAt ? new Date(event.occurredAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}</td>
                                     <td className="px-5 py-3"><p className="font-bold text-midnight-indigo">{event.studentName}</p><p className="text-xs text-slate-blue">{event.studentCode}</p></td>
@@ -752,6 +767,38 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         </tbody>
                     </table>
                 </div>
+                {attendanceEvents.length > 0 && (
+                    <div className="flex items-center justify-between gap-3 border-t border-platinum-tint px-5 py-3">
+                        <span className="text-xs text-slate-blue">
+                            Hiển thị {(eventPage - 1) * eventsPerPage + 1}–{Math.min(eventPage * eventsPerPage, attendanceEvents.length)} trong {attendanceEvents.length} lượt ghi nhận
+                        </span>
+                        {eventPageCount > 1 && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setEventPage(page => Math.max(1, page - 1))}
+                                    disabled={eventPage === 1}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-platinum-tint px-3 py-1.5 text-xs font-semibold text-midnight-indigo disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <ChevronLeft className="h-3.5 w-3.5" />
+                                    Trước
+                                </button>
+                                <span className="min-w-[70px] text-center text-xs font-semibold text-slate-blue">
+                                    Trang {eventPage}/{eventPageCount}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setEventPage(page => Math.min(eventPageCount, page + 1))}
+                                    disabled={eventPage === eventPageCount}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-platinum-tint px-3 py-1.5 text-xs font-semibold text-midnight-indigo disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    Sau
+                                    <ChevronRight className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
             </>}
         </div>

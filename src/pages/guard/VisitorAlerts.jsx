@@ -6,6 +6,7 @@ import { VISITOR_MOCK_ENABLED } from '../../config/featureFlags';
 import { getAlertTypeLabel } from '../../constants/alertType';
 import { subscribeToSecurityAlerts } from '../../utils/socket';
 import { subscribeToVisitorAlertChanges } from '../../utils/visitorRealtime';
+import { hasPermission } from '../../utils/permissionUtils';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import VisitDetailDrawer from '../../components/visitor/VisitDetailDrawer';
 import DemoDataBanner from '../../components/common/DemoDataBanner';
@@ -299,7 +300,17 @@ const VisitorAlerts = () => {
                 </div>
             </section>
             <EventSnapshotModal isOpen={Boolean(snapshotEventId)} eventId={snapshotEventId} onClose={() => setSnapshotEventId(null)} />
-            {detailId && <VisitDetailDrawer deskMode visitId={detailId} zones={zones} onClose={() => setDetailId(null)} onChanged={load} />}
+            {detailId && (
+                <VisitDetailDrawer
+                    deskMode
+                    visitId={detailId}
+                    zones={zones}
+                    canExtendPermission={hasPermission(['visitor.visit.extend', 'visitor.visit.manage'])}
+                    canRevokePermission={hasPermission(['visitor.visit.revoke', 'visitor.visit.manage'])}
+                    onClose={() => setDetailId(null)}
+                    onChanged={load}
+                />
+            )}
             <SimpleModal
                 isOpen={resolveModal.open}
                 title="Xử lý cảnh báo khách"
