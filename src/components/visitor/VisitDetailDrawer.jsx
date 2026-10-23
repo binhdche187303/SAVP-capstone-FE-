@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import {
-    getVisit, approveVisit, rejectVisit, cancelVisit, revokeVisit, extendVisit,
+    getVisit, approveVisit, rejectVisit, cancelVisit, revokeVisit, extendVisit, updateVisitAccess,
     attachVisitorPhoto, checkInVisit, checkOutVisit, closeVisitManually, reassignVisitHost, searchHosts,
 } from '../../service/visitorService';
 import toast from '../../utils/toast';
+import { hasPermission } from '../../utils/permissionUtils';
 import { inputCls, labelCls, btnPrimary, btnGhost, btnDanger, errorBoxCls, spinnerCls } from '../common/uiClasses';
 import VisitorAvatar from './VisitorAvatar';
 import VisitStatusBadge from './VisitStatusBadge';
@@ -77,7 +78,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
         setError(null);
         setText('');
         setPhoto(null);
-        if (name === 'approve') setAccess({ ...visit.access });
+        if (name === 'approve' || name === 'access') setAccess({ ...visit.access });
         if (name === 'extend') setExtendTo(toLocalInput(visit.access.validTo));
         if (name === 'reassign') { setHostQuery(''); setNewHostId(''); findHosts(''); }
         if (name === 'close') setCloseForm({ reason: '', exitAt: toLocalInput(new Date().toISOString()), note: '' });
@@ -112,6 +113,9 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
         && (!['approve', 'reject'].includes(name) || isHost)
         && (!DESK_ACTIONS.includes(name) || deskMode);
     const canExtend = visit && ['approved', 'checked_in'].includes(visit.status);
+    // Khu hạn chế chỉ quản lý cấp; sửa khu sau duyệt: người được gặp hoặc quản lý (BE kiểm lại).
+    const canManage = hasPermission('visitor.visit.manage');
+    const canEditAccess = canExtend && (isHost || canManage);
     const needsPhoto = deskMode && visit && visit.visitor.hasPhoto === false && ['approved', 'pending_approval'].includes(visit.status);
     const textAction = TEXT_ACTIONS[action];
 
@@ -159,6 +163,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                 {can('check_out') && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => checkOutVisit(visit.id), 'Đã ghi nhận khách rời khuôn viên')}>{visit.status === 'must_leave' ? 'Xác nhận khách đã rời' : 'Check-out'}</button>}
                                 {can('close_manual') && <button type="button" className={btnGhost} onClick={() => open('close')}>Đóng lượt thủ công</button>}
                                 {canExtend && <button type="button" className={btnGhost} onClick={() => open('extend')}>Gia hạn</button>}
+                                {canEditAccess && <button type="button" className={btnGhost} onClick={() => open('access')}>Sửa khu vực</button>}
                                 {needsPhoto && <button type="button" className={btnGhost} onClick={() => open('photo')}>Chụp bổ sung ảnh</button>}
                                 {canReassign && visit.status === 'pending_approval' && <button type="button" className={btnGhost} onClick={() => open('reassign')}>Chuyển người duyệt</button>}
                                 {can('revoke') && <button type="button" className={btnGhost} onClick={() => open('revoke')}>Thu hồi quyền</button>}
@@ -170,7 +175,13 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                     {action === 'approve' && (
                                         <>
                                             <p className="text-xs font-semibold text-midnight-indigo">Kiểm tra quyền ra vào trước khi duyệt</p>
-                                            <AccessGrantCard access={access} zones={zones} editable onChange={setAccess} />
+                                            <AccessGrantCard access={access} zones={zones} editable canManage={canManage} onChange={setAccess} />
+                                        </>
+                                    )}
+                                    {action === 'access' && (
+                                        <>
+                                            <p className="text-xs font-semibold text-midnight-indigo">Chọn cổng và khu vực khách được đi vào</p>
+                                            <AccessGrantCard access={access} zones={zones} editable zonesOnly canManage={canManage} onChange={setAccess} />
                                         </>
                                     )}
                                     {textAction && (
@@ -230,6 +241,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                     <div className="flex justify-end gap-2">
                                         <button type="button" className={btnGhost} onClick={() => setAction(null)} disabled={busy}>Bỏ qua</button>
                                         {action === 'approve' && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => approveVisit(visit.id, { access }), 'Đã duyệt lượt khách')}>Xác nhận duyệt</button>}
+                                        {action === 'access' && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => updateVisitAccess(visit.id, { zoneIds: access.zoneIds }), 'Đã cập nhật khu vực được phép')}>Lưu khu vực</button>}
                                         {textAction && <button type="button" className={textAction.danger ? btnDanger : btnPrimary} disabled={busy} onClick={() => perform(() => textAction.run(visit.id, text), textAction.done)}>{textAction.confirm}</button>}
                                         {action === 'extend' && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => extendVisit(visit.id, { validTo: fromLocalInput(extendTo) }), 'Đã gia hạn quyền ra vào')}>Xác nhận gia hạn</button>}
                                         {action === 'close' && <button type="button" className={btnPrimary} disabled={busy} onClick={() => perform(() => closeVisitManually(visit.id, { reason: closeForm.reason, exitAt: closeForm.reason === 'left_unrecorded' ? fromLocalInput(closeForm.exitAt) : undefined, note: closeForm.note }), 'Đã đóng lượt khách')}>Xác nhận đóng lượt</button>}

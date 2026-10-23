@@ -47,6 +47,7 @@ export const rejectVisit = (id, body) => call(() => mock.rejectVisit(id, body), 
 export const cancelVisit = (id) => call(() => mock.cancelVisit(id), () => post(`/visitors/visits/${id}/cancel`));
 export const reassignVisitHost = (id, body) => call(() => mock.reassignVisitHost(id, body), () => post(`/visitors/visits/${id}/reassign-host`, body));
 export const revokeVisit = (id, body) => call(() => mock.revokeVisit(id, body), () => post(`/visitors/visits/${id}/revoke`, body));
+export const updateVisitAccess = (id, body) => call(() => mock.updateVisitAccess(id, body), () => post(`/visitors/visits/${id}/access`, body));
 export const extendVisit = (id, body) => call(() => mock.extendVisit(id, body), () => post(`/visitors/visits/${id}/extend`, body));
 export const attachVisitorPhoto = (id, body) => call(() => mock.attachVisitorPhoto(id, body), () => post(`/visitors/visits/${id}/photo`, body));
 export const verifyFaceAtGate = (id, body) => call(() => mock.verifyFaceAtGate(id, body), () => Promise.resolve({ success: false, message: 'Nhận diện khuôn mặt do camera thực hiện, không gọi tay được' }));

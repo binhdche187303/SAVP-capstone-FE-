@@ -706,6 +706,19 @@ const SecurityAlerts = () => {
                                                         📌 {alert.payload_json.displayName}
                                                     </span>
                                                 )}
+                                                {String(alert.alert_type).startsWith('visitor_') && alert.payload_json?.visitorName && (
+                                                    <span
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 text-[10px] font-bold rounded border border-violet-200"
+                                                        title={[
+                                                            alert.payload_json?.detail,
+                                                            alert.payload_json?.hostName && `Người được gặp: ${alert.payload_json.hostName}`,
+                                                            alert.payload_json?.allowedZoneNames?.length && `Được phép: ${alert.payload_json.allowedZoneNames.join(', ')}`,
+                                                        ].filter(Boolean).join('\n')}
+                                                    >
+                                                        🪪 Khách {alert.payload_json.visitorName}{alert.payload_json?.code ? ` · ${alert.payload_json.code}` : ''}
+                                                        {alert.payload_json?.hostName ? ` · gặp ${alert.payload_json.hostName}` : ''}
+                                                    </span>
+                                                )}
                                                 {getConversions(alert).map(c => (
                                                     <span key={c.personControlId + c.at} className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 text-[10px] font-bold rounded border border-orange-200">
                                                         📌 {c.watchlistName}
