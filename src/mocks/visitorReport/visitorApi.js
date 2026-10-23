@@ -185,7 +185,7 @@ const createVisitRecord = (state, now, payload, channel, status) => {
         scheduledTo: new Date(payload.scheduledTo).toISOString(),
         access: {
             ...defaultAccessWindow(payload.scheduledFrom, payload.scheduledTo),
-            zoneIds: [MAIN_GATE, zoneOfBuilding(department.building)],
+            zoneIds: channel !== 'online' && payload.zoneIds?.length ? [...new Set(payload.zoneIds)] : [MAIN_GATE, zoneOfBuilding(department.building)],
         },
         checkInAt: null,
         checkOutAt: null,
@@ -281,6 +281,16 @@ export const approveVisit = (id, body = {}) =>
         visit.status = to;
         addEvent(visit, 'approved', { actor: getCurrentActor().fullName });
         if (visit.visitor.email) addEvent(visit, 'email_sent', { note: `Đã gửi email kèm mã lượt và QR tới ${visit.visitor.email}` });
+    });
+
+// Sửa khu được phép sau khi duyệt (khớp BE POST /visits/:id/access).
+export const updateVisitAccess = (id, body = {}) =>
+    mutate(id, (visit) => {
+        if (!['approved', 'checked_in'].includes(visit.status)) fail('Chỉ sửa khu vực cho lượt đã duyệt hoặc đang trong khuôn viên');
+        const zoneIds = Array.isArray(body.zoneIds) ? [...new Set(body.zoneIds)] : [];
+        if (zoneIds.length === 0) fail('Chọn ít nhất một khu vực được phép');
+        visit.access = { ...visit.access, zoneIds };
+        addEvent(visit, 'access_updated', { actor: getCurrentActor().fullName });
     });
 
 export const rejectVisit = (id, body = {}) =>

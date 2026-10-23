@@ -28,12 +28,12 @@ export const DEPARTMENTS = [
 ].map(([id, name, building]) => ({ id, name, building }));
 
 export const ZONES = [
-    { id: 'zone-gate-main', name: 'Cổng chính', type: 'gate', hasFaceGate: true },
-    { id: 'zone-gate-east', name: 'Cổng phụ phía Đông', type: 'gate', hasFaceGate: false },
-    { id: 'zone-a1', name: 'Tòa A1', type: 'building', hasFaceGate: true },
-    { id: 'zone-a2', name: 'Tòa A2', type: 'building', hasFaceGate: true },
-    { id: 'zone-b1', name: 'Tòa B1', type: 'building', hasFaceGate: true },
-    { id: 'zone-b2', name: 'Tòa B2', type: 'building', hasFaceGate: false },
+    { id: 'zone-gate-main', name: 'Cổng chính', type: 'gate', visitorPolicy: 'open', hasFaceGate: true, hasCamera: true },
+    { id: 'zone-gate-east', name: 'Cổng phụ phía Đông', type: 'gate', visitorPolicy: 'grantable', hasFaceGate: false, hasCamera: true },
+    { id: 'zone-a1', name: 'Tòa A1', type: 'building', visitorPolicy: 'grantable', hasFaceGate: true, hasCamera: true },
+    { id: 'zone-a2', name: 'Tòa A2', type: 'building', visitorPolicy: 'grantable', hasFaceGate: true, hasCamera: true },
+    { id: 'zone-b1', name: 'Tòa B1', type: 'building', visitorPolicy: 'grantable', hasFaceGate: true, hasCamera: true },
+    { id: 'zone-b2', name: 'Tòa B2', type: 'building', visitorPolicy: 'restricted', hasFaceGate: false, hasCamera: false },
 ];
 
 export const PURPOSES = [
