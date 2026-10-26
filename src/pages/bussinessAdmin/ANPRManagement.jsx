@@ -18,8 +18,9 @@ import ExportReportModal from '../../components/common/ExportReportModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import UserAvatar from '../../components/common/UserAvatar';
 import Pagination from '../../components/common/Pagination';
+import { getDevices, getZones } from '../../service/sysAdminServices';
 
-const ANPR_HISTORY_REFRESH_MS = 1000;
+const ANPR_HISTORY_REFRESH_MS = 5000;
 
 const getVehicleTypeLabel = (type) => {
     const normalized = String(type || '').toUpperCase();
@@ -50,6 +51,68 @@ const ANPRManagement = ({ guardMode = false }) => {
     const [historyList, setHistoryList] = useState([]);
     const [historyTotal, setHistoryTotal] = useState(0);
     const [filterMatchState, setFilterMatchState] = useState('ALL');
+    const [filterCamera, setFilterCamera] = useState('');
+    const [filterZone, setFilterZone] = useState('');
+    const [filterVehicleType, setFilterVehicleType] = useState('');
+    const [cameraOptions, setCameraOptions] = useState([]);
+    const [zoneOptions, setZoneOptions] = useState([]);
+    
+    useEffect(() => {
+        let cancelled = false;
+
+        Promise.all([
+            getDevices({ page: 1, limit: 100 }),
+            getZones({ page: 1, limit: 100, status: 'active', zone_type: 'gate' }),
+        ])
+            .then(([devicesRes, zonesRes]) => {
+                if (cancelled) return;
+
+                const devicePayload = devicesRes?.data ?? devicesRes;
+                const zonePayload = zonesRes?.data ?? zonesRes;
+
+                const devices = Array.isArray(devicePayload)
+                    ? devicePayload
+                    : (devicePayload?.items || []);
+
+                const zones = Array.isArray(zonePayload)
+                    ? zonePayload
+                    : (zonePayload?.items || []);
+
+                setCameraOptions(
+                    devices.filter((device) => {
+                        const type = String(
+                            device.device_type || device.deviceType || ''
+                        ).toLowerCase();
+
+                        return type === 'door_camera';
+                    })
+                );
+
+                setZoneOptions(
+                    zones.filter((zone) => {
+                        const type = String(
+                            zone.zone_type || zone.zoneType || ''
+                        ).toLowerCase();
+
+                        return (
+                            ['active', undefined].includes(zone.status) &&
+                            (!type || type === 'gate')
+                        );
+                    })
+                );
+
+                console.log('[ANPR] Camera từ DB:', devices);
+                console.log('[ANPR] Khu vực từ DB:', zones);
+            })
+            .catch((error) => {
+                console.error('[ANPR] Không tải được camera/khu vực:', error);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     const [historyPage, setHistoryPage] = useState(1);
     const [dateRange, setDateRange] = useState([null, null]);
     const [startDate, endDate] = dateRange;
@@ -69,7 +132,7 @@ const ANPRManagement = ({ guardMode = false }) => {
 
     useEffect(() => {
         setHistoryPage(1);
-    }, [filterMatchState, debouncedSearch, startDate, endDate]);
+    }, [filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate]);
 
     const fetchHistory = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -81,6 +144,9 @@ const ANPRManagement = ({ guardMode = false }) => {
             if (filterMatchState !== 'ALL') {
                 params.matchState = filterMatchState;
             }
+            if (filterCamera) params.cameraName = filterCamera;
+            if (filterZone) params.zoneId = filterZone;
+            if (filterVehicleType) params.vehicleType = filterVehicleType;
             if (debouncedSearch) {
                 params.plateNumber = debouncedSearch;
                 params.ownerName = debouncedSearch; // Hỗ trợ BE filter theo Tên Chủ xe
@@ -193,8 +259,8 @@ const ANPRManagement = ({ guardMode = false }) => {
     // EFFECTS
     // ============================================
     useEffect(() => {
-        if (activeTab === 'history') fetchHistory();
-    }, [activeTab, filterMatchState, debouncedSearch, startDate, endDate, historyPage]);
+        if (activeTab === 'history') fetchHistory(true);
+    }, [activeTab, filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate, historyPage]);
 
     useEffect(() => {
         if (activeTab === 'unknown') fetchUnknown();
@@ -215,7 +281,18 @@ const ANPRManagement = ({ guardMode = false }) => {
             }, ANPR_HISTORY_REFRESH_MS);
         }
         return () => clearInterval(interval);
-    }, [activeTab, filterMatchState, debouncedSearch, startDate, endDate, historyPage, unknownPage]);
+    }, [
+        activeTab,
+        filterMatchState,
+        filterCamera,
+        filterZone,
+        filterVehicleType,
+        debouncedSearch,
+        startDate,
+        endDate,
+        historyPage,
+        unknownPage,
+    ]);
 
     return (
         <div className="max-w-6xl mx-auto space-y-6 animate-fade-in-up pb-10">
@@ -270,47 +347,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                             <p className="text-xs text-slate-blue mt-0.5">Nhật ký nhận diện biển số qua camera ANPR · cập nhật mỗi giây</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            {!guardMode && (
-                            <div className="flex items-center gap-2 rounded-xl border border-dashed border-platinum-tint bg-slate-50 px-2 py-1.5">
-                                <span className="text-[11px] font-bold text-slate-blue whitespace-nowrap">Test xe</span>
-                                <input
-                                    type="text"
-                                    value={mockPlate}
-                                    onChange={(e) => setMockPlate(e.target.value.toUpperCase())}
-                                    className="w-32 px-2 py-1.5 rounded-lg border border-platinum-tint text-xs font-mono font-bold text-midnight-indigo focus:border-action-blue focus:ring-1 focus:ring-action-blue/20 outline-none"
-                                    placeholder="30A-123.45"
-                                />
-                                <select
-                                    value={mockVehicleType}
-                                    onChange={(e) => setMockVehicleType(e.target.value)}
-                                    className="w-20 px-2 py-1.5 rounded-lg border border-platinum-tint bg-white text-xs font-bold text-midnight-indigo focus:border-action-blue focus:ring-1 focus:ring-action-blue/20 outline-none"
-                                    title="Loại phương tiện"
-                                >
-                                    <option value="CAR">Ô tô</option>
-                                    <option value="MOTORBIKE">Xe máy</option>
-                                    <option value="TRUCK">Xe tải</option>
-                                    <option value="BUS">Xe buýt</option>
-                                </select>
-                                <button
-                                    onClick={() => handleMockVehicle('enter')}
-                                    disabled={mockLoading}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold disabled:opacity-60"
-                                    title="Mock xe vào cổng"
-                                >
-                                    {mockLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
-                                    Vào
-                                </button>
-                                <button
-                                    onClick={() => handleMockVehicle('leave')}
-                                    disabled={mockLoading}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold disabled:opacity-60"
-                                    title="Mock xe ra cổng"
-                                >
-                                    {mockLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
-                                    Ra
-                                </button>
-                            </div>
-                            )}
+
                             <button
                                 onClick={() => fetchHistory()}
                                 disabled={loading}
@@ -365,6 +402,43 @@ const ANPRManagement = ({ guardMode = false }) => {
                             <option value="ALL">Tất cả trạng thái</option>
                             <option value="matched">Khớp dữ liệu</option>
                             <option value="unmatched">Biển lạ</option>
+                        </select>
+
+                        <select
+                            value={filterCamera}
+                            onChange={(e) => setFilterCamera(e.target.value)}
+                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold bg-white"
+                        >
+                            <option value="">Tất cả camera</option>
+                            {cameraOptions.map((camera) => {
+                                const name = camera.deviceName || camera.device_name;
+                                return <option key={camera.id || name} value={name}>{name}</option>;
+                            })}
+                        </select>
+
+                        <select
+                            value={filterZone}
+                            onChange={(e) => setFilterZone(e.target.value)}
+                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold bg-white"
+                        >
+                            <option value="">Tất cả khu vực</option>
+                            {zoneOptions.map((zone) => (
+                                <option key={zone.id} value={zone.id}>
+                                    {zone.zoneName || zone.zone_name || zone.name}
+                                </option>
+                            ))}
+                        </select>
+
+                        <select
+                            value={filterVehicleType}
+                            onChange={(e) => setFilterVehicleType(e.target.value)}
+                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold bg-white"
+                        >
+                            <option value="">Tất cả loại xe</option>
+                            <option value="car">Ô tô</option>
+                            <option value="motorbike">Xe máy</option>
+                            <option value="truck">Xe tải</option>
+                            <option value="bus">Xe buýt</option>
                         </select>
                     </div>
 
