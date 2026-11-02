@@ -18,6 +18,7 @@ import ExportReportModal from '../../components/common/ExportReportModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import UserAvatar from '../../components/common/UserAvatar';
 import Pagination from '../../components/common/Pagination';
+import { getDevices, getZones } from '../../service/sysAdminServices';
 
 const ANPR_HISTORY_REFRESH_MS = 1000;
 
@@ -50,6 +51,11 @@ const ANPRManagement = ({ guardMode = false }) => {
     const [historyList, setHistoryList] = useState([]);
     const [historyTotal, setHistoryTotal] = useState(0);
     const [filterMatchState, setFilterMatchState] = useState('ALL');
+    const [filterCamera, setFilterCamera] = useState('');
+    const [filterZone, setFilterZone] = useState('');
+    const [filterVehicleType, setFilterVehicleType] = useState('');
+    const [cameraOptions, setCameraOptions] = useState([]);
+    const [zoneOptions, setZoneOptions] = useState([]);
     const [historyPage, setHistoryPage] = useState(1);
     const [dateRange, setDateRange] = useState([null, null]);
     const [startDate, endDate] = dateRange;
@@ -69,7 +75,25 @@ const ANPRManagement = ({ guardMode = false }) => {
 
     useEffect(() => {
         setHistoryPage(1);
-    }, [filterMatchState, debouncedSearch, startDate, endDate]);
+    }, [filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate]);
+
+    useEffect(() => {
+        let cancelled = false;
+        Promise.all([
+            getDevices({ page: 1, limit: 100, type: 'door_camera' }),
+            getZones({ page: 1, limit: 100, status: 'active' }),
+        ]).then(([devicesRes, zonesRes]) => {
+            if (cancelled) return;
+            const devices = devicesRes?.data || [];
+            const zones = zonesRes?.data || [];
+            setCameraOptions(devices.filter((d) => {
+                const type = String(d.deviceType || d.device_type || '').toLowerCase();
+                return (d.deviceName || d.device_name) && type === 'door_camera';
+            }));
+            setZoneOptions(zones);
+        }).catch((err) => console.error('Không tải được bộ lọc camera/khu vực:', err));
+        return () => { cancelled = true; };
+    }, []);
 
     const fetchHistory = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -81,6 +105,9 @@ const ANPRManagement = ({ guardMode = false }) => {
             if (filterMatchState !== 'ALL') {
                 params.matchState = filterMatchState;
             }
+            if (filterCamera) params.cameraName = filterCamera;
+            if (filterZone) params.zoneId = filterZone;
+            if (filterVehicleType) params.vehicleType = filterVehicleType;
             if (debouncedSearch) {
                 params.plateNumber = debouncedSearch;
                 params.ownerName = debouncedSearch; // Hỗ trợ BE filter theo Tên Chủ xe
@@ -194,7 +221,7 @@ const ANPRManagement = ({ guardMode = false }) => {
     // ============================================
     useEffect(() => {
         if (activeTab === 'history') fetchHistory();
-    }, [activeTab, filterMatchState, debouncedSearch, startDate, endDate, historyPage]);
+    }, [activeTab, filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate, historyPage]);
 
     useEffect(() => {
         if (activeTab === 'unknown') fetchUnknown();
@@ -328,7 +355,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                     </div>
 
                     {/* Filter bar */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-cloud-mist/50 p-4 rounded-xl border border-platinum-tint">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3 bg-cloud-mist/50 p-4 rounded-xl border border-platinum-tint">
                         {/* Search */}
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
@@ -365,6 +392,42 @@ const ANPRManagement = ({ guardMode = false }) => {
                             <option value="ALL">Tất cả trạng thái</option>
                             <option value="matched">Khớp dữ liệu</option>
                             <option value="unmatched">Biển lạ</option>
+                        </select>
+
+                        <select
+                            value={filterCamera}
+                            onChange={(e) => setFilterCamera(e.target.value)}
+                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
+                        >
+                            <option value="">Tất cả camera</option>
+                            {cameraOptions.map((camera) => {
+                                const name = camera.deviceName || camera.device_name;
+                                return <option key={camera.id || name} value={name}>{name}</option>;
+                            })}
+                        </select>
+
+                        <select
+                            value={filterZone}
+                            onChange={(e) => setFilterZone(e.target.value)}
+                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
+                        >
+                            <option value="">Tất cả khu vực</option>
+                            {zoneOptions.map((zone) => (
+                                <option key={zone.id} value={zone.id}>{zone.zoneName || zone.zone_name || zone.name}</option>
+                            ))}
+                        </select>
+
+                        <select
+                            value={filterVehicleType}
+                            onChange={(e) => setFilterVehicleType(e.target.value)}
+                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
+                        >
+                            <option value="">Tất cả loại xe</option>
+                            <option value="car">Ô tô</option>
+                            <option value="motorbike">Xe máy</option>
+                            <option value="motorcycle">Xe máy</option>
+                            <option value="truck">Xe tải</option>
+                            <option value="bus">Xe buýt</option>
                         </select>
                     </div>
 
