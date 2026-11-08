@@ -36,6 +36,7 @@ import EquipmentManagement from '../pages/systemAdmin/EquipmentManagement';
 import ZoneManagement from '../pages/systemAdmin/ZoneManagement';
 import RolePermissionManagement from '../pages/systemAdmin/RolePermissionManagement';
 import SystemSettings from '../pages/systemAdmin/SystemSettings';
+import UelSync from '../pages/systemAdmin/UelSync';
 import Profile from '../pages/shared/Profile';
 import Notifications from '../pages/systemAdmin/Notifications';
 import ANPRManagement from '../pages/bussinessAdmin/ANPRManagement'; // SystemAdmin can also use this
@@ -202,6 +203,10 @@ export const router = [
             {
                 path: 'settings',
                 element: <SystemSettings />
+            },
+            {
+                path: 'uel-sync',
+                element: <UelSync />
             },
             {
                 path: 'profile',
