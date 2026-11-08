@@ -38,3 +38,16 @@ export const getStudyPeriods = async () => (await get('/uel-sync/periods')).data
 
 /** PUT /uel-sync/periods — thay toàn bộ bảng giờ tiết. */
 export const replaceStudyPeriods = async (periods) => (await put('/uel-sync/periods', { periods })).data;
+
+/** 6 kiểu tra cứu trực tiếp (BE chuyển tiếp sang API UEL, không ghi DB). */
+export const UEL_LOOKUP_TYPES = [
+    { key: 'staff', label: 'Thông tin cán bộ', codeLabel: 'Mã cán bộ', placeholder: 'NS003' },
+    { key: 'student', label: 'Thông tin sinh viên', codeLabel: 'Mã sinh viên', placeholder: 'K254061001' },
+    { key: 'studentEnrollments', label: 'Học phần SV đã đăng ký', codeLabel: 'Mã sinh viên', placeholder: 'K254061001' },
+    { key: 'lecturerDay', label: 'Lịch dạy giảng viên 1 ngày', codeLabel: 'Mã giảng viên', placeholder: 'NS003', needsDate: true },
+    { key: 'studentDay', label: 'Lịch học sinh viên 1 ngày', codeLabel: 'Mã sinh viên', placeholder: 'K254061001', needsDate: true },
+    { key: 'session', label: 'Danh sách 1 buổi học', codeLabel: 'Mã buổi học', placeholder: '900001' },
+];
+
+/** POST /uel-sync/lookup — { type, code, date? } → { items, total, truncated } */
+export const lookupUel = async (payload) => (await post('/uel-sync/lookup', payload)).data;

@@ -13,6 +13,7 @@ jest.mock('../../service/uelSyncService', () => {
         runUelSync: jest.fn(),
         updateUelSyncSettings: jest.fn(),
         replaceStudyPeriods: jest.fn(),
+        lookupUel: jest.fn(),
     };
 });
 
@@ -92,4 +93,25 @@ test('thêm tiết rồi lưu bảng giờ tiết', async () => {
         expect(svc.replaceStudyPeriods).toHaveBeenCalledWith([{ periodNo: 1, startTime: '07:00', endTime: '07:50' }]),
     );
     expect(await screen.findByText(/Đã lưu 1 tiết/)).toBeInTheDocument();
+});
+
+test('tra cứu trực tiếp: lịch dạy 1 ngày gửi kèm ngày, hiện bảng kết quả', async () => {
+    svc.lookupUel.mockResolvedValue({
+        type: 'lecturerDay',
+        api: 'thoikhoabieu/chi_tiet_tkb_gv_1ngay',
+        total: 1,
+        truncated: false,
+        items: [{ stt: 1, ngay_hoc: '2026-11-09', ma_lop_hoc_phan: '261MI0101_01', ten_hoc_phan: 'Cơ sở dữ liệu', ma_giang_vien: 'NS003' }],
+    });
+    render(<UelSync />);
+    await screen.findByText('Tra cứu trực tiếp từ UEL');
+    fireEvent.change(screen.getByLabelText('Tra cứu'), { target: { value: 'lecturerDay' } });
+    fireEvent.change(screen.getByLabelText('Mã giảng viên'), { target: { value: 'NS003' } });
+    fireEvent.change(screen.getByLabelText('Ngày'), { target: { value: '2026-11-09' } });
+    fireEvent.click(screen.getByRole('button', { name: /Tra cứu$/ }));
+    await waitFor(() =>
+        expect(svc.lookupUel).toHaveBeenCalledWith({ type: 'lecturerDay', code: 'NS003', date: '2026-11-09' }),
+    );
+    expect(await screen.findByText('Cơ sở dữ liệu')).toBeInTheDocument();
+    expect(screen.getByText('Học phần')).toBeInTheDocument();
 });

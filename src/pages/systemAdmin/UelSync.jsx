@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, Play, Plus, Trash2, ChevronDown, ChevronRight, DatabaseZap } from 'lucide-react';
+import { RefreshCw, Play, Plus, Trash2, ChevronDown, ChevronRight, DatabaseZap, Search } from 'lucide-react';
 import {
+    UEL_LOOKUP_TYPES,
     UEL_SYNC_STEPS,
     getStudyPeriods,
     getUelSyncRuns,
     getUelSyncStatus,
+    lookupUel,
     replaceStudyPeriods,
     runUelSync,
     stepLabel,
@@ -166,6 +168,109 @@ const RunRow = ({ run, defaultOpen }) => {
 };
 
 // ───────────────────────── Trang ─────────────────────────
+
+// ───────────────────────── Tra cứu trực tiếp ─────────────────────────
+
+/** Tên cột dễ đọc cho các trường API UEL hay gặp; trường khác giữ nguyên tên gốc. */
+const FIELD_LABELS = {
+    ma_nhan_su: 'Mã cán bộ', ho: 'Họ', ten: 'Tên', ho_ten: 'Họ tên', ngay_sinh: 'Ngày sinh', gioi_tinh: 'Giới tính',
+    email: 'Email', ma_phong_ban: 'Mã đơn vị', ten_phong_ban: 'Đơn vị', ma_quan_ly: 'Quản lý', loai: 'Loại',
+    khong_con_cong_tac: 'Nghỉ việc', cccd: 'CCCD', ma_sinh_vien: 'Mã SV', ten_sinh_vien: 'Tên SV', ho_ten_sinh_vien: 'Tên SV',
+    lop: 'Lớp', khoa: 'Khoa', khoa_hoc: 'Khóa', noi_sinh: 'Nơi sinh', dan_toc: 'Dân tộc', ton_giao: 'Tôn giáo', dia_chi: 'Địa chỉ',
+    ma_lop_hoc_phan: 'Lớp HP', ma_hoc_phan: 'Mã HP', ten_hoc_phan: 'Học phần', so_tin_chi: 'TC', nam_hoc: 'Năm học', hoc_ky: 'HK',
+    ngay_dang_ky: 'Ngày ĐK', hinh_thuc_dang_ky: 'Hình thức ĐK', ngay_hoc: 'Ngày', thu: 'Thứ', tiet_bat_dau: 'Tiết BĐ', so_tiet: 'Số tiết',
+    ma_phong_hoc: 'Phòng', ma_phong: 'Phòng', ten_co_so: 'Cơ sở', ma_lich_hoc: 'Mã buổi', ma_buoi_hoc: 'Mã buổi', buoi_hoc: 'Buổi',
+    ma_giang_vien: 'Mã GV', ten_giang_vien: 'Giảng viên', buoi_hoc_thu: 'Buổi thứ',
+};
+/** Trường dư thừa / nội bộ không cần hiện trong bảng. */
+const HIDDEN_FIELDS = new Set(['stt', 'ma_hinh_thuc_dang_ky', 'ten_phong_hoc', 'ten_phong', 'ma_day_nha', 'ma_co_so', 'ten_day_nha', 'ma_don_vi', 'ten_don_vi']);
+
+const cellText = (v) => (v === null || v === undefined || v === '' ? '—' : typeof v === 'boolean' ? (v ? 'Có' : 'Không') : String(v));
+
+const LookupCard = () => {
+    const [form, setForm] = useState({ type: 'staff', code: '', date: localDate() });
+    const [busy, setBusy] = useState(false);
+    const [result, setResult] = useState(null);
+    const [error, setError] = useState(null);
+    const t = UEL_LOOKUP_TYPES.find((x) => x.key === form.type) ?? UEL_LOOKUP_TYPES[0];
+
+    const columns = useMemo(() => {
+        const keys = [];
+        for (const row of result?.items ?? []) for (const k of Object.keys(row)) if (!HIDDEN_FIELDS.has(k) && !keys.includes(k)) keys.push(k);
+        return keys;
+    }, [result]);
+
+    const submit = async (e) => {
+        e.preventDefault();
+        if (!form.code.trim()) return setError('Nhập mã cần tra cứu.');
+        setBusy(true);
+        setError(null);
+        try {
+            setResult(await lookupUel({ type: form.type, code: form.code.trim(), ...(t.needsDate ? { date: form.date } : {}) }));
+        } catch (err) {
+            setResult(null);
+            setError(errorText(err, 'Không tra cứu được.'));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <Card title="Tra cứu trực tiếp từ UEL">
+            <p className="text-xs text-slate-blue">
+                Hỏi thẳng hệ thống của Trường cho 1 người, 1 ngày hoặc 1 buổi. Chỉ xem, không lưu vào hệ thống — dùng để đối chiếu khi dữ liệu đồng bộ có vẻ sai.
+            </p>
+            <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                <label className="block" htmlFor="uel-lk-type">
+                    <span className="block text-xs font-bold text-slate-blue mb-1">Tra cứu</span>
+                    <select id="uel-lk-type" className={inputCls} value={form.type}
+                        onChange={(e) => { setForm({ ...form, type: e.target.value }); setResult(null); setError(null); }}>
+                        {UEL_LOOKUP_TYPES.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+                    </select>
+                </label>
+                <label className="block" htmlFor="uel-lk-code">
+                    <span className="block text-xs font-bold text-slate-blue mb-1">{t.codeLabel}</span>
+                    <input id="uel-lk-code" className={inputCls} placeholder={t.placeholder} maxLength={50}
+                        value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+                </label>
+                <label className="block" htmlFor="uel-lk-date">
+                    <span className="block text-xs font-bold text-slate-blue mb-1">Ngày</span>
+                    <input id="uel-lk-date" type="date" className={inputCls} disabled={!t.needsDate}
+                        value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                </label>
+                <button type="submit" disabled={busy} className={btnPrimary}>
+                    <Search className="w-4 h-4" /> {busy ? 'Đang tra...' : 'Tra cứu'}
+                </button>
+            </form>
+            {error && <p className="text-sm text-red-700">{error}</p>}
+            {result && (result.items.length === 0 ? (
+                <p className="text-sm text-steel-gray">Trường không có dữ liệu cho mã này.</p>
+            ) : (
+                <div className="space-y-2">
+                    <p className="text-xs text-slate-blue">
+                        {result.total} dòng{result.truncated ? ` (hiện ${result.items.length} dòng đầu)` : ''} · API <code>{result.api}</code>
+                    </p>
+                    <div className="overflow-x-auto max-h-96 overflow-y-auto border border-platinum-tint/70 rounded-xl">
+                        <table className="w-full text-xs">
+                            <thead className="sticky top-0 bg-cloud-mist">
+                                <tr className="text-left text-slate-blue">
+                                    {columns.map((c) => <th key={c} className="py-2 px-2 font-semibold whitespace-nowrap">{FIELD_LABELS[c] ?? c}</th>)}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {result.items.map((row, i) => (
+                                    <tr key={i} className="border-t border-platinum-tint/60">
+                                        {columns.map((c) => <td key={c} className="py-1.5 px-2 whitespace-nowrap text-midnight-indigo">{cellText(row[c])}</td>)}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ))}
+        </Card>
+    );
+};
 
 const UelSync = () => {
     const [status, setStatus] = useState(null);
@@ -451,6 +556,8 @@ const UelSync = () => {
                     </ul>
                 )}
             </Card>
+
+            <LookupCard />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card title="Cài đặt chạy tự động">
