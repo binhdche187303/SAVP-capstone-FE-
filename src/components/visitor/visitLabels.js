@@ -39,6 +39,7 @@ export const VISIT_EVENT_LABELS = {
     security_notified: 'Đã báo bảo vệ',
     manual_close: 'Đóng lượt thủ công',
     host_reassigned: 'Chuyển người duyệt',
+    access_updated: 'Sửa khu vực được phép',
     exit_unrecorded: 'Chưa ghi nhận giờ ra',
 };
 
@@ -51,6 +52,13 @@ export const GATE_REASON_LABELS = {
     access_revoked: 'Quyền ra vào đã bị thu hồi',
     already_inside: 'Khách đã ở trong khuôn viên',
     not_on_site: 'Khách chưa vào khuôn viên',
+};
+
+// Chính sách khách của khu vực (zones.visitor_policy) — admin cấu hình ở Quản lý khu vực.
+export const ZONE_VISITOR_POLICY_LABELS = {
+    open: 'Mở cho mọi khách',
+    grantable: 'Người được gặp cấp',
+    restricted: 'Hạn chế — chỉ quản lý cấp',
 };
 
 export const CLOSE_REASON_LABELS = {

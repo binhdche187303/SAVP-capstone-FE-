@@ -136,7 +136,7 @@ const DeviceManagement = () => {
     const prevStatusRef = useRef(null);
     const [selectedRoomId, setSelectedRoomId] = useState('');
     const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
+    const [limit, setLimit] = useState(12);
 
     // Form input states
     const [formData, setFormData] = useState({

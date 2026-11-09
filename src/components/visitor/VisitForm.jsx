@@ -4,6 +4,8 @@ import { fromLocalInput } from './visitLabels';
 import { Field, defaultSchedule, emptyVisitor, CONSENT_TEXT } from './formKit';
 import FaceCapture from './FaceCapture';
 import HostPicker from './HostPicker';
+import AccessGrantCard, { openZoneIds } from './AccessGrantCard';
+import { hasPermission } from '../../utils/permissionUtils';
 
 const ME_HOST_ID = 'host-me';
 
@@ -17,6 +19,9 @@ const VisitForm = ({ mode, lookups = {}, onSubmit, submitting, error }) => {
     const [companions, setCompanions] = useState(0);
     const [schedule, setSchedule] = useState(() => defaultSchedule(isWalkIn));
     const [consent, setConsent] = useState(false);
+    // null = chưa chỉnh → BE cấp khu mặc định (mọi khu `open`).
+    const [zoneIds, setZoneIds] = useState(null);
+    const zones = lookups.zones || [];
 
     const setV = (patch) => setVisitor((prev) => ({ ...prev, ...patch }));
     const full = `${inputCls} w-full`;
@@ -32,6 +37,7 @@ const VisitForm = ({ mode, lookups = {}, onSubmit, submitting, error }) => {
             scheduledFrom: fromLocalInput(schedule.scheduledFrom),
             scheduledTo: fromLocalInput(schedule.scheduledTo),
             consent,
+            zoneIds: zoneIds ?? undefined,
         });
     };
 
@@ -77,6 +83,17 @@ const VisitForm = ({ mode, lookups = {}, onSubmit, submitting, error }) => {
                     <input id="vf-to" type="datetime-local" className={full} value={schedule.scheduledTo} onChange={(e) => setSchedule((s) => ({ ...s, scheduledTo: e.target.value }))} />
                 </Field>
             </div>
+
+            {zones.length > 0 && (
+                <AccessGrantCard
+                    access={{ zoneIds: zoneIds ?? openZoneIds(zones) }}
+                    zones={zones}
+                    editable
+                    zonesOnly
+                    canManage={hasPermission('visitor.visit.manage')}
+                    onChange={(a) => setZoneIds(a.zoneIds)}
+                />
+            )}
 
             {isWalkIn ? (
                 <>

@@ -592,6 +592,7 @@ const ZoneManagement = () => {
         zone_name: '',
         zone_type: 'gate',
         status: 'active',
+        visitor_policy: 'grantable',
         building: '',
         floor: '',
         description: '',
@@ -608,10 +609,19 @@ const ZoneManagement = () => {
         room: 'Phòng họp'
     };
 
+    // Chính sách cho khách đến làm việc: quyết định khu nào khách được cấp khi duyệt (BE: zones.visitor_policy).
+    const VISITOR_POLICY_OPTIONS = [
+        ['open', 'Mở — mọi khách tự được cấp (cổng/sảnh mặc định)'],
+        ['grantable', 'Người được gặp cấp khi duyệt'],
+        ['restricted', 'Hạn chế — chỉ quản lý khách / an ninh cấp'],
+    ];
+    const VISITOR_POLICY_LABELS = { open: 'Mở cho mọi khách', grantable: 'Người được gặp cấp', restricted: 'Hạn chế' };
+
     const [createForm, setCreateForm] = useState({
         zone_code: '',
         zone_name: '',
         zone_type: 'gate',
+        visitor_policy: '',
         building: '',
         floor: '',
         description: '',
@@ -714,11 +724,13 @@ const ZoneManagement = () => {
         }
 
         try {
-            const res = await createZone({ ...createForm, ...createCoords });
+            // visitor_policy rỗng = để BE chọn mặc định (cổng → open, khu khác → grantable).
+            const { visitor_policy: createPolicy, ...createRest } = createForm;
+            const res = await createZone({ ...createRest, ...(createPolicy ? { visitor_policy: createPolicy } : {}), ...createCoords });
             if (res?.success) {
                 setSuccessMessage('Tạo khu vực mới thành công!');
                 setIsCreateModalOpen(false);
-                setCreateForm({ zone_code: '', zone_name: '', zone_type: 'gate', building: '', floor: '', description: '', latitude: '', longitude: '' });
+                setCreateForm({ zone_code: '', zone_name: '', zone_type: 'gate', visitor_policy: '', building: '', floor: '', description: '', latitude: '', longitude: '' });
                 fetchZones();
             } else {
                 setError(res?.message || 'Tạo khu vực thất bại.');
@@ -764,6 +776,7 @@ const ZoneManagement = () => {
             zone_name: zone.zone_name || '',
             zone_type: zone.zone_type || 'gate',
             status: zone.status || 'active',
+            visitor_policy: zone.visitor_policy || 'grantable',
             building: zone.building || '',
             floor: zone.floor || '',
             description: zone.description || '',
@@ -808,6 +821,9 @@ const ZoneManagement = () => {
         }
         if (editForm.status !== selectedZone.status) {
             payload.status = editForm.status;
+        }
+        if (editForm.visitor_policy !== (selectedZone.visitor_policy || 'grantable')) {
+            payload.visitor_policy = editForm.visitor_policy;
         }
 
         const oldBuilding = selectedZone.building || '';
@@ -1076,6 +1092,13 @@ const ZoneManagement = () => {
                                         <option value="parking">Bãi đỗ xe</option>
                                     </select>
                                 </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Khách đến làm việc</label>
+                                    <select value={createForm.visitor_policy} onChange={e => setCreateForm({ ...createForm, visitor_policy: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm">
+                                        <option value="">Mặc định ({createForm.zone_type === 'gate' ? 'mở cho mọi khách' : 'người được gặp cấp'})</option>
+                                        {VISITOR_POLICY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                                    </select>
+                                </div>
                                 <div className="flex gap-4">
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tòa nhà</label>
@@ -1142,6 +1165,13 @@ const ZoneManagement = () => {
                                             <option value="inactive">Không hoạt động</option>
                                         </select>
                                     </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Khách đến làm việc</label>
+                                    <select value={editForm.visitor_policy} onChange={e => setEditForm({ ...editForm, visitor_policy: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white">
+                                        {VISITOR_POLICY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                                    </select>
+                                    <p className="text-[11px] text-slate-blue mt-1">Lượt khách đã duyệt giữ nguyên khu đã cấp; chính sách mới áp cho lần duyệt / sửa khu sau.</p>
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="flex-1">
@@ -1212,6 +1242,12 @@ const ZoneManagement = () => {
                                             <span className={`w-1.5 h-1.5 rounded-full ${selectedZone.status === 'inactive' ? 'bg-slate-400' : 'bg-emerald-500'}`} />
                                             {selectedZone.status === 'inactive' ? 'Không hoạt động' : 'Đang hoạt động'}
                                         </span>
+                                    </div>
+                                    <div className="bg-cloud-mist/40 rounded-xl p-3">
+                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Khách đến làm việc</p>
+                                        <p className={`text-sm font-semibold ${selectedZone.visitor_policy === 'restricted' ? 'text-red-700' : 'text-midnight-indigo'}`}>
+                                            {VISITOR_POLICY_LABELS[selectedZone.visitor_policy] || '—'}
+                                        </p>
                                     </div>
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
                                         <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Tòa nhà</p>

@@ -8,6 +8,7 @@ import { getStrangerAlerts, getStrangerSightings, reopenStrangerEvents } from '.
 import { createPersonControlRecord } from '../../service/personControlListService';
 import { getDevices } from '../../service/sysAdminServices';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
+import { CAMERA_TYPES } from '../../mocks/cameraMock';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import Pagination from '../../components/common/Pagination';
 import StrangerReviewModal from '../../components/security/StrangerReviewModal';
@@ -67,7 +68,7 @@ const Strangers = () => {
         getDevices({ limit: 100 })
             .then(res => {
                 const list = Array.isArray(res?.data) ? res.data : res?.data?.items || [];
-                setDevices(list.filter(d => d.device_type === 'face_server'));
+                setDevices(list.filter(d => CAMERA_TYPES.includes(d.device_type)));
             })
             .catch(() => setDevices([]));
     }, []);
