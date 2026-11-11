@@ -202,3 +202,10 @@ export const resetSocket = () => {
     socket = null;
   }
 };
+
+// BE phát khi lượt quét kết nối camera đổi trạng thái online/offline hoặc sức khỏe — chỉ là tín hiệu refetch.
+export const subscribeToDeviceStatusChanges = (onChanged) => {
+  const s = getSocket();
+  s.on('iot.device.status_changed', onChanged);
+  return () => s.off('iot.device.status_changed', onChanged);
+};

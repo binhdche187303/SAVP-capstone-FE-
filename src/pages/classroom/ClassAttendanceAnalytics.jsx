@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, CalendarDays, Download, Filter, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { exportSemesterClassAttendanceCsv, fetchClassAttendanceClasses, fetchTeacherClassAttendanceReport, getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
+import { exportSemesterClassAttendanceCsv, fetchClassAttendanceClasses, fetchTeacherClassAttendanceReport } from '../../service/classAttendanceService';
 
 const RANGE_OPTIONS = [
     { value: 'day', label: 'Ngày' },
@@ -61,75 +61,10 @@ const formatPeriod = (mode, period) => {
     return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
-const normalizeText = (value = '') => value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-
-const getStoredUser = () => {
-    try {
-        const raw = localStorage.getItem('user');
-        return raw ? JSON.parse(raw) : null;
-    } catch {
-        return null;
-    }
-};
-
-const buildClassReport = ({ selectedSubjectCode, selectedAdministrativeClass, selectedSemester, rangeMode, anchorDate, classrooms = mockClassrooms }) => {
-    const classes = classrooms
-        .filter(item => selectedSubjectCode === 'all' || (item.subjectCode || item.code) === selectedSubjectCode)
-        .filter(item => selectedSemester === 'all' || item.semester === selectedSemester);
-    let period = null;
-
-    const rows = classes.map(klass => {
-        const students = (klass.students || []).filter(student => (
-            selectedAdministrativeClass === 'all'
-            || student.administrativeClass === selectedAdministrativeClass
-        ));
-        const entries = students.flatMap(student => {
-            const report = getStudentAttendanceReport({
-                studentId: student.id,
-                mode: rangeMode,
-                anchorDate
-            });
-            if (!period) period = report.period;
-            return (report.entries || []).filter(entry => entry.classId === klass.id);
-        });
-
-        const totalSessions = entries.length;
-        const attended = entries.filter(item => item.checkInAt).length;
-        const late = entries.filter(item => item.status === 'late').length;
-        const absent = entries.filter(item => !item.checkInAt || item.status === 'absent').length;
-        const onTime = entries.filter(item => item.status === 'on_time' || item.status === 'left').length;
-
-        return {
-            ...klass,
-            totalSessions,
-            attended,
-            onTime,
-            late,
-            absent,
-            rate: totalSessions ? Math.round((attended / totalSessions) * 100) : 0
-        };
-    });
-
-    const totals = rows.reduce((acc, item) => ({
-        totalSessions: acc.totalSessions + item.totalSessions,
-        attended: acc.attended + item.attended,
-        onTime: acc.onTime + item.onTime,
-        late: acc.late + item.late,
-        absent: acc.absent + item.absent
-    }), { totalSessions: 0, attended: 0, onTime: 0, late: 0, absent: 0 });
-
-    return {
-        rows,
-        period,
-        totals: {
-            ...totals,
-            rate: totals.totalSessions ? Math.round((totals.attended / totals.totalSessions) * 100) : 0
-        }
-    };
+const EMPTY_REPORT = {
+    rows: [],
+    period: null,
+    totals: { totalSessions: 0, attended: 0, onTime: 0, late: 0, absent: 0, rate: 0 }
 };
 
 const StatCard = ({ label, value, helper }) => (
@@ -142,9 +77,9 @@ const StatCard = ({ label, value, helper }) => (
 
 const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const canExport = mode === 'teacher';
-    const [currentUser, setCurrentUser] = useState(() => getStoredUser());
-    const [classCatalog, setClassCatalog] = useState(mockClassrooms);
+    const [classCatalog, setClassCatalog] = useState([]);
     const [apiReport, setApiReport] = useState(null);
+    const [loadError, setLoadError] = useState('');
     const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState('all');
     const [selectedSemester, setSelectedSemester] = useState('all');
@@ -153,16 +88,14 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const [dateText, setDateText] = useState(() => formatDateKey(todayKey()));
     const datePickerRef = useRef(null);
     useEffect(() => {
-        setCurrentUser(getStoredUser());
-    }, []);
-
-    useEffect(() => {
         let cancelled = false;
         fetchClassAttendanceClasses()
             .then(classes => {
-                if (!cancelled && classes?.length) setClassCatalog(classes);
+                if (!cancelled) setClassCatalog(Array.isArray(classes) ? classes : []);
             })
-            .catch(() => {});
+            .catch(error => {
+                if (!cancelled) setLoadError(error?.message || 'Không tải được danh sách lớp.');
+            });
         return () => {
             cancelled = true;
         };
@@ -181,10 +114,12 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
             .then(data => {
                 if (cancelled) return;
                 setApiReport(data || null);
+                setLoadError('');
             })
-            .catch(() => {
+            .catch(error => {
                 if (!cancelled) {
                     setApiReport(null);
+                    setLoadError(error?.message || 'Không tải được báo cáo chuyên cần.');
                 }
             });
         return () => {
@@ -192,14 +127,8 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
         };
     }, [anchorDate, rangeMode, selectedAdministrativeClass, selectedSemester, selectedSubjectCode]);
 
-    const teacherClassrooms = useMemo(() => {
-        if (!canExport) return classCatalog;
-
-        const teacherName = normalizeText(currentUser?.fullName || currentUser?.full_name || currentUser?.name);
-        const ownedClasses = classCatalog.filter(item => normalizeText(item.teacher) === teacherName);
-
-        return ownedClasses.length > 0 ? ownedClasses : classCatalog;
-    }, [canExport, classCatalog, currentUser]);
+    // BE đã giới hạn phạm vi lớp theo vai trò (GV chỉ thấy lớp mình phụ trách).
+    const teacherClassrooms = classCatalog;
 
     const subjectOptions = useMemo(() => {
         const options = new Map();
@@ -213,12 +142,12 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const administrativeClassOptions = useMemo(() => {
         const classes = teacherClassrooms
             .filter(item => selectedSubjectCode === 'all' || (item.subjectCode || item.code) === selectedSubjectCode)
-            .flatMap(item => item.administrativeClasses || (item.students || []).map(student => student.administrativeClass))
+            .flatMap(item => item.administrativeClasses || [])
             .filter(Boolean);
         return [...new Set(classes)].sort((a, b) => a.localeCompare(b, 'vi'));
     }, [selectedSubjectCode, teacherClassrooms]);
 
-    const semesters = useMemo(() => Array.from(new Set(teacherClassrooms.map(item => item.semester))), [teacherClassrooms]);
+    const semesters = useMemo(() => Array.from(new Set(teacherClassrooms.map(item => item.semester).filter(Boolean))), [teacherClassrooms]);
 
     useEffect(() => {
         if (selectedAdministrativeClass !== 'all' && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
@@ -226,20 +155,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
         }
     }, [administrativeClassOptions, selectedAdministrativeClass]);
 
-    const report = useMemo(
-        () => {
-            if (apiReport?.rows) return apiReport;
-            return buildClassReport({
-                selectedSubjectCode,
-                selectedAdministrativeClass,
-                selectedSemester,
-                rangeMode,
-                anchorDate,
-                classrooms: teacherClassrooms
-            });
-        },
-        [apiReport, anchorDate, rangeMode, selectedAdministrativeClass, selectedSemester, selectedSubjectCode, teacherClassrooms]
-    );
+    const report = apiReport?.rows ? { ...EMPTY_REPORT, ...apiReport, totals: { ...EMPTY_REPORT.totals, ...apiReport.totals } } : EMPTY_REPORT;
 
     const pieData = [
         { name: 'Đúng giờ', value: report.totals.onTime, color: STATUS_COLORS.onTime },
@@ -292,6 +208,10 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     <p className="text-xs text-slate-blue mt-0.5">Lọc theo lớp, môn học và khoảng thời gian để xem tỷ lệ chuyên cần</p>
                 </div>
             </div>
+
+            {loadError && (
+                <div role="alert" className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">{loadError}</div>
+            )}
 
             <div className="bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm flex flex-wrap gap-3 items-end">
                 <div className="flex flex-col gap-1 min-w-[170px]">
@@ -396,7 +316,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                             semester: selectedSemester,
                             subjectCode: selectedSubjectCode,
                             administrativeClass: selectedAdministrativeClass
-                        })}
+                        }).catch(error => setLoadError(error?.message || 'Không xuất được file chuyên cần.'))}
                         className="px-4 py-2 rounded-xl bg-action-blue text-white text-xs font-bold flex items-center gap-2 shadow-sm"
                     >
                         <Download className="w-4 h-4" />

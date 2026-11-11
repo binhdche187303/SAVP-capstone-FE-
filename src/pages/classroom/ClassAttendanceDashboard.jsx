@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Download, Info, LogIn, LogOut, RefreshCw, Trash2, Users, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Download, Info, LogIn, LogOut, RefreshCw, Users, X } from 'lucide-react';
 import {
-    buildClassAttendanceRows,
-    clearClassAttendanceRecords,
+    DEFAULT_CLASS_ATTENDANCE_SETTINGS,
     exportClassAttendanceCsv,
     fetchClassAttendanceClasses,
     fetchClassAttendanceRows,
     fetchClassAttendanceEvents,
     fetchClassAttendanceSettings,
-    getClassAttendanceSettings,
-    getClassSession,
-    getClassAttendanceEvents,
-    scanClassAttendance,
-    mockClassFaceScan,
-    mockClassrooms
+    fetchClassSessions,
+    scanClassAttendance
 } from '../../service/classAttendanceService';
 
 const statusClass = {
@@ -123,42 +118,31 @@ const getTodayKey = () => {
     return `${year}-${month}-${day}`;
 };
 
-const getCurrentSemester = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
+const formatDayLabel = (dateKey) => new Date(`${dateKey}T00:00:00`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 
-    if (month >= 8) return `HK1 ${year}-${year + 1}`;
-    if (month <= 1) return `HK1 ${year - 1}-${year}`;
-    return `HK2 ${year - 1}-${year}`;
-};
-
-const getScheduleStartMinutes = (schedule = '') => {
-    const match = String(schedule).match(/(\d{1,2}):(\d{2})/);
-    return match ? Number(match[1]) * 60 + Number(match[2]) : Number.MAX_SAFE_INTEGER;
-};
-
-const getWeekdaySortValue = (weekday) => {
-    const value = Number(weekday);
-    return value === 0 ? 7 : value;
-};
+/** Buổi học thật của lớp trong ngày đang xem (từ /class-attendance/sessions). */
+const describeSession = (session, dateKey) => session
+    ? { schedule: `${formatDayLabel(dateKey)} ${session.startTime} - ${session.endTime}`, room: session.room || 'Chưa có phòng' }
+    : { schedule: `Không có buổi học ngày ${formatDayLabel(dateKey)}`, room: '—' };
 
 const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     const location = useLocation();
     const attendanceQuery = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const queryClassId = attendanceQuery.get('classId') || '';
     const queryAdministrativeClass = attendanceQuery.get('administrativeClass') || '';
-    const [classrooms, setClassrooms] = useState(mockClassrooms);
-    const [selectedClassId, setSelectedClassId] = useState(mode === 'teacher' ? queryClassId : mockClassrooms[0].id);
+    const [classrooms, setClassrooms] = useState([]);
+    const [daySessions, setDaySessions] = useState([]);
+    const [loadError, setLoadError] = useState('');
+    const [selectedClassId, setSelectedClassId] = useState(queryClassId);
     const [selectedDate, setSelectedDate] = useState(getTodayKey);
-    const [selectedSemester, setSelectedSemester] = useState(getCurrentSemester);
+    const [selectedSemester, setSelectedSemester] = useState('all');
     const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState(queryAdministrativeClass);
     const [classPage, setClassPage] = useState(1);
     const [eventPage, setEventPage] = useState(1);
     const [rows, setRows] = useState([]);
     const [attendanceEvents, setAttendanceEvents] = useState([]);
-    const [settings, setSettings] = useState(getClassAttendanceSettings(mode === 'teacher' ? undefined : mockClassrooms[0].id));
+    const [settings, setSettings] = useState(DEFAULT_CLASS_ATTENDANCE_SETTINGS);
     const [scanDirection, setScanDirection] = useState('in');
     const [autoScan, setAutoScan] = useState(false);
     const [scanNotice, setScanNotice] = useState(null);
@@ -171,23 +155,23 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         () => selectedClassId ? classrooms.find(item => item.id === selectedClassId) || null : null,
         [classrooms, selectedClassId]
     );
+    const sessionByClass = useMemo(() => {
+        const map = new Map();
+        daySessions.forEach(session => { if (!map.has(session.classId)) map.set(session.classId, session); });
+        return map;
+    }, [daySessions]);
     const selectedSession = useMemo(
-        () => getClassSession(selectedClass, selectedAdministrativeClass),
-        [selectedClass, selectedAdministrativeClass]
+        () => describeSession(sessionByClass.get(selectedClassId), selectedDate),
+        [sessionByClass, selectedClassId, selectedDate]
     );
 
-    const semesters = useMemo(() => {
-        const available = new Set(classrooms.map(item => item.semester).filter(Boolean));
-        available.add(getCurrentSemester());
-        return [...available].sort((left, right) => {
-            if (left === getCurrentSemester()) return -1;
-            if (right === getCurrentSemester()) return 1;
-            return left.localeCompare(right, 'vi');
-        });
-    }, [classrooms]);
+    const semesters = useMemo(
+        () => [...new Set(classrooms.map(item => item.semester).filter(Boolean))].sort((a, b) => b.localeCompare(a, 'vi')),
+        [classrooms]
+    );
 
     const semesterClassrooms = useMemo(
-        () => classrooms.filter(item => !selectedSemester || item.semester === selectedSemester),
+        () => classrooms.filter(item => selectedSemester === 'all' || item.semester === selectedSemester),
         [classrooms, selectedSemester]
     );
 
@@ -207,45 +191,29 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         [selectedSubjectCode, semesterClassrooms]
     );
 
-    const classOptions = useMemo(() => {
-        const options = new Map();
-        subjectClassrooms.forEach(item => {
-            const subjectCode = item.subjectCode || item.code || item.id;
-            const classNames = item.classNames || item.administrativeClasses || ['Chưa cập nhật'];
-            classNames.forEach(className => {
-                if (selectedAdministrativeClass && className !== selectedAdministrativeClass) return;
-                const key = `${subjectCode}-${className}`;
-                if (!options.has(key)) {
-                    options.set(key, {
-                        id: item.id,
-                        className,
-                        subjectCode,
-                        subject: item.subject,
-                        ...getClassSession(item, className),
-                        label: `${subjectCode} - ${className}`
-                    });
-                }
-            });
-        });
-        return [...options.values()].sort((left, right) => {
-            const weekdayDiff = getWeekdaySortValue(left.scheduleWeekday) - getWeekdaySortValue(right.scheduleWeekday);
-            if (weekdayDiff !== 0) return weekdayDiff;
-
-            const timeDiff = getScheduleStartMinutes(left.schedule) - getScheduleStartMinutes(right.schedule);
-            if (timeDiff !== 0) return timeDiff;
-
-            return left.label.localeCompare(right.label, 'vi');
-        });
-    }, [selectedAdministrativeClass, subjectClassrooms]);
+    // Mỗi thẻ = 1 lớp học phần thật. Lớp có buổi học trong ngày đang xem lên trước (theo giờ bắt đầu).
+    const classOptions = useMemo(() => subjectClassrooms
+        .filter(item => !selectedAdministrativeClass || (item.administrativeClasses || []).includes(selectedAdministrativeClass))
+        .map(item => {
+            const session = sessionByClass.get(item.id);
+            return { ...item, session, ...describeSession(session, selectedDate) };
+        })
+        .sort((left, right) => {
+            if (Boolean(left.session) !== Boolean(right.session)) return left.session ? -1 : 1;
+            if (left.session && right.session && left.session.startTime !== right.session.startTime) {
+                return left.session.startTime.localeCompare(right.session.startTime);
+            }
+            return String(left.code).localeCompare(String(right.code), 'vi');
+        }), [selectedAdministrativeClass, selectedDate, sessionByClass, subjectClassrooms]);
 
     const classesPerPage = 8;
     const classPageCount = Math.max(1, Math.ceil(classOptions.length / classesPerPage));
     const visibleClassOptions = classOptions.slice((classPage - 1) * classesPerPage, classPage * classesPerPage);
 
     const administrativeClassOptions = useMemo(
-        () => [...new Set(subjectClassrooms.flatMap(item => item.classNames || item.administrativeClasses || []))]
+        () => [...new Set((selectedClass ? [selectedClass] : subjectClassrooms).flatMap(item => item.administrativeClasses || []))]
             .sort((a, b) => a.localeCompare(b, 'vi')),
-        [subjectClassrooms]
+        [selectedClass, subjectClassrooms]
     );
 
     const filteredRows = useMemo(
@@ -274,54 +242,37 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         let cancelled = false;
         const load = async () => {
             try {
-                const apiClasses = await fetchClassAttendanceClasses();
-                const nextClasses = apiClasses.length
-                    ? [
-                        ...apiClasses.map(apiClass => {
-                            const mockClass = mockClassrooms.find(item => item.subjectCode === apiClass.subjectCode);
-                            return mockClass
-                                ? { ...apiClass, classNames: mockClass.classNames, classSchedules: mockClass.classSchedules }
-                                : apiClass;
-                        }),
-                        ...mockClassrooms.filter(mockClass => !apiClasses.some(apiClass => apiClass.subjectCode === mockClass.subjectCode))
-                    ]
-                    : mockClassrooms;
-                const requestedMockClass = mockClassrooms.find(item => item.id === selectedClassId);
-                const resolvedClass = nextClasses.find(item => item.id === selectedClassId)
-                    || (requestedMockClass && nextClasses.find(item => item.subjectCode === requestedMockClass.subjectCode));
-                const nextClassId = resolvedClass
-                    ? resolvedClass.id
-                    : (mode === 'teacher' ? '' : nextClasses[0]?.id || mockClassrooms[0].id);
+                const [apiClasses, apiSessions] = await Promise.all([
+                    fetchClassAttendanceClasses(),
+                    fetchClassSessions(selectedDate, selectedDate).catch(() => [])
+                ]);
+                if (cancelled) return;
+                setClassrooms(apiClasses);
+                setDaySessions(apiSessions);
+                setLoadError('');
+                const exists = apiClasses.some(item => item.id === selectedClassId);
+                const nextClassId = exists ? selectedClassId : (mode === 'teacher' ? '' : apiClasses[0]?.id || '');
+                if (nextClassId !== selectedClassId) setSelectedClassId(nextClassId);
                 if (!nextClassId) {
-                    if (cancelled) return;
-                    setClassrooms(nextClasses);
                     setRows([]);
-                    setSettings(getClassAttendanceSettings());
+                    setAttendanceEvents([]);
+                    setSettings(DEFAULT_CLASS_ATTENDANCE_SETTINGS);
                     return;
                 }
                 const [apiRows, apiSettings, apiEvents] = await Promise.all([
                     fetchClassAttendanceRows(nextClassId, selectedDate),
-                    fetchClassAttendanceSettings(nextClassId, selectedAdministrativeClass).catch(() => getClassAttendanceSettings(nextClassId, selectedAdministrativeClass)),
+                    fetchClassAttendanceSettings(nextClassId, selectedAdministrativeClass).catch(() => DEFAULT_CLASS_ATTENDANCE_SETTINGS),
                     fetchClassAttendanceEvents(nextClassId, selectedDate).catch(() => [])
                 ]);
                 if (cancelled) return;
-                setClassrooms(nextClasses);
-                if (nextClassId !== selectedClassId) setSelectedClassId(nextClassId);
-                setRows(apiRows.length ? apiRows : buildClassAttendanceRows(nextClassId, selectedDate));
+                setRows(apiRows);
                 setAttendanceEvents(apiEvents);
-                setSettings({ ...getClassAttendanceSettings(nextClassId, selectedAdministrativeClass), ...apiSettings });
-            } catch {
+                setSettings({ ...DEFAULT_CLASS_ATTENDANCE_SETTINGS, ...apiSettings });
+            } catch (error) {
                 if (cancelled) return;
-                setClassrooms(mockClassrooms);
-                if (mode === 'teacher' && !selectedClassId) {
-                    setRows([]);
-                    setAttendanceEvents([]);
-                    setSettings(getClassAttendanceSettings());
-                } else {
-                    setRows(buildClassAttendanceRows(selectedClassId, selectedDate));
-                    setAttendanceEvents(getClassAttendanceEvents(selectedClassId, selectedDate));
-                    setSettings(getClassAttendanceSettings(selectedClassId, selectedAdministrativeClass));
-                }
+                setLoadError(error?.message || 'Không tải được dữ liệu lớp học. Vui lòng thử lại.');
+                setRows([]);
+                setAttendanceEvents([]);
             }
         };
         load();
@@ -355,13 +306,13 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     }, [selectedSubjectCode, subjectOptions]);
 
     useEffect(() => {
-        if (selectedClassId && !subjectClassrooms.some(item => item.id === selectedClassId)) {
+        if (classrooms.length && selectedClassId && !subjectClassrooms.some(item => item.id === selectedClassId)) {
             setSelectedClassId(mode === 'teacher' ? '' : subjectClassrooms[0]?.id || '');
             setRows([]);
                     setAttendanceEvents([]);
             setSelectedAdministrativeClass('');
         }
-    }, [mode, selectedClassId, semesterClassrooms, subjectClassrooms]);
+    }, [classrooms.length, mode, selectedClassId, subjectClassrooms]);
 
     useEffect(() => {
         setClassPage(1);
@@ -439,14 +390,19 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         } catch {
             setScanNotice({
                 type: 'warning',
-                message: 'Không mở được webcam. Hệ thống sẽ dùng cam ảo để test điểm danh.'
+                message: 'Không mở được webcam. Cần webcam/camera để quét điểm danh.'
             });
         }
     };
 
     const performScan = useCallback(async () => {
+        if (!webcamEnabled) {
+            setScanNotice({ type: 'warning', message: 'Bật webcam trước khi quét điểm danh.' });
+            setAutoScan(false);
+            return;
+        }
         const snapshotImageBase64 = captureFrame(videoRef) || lastWebcamFrameRef.current;
-        if (webcamEnabled && !snapshotImageBase64) {
+        if (!snapshotImageBase64) {
             const nextNotice = {
                 type: 'warning',
                 message: 'Chưa chụp được ảnh từ webcam. Vui lòng chờ camera hiển thị rõ rồi quét lại.'
@@ -458,15 +414,16 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         let result;
         try {
             result = await scanClassAttendance({ classId: selectedClassId, administrativeClass: selectedAdministrativeClass, direction: scanDirection, snapshotImageBase64 });
-        } catch {
-            result = mockClassFaceScan({ classId: selectedClassId, administrativeClass: selectedAdministrativeClass, direction: scanDirection, snapshotImageBase64 });
+        } catch (error) {
+            setScanNotice({ type: 'error', message: error?.message || 'Không gửi được lượt quét lên máy chủ.', detail: 'Không tạo bản ghi điểm danh mới.' });
+            return;
         }
         const nextMessage = result?.data?.message || result.message || 'Đã xử lý lượt quét.';
         const nextNotice = {
             type: result.success ? 'success' : (result.warning ? 'warning' : 'error'),
             message: nextMessage,
             detail: result.success
-                ? `Đã lưu ảnh bằng chứng từ ${snapshotImageBase64 ? 'webcam' : 'cam ảo'} tại thời điểm quét.`
+                ? 'Đã lưu ảnh bằng chứng từ webcam tại thời điểm quét.'
                 : 'Không tạo bản ghi điểm danh mới.'
         };
         setScanNotice(nextNotice);
@@ -519,6 +476,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         className="px-4 py-2.5 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
                         aria-label="Lọc theo học kỳ"
                     >
+                        <option value="all">Tất cả học kỳ</option>
                         {semesters.map(semester => (
                             <option key={semester} value={semester}>{semester}</option>
                         ))}
@@ -558,6 +516,12 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                 </div>
             </div>
 
+            {loadError && (
+                <div role="alert" className="flex items-center gap-2 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">
+                    <AlertCircle className="w-4 h-4" /> {loadError}
+                </div>
+            )}
+
             {mode === 'teacher' && !selectedClassId ? (
                 <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
                     <div className="px-6 py-5 border-b border-platinum-tint bg-cloud-mist/20">
@@ -565,39 +529,32 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                             <Users className="w-7 h-7 text-action-blue" />
                             <div>
                                 <h2 className="text-base font-bold text-midnight-indigo">Các lớp được phân công</h2>
-                                <p className="mt-1 text-xs text-slate-blue">Chọn lớp để xem danh sách sinh viên và thực hiện điểm danh.</p>
+                                <p className="mt-1 text-xs text-slate-blue">Lớp học phần đồng bộ từ UEL; lịch và phòng theo buổi học của ngày đang chọn. Chọn lớp để xem danh sách sinh viên và điểm danh.</p>
                             </div>
                         </div>
                     </div>
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                         {visibleClassOptions.length === 0 ? (
                             <p className="md:col-span-2 px-3 py-8 text-center text-sm text-slate-blue">Chưa có lớp được phân công.</p>
-                        ) : visibleClassOptions.map(item => {
-                            const classItem = classrooms.find(klass => klass.id === item.id);
-                            const session = getClassSession(classItem, item.className);
-                            return (
-                                <button
-                                    key={`${item.id}-${item.className}`}
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedClassId(item.id);
-                                        setSelectedAdministrativeClass(item.className);
-                                    }}
-                                    className="p-4 rounded-xl border border-platinum-tint bg-white text-left hover:border-action-blue hover:bg-blue-50/40 transition-colors"
-                                >
-                                    <p className="text-sm font-bold text-midnight-indigo">{item.subjectCode} - {item.className}</p>
-                                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-blue">
-                                        <span><strong className="text-midnight-indigo">Môn:</strong> {classItem?.subject || 'Chưa cập nhật'}</span>
-                                        <span><strong className="text-midnight-indigo">Lớp:</strong> {item.className}</span>
-                                        <span><strong className="text-midnight-indigo">Giảng viên:</strong> {classItem?.teacher || 'Chưa cập nhật'}</span>
-                                        <span><strong className="text-midnight-indigo">Lịch:</strong> {session.schedule}</span>
-                                        <span><strong className="text-midnight-indigo">Phòng:</strong> {session.room}</span>
-                                        <span><strong className="text-midnight-indigo">Học kỳ:</strong> {classItem?.semester || 'Chưa cập nhật'}</span>
-                                    </div>
-                                    <p className="mt-2 text-xs font-semibold text-action-blue">Sĩ số: {classItem?.studentCount ?? classItem?.students?.length ?? 0} sinh viên</p>
-                                </button>
-                            );
-                        })}
+                        ) : visibleClassOptions.map(item => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setSelectedClassId(item.id)}
+                                className={`p-4 rounded-xl border text-left hover:border-action-blue hover:bg-blue-50/40 transition-colors ${item.session ? 'border-blue-200 bg-blue-50/20' : 'border-platinum-tint bg-white'}`}
+                            >
+                                <p className="text-sm font-bold text-midnight-indigo">{item.subjectCode} - {item.code}</p>
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-blue">
+                                    <span><strong className="text-midnight-indigo">Môn:</strong> {item.subject || 'Chưa cập nhật'}</span>
+                                    <span><strong className="text-midnight-indigo">Lớp HP:</strong> {item.code}</span>
+                                    <span><strong className="text-midnight-indigo">Giảng viên:</strong> {item.teacher || 'Chưa cập nhật'}</span>
+                                    <span><strong className="text-midnight-indigo">Lịch:</strong> {item.schedule}</span>
+                                    <span><strong className="text-midnight-indigo">Phòng:</strong> {item.room}</span>
+                                    <span><strong className="text-midnight-indigo">Học kỳ:</strong> {item.semester || 'Chưa cập nhật'}</span>
+                                </div>
+                                <p className="mt-2 text-xs font-semibold text-action-blue">Sĩ số: {item.studentCount ?? 0} sinh viên</p>
+                            </button>
+                        ))}
                     </div>
                     {classPageCount > 1 && (
                         <div className="px-5 py-3 border-t border-platinum-tint flex items-center justify-start gap-3">
@@ -625,7 +582,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                 </div>
             ) : <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <StatCard label="Sĩ số" value={filteredSummary.total} helper={selectedAdministrativeClass || selectedSession.room || 'Chưa chọn lớp'} />
+                <StatCard label="Sĩ số" value={filteredSummary.total} helper={selectedAdministrativeClass || selectedClass?.code || 'Chưa chọn lớp'} />
                 <StatCard label="Đã vào lớp" value={filteredSummary.checkedIn} helper={`Bắt đầu ${settings.classStartTime}`} />
                 <StatCard label="Đi muộn" value={filteredSummary.late} helper={`Ngưỡng ${settings.lateThresholdMinutes} phút`} />
                 <StatCard label="Đã rời lớp" value={filteredSummary.left} helper={selectedClass?.semester || selectedSemester} />
@@ -639,7 +596,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                 <Camera className="w-5 h-5 text-action-blue" />
                                 Camera FaceID lớp học
                             </h2>
-                            <p className="text-xs text-slate-blue mt-1">Bật tự động quét để test bằng webcam. Nếu không có webcam, hệ thống tự dùng cam ảo.</p>
+                            <p className="text-xs text-slate-blue mt-1">Bật webcam rồi quét; mỗi lượt quét gửi khung hình lên máy chủ để nhận diện.</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <button type="button" onClick={toggleWebcam} className="px-4 py-2 rounded-xl border border-platinum-tint bg-white text-xs font-bold text-midnight-indigo">
@@ -668,9 +625,9 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         </div>
                         <div className="rounded-xl border border-platinum-tint bg-cloud-mist/40 p-4">
                             <p className="text-sm font-bold text-midnight-indigo">
-                                {selectedClass?.subject} · {selectedAdministrativeClass || 'Chưa chọn lớp'}
+                                {selectedClass?.subject} · {selectedClass?.code}{selectedAdministrativeClass ? ` · ${selectedAdministrativeClass}` : ''}
                             </p>
-                            <p className="text-xs text-slate-blue mt-1">{selectedSession.schedule} · {selectedClass?.teacher}</p>
+                            <p className="text-xs text-slate-blue mt-1">{selectedSession.schedule} · {selectedSession.room} · {selectedClass?.teacher}</p>
                             <p className="mt-4 text-xs text-slate-blue">Camera sẽ tự nhận diện sinh viên, đối chiếu FaceID đã đăng ký, ghi nhận giờ vào/ra và lưu ảnh bằng chứng tại thời điểm quét.</p>
                         </div>
                     </div>
@@ -684,17 +641,12 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
             <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">
-                        Danh sách sinh viên lớp {selectedAdministrativeClass || 'đã chọn'}
+                        Danh sách sinh viên lớp {selectedClass?.code || 'đã chọn'}{selectedAdministrativeClass ? ` · ${selectedAdministrativeClass}` : ''}
                     </h2>
                     <div className="flex flex-wrap items-center gap-2">
-                        <button type="button" onClick={() => exportClassAttendanceCsv(selectedClassId, selectedDate, filteredRows, selectedClass)} className="px-3 py-2 rounded-xl bg-action-blue text-white text-xs font-bold flex items-center gap-2">
+                        <button type="button" onClick={() => exportClassAttendanceCsv(filteredRows, selectedClass, selectedDate)} disabled={!filteredRows.length} className="px-3 py-2 rounded-xl disabled:opacity-50 bg-action-blue text-white text-xs font-bold flex items-center gap-2">
                             <Download className="w-4 h-4" /> Xuất CSV
                         </button>
-                        {canOperateCamera && (
-                            <button type="button" onClick={() => { clearClassAttendanceRecords(); refresh(); }} className="px-3 py-2 rounded-xl border border-red-200 text-red-600 bg-red-50 text-xs font-bold flex items-center gap-2">
-                                <Trash2 className="w-4 h-4" /> Xóa dữ liệu test
-                            </button>
-                        )}
                     </div>
                 </div>
                 <div className="overflow-x-auto">

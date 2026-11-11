@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, CheckCircle2, Clock, Filter, TrendingUp, UserCheck, XCircle } from 'lucide-react';
 import {
+    DEFAULT_CLASS_ATTENDANCE_SETTINGS,
     fetchClassAttendanceClasses,
     fetchClassAttendanceSettings,
-    fetchStudentAttendanceReport,
-    getClassAttendanceSettings,
-    getStudentAttendanceReport,
-    mockClassrooms
+    fetchStudentAttendanceReport
 } from '../../service/classAttendanceService';
 
 const RANGE_OPTIONS = [
@@ -66,20 +64,13 @@ const StatCard = ({ icon: Icon, label, value, helper, tone = 'blue' }) => {
 };
 
 const StudentClassDashboard = () => {
-    const [settings, setSettings] = useState(() => getClassAttendanceSettings());
+    const [settings, setSettings] = useState(DEFAULT_CLASS_ATTENDANCE_SETTINGS);
     const [rangeMode, setRangeMode] = useState('week');
     const [anchorDate, setAnchorDate] = useState(() => toLocalDateKey());
-    const [classrooms, setClassrooms] = useState(mockClassrooms);
+    const [classrooms, setClassrooms] = useState([]);
+    const [loadError, setLoadError] = useState('');
     const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [report, setReport] = useState(() => ({ period: { start: anchorDate, end: anchorDate }, entries: [], summary: {} }));
-    const studentId = useMemo(() => {
-        try {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            return user.employeeCode || user.employee_code || 'SV001';
-        } catch {
-            return 'SV001';
-        }
-    }, []);
 
     const subjectOptions = useMemo(() => {
         const subjects = new Map();
@@ -90,40 +81,35 @@ const StudentClassDashboard = () => {
         return [...subjects.entries()].map(([code, name]) => ({ code, name }));
     }, [classrooms]);
 
+    // SV xem báo cáo của chính mình (/class-attendance/student/me) — BE lấy SV từ token.
     const refresh = useCallback(() => {
         let cancelled = false;
         Promise.all([
             fetchStudentAttendanceReport({
-                studentId,
                 mode: rangeMode,
                 anchorDate,
                 subjectCode: selectedSubjectCode,
                 self: true
             }),
-            fetchClassAttendanceSettings().catch(() => getClassAttendanceSettings()),
+            fetchClassAttendanceSettings().catch(() => DEFAULT_CLASS_ATTENDANCE_SETTINGS),
             fetchClassAttendanceClasses().catch(() => [])
         ])
             .then(([data, apiSettings, apiClasses]) => {
-                if (!cancelled && data) setReport(data);
-                if (!cancelled) setSettings({ ...getClassAttendanceSettings(), ...apiSettings });
-                if (!cancelled && apiClasses?.length) setClassrooms(apiClasses);
+                if (cancelled) return;
+                if (data) setReport(data);
+                setSettings({ ...DEFAULT_CLASS_ATTENDANCE_SETTINGS, ...apiSettings });
+                setClassrooms(Array.isArray(apiClasses) ? apiClasses : []);
+                setLoadError('');
             })
-            .catch(() => {
-                if (!cancelled) {
-                    setReport(getStudentAttendanceReport({
-                        studentId,
-                        mode: rangeMode,
-                        anchorDate,
-                        subjectCode: selectedSubjectCode
-                    }));
-                    setSettings(getClassAttendanceSettings());
-                    setClassrooms(mockClassrooms);
-                }
+            .catch(error => {
+                if (cancelled) return;
+                setReport({ period: { start: anchorDate, end: anchorDate }, entries: [], summary: {} });
+                setLoadError(error?.message || 'Không tải được dữ liệu chuyên cần. Vui lòng thử lại.');
             });
         return () => {
             cancelled = true;
         };
-    }, [anchorDate, rangeMode, selectedSubjectCode, studentId]);
+    }, [anchorDate, rangeMode, selectedSubjectCode]);
 
     useEffect(() => {
         const cleanup = refresh();
@@ -139,6 +125,9 @@ const StudentClassDashboard = () => {
 
     return (
         <div className="space-y-5 animate-fade-in-up">
+            {loadError && (
+                <div role="alert" className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">{loadError}</div>
+            )}
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
                 <div>
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-action-blue text-[11px] font-bold">

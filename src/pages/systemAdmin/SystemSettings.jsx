@@ -10,7 +10,6 @@ import {
     fetchClassAttendanceClasses,
     fetchClassAttendanceSettings,
     getClassAttendanceSettings,
-    mockClassrooms,
     saveClassAttendanceSettings,
     updateClassAttendanceSettings
 } from '../../service/classAttendanceService';
@@ -68,9 +67,9 @@ const SystemSettings = () => {
     // Cấu hình Security Alerts (nguồn riêng: GET/PUT /security-alerts-config)
     const [securityAlertsConfig, setSecurityAlertsConfig] = useState({ autoResolveTimeoutMinutes: 15 });
     const [dbSecurityAlertsConfig, setDbSecurityAlertsConfig] = useState({ autoResolveTimeoutMinutes: 15 });
-    const [classAttendanceClasses, setClassAttendanceClasses] = useState(mockClassrooms);
+    const [classAttendanceClasses, setClassAttendanceClasses] = useState([]);
     const classAttendanceTargets = useMemo(
-        () => classAttendanceClasses.flatMap(item => (item.classNames || item.administrativeClasses || ['Chưa cập nhật']).map(className => ({
+        () => classAttendanceClasses.flatMap(item => (item.administrativeClasses?.length ? item.administrativeClasses : ['Chưa cập nhật']).map(className => ({
             value: `${item.id}::${className}`,
             classId: item.id,
             className,
@@ -228,19 +227,7 @@ const SystemSettings = () => {
 
             try {
                 const apiClasses = await fetchClassAttendanceClasses();
-                if (apiClasses.length) {
-                    setClassAttendanceClasses(apiClasses.map(apiClass => {
-                        const mockClass = mockClassrooms.find(item => item.subjectCode === apiClass.subjectCode);
-                        return mockClass
-                            ? {
-                                ...mockClass,
-                                ...apiClass,
-                                classNames: mockClass.classNames,
-                                classSchedules: mockClass.classSchedules
-                            }
-                            : apiClass;
-                    }));
-                }
+                setClassAttendanceClasses(Array.isArray(apiClasses) ? apiClasses : []);
             } catch (classErr) {
                 console.error('Không thể tải danh sách lớp học:', classErr);
             }

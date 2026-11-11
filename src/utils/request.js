@@ -83,6 +83,7 @@ const isPublicEndpoint = (path) => {
         '/auth/login',
         '/auth/password-reset/request',
         '/auth/password-reset/confirm',
+        '/auth/sso/',
         '/public/visitor-'
     ];
     // Normalize path (remove leading/trailing slashes for check)

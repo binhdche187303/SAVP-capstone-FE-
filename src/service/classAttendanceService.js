@@ -1,7 +1,7 @@
 import { get, patch, post, buildQuery } from '../utils/request';
 
+// Điểm danh lớp học — chỉ dùng dữ liệu thật từ BE (/class-attendance/*). Không còn mock/fallback cục bộ.
 const SETTINGS_KEY = 'camai.classAttendance.settings';
-const RECORDS_KEY = 'camai.classAttendance.records.v2';
 
 export const DEFAULT_CLASS_ATTENDANCE_SETTINGS = {
     classStartTime: '08:00',
@@ -9,180 +9,6 @@ export const DEFAULT_CLASS_ATTENDANCE_SETTINGS = {
     autoScanIntervalSeconds: 4,
     semester: 'HK1 2026-2027'
 };
-
-const demoStudents = [
-    { id: 'SV001', code: 'SV001', username: 'student.demo', email: 'student@meetingsys.vn', name: 'Lê Minh Sinh', avatar: 'S', administrativeClass: 'DHTH2026' },
-    { id: 'SV002', code: 'SV002', username: 'nam.nguyen', email: 'nam.nguyen@smartracking.edu.vn', name: 'Nguyễn Hoàng Nam', avatar: 'N', administrativeClass: 'DHTH2026' },
-    { id: 'SV003', code: 'SV003', username: 'lan.ngo', email: 'lan.ngo@smartracking.edu.vn', name: 'Ngô Thị Lan', avatar: 'L', administrativeClass: 'DHTH2026' },
-    { id: 'SV004', code: 'SV004', username: 'huy.do', email: 'huy.do@smartracking.edu.vn', name: 'Đỗ Gia Huy', avatar: 'H', administrativeClass: 'DHTH2026' },
-    { id: 'SV005', code: 'SV005', username: 'mai.tran', email: 'mai.tran@smartracking.edu.vn', name: 'Trần Ngọc Mai', avatar: 'M', administrativeClass: 'DHTH2026' },
-    { id: 'SV006', code: 'SV006', username: 'anh.pham', email: 'anh.pham@smartracking.edu.vn', name: 'Phạm Đức Anh', avatar: 'A', administrativeClass: 'DHTH2026' },
-    { id: 'SV007', code: 'SV007', username: 'thao.vo', email: 'thao.vo@smartracking.edu.vn', name: 'Võ Minh Thảo', avatar: 'T', administrativeClass: 'DHTH2026' },
-    { id: 'SV008', code: 'SV008', username: 'khoa.le', email: 'khoa.le@smartracking.edu.vn', name: 'Lê Đăng Khoa', avatar: 'K', administrativeClass: 'DHTH2026' }
-];
-
-export const mockClassrooms = [
-    {
-        id: 'WEB-101',
-        code: 'WEB101-01',
-        subjectCode: 'WEB101',
-        subject: 'Lập trình Web',
-        room: 'Phòng học A101',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Thứ 2, 08:00 - 10:30',
-        scheduleWeekday: 1,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1821', 'KS1822'],
-        classSchedules: {
-            KS1821: { schedule: 'Thứ 2, 08:00 - 10:30', scheduleWeekday: 1, room: 'Phòng học A101' },
-            KS1822: { schedule: 'Thứ 3, 08:00 - 10:30', scheduleWeekday: 2, room: 'Phòng học A101' }
-        },
-        students: demoStudents.slice(0, 7)
-    },
-    {
-        id: 'AI-202',
-        code: 'AI202-01',
-        subjectCode: 'AI202',
-        subject: 'Trí tuệ nhân tạo ứng dụng',
-        room: 'Phòng học A102',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Thứ 4, 13:30 - 16:00',
-        scheduleWeekday: 3,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1821', 'KS1823'],
-        classSchedules: {
-            KS1821: { schedule: 'Thứ 4, 13:30 - 16:00', scheduleWeekday: 3, room: 'Phòng học A102' },
-            KS1823: { schedule: 'Thứ 5, 13:30 - 16:00', scheduleWeekday: 4, room: 'Phòng học A102' }
-        },
-        students: [demoStudents[0], demoStudents[1], demoStudents[2], demoStudents[4], demoStudents[5], demoStudents[7]]
-    },
-    {
-        id: 'DB-303',
-        code: 'DB303-01',
-        subjectCode: 'DB303',
-        subject: 'Cơ sở dữ liệu nâng cao',
-        room: 'Phòng học B203',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Thứ 6, 09:00 - 11:30',
-        scheduleWeekday: 5,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1822', 'KS1823'],
-        classSchedules: {
-            KS1822: { schedule: 'Thứ 6, 09:00 - 11:30', scheduleWeekday: 5, room: 'Phòng học B203' },
-            KS1823: { schedule: 'Thứ 7, 09:00 - 11:30', scheduleWeekday: 6, room: 'Phòng học B203' }
-        },
-        students: [demoStudents[0], demoStudents[2], demoStudents[3], demoStudents[4], demoStudents[6]]
-    },
-    {
-        id: 'ML-404',
-        code: 'ML404-01',
-        subjectCode: 'ML404',
-        subject: 'Học máy cơ bản',
-        room: 'Phòng học A201',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Thứ 2, 13:30 - 16:00',
-        scheduleWeekday: 1,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1824'],
-        students: [demoStudents[0], demoStudents[2], demoStudents[4], demoStudents[7]]
-    },
-    {
-        id: 'IOT-305',
-        code: 'IOT305-01',
-        subjectCode: 'IOT305',
-        subject: 'Internet vạn vật',
-        room: 'Phòng học B201',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Thứ 4, 08:00 - 10:30',
-        scheduleWeekday: 3,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1824', 'KS1825'],
-        classSchedules: {
-            KS1824: { schedule: 'Thứ 4, 08:00 - 10:30', scheduleWeekday: 3, room: 'Phòng học B201' },
-            KS1825: { schedule: 'Thứ 5, 08:00 - 10:30', scheduleWeekday: 4, room: 'Phòng học B201' }
-        },
-        students: [demoStudents[1], demoStudents[3], demoStudents[4], demoStudents[6]]
-    },
-    {
-        id: 'MATH-105',
-        code: 'MATH105-01',
-        subjectCode: 'MATH105',
-        subject: 'Toán rời rạc',
-        room: 'Phòng học B202',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Thứ 6, 13:30 - 16:00',
-        scheduleWeekday: 5,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1825'],
-        students: [demoStudents[0], demoStudents[1], demoStudents[5], demoStudents[6]]
-    },
-    {
-        id: 'ECON-210',
-        code: 'ECON210-01',
-        subjectCode: 'ECON210',
-        subject: 'Kinh tế học đại cương',
-        room: 'Phòng học C101',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Thứ 3, 08:00 - 10:30',
-        scheduleWeekday: 2,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1826', 'KS1827'],
-        classSchedules: {
-            KS1826: { schedule: 'Thứ 3, 13:30 - 16:00', scheduleWeekday: 2, room: 'Phòng học C101' },
-            KS1827: { schedule: 'Thứ 4, 10:45 - 13:15', scheduleWeekday: 3, room: 'Phòng học C101' }
-        },
-        students: [demoStudents[1], demoStudents[2], demoStudents[4], demoStudents[6]]
-    },
-    {
-        id: 'NET-306',
-        code: 'NET306-01',
-        subjectCode: 'NET306',
-        subject: 'Mạng máy tính',
-        room: 'Phòng học C102',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Thứ 5, 10:45 - 13:15',
-        scheduleWeekday: 4,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1827'],
-        students: [demoStudents[0], demoStudents[3], demoStudents[5], demoStudents[7]]
-    },
-    {
-        id: 'SEC-307',
-        code: 'SEC307-01',
-        subjectCode: 'SEC307',
-        subject: 'An toàn thông tin',
-        room: 'Phòng học C201',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Thứ 7, 08:00 - 10:30',
-        scheduleWeekday: 6,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1828', 'KS1829'],
-        classSchedules: {
-            KS1828: { schedule: 'Thứ 7, 08:00 - 10:30', scheduleWeekday: 6, room: 'Phòng học C201' },
-            KS1829: { schedule: 'Chủ nhật, 08:00 - 10:30', scheduleWeekday: 0, room: 'Phòng học C201' }
-        },
-        students: [demoStudents[0], demoStudents[2], demoStudents[4], demoStudents[7]]
-    },
-    {
-        id: 'ENG-108',
-        code: 'ENG108-01',
-        subjectCode: 'ENG108',
-        subject: 'Tiếng Anh chuyên ngành',
-        room: 'Phòng học C202',
-        teacher: 'Nguyễn Thị Giang',
-        schedule: 'Chủ nhật, 10:45 - 13:15',
-        scheduleWeekday: 0,
-        semester: 'HK1 2026-2027',
-        classNames: ['KS1829'],
-        students: [demoStudents[1], demoStudents[3], demoStudents[5], demoStudents[6]]
-    }
-];
-
-export const getClassSession = (klass, className) => ({
-    schedule: klass?.classSchedules?.[className]?.schedule || klass?.schedule || 'Chưa có lịch học',
-    scheduleWeekday: klass?.classSchedules?.[className]?.scheduleWeekday ?? klass?.scheduleWeekday,
-    room: klass?.classSchedules?.[className]?.room || klass?.room || 'Chưa có phòng học'
-});
 
 const readJson = (key, fallback) => {
     try {
@@ -214,23 +40,7 @@ const toDateKey = (date) => {
     return toLocalDateKey(d);
 };
 
-const formatTime = (iso) => iso
-    ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-    : '--:--';
-
-const generatedEvidence = (student, direction) => {
-    const text = `${student.code} - ${direction === 'out' ? 'RA LỚP' : 'VÀO LỚP'}`;
-    return `data:image/svg+xml;utf8,${encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="360" height="220" viewBox="0 0 360 220">
-            <rect width="360" height="220" rx="16" fill="#111827"/>
-            <rect x="24" y="24" width="312" height="172" rx="14" fill="#1f2937"/>
-            <circle cx="180" cy="88" r="38" fill="#006BFF"/>
-            <text x="180" y="101" text-anchor="middle" font-family="Arial" font-size="34" font-weight="700" fill="#fff">${student.avatar}</text>
-            <text x="180" y="150" text-anchor="middle" font-family="Arial" font-size="20" font-weight="700" fill="#fff">${text}</text>
-            <text x="180" y="174" text-anchor="middle" font-family="Arial" font-size="12" fill="#A6BBD1">CAMAI MOCK ĐIỂM DANH LỚP</text>
-        </svg>
-    `)}`;
-};
+// ---- Cache cấu hình phía FE (SystemSettings lưu song song khi PATCH BE) ----
 
 export const getClassAttendanceSettingsStore = () => {
     const saved = readJson(SETTINGS_KEY, null);
@@ -285,6 +95,8 @@ export const saveClassAttendanceSettings = (settings, classId, administrativeCla
     return next;
 };
 
+// ---- API thật ----
+
 export const fetchClassAttendanceSettings = async (classId, administrativeClass) => {
     const query = classId ? `?classId=${encodeURIComponent(classId)}${administrativeClass ? `&administrativeClass=${encodeURIComponent(administrativeClass)}` : ''}` : '';
     const response = await get(`/class-attendance/settings${query}`, { skipToast: true });
@@ -302,275 +114,14 @@ export const updateClassAttendanceSettings = async (settings, classId, administr
     return response?.data || settings;
 };
 
-const buildDateForWeekday = (weekday, weeksAgo = 0) => {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    const current = date.getDay();
-    const offset = weekday - current - (weeksAgo * 7);
-    date.setDate(date.getDate() + offset);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (date.getTime() > today.getTime()) {
-        date.setDate(date.getDate() - 7);
-    }
-    return toLocalDateKey(date);
-};
-
-const buildTimeIso = (dateKey, time) => new Date(`${dateKey}T${time}:00`).toISOString();
-
-const seedClassAttendanceRecords = () => {
-    const records = [];
-    const statuses = ['on_time', 'late', 'left', 'on_time', 'absent', 'late', 'on_time', 'left'];
-    const classTodayStatuses = ['left', 'on_time', 'late', 'on_time', 'absent', 'left', 'late', 'on_time'];
-
-    mockClassrooms.forEach((klass, classIndex) => {
-        const dateKeys = [
-            todayKey(),
-            buildDateForWeekday(klass.scheduleWeekday, 0),
-            buildDateForWeekday(klass.scheduleWeekday, 1),
-            buildDateForWeekday(klass.scheduleWeekday, 2),
-            buildDateForWeekday(klass.scheduleWeekday, 3)
-        ];
-        Array.from(new Set(dateKeys)).forEach((dateKey, dateIndex) => {
-            klass.students.forEach((student, studentIndex) => {
-                const status = dateIndex === 0
-                    ? classTodayStatuses[(studentIndex + classIndex) % classTodayStatuses.length]
-                    : statuses[(studentIndex + dateIndex + classIndex) % statuses.length];
-                if (status === 'absent') {
-                    records.push({
-                        id: `${klass.id}-${student.id}-${dateKey}`,
-                        classId: klass.id,
-                        date: dateKey,
-                        studentId: student.id,
-                        studentCode: student.code,
-                        studentName: student.name,
-                        checkInAt: null,
-                        checkOutAt: null,
-                        status: 'absent',
-                        confidence: null,
-                        evidenceImage: null,
-                        source: 'mock-seed'
-                    });
-                    return;
-                }
-
-                const inTime = status === 'late'
-                    ? ['08:16', '08:21', '09:14'][classIndex] || '08:16'
-                    : ['07:56', '13:24', '08:51'][classIndex] || '07:56';
-                const outTime = status === 'left'
-                    ? ['10:32', '16:03', '11:28'][classIndex] || '10:32'
-                    : null;
-                records.push({
-                    id: `${klass.id}-${student.id}-${dateKey}`,
-                    classId: klass.id,
-                    date: dateKey,
-                    studentId: student.id,
-                    studentCode: student.code,
-                    studentName: student.name,
-                    checkInAt: buildTimeIso(dateKey, inTime),
-                    checkOutAt: outTime ? buildTimeIso(dateKey, outTime) : null,
-                    status,
-                    confidence: 94,
-                    evidenceImage: generatedEvidence(student, status === 'left' ? 'out' : 'in'),
-                    source: 'mock-seed'
-                });
-            });
-        });
-    });
-
-    return records;
-};
-
-export const getClassAttendanceRecords = () => {
-    const saved = readJson(RECORDS_KEY, null);
-    if (saved) return saved;
-    const seeded = seedClassAttendanceRecords();
-    localStorage.setItem(RECORDS_KEY, JSON.stringify(seeded));
-    return seeded;
-};
-
-export const saveClassAttendanceRecords = (records) => writeJson(RECORDS_KEY, records);
-
-export const clearClassAttendanceRecords = () => {
-    saveClassAttendanceRecords([]);
-    return [];
-};
-
-const isLateCheckIn = (checkInIso, settings) => {
-    const [hour, minute] = String(settings.classStartTime || '08:00').split(':').map(Number);
-    const limit = new Date(checkInIso);
-    limit.setHours(hour || 8, minute || 0, 0, 0);
-    limit.setMinutes(limit.getMinutes() + Number(settings.lateThresholdMinutes || 0));
-    return new Date(checkInIso).getTime() > limit.getTime();
-};
-
-const startOfWeek = (date) => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay() || 7;
-    d.setDate(d.getDate() - day + 1);
-    return d;
-};
-
-const getRangeBounds = (mode = 'day', anchorDate = new Date()) => {
-    const start = new Date(anchorDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-
-    if (mode === 'week') {
-        const weekStart = startOfWeek(start);
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999);
-        return { start: weekStart, end: weekEnd };
-    }
-    if (mode === 'month') {
-        start.setDate(1);
-        end.setMonth(start.getMonth() + 1, 0);
-        end.setHours(23, 59, 59, 999);
-        return { start, end };
-    }
-    if (mode === 'year') {
-        start.setMonth(0, 1);
-        end.setMonth(11, 31);
-        end.setHours(23, 59, 59, 999);
-        return { start, end };
-    }
-
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
-};
-
-const formatDateText = (dateKey) => new Date(`${dateKey}T00:00:00`).toLocaleDateString('vi-VN', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-});
-
-const getSemesterBounds = (semester = DEFAULT_CLASS_ATTENDANCE_SETTINGS.semester) => {
-    const yearMatch = String(semester).match(/(\d{4})-(\d{4})/);
-    const startYear = yearMatch ? Number(yearMatch[1]) : new Date().getFullYear();
-    const endYear = yearMatch ? Number(yearMatch[2]) : startYear + 1;
-    if (String(semester).toUpperCase().startsWith('HK2')) {
-        return {
-            start: new Date(endYear, 0, 1),
-            end: new Date(endYear, 4, 31, 23, 59, 59, 999)
-        };
-    }
-    return {
-        start: new Date(startYear, 8, 1),
-        end: new Date(endYear, 0, 15, 23, 59, 59, 999)
-    };
-};
-
-const buildSyntheticRecord = (klass, student, dateKey) => {
-    const date = new Date(`${dateKey}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (date.getTime() > today.getTime()) return null;
-
-    const day = date.getDate();
-    if (day % 11 === 0) {
-        return {
-            classId: klass.id,
-            date: dateKey,
-            studentId: student.id,
-            studentCode: student.code,
-            studentName: student.name,
-            checkInAt: null,
-            checkOutAt: null,
-            status: 'absent',
-            confidence: null,
-            source: 'mock-history'
-        };
-    }
-
-    const late = day % 5 === 0;
-    const checkInAt = new Date(`${dateKey}T${late ? '08:18:00' : '07:56:00'}`).toISOString();
-    const checkOutAt = day % 7 === 0 ? new Date(`${dateKey}T10:30:00`).toISOString() : null;
-    return {
-        classId: klass.id,
-        date: dateKey,
-        studentId: student.id,
-        studentCode: student.code,
-        studentName: student.name,
-        checkInAt,
-        checkOutAt,
-        status: late ? 'late' : 'on_time',
-        confidence: 94,
-        source: 'mock-history'
-    };
-};
-
-const normalizeRecordToEntry = (klass, student, record, dateKey) => {
-    const status = record?.checkInAt ? record.status : (record?.status || 'absent');
-    const statusLabel = status === 'late'
-        ? 'Đi muộn'
-        : status === 'on_time'
-            ? 'Đúng giờ'
-            : status === 'left'
-                ? 'Đã rời lớp'
-                : 'Vắng';
-
-    return {
-        id: `${klass.id}-${student.id}-${dateKey}`,
-        date: dateKey,
-        dateText: formatDateText(dateKey),
-        classId: klass.id,
-        classCode: klass.code,
-        className: klass.subject,
-        room: klass.room,
-        schedule: klass.schedule,
-        studentId: student.id,
-        studentCode: student.code,
-        studentName: student.name,
-        checkInAt: record?.checkInAt || null,
-        checkOutAt: record?.checkOutAt || null,
-        checkInText: formatTime(record?.checkInAt),
-        checkOutText: formatTime(record?.checkOutAt),
-        status,
-        statusLabel,
-        confidence: record?.confidence || null,
-        evidenceImage: record?.evidenceImage || null
-    };
-};
-
-export const buildClassAttendanceRows = (classId = mockClassrooms[0].id, date = todayKey()) => {
-    const klass = mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
-    const records = getClassAttendanceRecords().filter(r => r.classId === klass.id && r.date === date);
-    return klass.students.map(student => {
-        const record = records.find(r => r.studentId === student.id);
-        const status = record ? (record.status || (record.checkInAt ? 'on_time' : 'absent')) : 'not_checked';
-        return {
-            ...student,
-            classId: klass.id,
-            className: klass.subject,
-            checkInAt: record?.checkInAt || null,
-            checkOutAt: record?.checkOutAt || null,
-            evidenceImage: record?.evidenceImage || null,
-            confidence: record?.confidence || null,
-            status,
-            statusLabel: status === 'late' ? 'Đi muộn' : status === 'on_time' ? 'Đúng giờ' : status === 'left' ? 'Đã rời lớp' : status === 'absent' ? 'Vắng' : 'Chưa điểm danh',
-            checkInText: formatTime(record?.checkInAt),
-            checkOutText: formatTime(record?.checkOutAt)
-        };
-    });
-};
-
-export const getClassAttendanceSummary = (classId = mockClassrooms[0].id, date = todayKey()) => {
-    const rows = buildClassAttendanceRows(classId, date);
-    return {
-        total: rows.length,
-        checkedIn: rows.filter(r => r.checkInAt).length,
-        late: rows.filter(r => r.status === 'late').length,
-        left: rows.filter(r => r.checkOutAt).length,
-        missing: rows.filter(r => !r.checkInAt).length
-    };
-};
-
 export const fetchClassAttendanceClasses = async () => {
     const response = await get('/class-attendance/classes', { skipToast: true });
+    return response?.data || [];
+};
+
+/** Buổi học thật (BE class_sessions, đồng bộ TKB UEL) trong [from, to] yyyy-MM-dd — theo quyền GV/SV/admin. */
+export const fetchClassSessions = async (from, to) => {
+    const response = await get(`/class-attendance/sessions${buildQuery({ from, to })}`, { skipToast: true });
     return response?.data || [];
 };
 
@@ -585,33 +136,8 @@ export const fetchClassAttendanceSummary = async (classId, date = todayKey()) =>
 };
 
 export const fetchClassAttendanceEvents = async (classId, date = todayKey()) => {
-    try {
-        const response = await get(`/class-attendance/classes/${classId}/events${buildQuery({ date })}`, { skipToast: true });
-        return response?.data || [];
-    } catch {
-        return getClassAttendanceEvents(classId, date);
-    }
-};
-
-export const getClassAttendanceEvents = (classId = mockClassrooms[0].id, date = todayKey()) => {
-    const klass = mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
-    return getClassAttendanceRecords()
-        .filter(record => record.classId === klass.id && record.date === date)
-        .flatMap(record => [
-            record.checkInAt ? {
-                id: `${record.id}-in`, studentId: record.studentId, studentCode: record.studentCode, studentName: record.studentName,
-                direction: 'in', status: record.status, source: record.source === 'manual' ? 'manual' : 'automatic_camera',
-                sourceLabel: record.source === 'manual' ? 'Thủ công' : 'Tự động', actorName: record.actor || null,
-                reason: record.manualReason || null, occurredAt: record.checkInAt, evidenceImage: record.evidenceImage || null
-            } : null,
-            record.checkOutAt ? {
-                id: `${record.id}-out`, studentId: record.studentId, studentCode: record.studentCode, studentName: record.studentName,
-                direction: 'out', status: 'left', source: record.source === 'manual' ? 'manual' : 'automatic_camera',
-                sourceLabel: record.source === 'manual' ? 'Thủ công' : 'Tự động', actorName: record.actor || null,
-                reason: record.manualReason || null, occurredAt: record.checkOutAt, evidenceImage: record.evidenceImage || null
-            } : null
-        ].filter(Boolean))
-        .sort((a, b) => new Date(b.occurredAt) - new Date(a.occurredAt));
+    const response = await get(`/class-attendance/classes/${classId}/events${buildQuery({ date })}`, { skipToast: true });
+    return response?.data || [];
 };
 
 export const scanClassAttendance = async ({ classId, administrativeClass, direction = 'in', snapshotImageBase64 } = {}) => {
@@ -629,124 +155,6 @@ export const scanClassAttendance = async ({ classId, administrativeClass, direct
     };
 };
 
-export const mockClassFaceScan = ({ classId = mockClassrooms[0].id, administrativeClass, direction = 'in', snapshotImageBase64 } = {}) => {
-    const klass = mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
-    const settings = getClassAttendanceSettings(klass.id, administrativeClass);
-    const date = todayKey();
-    const now = new Date().toISOString();
-    const records = getClassAttendanceRecords();
-    const todayRecords = records.filter(r => r.classId === klass.id && r.date === date);
-    const target = direction === 'out'
-        ? klass.students.find(student => {
-            const record = todayRecords.find(r => r.studentId === student.id);
-            return record?.checkInAt && !record?.checkOutAt;
-        })
-        : klass.students.find(student => !todayRecords.some(r => r.studentId === student.id && r.checkInAt));
-
-    if (!target) {
-        if (snapshotImageBase64) {
-            const reusableRecord = [...records]
-                .reverse()
-                .find(record =>
-                    record.classId === klass.id &&
-                    record.date === date &&
-                    (direction === 'out' ? record.checkOutAt : record.checkInAt)
-                );
-            if (reusableRecord) {
-                const recordIndex = records.findIndex(record => record.id === reusableRecord.id);
-                records[recordIndex] = {
-                    ...records[recordIndex],
-                    evidenceImage: snapshotImageBase64,
-                    confidence: 94,
-                    source: 'webcam'
-                };
-                saveClassAttendanceRecords(records);
-                return {
-                    success: true,
-                    data: {
-                        student: klass.students.find(student => student.id === reusableRecord.studentId),
-                        record: records[recordIndex],
-                        message: 'Không điểm danh lặp lại, đã cập nhật ảnh bằng chứng từ webcam.'
-                    }
-                };
-            }
-        }
-        return {
-            success: false,
-            warning: true,
-            message: direction === 'out' ? 'Tất cả sinh viên đã ghi nhận giờ rời lớp.' : 'Lớp này đã điểm danh đủ, không điểm danh lặp lại.'
-        };
-    }
-
-    const existingIndex = records.findIndex(r => r.classId === klass.id && r.date === date && r.studentId === target.id);
-    const evidenceImage = snapshotImageBase64 || generatedEvidence(target, direction);
-    let nextRecord;
-
-    if (existingIndex >= 0) {
-        nextRecord = {
-            ...records[existingIndex],
-            checkOutAt: direction === 'out' ? now : records[existingIndex].checkOutAt,
-            evidenceImage,
-            confidence: 94,
-            status: direction === 'out' ? 'left' : records[existingIndex].status
-        };
-        records[existingIndex] = nextRecord;
-    } else {
-        const status = isLateCheckIn(now, settings) ? 'late' : 'on_time';
-        nextRecord = {
-            id: `${klass.id}-${target.id}-${date}`,
-            classId: klass.id,
-            date,
-            studentId: target.id,
-            studentCode: target.code,
-            studentName: target.name,
-            checkInAt: now,
-            checkOutAt: null,
-            status,
-            evidenceImage,
-            confidence: 94,
-            source: snapshotImageBase64 ? 'webcam' : 'mock-camera'
-        };
-        records.push(nextRecord);
-    }
-
-    saveClassAttendanceRecords(records);
-    return {
-        success: true,
-        data: {
-            student: target,
-            record: nextRecord,
-            message: direction === 'out' ? `${target.name} đã rời lớp.` : `${target.name} đã điểm danh ${nextRecord.status === 'late' ? 'đi muộn' : 'đúng giờ'}.`
-        }
-    };
-};
-
-export const exportClassAttendanceCsv = (classId = mockClassrooms[0].id, date = todayKey(), filteredRows, selectedClass) => {
-    const klass = selectedClass || mockClassrooms.find(item => item.id === classId) || mockClassrooms[0];
-    const rows = filteredRows || buildClassAttendanceRows(klass.id, date);
-    const csvRows = [
-        ['Môn học', 'Lớp hành chính', 'Mã SV', 'Sinh viên', 'Giờ vào', 'Giờ ra', 'Trạng thái', 'Độ tin cậy'],
-        ...rows.map(row => [
-            klass.subject,
-            row.administrativeClass || '',
-            row.code,
-            row.name,
-            row.checkInText,
-            row.checkOutText,
-            row.statusLabel,
-            row.confidence ? `${row.confidence}%` : ''
-        ])
-    ];
-    const csv = csvRows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `chuyen-can-${klass.code}-${date}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-};
-
 const downloadCsvBlob = (blob, filename) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -756,82 +164,40 @@ const downloadCsvBlob = (blob, filename) => {
     URL.revokeObjectURL(url);
 };
 
+/** Xuất CSV các dòng điểm danh đang hiển thị (đã lấy từ BE) của một lớp trong một ngày. */
+export const exportClassAttendanceCsv = (rows = [], klass = null, date = todayKey()) => {
+    const csvRows = [
+        ['Môn học', 'Lớp hành chính', 'Mã SV', 'Sinh viên', 'Giờ vào', 'Giờ ra', 'Trạng thái', 'Độ tin cậy'],
+        ...rows.map(row => [
+            klass?.subject || '',
+            row.administrativeClass || '',
+            row.code,
+            row.name,
+            row.checkInText,
+            row.checkOutText,
+            row.statusLabel,
+            row.confidence ? `${row.confidence}%` : ''
+        ])
+    ];
+    const csv = csvRows.map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    downloadCsvBlob(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }), `chuyen-can-${klass?.code || 'lop'}-${date}.csv`);
+};
+
+/** Xuất CSV cả học kỳ từ BE (/class-attendance/export.csv). Lỗi sẽ được ném ra để trang hiển thị. */
 export const exportSemesterClassAttendanceCsv = async ({
     classId = 'all',
-    semester = DEFAULT_CLASS_ATTENDANCE_SETTINGS.semester,
+    semester = 'all',
     subjectCode = 'all',
     administrativeClass = 'all'
 } = {}) => {
-    try {
-        const response = await get(`/class-attendance/export.csv${buildQuery({ classId, semester, subjectCode, administrativeClass })}`, { skipToast: true });
-        if (response?.isBlob && response.data) {
-            const classPart = classId === 'all' ? 'tat-ca-mon' : classId;
-            const semesterPart = String(semester || 'tat-ca-hoc-ky').replace(/\s+/g, '-');
-            downloadCsvBlob(response.data, `bang-chuyen-can-${classPart}-${semesterPart}.csv`);
-            return true;
-        }
-    } catch {
-        // Local fallback keeps the demo usable when backend is offline.
+    const response = await get(`/class-attendance/export.csv${buildQuery({ classId, semester, subjectCode, administrativeClass })}`, { skipToast: true });
+    if (!response?.isBlob || !response.data) {
+        throw new Error('Không xuất được file chuyên cần từ máy chủ.');
     }
-
-    const classes = (classId === 'all' ? mockClassrooms : mockClassrooms.filter(item => item.id === classId))
-        .filter(item => subjectCode === 'all' || (item.subjectCode || item.code) === subjectCode)
-        .filter(item => semester === 'all' || item.semester === semester);
-    const savedRecords = getClassAttendanceRecords();
-    const rows = [
-        ['Học kỳ', 'Lớp hành chính', 'Mã môn học', 'Môn học', 'Phòng học', 'Giảng viên', 'Ngày học', 'Mã SV', 'Sinh viên', 'Giờ vào', 'Giờ ra', 'Trạng thái', 'Ảnh bằng chứng']
-    ];
-
-    classes.forEach(klass => {
-        const { start, end } = getSemesterBounds(klass.semester);
-        for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
-            const dateKey = toDateKey(cursor);
-            if (cursor.getDay() !== klass.scheduleWeekday) return;
-            klass.students.forEach(student => {
-                if (administrativeClass !== 'all' && student.administrativeClass !== administrativeClass) return;
-                const saved = savedRecords.find(record => record.classId === klass.id && record.date === dateKey && record.studentId === student.id);
-                const record = saved || buildSyntheticRecord(klass, student, dateKey);
-                if (!record) return;
-                const entry = normalizeRecordToEntry(klass, student, record, dateKey);
-                rows.push([
-                    klass.semester,
-                    student.administrativeClass || '',
-                    klass.subjectCode || klass.code,
-                    klass.subject,
-                    klass.room,
-                    klass.teacher,
-                    entry.dateText,
-                    student.code,
-                    student.name,
-                    entry.checkInText,
-                    entry.checkOutText,
-                    entry.statusLabel,
-                    entry.evidenceImage ? 'Có' : 'Không'
-                ]);
-            });
-        }
-    });
-
-    const csv = rows.map(row => row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const classPart = classId === 'all' ? 'tat-ca-mon' : classes[0]?.code || 'lop';
-    link.download = `bang-chuyen-can-${classPart}-${String(semester).replace(/\s+/g, '-')}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-};
-
-export const getBusinessClassAttendanceStats = () => {
-    return mockClassrooms.map(klass => {
-        const summary = getClassAttendanceSummary(klass.id);
-        return {
-            ...klass,
-            ...summary,
-            rate: summary.total ? Math.round((summary.checkedIn / summary.total) * 100) : 0
-        };
-    });
+    const classPart = classId === 'all' ? 'tat-ca-mon' : classId;
+    const semesterPart = String(semester || 'tat-ca-hoc-ky').replace(/\s+/g, '-');
+    downloadCsvBlob(response.data, `bang-chuyen-can-${classPart}-${semesterPart}.csv`);
+    return true;
 };
 
 export const fetchBusinessClassAttendanceStats = async () => {
@@ -856,53 +222,6 @@ export const fetchTeacherClassAttendanceReport = async ({
         anchorDate: anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate
     })}`, { skipToast: true });
     return response?.data;
-};
-
-export const getStudentAttendanceReport = ({
-    studentId = 'SV001',
-    mode = 'day',
-    anchorDate = new Date(),
-    subjectCode = 'all'
-} = {}) => {
-    const { start, end } = getRangeBounds(mode, anchorDate);
-    const startKey = toDateKey(start);
-    const endKey = toDateKey(end);
-    const savedRecords = getClassAttendanceRecords();
-    const entries = [];
-
-    for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
-        const dateKey = toDateKey(cursor);
-        mockClassrooms
-            .filter(klass => subjectCode === 'all' || klass.subjectCode === subjectCode)
-            .forEach(klass => {
-                const student = klass.students.find(item => item.id === studentId || item.code === studentId);
-                if (!student) return;
-                if (cursor.getDay() !== klass.scheduleWeekday) return;
-
-                const saved = savedRecords.find(record => record.classId === klass.id && record.date === dateKey && record.studentId === student.id);
-                const record = saved || buildSyntheticRecord(klass, student, dateKey);
-                if (!record) return;
-                entries.push(normalizeRecordToEntry(klass, student, record, dateKey));
-            });
-    }
-
-    const attended = entries.filter(item => item.checkInAt).length;
-    const late = entries.filter(item => item.status === 'late').length;
-    const onTime = entries.filter(item => item.status === 'on_time' || item.status === 'left').length;
-    const absent = entries.filter(item => !item.checkInAt || item.status === 'absent').length;
-
-    return {
-        period: { start: startKey, end: endKey },
-        entries: entries.sort((a, b) => `${b.date}-${b.classCode}`.localeCompare(`${a.date}-${a.classCode}`)),
-        summary: {
-            totalSessions: entries.length,
-            attended,
-            onTime,
-            late,
-            absent,
-            attendanceRate: entries.length ? Math.round((attended / entries.length) * 100) : 0
-        }
-    };
 };
 
 export const fetchStudentAttendanceReport = async ({

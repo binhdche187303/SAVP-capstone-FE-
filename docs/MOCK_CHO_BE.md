@@ -3,6 +3,22 @@
 Tài liệu gom mọi chỗ FE dùng dữ liệu giả (mock) hoặc dữ liệu chỉ có từ seed demo, kèm API/DB mà BE cần bổ sung.
 Trong code, chỗ còn mock có comment `// MOCK-BE:` (`grep -rn "MOCK-BE" src`).
 
+## 📝 CHANGELOG & REVISION HISTORY
+| Ngày cập nhật | Tóm tắt thay đổi | Các dòng thay đổi |
+| :--- | :--- | :--- |
+| 2026-11-11 | Bỏ hết `mockClassrooms` và mock điểm danh lớp: Home SV/GV, Dashboard điểm danh, Analytics, chuyên cần SV, Recordings và SystemSettings chỉ gọi API `/class-attendance/*`. Service không còn fallback cục bộ. Ghi chú fallback quét giả của BE. | Mục "Lịch học / lịch dạy", "Ghi hình & biên bản" |
+| 2026-11-11 | Thêm bảng changelog. Thêm mục "Lịch học / lịch dạy": `/student/schedule` và `/teacher/schedule` bỏ `mockClassrooms`, đọc `GET /class-attendance/sessions` (buổi học thật từ TKB UEL). | Đầu file, mục "Lịch học / lịch dạy (STUDENT/TEACHER)" |
+
+---
+
+## Lịch học / lịch dạy (STUDENT/TEACHER) — đã chuyển sang BE thật
+
+| Trước | Nay | Còn lại |
+|---|---|---|
+| `pages/classroom/StudentSchedule.jsx` và `TeacherSchedule.jsx` trộn `GET /class-attendance/classes` (giờ đọc từ `class_sections.note`) với `mockClassrooms`. | Cả hai dùng chung `WeeklySessionSchedule.jsx` và gọi `GET /class-attendance/sessions?from=&to=` (tối đa 62 ngày), đọc từ bảng `class_sessions`. Phạm vi xem giống `/classes`: GV thấy lớp mình phụ trách (`lecturer_user_id`), SV thấy lớp đã đăng ký, admin thấy tất cả. Không còn mock và không fallback: API lỗi thì hiện thông báo lỗi. | Buổi học chỉ có khi đã chạy bước 6 "Lịch học" của đồng bộ UEL. Hiện `tkb_lophp_1ngay` của UEL trả về 0 dòng, nên phải chạy theo mã GV/SV. Mỗi lớp HP chỉ lưu 1 giảng viên. Các trang khác (Home SV/GV, Dashboard điểm danh, Analytics, chuyên cần SV, Recordings, SystemSettings) cũng đã bỏ `mockClassrooms` và chỉ đọc API thật. UEL không có `note`, nên lịch và phòng trên thẻ lớp lấy từ buổi học trong ngày. |
+
+**BE cần sửa:** `POST /class-attendance/scan` hiện vẫn tự chọn sinh viên đầu tiên chưa điểm danh (chiều vào) hoặc người đầu tiên đang có lượt vào (chiều ra) khi HGVision không nhận diện được ai. Đây là điểm danh giả. Khi không nhận diện được, BE phải trả kết quả "không nhận diện được" và không ghi điểm danh.
+
 ---
 
 ## 2.2 Phân hệ Camera AI — đã chuyển sang BE thật
@@ -61,4 +77,4 @@ lại cho 2.3.6 và 2.3.7.
 
 | Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
 |---|---|---|
-| Ghi hình + biên bản AI cho **cuộc họp** (`recording_sessions.meeting_id` NOT NULL). | `/teacher/recordings` (`pages/classroom/TeacherRecordings.jsx`): danh sách buổi đã dạy suy từ `mockClassrooms`, mọi buổi "Chưa có ghi hình / Chưa có biên bản". | Liên kết buổi học với ghi hình: hoặc `class_sessions.meeting_id` (mỗi buổi 1 meeting ẩn → tái dùng ghi hình/biên bản), hoặc `recording_sessions.class_session_id` + `meeting_id` nullable. API `GET /teacher/class-sessions/:id/recordings` (chỉ giảng viên của lớp). FE thay mock bằng API + dùng lại player của `employee/Recordings.jsx`. |
+| Ghi hình + biên bản AI cho **cuộc họp** (`recording_sessions.meeting_id` NOT NULL). | `/teacher/recordings` (`pages/classroom/TeacherRecordings.jsx`): danh sách buổi đã dạy trong 60 ngày lấy từ `GET /class-attendance/sessions` (buổi thật), mọi buổi "Chưa có ghi hình / Chưa có biên bản". | Liên kết buổi học với ghi hình: hoặc `class_sessions.meeting_id` (mỗi buổi 1 meeting ẩn → tái dùng ghi hình/biên bản), hoặc `recording_sessions.class_session_id` + `meeting_id` nullable. API `GET /teacher/class-sessions/:id/recordings` (chỉ giảng viên của lớp). FE gắn API ghi hình vào từng buổi + dùng lại player của `employee/Recordings.jsx`. |

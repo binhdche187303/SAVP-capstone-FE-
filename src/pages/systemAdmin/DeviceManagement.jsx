@@ -20,7 +20,7 @@ import {
     checkDeviceAvailability,
     configureFaceTerminal,
 } from '../../service/sysAdminServices';
-import { subscribeToNotificationUpdates, subscribeToSecurityAlerts } from '../../utils/socket';
+import { subscribeToDeviceStatusChanges, subscribeToNotificationUpdates, subscribeToSecurityAlerts } from '../../utils/socket';
 import DeviceConnectionHistoryPanel from '../../components/devices/DeviceConnectionHistoryPanel';
 import CameraAiConfigModal from '../../components/devices/CameraAiConfigModal';
 import { CAMERA_TYPES, LANE_LABEL, getAnprInfo } from '../../mocks/cameraMock';
@@ -208,12 +208,14 @@ const DeviceManagement = () => {
         };
         const offAlerts = subscribeToSecurityAlerts(onWs);
         const offNotifications = subscribeToNotificationUpdates(onWs);
+        const offDevices = subscribeToDeviceStatusChanges(onWs);
         return () => {
             clearInterval(poll);
             clearInterval(tick);
             clearTimeout(wsTimer);
             offAlerts();
             offNotifications();
+            offDevices();
         };
     }, [fetchData]);
 
@@ -896,7 +898,7 @@ const DeviceManagement = () => {
                                             <span className="text-red-600"> · hoạt động lần cuối {timeAgo(d.last_seen_at, now)}</span>
                                         </span>
                                         <span className="flex items-center gap-1 shrink-0">
-                                            {['ip_camera', 'face_server'].includes(d.device_type) && (
+                                            {(CAMERA_TYPES.includes(d.device_type) || d.device_type === 'face_server') && (
                                                 <button onClick={() => handleCheckAvailability(d)} className="px-2 py-1 rounded-lg text-[11px] font-semibold text-red-700 hover:bg-red-100">
                                                     Ping lại
                                                 </button>
@@ -1046,10 +1048,10 @@ const DeviceManagement = () => {
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                             </svg>
                                                         </button>
-                                                        {/* BE checkAvailability() chỉ hỗ trợ ip_camera/face_server (409
+                                                        {/* BE checkAvailability() hỗ trợ mọi loại camera + face_server (409
                                                             DEVICE_TYPE_NOT_CAMERA cho loại khác) — trước đây nút hiện ở MỌI
                                                             loại thiết bị nên luôn báo lỗi vô nghĩa với microphone/sensor/... */}
-                                                        {['ip_camera', 'face_server'].includes(device.device_type) && (
+                                                        {(CAMERA_TYPES.includes(device.device_type) || device.device_type === 'face_server') && (
                                                             <button
                                                                 onClick={() => handleCheckAvailability(device)}
                                                                 title="Kiểm tra kết nối (Ping)"

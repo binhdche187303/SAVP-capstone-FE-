@@ -1,42 +1,14 @@
 import { useId, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { setTokens, getAccessToken } from "../../../utils/request";
-import { login as authLogin } from "../../../service/authService";
+import { login as authLogin, getSsoConfig, getSsoLoginUrl } from "../../../service/authService";
+import { getRedirectPathByRoles } from "../../../utils/authSession";
 import AuthFormSkeleton from "../../../components/common/Skeleton/AuthFormSkeleton";
 import AuthLayout from "../../../components/auth/AuthLayout";
 import AuthAlert from "../../../components/auth/AuthAlert";
 import PasswordInput from "../../../components/auth/PasswordInput";
 import AuthTextInput from "../../../components/auth/AuthTextInput";
 
-/**
- * Determines redirect path based on user roles from API response.
- * API returns: user.roles: string[] (e.g. ["ADMIN"], ["MANAGER"], ["EMPLOYEE"])
- */
-const getRedirectPathByRoles = (roles) => {
-    if (!roles || !Array.isArray(roles) || roles.length === 0) {
-        return '/employee';
-    }
-    const normalizedRoles = roles.map(r => (typeof r === 'string' ? r : r.roleCode || r.role_code || '').toUpperCase());
-    if (normalizedRoles.includes('SYSTEM_ADMIN') || normalizedRoles.includes('ADMIN')) {
-        return '/system-admin';
-    }
-    if (normalizedRoles.includes('BUSINESS_ADMIN')) {
-        return '/business-admin';
-    }
-    if (normalizedRoles.includes('MANAGER')) {
-        return '/manager';
-    }
-    if (normalizedRoles.includes('GUARD')) {
-        return '/guard';
-    }
-    if (normalizedRoles.includes('TEACHER')) {
-        return '/teacher';
-    }
-    if (normalizedRoles.includes('STUDENT')) {
-        return '/student';
-    }
-    return '/employee';
-};
 
 const Login = () => {
     const navigate = useNavigate();
@@ -55,6 +27,24 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [redirecting, setRedirecting] = useState(false);
+
+    // Đăng nhập một lần UEL — chỉ hiện nút khi BE bật UEL_SSO_ENABLED và đủ cấu hình.
+    const [ssoEnabled, setSsoEnabled] = useState(false);
+    const [ssoStarting, setSsoStarting] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        getSsoConfig()
+            .then((res) => { if (!cancelled) setSsoEnabled(!!res?.data?.enabled); })
+            .catch(() => { /* BE chưa có / lỗi mạng ⇒ ẩn nút */ });
+        return () => { cancelled = true; };
+    }, []);
+
+    const handleSsoLogin = () => {
+        setSsoStarting(true);
+        // Điều hướng cả trang (không phải fetch): BE redirect sang trang đăng nhập UEL.
+        window.location.href = getSsoLoginUrl();
+    };
 
     // Client-side validation states (E1)
     const [emailError, setEmailError] = useState(null);
@@ -334,6 +324,23 @@ const Login = () => {
                         {loading ? "Đang xử lý..." : "Đăng nhập"}
                     </button>
                 </form>
+                {ssoEnabled && (
+                    <div className="w-full flex flex-col gap-4">
+                        <div className="flex items-center gap-3 w-full" aria-hidden="true">
+                            <span className="h-px flex-1 bg-platinum-tint" />
+                            <span className="font-sans text-sm text-slate-blue">hoặc</span>
+                            <span className="h-px flex-1 bg-platinum-tint" />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleSsoLogin}
+                            disabled={loading || ssoStarting}
+                            className={`w-full h-14 bg-white border border-solid border-platinum-tint text-midnight-indigo rounded-full font-sans font-semibold text-base hover:border-action-blue hover:text-action-blue transition-colors focus-visible:ring-2 focus-visible:ring-action-blue focus-visible:ring-offset-2 flex items-center justify-center gap-2 ${loading || ssoStarting ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                            {ssoStarting ? "Đang chuyển tới UEL..." : "Đăng nhập bằng tài khoản UEL"}
+                        </button>
+                    </div>
+                )}
                 {/* Lối vào cho khách đến làm việc (2.10) — không cần tài khoản */}
                 <p className="mt-6 text-center text-sm text-slate-blue">
                     Khách đến làm việc?{' '}

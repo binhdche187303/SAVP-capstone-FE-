@@ -29,6 +29,9 @@ const localDate = (addDays = 0) => {
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 
+/** "GV0001, 22.001\nK24..." → ['GV0001', '22.001', 'K24...'] (bỏ trống, bỏ trùng). */
+const codesOf = (text) => [...new Set(String(text ?? '').split(/[\s,;]+/).map((c) => c.trim()).filter(Boolean))];
+
 const fmtTime = (iso) =>
     iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
@@ -118,7 +121,10 @@ const RunRow = ({ run, defaultOpen }) => {
                     {(run.options?.namHoc || run.options?.fromDate) && (
                         <p className="text-xs text-slate-blue">
                             {run.options.namHoc && <>Năm học {run.options.namHoc}, học kỳ {run.options.hocKy}. </>}
-                            {run.options.fromDate && <>Lịch học {run.options.fromDate} → {run.options.toDate}.</>}
+                            {run.options.fromDate && <>Lịch học {run.options.fromDate} → {run.options.toDate}. </>}
+                            {(run.options.lecturerCodes?.length || run.options.studentCodes?.length) ? (
+                                <>Theo mã: {[...(run.options.lecturerCodes ?? []), ...(run.options.studentCodes ?? [])].join(', ')}.</>
+                            ) : null}
                         </p>
                     )}
                     <div className="overflow-x-auto">
@@ -281,7 +287,7 @@ const UelSync = () => {
 
     // Form chạy tay
     const [steps, setSteps] = useState(UEL_SYNC_STEPS.map((s) => s.key));
-    const [runForm, setRunForm] = useState({ namHoc: '', hocKy: '', fromDate: localDate(), toDate: localDate(13) });
+    const [runForm, setRunForm] = useState({ namHoc: '', hocKy: '', fromDate: localDate(), toDate: localDate(13), lecturerCodes: '', studentCodes: '' });
     const [starting, setStarting] = useState(false);
     const [runError, setRunError] = useState(null);
 
@@ -349,9 +355,8 @@ const UelSync = () => {
         if (!steps.length) return 'Chọn ít nhất một bước.';
         if (needSemester && (!runForm.namHoc.trim() || !runForm.hocKy.trim())) return 'Lớp học phần và đăng ký cần năm học và học kỳ.';
         if (needDates && (!runForm.fromDate || !runForm.toDate || runForm.fromDate > runForm.toDate)) return 'Lịch học cần khoảng ngày hợp lệ.';
-        if (needDates && periods.length === 0) return 'Lịch học cần bảng giờ tiết. Nhập ở mục "Bảng giờ tiết" bên dưới.';
         return null;
-    }, [status, steps, needSemester, needDates, runForm, periods.length]);
+    }, [status, steps, needSemester, needDates, runForm]);
 
     const toggleStep = (key) =>
         setSteps((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : UEL_SYNC_STEPS.map((s) => s.key).filter((k) => k === key || cur.includes(k))));
@@ -362,7 +367,13 @@ const UelSync = () => {
         try {
             const payload = { steps };
             if (needSemester) Object.assign(payload, { namHoc: runForm.namHoc.trim(), hocKy: runForm.hocKy.trim() });
-            if (needDates) Object.assign(payload, { fromDate: runForm.fromDate, toDate: runForm.toDate });
+            if (needDates) {
+                Object.assign(payload, { fromDate: runForm.fromDate, toDate: runForm.toDate });
+                const lecturerCodes = codesOf(runForm.lecturerCodes);
+                const studentCodes = codesOf(runForm.studentCodes);
+                if (lecturerCodes.length) payload.lecturerCodes = lecturerCodes;
+                if (studentCodes.length) payload.studentCodes = studentCodes;
+            }
             await runUelSync(payload);
             await refresh();
         } catch (e) {
@@ -522,7 +533,7 @@ const UelSync = () => {
                     </label>
                     <label className="block" htmlFor="uel-run-hocky">
                         <span className="block text-xs font-bold text-slate-blue mb-1">Học kỳ</span>
-                        <input id="uel-run-hocky" className={inputCls} placeholder="1" disabled={!needSemester}
+                        <input id="uel-run-hocky" className={inputCls} placeholder="HK01" disabled={!needSemester}
                             value={runForm.hocKy} onChange={(e) => setRunForm({ ...runForm, hocKy: e.target.value })} />
                     </label>
                     <label className="block" htmlFor="uel-run-from">
@@ -536,6 +547,25 @@ const UelSync = () => {
                             value={runForm.toDate} onChange={(e) => setRunForm({ ...runForm, toDate: e.target.value })} />
                     </label>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <label className="block" htmlFor="uel-run-gv">
+                        <span className="block text-xs font-bold text-slate-blue mb-1">Lịch học theo mã giảng viên (tùy chọn)</span>
+                        <input id="uel-run-gv" className={inputCls} placeholder="VD: GV0001, 22.001" disabled={!needDates} maxLength={500}
+                            value={runForm.lecturerCodes} onChange={(e) => setRunForm({ ...runForm, lecturerCodes: e.target.value })} />
+                    </label>
+                    <label className="block" htmlFor="uel-run-sv">
+                        <span className="block text-xs font-bold text-slate-blue mb-1">Lịch học theo mã sinh viên (tùy chọn)</span>
+                        <input id="uel-run-sv" className={inputCls} placeholder="VD: K240000001" disabled={!needDates} maxLength={500}
+                            value={runForm.studentCodes} onChange={(e) => setRunForm({ ...runForm, studentCodes: e.target.value })} />
+                    </label>
+                </div>
+                {needDates && (
+                    <p className="text-xs text-steel-gray">
+                        Có nhập mã: chỉ lấy lịch của những người đó (mỗi mã × mỗi ngày = 1 lần gọi API, tối đa 600) và không hủy buổi nào.
+                        Để trống: lấy lịch toàn trường theo ngày. Giờ buổi học lấy từ API; bảng giờ tiết chỉ dùng khi API không trả giờ.
+                    </p>
+                )}
 
                 <div className="flex flex-wrap items-center gap-3">
                     <button type="button" onClick={handleRun} disabled={!!runBlocker || starting} className={btnPrimary}>
@@ -574,7 +604,7 @@ const UelSync = () => {
                             </label>
                             <label className="block" htmlFor="uel-set-hocky">
                                 <span className="block text-xs font-bold text-slate-blue mb-1">Học kỳ</span>
-                                <input id="uel-set-hocky" className={inputCls} placeholder="1"
+                                <input id="uel-set-hocky" className={inputCls} placeholder="HK01"
                                     value={settingsForm.hocKy} onChange={(e) => setSettingsForm({ ...settingsForm, hocKy: e.target.value })} />
                             </label>
                             <label className="block" htmlFor="uel-set-days">

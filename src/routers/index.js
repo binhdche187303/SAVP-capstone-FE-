@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom';
 import React, { Suspense } from 'react';
 import Login from '../pages/auth/login/login';
 import ForgotPassword from '../pages/auth/forgotpassword/forgotpassword';
+import SsoCallback from '../pages/auth/sso/SsoCallback';
 import VerifyOTP from '../pages/auth/forgotpassword/vertifyOTP';
 import { ChangePass } from '../pages/auth/forgotpassword/changePass';
 import Error403 from '../pages/Error/403';
@@ -114,6 +115,11 @@ export const router = [
     {
         path: '/forgot-password',
         element: <ForgotPassword />
+    },
+    {
+        // Đăng nhập một lần UEL — BE chuyển về đây kèm ?ticket= hoặc ?error=
+        path: '/sso/callback',
+        element: <SsoCallback />
     },
     {
         path: '/verify-otp',
