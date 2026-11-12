@@ -62,3 +62,17 @@ lại cho 2.3.6 và 2.3.7.
 | Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
 |---|---|---|
 | Ghi hình + biên bản AI cho **cuộc họp** (`recording_sessions.meeting_id` NOT NULL). | `/teacher/recordings` (`pages/classroom/TeacherRecordings.jsx`): danh sách buổi đã dạy suy từ `mockClassrooms`, mọi buổi "Chưa có ghi hình / Chưa có biên bản". | Liên kết buổi học với ghi hình: hoặc `class_sessions.meeting_id` (mỗi buổi 1 meeting ẩn → tái dùng ghi hình/biên bản), hoặc `recording_sessions.class_session_id` + `meeting_id` nullable. API `GET /teacher/class-sessions/:id/recordings` (chỉ giảng viên của lớp). FE thay mock bằng API + dùng lại player của `employee/Recordings.jsx`. |
+
+---
+
+## Mẫu báo cáo quy chuẩn (NĐ 30/2020) — bản xuất "quy chuẩn"
+
+| Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
+|---|---|---|
+| Nhánh `feature/report-template` (capstone-be): bảng `report_templates`, API `/report-templates` (CRUD, `defaults`, `signers?q`, `assets`, `preview`), bộ dựng PDF/Word/Excel theo mẫu, export nhận `mode: 'standard'`, `templateId`, `signers`, `addressee`, `recipients`; `GET /reports/exports/recent` trả thêm `standard` để "Xuất lại". | Cờ `REACT_APP_REPORT_MOCK=true`: mẫu lưu localStorage khóa `savp.reportTemplateMock` (seed 1 mẫu "Mẫu chuẩn VISMA (NĐ 30)"), ảnh logo chỉ sống trong phiên, danh sách người ký là 5 tên giả. **Xem thử PDF/Word/Excel và xuất bản quy chuẩn báo lỗi ở chế độ mock** (bộ dựng nằm ở BE). | Chạy migration `20261112000001-CreateReportTemplates`. Quyền `report.template.manage` hiện gán SYSTEM_ADMIN + BUSINESS_ADMIN (văn thư đơn vị — làm sau). ~~Chưa có mẫu seed~~ → đã có migration `20261112000002-SeedDefaultReportTemplate` (mẫu "Mẫu chuẩn VISMA (NĐ 30)", mọi loại báo cáo, mặc định, 2 ô ký đều tùy chọn). Chưa test API sống / e2e DB (`RUN_DB_TESTS=1`). |
+
+**Bản quy chuẩn ở các trang tự tổng hợp dữ liệu (2026-11-12)**
+
+| Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
+|---|---|---|
+| `POST /report-templates/render-document` (quyền `report.center.export`): nhận `{ format, mode:'standard', templateId, signers, addressee?, recipients?, document }`, trả file ngay (không qua job). `document` = `{ title, period, filterLines, dataSource, kpis, notes, tables[] }`, tối đa 10 bảng / 20.000 dòng. Chỉ nhận mẫu "mọi loại báo cáo". Ghi audit `report_document_export`. | FE dựng `document` từ spec của `downloadReport` (`src/utils/standardDocument.js`). Trang dùng: Nhật ký ra/vào phòng, Truy vết camera, Hành trình theo người, Lưu lượng khu vực (`ExportMenu askMode`). `ExportReportModal` (Kiểm soát xe, Sự kiện an ninh, Hiệu suất phòng) chuyển sang `/reports/center/<loại>/exports` khi chọn bản quy chuẩn hoặc Word. **Chế độ mock không dựng được bản quy chuẩn.** | Các trang khác vẫn chỉ xuất bản thường (xem danh sách ở báo cáo bàn giao). |

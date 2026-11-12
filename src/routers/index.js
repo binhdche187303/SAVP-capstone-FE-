@@ -97,6 +97,8 @@ import VisitorManagement from '../pages/shared/visitors/VisitorManagement';
 import VisitorRegister from '../pages/public/VisitorRegister';
 import ReportCenter from '../pages/shared/reports/ReportCenter';
 import ReportViewer from '../pages/shared/reports/ReportViewer';
+import ReportTemplates from '../pages/shared/reports/ReportTemplates';
+import ReportTemplateEditor from '../pages/shared/reports/ReportTemplateEditor';
 
 // Lazy-loaded to break circular dependency with minutesServices import chain
 const DocumentArchive = React.lazy(() => import('../pages/bussinessAdmin/DocumentArchive'));
@@ -289,6 +291,14 @@ export const router = [
                 element: <ReportRuns />
             },
             {
+                path: 'report-templates',
+                element: <ReportTemplates />
+            },
+            {
+                path: 'report-templates/:id',
+                element: <ReportTemplateEditor />
+            },
+            {
                 path: 'visitors/history',
                 element: <VisitorHistory />
             },
@@ -420,6 +430,14 @@ export const router = [
             {
                 path: 'report-schedules/runs',
                 element: <ReportRuns />
+            },
+            {
+                path: 'report-templates',
+                element: <ReportTemplates />
+            },
+            {
+                path: 'report-templates/:id',
+                element: <ReportTemplateEditor />
             },
             {
                 path: 'visitors/history',

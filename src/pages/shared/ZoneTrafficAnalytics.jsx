@@ -248,7 +248,7 @@ const ZoneTrafficAnalytics = () => {
         return short ? fmtHM(Number(best[0])) : `${String(best[0]).padStart(2, '0')}:00`;
     }, [matrix, short]);
 
-    const handleExport = async (format) => {
+    const handleExport = async (format, extra = {}) => {
         if (!zones.length) {
             toast.error('Chưa có dữ liệu để xuất.');
             return;
@@ -310,6 +310,10 @@ const ZoneTrafficAnalytics = () => {
 
             await downloadReport({
                 format,
+                standard: extra,
+                period: { from: begin, to: end },
+                docTitle: 'Lưu lượng và mật độ người tại các khu vực',
+                dataSource: 'Hệ thống VISMA — camera đếm người tại các khu vực công cộng',
                 fileName: `Heatmap-luu-luong_${exportedAt.toISOString().slice(0, 16).replace(/[-:T]/g, '')}`,
                 title: 'BÁO CÁO LƯU LƯỢNG & BẢN ĐỒ NHIỆT KHU VỰC',
                 subtitle: 'Số người ghi nhận bởi camera đếm người tại các khu vực công cộng',
@@ -383,7 +387,7 @@ const ZoneTrafficAnalytics = () => {
                     },
                 ],
             });
-            toast.success(format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất báo cáo ${({ xlsx: 'Excel', pdf: 'PDF', docx: 'Word' })[format]}.`);
+            toast.success(extra.mode === 'standard' ? `Đã tải bản quy chuẩn (${format.toUpperCase()}).` : format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất báo cáo ${({ xlsx: 'Excel', pdf: 'PDF', docx: 'Word' })[format]}.`);
         } catch (err) {
             toast.error(err?.message || 'Không xuất được báo cáo.');
         } finally {
@@ -467,7 +471,7 @@ const ZoneTrafficAnalytics = () => {
                     <button type="button" onClick={() => fetchData(false)} className="inline-flex items-center gap-1.5 px-[0.75rem] py-2 rounded-xl border border-platinum-tint text-xs font-semibold text-midnight-indigo hover:bg-cloud-mist">
                         <RefreshCw className="w-3.5 h-3.5" />Làm mới
                     </button>
-                    <ExportMenu compact onExport={handleExport} busyFormat={busyFormat} disabled={loading || !zones.length} />
+                    <ExportMenu compact askMode onExport={handleExport} busyFormat={busyFormat} disabled={loading || !zones.length} />
                 </div>
             </div>
 

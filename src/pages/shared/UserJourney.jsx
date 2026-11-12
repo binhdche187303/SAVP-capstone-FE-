@@ -262,7 +262,7 @@ const UserJourney = () => {
 
     useEffect(() => { setPage(1); }, [typeFilter, placeFilter]);
 
-    const handleExport = async (format) => {
+    const handleExport = async (format, extra = {}) => {
         if (sortedEvents.length === 0) return;
         setBusyFormat(format);
         try {
@@ -290,6 +290,10 @@ const UserJourney = () => {
             sortedEvents.forEach(e => { const t = TYPE_LABELS[(e.type || '').toLowerCase()] || e.type || 'Khác'; byType[t] = (byType[t] || 0) + 1; });
             await downloadReport({
                 format,
+                standard: extra,
+                period: { from: date, to: isRange ? dateTo : date },
+                docTitle: `Lịch sử di chuyển của ${selectedUser?.fullName || journeyData?.fullName || 'nhân sự'}`,
+                dataSource: 'Hệ thống VISMA — camera nhận diện tại cổng, phòng họp và khu vực',
                 fileName: `Hanh-trinh_${who}_${date}${isRange ? `_den_${dateTo}` : ''}`,
                 title: 'BÁO CÁO LỊCH SỬ DI CHUYỂN THEO NGƯỜI',
                 subtitle: 'Các lần camera ghi nhận một người (cổng, phòng họp, khu vực) trong khoảng thời gian đã chọn',
@@ -327,7 +331,7 @@ const UserJourney = () => {
                     rows,
                 }],
             });
-            toast.success(format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${rows.length} sự kiện (${{ xlsx: 'Excel', docx: 'Word' }[format]}).`);
+            toast.success(extra.mode === 'standard' ? `Đã tải bản quy chuẩn (${format.toUpperCase()}).` : format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${rows.length} sự kiện (${{ xlsx: 'Excel', docx: 'Word' }[format]}).`);
         } catch (err) {
             toast.error(err?.message || 'Không xuất được báo cáo.');
         } finally {
@@ -774,7 +778,7 @@ const UserJourney = () => {
                                 <button onClick={() => { setTypeFilter(''); setPlaceFilter(''); }} className="text-xs font-semibold text-action-blue hover:underline">Bỏ lọc</button>
                             )}
                             <div className="ml-auto">
-                                <ExportMenu compact onExport={handleExport} busyFormat={busyFormat} disabled={sortedEvents.length === 0} label={`Xuất báo cáo (${sortedEvents.length})`} />
+                                <ExportMenu compact askMode onExport={handleExport} busyFormat={busyFormat} disabled={sortedEvents.length === 0} label={`Xuất báo cáo (${sortedEvents.length})`} />
                             </div>
                         </div>
 

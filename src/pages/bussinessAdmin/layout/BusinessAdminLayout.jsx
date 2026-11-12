@@ -8,6 +8,7 @@ import BusinessAdminSidebar from './BusinessAdminSidebar';
 import { RiMenuLine } from 'react-icons/ri';
 import {
     Activity,
+    LayoutTemplate,
     Home,
     Layers,
     Monitor,
@@ -101,6 +102,7 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Trung tâm báo cáo', to: '/business-admin/reports', icon: FileBarChart },
             { label: 'Lịch gửi báo cáo', to: '/business-admin/report-schedules', end: true, icon: CalendarClock },
             { label: 'Lịch sử gửi', to: '/business-admin/report-schedules/runs', icon: History },
+            { label: 'Mẫu báo cáo', to: '/business-admin/report-templates', icon: LayoutTemplate },
         ],
     },
 ];

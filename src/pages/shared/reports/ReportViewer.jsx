@@ -11,6 +11,7 @@ import KpiTiles from '../../../components/report/KpiTiles';
 import ReportChart from '../../../components/report/ReportChart';
 import ReportTable from '../../../components/report/ReportTable';
 import ExportMenu from '../../../components/report/ExportMenu';
+import ExportModeDialog from '../../../components/report/ExportModeDialog';
 import ScheduleFormModal from '../../../components/report/ScheduleFormModal';
 import { pageCls, cardCls, btnPrimary, btnGhost, errorBoxCls } from '../../../components/common/uiClasses';
 
@@ -38,6 +39,8 @@ const ReportViewer = () => {
     const [error, setError] = useState(null);
     const [busyFormat, setBusyFormat] = useState(null);
     const [scheduleOpen, setScheduleOpen] = useState(false);
+    // Định dạng vừa chọn, đang chờ hỏi "bản thường hay bản quy chuẩn".
+    const [askFormat, setAskFormat] = useState(null);
     // Manager chỉ xem và xuất, không có màn lịch gửi.
     const canSchedule = base !== '/manager';
 
@@ -100,9 +103,11 @@ const ReportViewer = () => {
         setPage(1);
         setSort((prev) => (prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
     };
-    const handleExport = async (format) => {
+    // `extra` rỗng = bản thường; bản quy chuẩn kèm { mode, templateId, signers… } từ hộp thoại.
+    const handleExport = async (format, extra = {}) => {
+        setAskFormat(null);
         setBusyFormat(format);
-        const res = await exportReport(type, { ...toParams(applied), format });
+        const res = await exportReport(type, { ...toParams(applied), format, ...extra });
         if (res?.success) toast.success(res.data?.fileName ? `Đã xuất ${res.data.fileName}` : 'Đã tạo yêu cầu xuất, file sẽ có trong mục File xuất gần đây');
         else toast.error(res?.message || 'Không xuất được báo cáo');
         setBusyFormat(null);
@@ -127,7 +132,7 @@ const ReportViewer = () => {
                             <CalendarClock className="w-4 h-4" /> Đặt lịch gửi
                         </button>
                     )}
-                    <ExportMenu onExport={handleExport} disabled={loading || Boolean(error)} busyFormat={busyFormat} />
+                    <ExportMenu onExport={setAskFormat} disabled={loading || Boolean(error)} busyFormat={busyFormat} />
                 </div>
             </div>
 
@@ -163,6 +168,14 @@ const ReportViewer = () => {
                     />
                 </>
             )}
+
+            <ExportModeDialog
+                isOpen={Boolean(askFormat)}
+                format={askFormat}
+                reportType={type}
+                onClose={() => setAskFormat(null)}
+                onConfirm={(extra) => handleExport(askFormat, extra)}
+            />
 
             {canSchedule && (
                 <ScheduleFormModal

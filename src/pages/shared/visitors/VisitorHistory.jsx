@@ -6,6 +6,7 @@ import { formatDuration } from '../../../utils/reportFormat';
 import toast from '../../../utils/toast';
 import Pagination from '../../../components/common/Pagination';
 import SimpleModal from '../../../components/common/SimpleModal';
+import ExportModeDialog from '../../../components/report/ExportModeDialog';
 import VisitDetailDrawer from '../../../components/visitor/VisitDetailDrawer';
 import VisitStatusBadge from '../../../components/visitor/VisitStatusBadge';
 import { fmtDateTime, fmtTimeRange, fmtScore } from '../../../components/visitor/visitLabels';
@@ -44,6 +45,7 @@ const VisitorHistory = () => {
     const [detailId, setDetailId] = useState(null);
     const [profile, setProfile] = useState(null);
     const [exporting, setExporting] = useState(false);
+    const [askMode, setAskMode] = useState(false);
 
     useEffect(() => {
         getVisitorLookups().then((res) => { if (res?.success) setLookups(res.data); });
@@ -74,13 +76,19 @@ const VisitorHistory = () => {
         else toast.error(res?.message || 'Không tải được các lượt của khách');
     };
 
-    const exportExcel = async () => {
+    // Hỏi bản thường / bản quy chuẩn trước khi xuất.
+    const exportExcel = () => {
         if (!filters.from || !filters.to) {
             toast.warning('Chọn đủ từ ngày và đến ngày trước khi xuất');
             return;
         }
+        setAskMode(true);
+    };
+
+    const runExport = async (extra) => {
+        setAskMode(false);
         setExporting(true);
-        const res = await exportReport('visitor', { format: 'xlsx', from: filters.from, to: filters.to, departmentId: filters.departmentId });
+        const res = await exportReport('visitor', { format: 'xlsx', from: filters.from, to: filters.to, departmentId: filters.departmentId, ...extra });
         setExporting(false);
         if (res?.success) toast.success(`Đã xuất ${res.data.fileName}`);
         else toast.error(res?.message || 'Không xuất được file');
@@ -90,6 +98,7 @@ const VisitorHistory = () => {
 
     return (
         <div className={pageCls}>
+            <ExportModeDialog isOpen={askMode} format="xlsx" reportType="visitor" onClose={() => setAskMode(false)} onConfirm={runExport} />
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
