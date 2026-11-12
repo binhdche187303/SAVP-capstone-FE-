@@ -210,7 +210,7 @@ const CameraTrace = () => {
     const rangeEnd = (page - 1) * PAGE_SIZE + events.length;
     const filtered = Boolean(kindFilter || debouncedName);
 
-    const handleExport = async (format) => {
+    const handleExport = async (format, extra = {}) => {
         if (!targetId) return;
         setBusyFormat(format);
         try {
@@ -288,6 +288,10 @@ const CameraTrace = () => {
             const redUnknown = (row, key) => (key === 'person' && row.person === 'Không nhận diện được' ? { fill: 'FEE2E2', color: 'B91C1C', bold: true } : undefined);
             await downloadReport({
                 format,
+                standard: extra,
+                period: { from: fromDate, to: toDateV },
+                docTitle: `Truy vết theo camera / khu vực (${targetLabel})`,
+                dataSource: 'Hệ thống VISMA — camera nhận diện khuôn mặt và biển số',
                 fileName: `Truy-vet-camera_${String(targetLabel).replace(/\s+/g, '-').slice(0, 40)}_${exportedAt.toISOString().slice(0, 10)}`,
                 title: 'BÁO CÁO TRUY VẾT THEO CAMERA / KHU VỰC',
                 subtitle: 'Các lượt camera ghi nhận người / xe trong phạm vi và khung giờ được chọn',
@@ -360,14 +364,14 @@ const CameraTrace = () => {
                             { header: 'Mã camera', key: 'camCode', width: 18 },
                             { header: 'Khu vực', key: 'zone', width: 20 },
                             { header: 'Nhóm camera', key: 'group', width: 26 },
-                            { header: 'Mã ảnh bằng chứng', key: 'evidence', width: 38 },
+                            { header: 'Mã ảnh bằng chứng', key: 'evidence', width: 38, standard: false },
                         ],
                         rows: detail,
                         cellStyle: redUnknown,
                     },
                 ],
             });
-            toast.success(format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${detail.length} lượt (${{ xlsx: 'Excel', docx: 'Word' }[format]}).`);
+            toast.success(extra.mode === 'standard' ? `Đã tải bản quy chuẩn (${format.toUpperCase()}).` : format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${detail.length} lượt (${{ xlsx: 'Excel', docx: 'Word' }[format]}).`);
         } catch (err) {
             toast.error(err?.error?.message || err?.message || 'Không xuất được báo cáo.');
         } finally {
@@ -463,7 +467,7 @@ const CameraTrace = () => {
                                     {result.devices.length > 0 && <>: {result.devices.slice(0, 6).map((d) => d.deviceName).join(', ')}{result.devices.length > 6 ? '…' : ''}</>}
                                 </p>
                             </div>
-                            <ExportMenu compact onExport={handleExport} busyFormat={busyFormat} disabled={loading || total === 0} />
+                            <ExportMenu compact askMode onExport={handleExport} busyFormat={busyFormat} disabled={loading || total === 0} />
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} aria-label="Loại sự kiện" className={`${inputCls} !py-1.5 text-xs`}>

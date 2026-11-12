@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, FileText, CheckCircle, AlertTriangle, Download, RefreshCw } from 'lucide-react';
 import { post, get } from '../../utils/request';
+import ExportModeDialog from '../report/ExportModeDialog';
+
+// Endpoint cũ /reports/<loại>/exports ứng với loại của Trung tâm báo cáo → xuất được bản quy chuẩn (và Word)
+// qua /reports/center/<loại>/exports. Endpoint không khớp loại nào giữ nguyên luồng cũ.
+const CENTER_TYPES = ['staff-attendance', 'student-attendance', 'gate-access', 'room-utilization', 'vehicle', 'visitor', 'security-alert'];
+const centerTypeOf = (endpoint) => {
+    const m = /^\/reports\/([a-z-]+)\/exports$/.exec(endpoint || '');
+    return m && CENTER_TYPES.includes(m[1]) ? m[1] : null;
+};
 
 // BE bắt buộc from/to (YYYY-MM-DD) — quy đổi preset sang khoảng ngày theo giờ local.
 const toYmd = (d) => {
@@ -40,6 +49,10 @@ const ExportReportModal = ({
     const [jobStatus, setJobStatus] = useState(''); // queued, running, completed, failed
     const [outputFileId, setOutputFileId] = useState(null);
     const [downloading, setDownloading] = useState(false);
+    const [asking, setAsking] = useState(false);
+
+    const centerType = centerTypeOf(endpoint);
+    const shownFormats = centerType && !formats.includes('docx') ? [...formats.filter((f) => f !== 'csv'), 'docx', ...formats.filter((f) => f === 'csv')] : formats;
 
     useEffect(() => {
         if (!isOpen) {
@@ -53,6 +66,7 @@ const ExportReportModal = ({
             setJobId(null);
             setJobStatus('');
             setOutputFileId(null);
+            setAsking(false);
         }
     }, [isOpen]);
 
@@ -89,15 +103,23 @@ const ExportReportModal = ({
     if (!isOpen) return null;
     if (typeof document === 'undefined') return null;
 
-    const handleExport = async (e) => {
+    // Bấm "Bắt đầu xuất": loại có trong Trung tâm báo cáo → hỏi bản thường / bản quy chuẩn trước (trừ CSV).
+    const handleExport = (e) => {
         e.preventDefault();
+        if (centerType && format !== 'csv') { setAsking(true); return; }
+        startExport({});
+    };
+
+    const startExport = async (extra) => {
+        setAsking(false);
         setLoading(true);
         setError(null);
         setJobStatus('queued');
         try {
             const range = preset === 'custom' ? { from, to } : presetToRange(preset);
-            const payload = { format, ...range };
-            const res = await post(endpoint, payload);
+            const useCenter = centerType && (extra.mode === 'standard' || format === 'docx');
+            const payload = { format, ...range, ...extra };
+            const res = await post(useCenter ? `/reports/center/${centerType}/exports` : endpoint, payload);
             if (res?.success) {
                 setJobId(res.data.jobId);
                 setJobStatus(res.data.status || 'queued');
@@ -128,6 +150,11 @@ const ExportReportModal = ({
             setDownloading(false);
         }
     };
+
+    // Hộp thoại chọn kiểu bản xuất thay chỗ khung này (khung này nằm trên mọi lớp nên không xếp chồng được).
+    if (asking) {
+        return <ExportModeDialog isOpen format={format} reportType={centerType} onClose={() => setAsking(false)} onConfirm={startExport} />;
+    }
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-xl p-4">
@@ -186,8 +213,8 @@ const ExportReportModal = ({
                             {/* Format Selection */}
                             <div className="space-y-1.5">
                                 <label className="block text-xs font-bold text-slate-blue uppercase">Định dạng file</label>
-                                <div className="grid grid-cols-3 gap-3">
-                                    {formats.map((fmt) => (
+                                <div className={`grid gap-3 ${shownFormats.length > 3 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                                    {shownFormats.map((fmt) => (
                                         <button
                                             key={fmt}
                                             type="button"

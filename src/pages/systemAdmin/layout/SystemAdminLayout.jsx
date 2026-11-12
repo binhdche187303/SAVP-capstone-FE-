@@ -10,7 +10,7 @@ import {
     RiBarChartBoxLine, RiFileChartLine,
     RiUserReceivedLine, RiContactsBookLine,
     RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine, RiGroupLine, RiBuilding2Line,
-    RiDatabase2Line
+    RiDatabase2Line, RiLayout4Line
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -102,6 +102,7 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Trung tâm báo cáo',             to: '/system-admin/reports',              icon: RiFileChartLine },
             { label: 'Lịch gửi báo cáo',              to: '/system-admin/report-schedules', end: true, icon: RiCalendarScheduleLine },
             { label: 'Lịch sử gửi',                   to: '/system-admin/report-schedules/runs', icon: RiMailSendLine },
+            { label: 'Mẫu báo cáo',                   to: '/system-admin/report-templates',     icon: RiLayout4Line },
         ],
     },
 ];

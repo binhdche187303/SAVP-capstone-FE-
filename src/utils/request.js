@@ -256,6 +256,7 @@ const handleResponse = async (response, options = {}) => {
     const contentType = response.headers.get('Content-Type') || '';
     if (
         contentType.includes('spreadsheetml') ||
+        contentType.includes('wordprocessingml') ||
         contentType.includes('excel') ||
         contentType.includes('pdf') ||
         contentType.includes('octet-stream') ||

@@ -7,6 +7,9 @@
  * số/ngày đúng kiểu để sort/filter/pivot. Word/PDF dựng từ HTML nên giống nhau về bố cục.
  */
 
+import { renderStandardDocument } from '../service/reportTemplateService';
+import { toStandardDocument } from './standardDocument';
+
 const HEADER_BG = 'FF1E3A8A';
 const BORDER = { style: 'thin', color: { argb: 'FFD1D5DB' } };
 const ALL_BORDERS = { top: BORDER, left: BORDER, bottom: BORDER, right: BORDER };
@@ -275,10 +278,21 @@ const printHtml = (html) => new Promise((resolve) => {
  * @param {string} cfg.title         tiêu đề báo cáo (sheet thông tin)
  * @param {string} [cfg.subtitle]
  * @param {Array}  cfg.info          [[nhãn, giá trị, {numFmt, fill, color}?] | { section }]
- * @param {Array}  cfg.sheets        [{ name, columns:[{header,key,width?,numFmt?,align?}], rows:[obj], cellStyle?(row,key,value) → {fill,color,bold}, note? }]
+ * @param {Array}  cfg.sheets        [{ name, columns:[{header,key,width?,numFmt?,align?,standard?}], rows:[obj], cellStyle?(row,key,value) → {fill,color,bold}, note? }]
+ * @param {object} [cfg.standard]    kết quả ExportModeDialog — `{ mode: 'standard', templateId, signers, … }` → bản quy chuẩn (BE dựng theo mẫu)
+ * @param {object} [cfg.period]      { from, to } kỳ báo cáo cho bản quy chuẩn (mặc định hôm nay)
+ * @param {string} [cfg.docTitle]    tên báo cáo viết thường câu cho bản quy chuẩn
+ * @param {string} [cfg.dataSource]  dòng "Nguồn dữ liệu" của bản quy chuẩn
  */
 export const downloadReport = async (cfg) => {
     const format = cfg.format || 'xlsx';
+    if (cfg.standard?.mode === 'standard') {
+        const res = await renderStandardDocument({ format, standard: cfg.standard, document: toStandardDocument(cfg) });
+        if (!res?.success) throw new Error(res?.message || 'Không xuất được bản quy chuẩn');
+        const name = safeName(cfg.fileName).replace(/\.(xlsx|docx?|pdf)$/i, '');
+        triggerDownload(res.data, `${name}_quy-chuan.${format}`);
+        return;
+    }
     if (format === 'docx') {
         const name = safeName(cfg.fileName);
         const blob = new Blob([String.fromCharCode(0xFEFF), buildHtml(cfg, { forWord: true })], { type: 'application/msword' });

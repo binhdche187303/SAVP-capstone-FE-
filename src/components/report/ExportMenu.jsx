@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Download, FileSpreadsheet, FileText, Printer } from 'lucide-react';
 import { btnPrimary } from '../common/uiClasses';
+import ExportModeDialog from './ExportModeDialog';
 
 const FORMATS = [
     { format: 'pdf', label: 'PDF', hint: 'Mở bản in, chọn "Lưu thành PDF"', icon: Printer },
@@ -8,11 +9,14 @@ const FORMATS = [
     { format: 'docx', label: 'Word', hint: 'Tệp mở bằng Microsoft Word', icon: FileText },
 ];
 
+// askMode: chọn định dạng xong hỏi "bản thường / bản quy chuẩn" (mẫu dùng chung) rồi gọi onExport(format, extra);
+//   extra = {} (bản thường) hoặc { mode: 'standard', templateId, signers, … } — chuyển nguyên vào downloadReport({ standard: extra }).
 // compact: nút nhỏ (text-xs) cho thanh công cụ dày; mặc định là nút lớn của Trung tâm báo cáo.
 const COMPACT_BTN = 'inline-flex items-center justify-center gap-1.5 bg-action-blue text-white rounded-xl px-3 py-2 text-xs font-semibold hover:bg-glacier-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
 
-const ExportMenu = ({ onExport, disabled, busyFormat, compact = false, label = 'Xuất báo cáo' }) => {
+const ExportMenu = ({ onExport, disabled, busyFormat, compact = false, label = 'Xuất báo cáo', askMode = false }) => {
     const [open, setOpen] = useState(false);
+    const [askFormat, setAskFormat] = useState(null);
     const ref = useRef(null);
 
     useEffect(() => {
@@ -37,7 +41,7 @@ const ExportMenu = ({ onExport, disabled, busyFormat, compact = false, label = '
                             key={format}
                             type="button"
                             className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-cloud-mist"
-                            onClick={() => { setOpen(false); onExport(format); }}
+                            onClick={() => { setOpen(false); if (askMode) setAskFormat(format); else onExport(format); }}
                         >
                             <Icon className="w-4 h-4 mt-0.5 text-action-blue" />
                             <span>
@@ -47,6 +51,14 @@ const ExportMenu = ({ onExport, disabled, busyFormat, compact = false, label = '
                         </button>
                     ))}
                 </div>
+            )}
+            {askMode && (
+                <ExportModeDialog
+                    isOpen={Boolean(askFormat)}
+                    format={askFormat}
+                    onClose={() => setAskFormat(null)}
+                    onConfirm={(extra) => { const f = askFormat; setAskFormat(null); onExport(f, extra); }}
+                />
             )}
         </div>
     );

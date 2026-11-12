@@ -584,7 +584,7 @@ const RoomAccessLogs = () => {
     const showRoomColumn = !selectedRoomId;
 
     // Xuất đúng những gì đang lọc (ngày/phòng/hướng/trạng thái/cuộc họp/tìm kiếm), kèm tổng hợp theo người.
-    const handleExport = async (format) => {
+    const handleExport = async (format, extra = {}) => {
         if (allSorted.length === 0) {
             toast.error('Chưa có dữ liệu để xuất.');
             return;
@@ -676,6 +676,10 @@ const RoomAccessLogs = () => {
 
             await downloadReport({
                 format,
+                standard: extra,
+                period: { from: selectedDate, to: selectedDate },
+                docTitle: `Nhật ký ra/vào phòng ${roomName}`,
+                dataSource: 'Hệ thống VISMA — camera nhận diện khuôn mặt tại cửa phòng',
                 fileName: `Nhat-ky-ra-vao-phong_${String(roomName).replace(/\s+/g, '-')}_${selectedDate}`,
                 title: 'NHẬT KÝ RA/VÀO PHÒNG',
                 subtitle: 'Đối soát an ninh dựa trên camera nhận diện khuôn mặt',
@@ -740,7 +744,7 @@ const RoomAccessLogs = () => {
                             { header: 'Mã camera', key: 'code', width: 18 },
                             { header: 'Khu vực', key: 'zone', width: 20 },
                             { header: 'Nhóm camera', key: 'group', width: 24 },
-                            { header: 'Mã sự kiện (đối chiếu ảnh)', key: 'id', width: 38 },
+                            { header: 'Mã sự kiện (đối chiếu ảnh)', key: 'id', width: 38, standard: false },
                         ],
                         rows: detail,
                         cellStyle: (row, key) => {
@@ -752,7 +756,7 @@ const RoomAccessLogs = () => {
                     },
                 ],
             });
-            toast.success(format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${detail.length} lượt ra/vào (${({ xlsx: 'Excel', pdf: 'PDF', docx: 'Word' })[format]}).`);
+            toast.success(extra.mode === 'standard' ? `Đã tải bản quy chuẩn (${format.toUpperCase()}).` : format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${detail.length} lượt ra/vào (${({ xlsx: 'Excel', pdf: 'PDF', docx: 'Word' })[format]}).`);
         } catch (err) {
             toast.error(err?.message || 'Không xuất được báo cáo.');
         } finally {
@@ -940,7 +944,7 @@ const RoomAccessLogs = () => {
                     <p className="text-slate-blue text-sm mt-1">Đối soát an ninh ra/vào dựa trên API camera nhận diện khuôn mặt</p>
                 </div>
                 <div className="self-start flex flex-col items-end gap-1">
-                    <ExportMenu onExport={handleExport} busyFormat={busyFormat} disabled={logsLoading || allSorted.length === 0} />
+                    <ExportMenu askMode onExport={handleExport} busyFormat={busyFormat} disabled={logsLoading || allSorted.length === 0} />
                     <button
                         onClick={() => fetchLogs()}
                         disabled={logsLoading}
