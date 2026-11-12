@@ -1,3 +1,5 @@
+jest.mock('../../config/featureFlags', () => ({ VISITOR_MOCK_ENABLED: true, REPORT_MOCK_ENABLED: true, ANY_DEMO_DATA: true }));
+
 // Test render thay cho bước kiểm tra tay của các trang công khai (S1, S2).
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';

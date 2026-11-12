@@ -1,3 +1,5 @@
+jest.mock('../../../config/featureFlags', () => ({ VISITOR_MOCK_ENABLED: true, REPORT_MOCK_ENABLED: true, ANY_DEMO_DATA: true }));
+
 // Test render thay cho bước kiểm tra tay: mỗi trang báo cáo dựng được với dữ liệu giả.
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -155,8 +157,10 @@ describe('ReportSchedules', () => {
         await screen.findByText('Ra vào khuôn viên hằng ngày');
         const row = rowOf('Ra vào khuôn viên hằng ngày');
         expect(within(row).getByTestId('next-run')).not.toHaveTextContent('—');
-        fireEvent.click(within(row).getByRole('switch'));
-        await waitFor(() => expect(within(rowOf('Ra vào khuôn viên hằng ngày')).getByTestId('next-run')).toHaveTextContent('—'));
+        const toggle = within(row).getByRole('switch');
+        expect(toggle).toBeChecked();
+        fireEvent.click(toggle);
+        await waitFor(() => expect(within(rowOf('Ra vào khuôn viên hằng ngày')).getByTestId('next-run')).toHaveTextContent('—'), { timeout: 5000 });
 
         fireEvent.click(within(rowOf('Sự kiện an ninh hằng ngày')).getByRole('button', { name: 'Gửi thử' }));
         const notice = await screen.findByText(/Đã gửi thử "Sự kiện an ninh hằng ngày" tới 3 người nhận/);

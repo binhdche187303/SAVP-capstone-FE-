@@ -148,7 +148,7 @@ const VisitorDesk = () => {
                             {desk.items.length === 0 ? (
                                 <p className="px-6 py-10 text-center text-xs text-slate-blue">Ngày này chưa có khách đăng ký</p>
                             ) : (
-                                <ul className="divide-y divide-pale-gray">
+                                <ul aria-label="Danh sách khách" className="divide-y divide-pale-gray">
                                     {desk.items.map((visit) => (
                                         <li key={visit.id} className="px-6 py-3 flex flex-wrap items-center gap-3">
                                             <VisitorAvatar visitor={visit.visitor} size={40} />

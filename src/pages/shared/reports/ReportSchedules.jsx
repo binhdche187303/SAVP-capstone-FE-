@@ -127,7 +127,10 @@ const ReportSchedules = () => {
                                             className="w-4 h-4 accent-[#006BFF] cursor-pointer"
                                             checked={schedule.enabled}
                                             disabled={busyId === schedule.id}
-                                            onChange={(e) => act(schedule.id, () => toggleSchedule(schedule.id, e.target.checked))}
+                                            onChange={(e) => {
+                                                const enabled = e.target.checked;
+                                                act(schedule.id, () => toggleSchedule(schedule.id, enabled));
+                                            }}
                                         />
                                     </td>
                                     <td className={`${tdCls} text-right`}>

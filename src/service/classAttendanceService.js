@@ -569,8 +569,8 @@ export const getClassAttendanceSummary = (classId = mockClassrooms[0].id, date =
     };
 };
 
-export const fetchClassAttendanceClasses = async () => {
-    const response = await get('/class-attendance/classes', { skipToast: true });
+export const fetchClassAttendanceClasses = async (date = todayKey()) => {
+    const response = await get(`/class-attendance/classes${buildQuery({ date })}`, { skipToast: true });
     return response?.data || [];
 };
 

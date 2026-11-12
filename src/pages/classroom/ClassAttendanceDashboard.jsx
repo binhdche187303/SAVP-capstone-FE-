@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Download, Info, LogIn, LogOut, RefreshCw, Trash2, Users, X } from 'lucide-react';
 import {
-    buildClassAttendanceRows,
     clearClassAttendanceRecords,
     exportClassAttendanceCsv,
     fetchClassAttendanceClasses,
@@ -12,10 +11,7 @@ import {
     fetchClassAttendanceSettings,
     getClassAttendanceSettings,
     getClassSession,
-    getClassAttendanceEvents,
     scanClassAttendance,
-    mockClassFaceScan,
-    mockClassrooms
 } from '../../service/classAttendanceService';
 
 const statusClass = {
@@ -123,15 +119,7 @@ const getTodayKey = () => {
     return `${year}-${month}-${day}`;
 };
 
-const getCurrentSemester = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
 
-    if (month >= 8) return `HK1 ${year}-${year + 1}`;
-    if (month <= 1) return `HK1 ${year - 1}-${year}`;
-    return `HK2 ${year - 1}-${year}`;
-};
 
 const getScheduleStartMinutes = (schedule = '') => {
     const match = String(schedule).match(/(\d{1,2}):(\d{2})/);
@@ -148,17 +136,17 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     const attendanceQuery = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const queryClassId = attendanceQuery.get('classId') || '';
     const queryAdministrativeClass = attendanceQuery.get('administrativeClass') || '';
-    const [classrooms, setClassrooms] = useState(mockClassrooms);
-    const [selectedClassId, setSelectedClassId] = useState(mode === 'teacher' ? queryClassId : mockClassrooms[0].id);
+    const [classrooms, setClassrooms] = useState([]);
+    const [selectedClassId, setSelectedClassId] = useState(queryClassId);
     const [selectedDate, setSelectedDate] = useState(getTodayKey);
-    const [selectedSemester, setSelectedSemester] = useState(getCurrentSemester);
+    const [selectedSemester, setSelectedSemester] = useState('');
     const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState(queryAdministrativeClass);
     const [classPage, setClassPage] = useState(1);
     const [eventPage, setEventPage] = useState(1);
     const [rows, setRows] = useState([]);
     const [attendanceEvents, setAttendanceEvents] = useState([]);
-    const [settings, setSettings] = useState(getClassAttendanceSettings(mode === 'teacher' ? undefined : mockClassrooms[0].id));
+    const [settings, setSettings] = useState(getClassAttendanceSettings(queryClassId || undefined));
     const [scanDirection, setScanDirection] = useState('in');
     const [autoScan, setAutoScan] = useState(false);
     const [scanNotice, setScanNotice] = useState(null);
@@ -176,15 +164,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         [selectedClass, selectedAdministrativeClass]
     );
 
-    const semesters = useMemo(() => {
-        const available = new Set(classrooms.map(item => item.semester).filter(Boolean));
-        available.add(getCurrentSemester());
-        return [...available].sort((left, right) => {
-            if (left === getCurrentSemester()) return -1;
-            if (right === getCurrentSemester()) return 1;
-            return left.localeCompare(right, 'vi');
-        });
-    }, [classrooms]);
+    const semesters = useMemo(() => [...new Set(classrooms.map(item => item.semester).filter(Boolean))].sort((a, b) => b.localeCompare(a, 'vi')), [classrooms]);
 
     const semesterClassrooms = useMemo(
         () => classrooms.filter(item => !selectedSemester || item.semester === selectedSemester),
@@ -274,24 +254,12 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         let cancelled = false;
         const load = async () => {
             try {
-                const apiClasses = await fetchClassAttendanceClasses();
-                const nextClasses = apiClasses.length
-                    ? [
-                        ...apiClasses.map(apiClass => {
-                            const mockClass = mockClassrooms.find(item => item.subjectCode === apiClass.subjectCode);
-                            return mockClass
-                                ? { ...apiClass, classNames: mockClass.classNames, classSchedules: mockClass.classSchedules }
-                                : apiClass;
-                        }),
-                        ...mockClassrooms.filter(mockClass => !apiClasses.some(apiClass => apiClass.subjectCode === mockClass.subjectCode))
-                    ]
-                    : mockClassrooms;
-                const requestedMockClass = mockClassrooms.find(item => item.id === selectedClassId);
-                const resolvedClass = nextClasses.find(item => item.id === selectedClassId)
-                    || (requestedMockClass && nextClasses.find(item => item.subjectCode === requestedMockClass.subjectCode));
+                const apiClasses = await fetchClassAttendanceClasses(selectedDate);
+                const nextClasses = apiClasses;
+                const resolvedClass = nextClasses.find(item => item.id === selectedClassId);
                 const nextClassId = resolvedClass
                     ? resolvedClass.id
-                    : (mode === 'teacher' ? '' : nextClasses[0]?.id || mockClassrooms[0].id);
+                    : (mode === 'teacher' ? '' : nextClasses[0]?.id || '');
                 if (!nextClassId) {
                     if (cancelled) return;
                     setClassrooms(nextClasses);
@@ -307,21 +275,15 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                 if (cancelled) return;
                 setClassrooms(nextClasses);
                 if (nextClassId !== selectedClassId) setSelectedClassId(nextClassId);
-                setRows(apiRows.length ? apiRows : buildClassAttendanceRows(nextClassId, selectedDate));
+                setRows(apiRows);
                 setAttendanceEvents(apiEvents);
                 setSettings({ ...getClassAttendanceSettings(nextClassId, selectedAdministrativeClass), ...apiSettings });
             } catch {
                 if (cancelled) return;
-                setClassrooms(mockClassrooms);
-                if (mode === 'teacher' && !selectedClassId) {
-                    setRows([]);
-                    setAttendanceEvents([]);
-                    setSettings(getClassAttendanceSettings());
-                } else {
-                    setRows(buildClassAttendanceRows(selectedClassId, selectedDate));
-                    setAttendanceEvents(getClassAttendanceEvents(selectedClassId, selectedDate));
-                    setSettings(getClassAttendanceSettings(selectedClassId, selectedAdministrativeClass));
-                }
+                setClassrooms([]);
+                setRows([]);
+                setAttendanceEvents([]);
+                setScanNotice({ type: 'error', message: 'Không tải được dữ liệu điểm danh. Vui lòng kiểm tra kết nối và thử lại.' });
             }
         };
         load();
@@ -343,10 +305,10 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     }, [selectedClassId, selectedDate, selectedAdministrativeClass]);
 
     useEffect(() => {
-        if (selectedAdministrativeClass && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
+        if (classrooms.length > 0 && selectedAdministrativeClass && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
             setSelectedAdministrativeClass('');
         }
-    }, [administrativeClassOptions, selectedAdministrativeClass]);
+    }, [classrooms.length, administrativeClassOptions, selectedAdministrativeClass]);
 
     useEffect(() => {
         if (selectedSubjectCode !== 'all' && !subjectOptions.some(subject => subject.code === selectedSubjectCode)) {
@@ -355,13 +317,13 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     }, [selectedSubjectCode, subjectOptions]);
 
     useEffect(() => {
-        if (selectedClassId && !subjectClassrooms.some(item => item.id === selectedClassId)) {
+        if (classrooms.length > 0 && selectedClassId && !subjectClassrooms.some(item => item.id === selectedClassId)) {
             setSelectedClassId(mode === 'teacher' ? '' : subjectClassrooms[0]?.id || '');
             setRows([]);
-                    setAttendanceEvents([]);
+            setAttendanceEvents([]);
             setSelectedAdministrativeClass('');
         }
-    }, [mode, selectedClassId, semesterClassrooms, subjectClassrooms]);
+    }, [classrooms.length, mode, selectedClassId, semesterClassrooms, subjectClassrooms]);
 
     useEffect(() => {
         setClassPage(1);
@@ -459,13 +421,15 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         try {
             result = await scanClassAttendance({ classId: selectedClassId, administrativeClass: selectedAdministrativeClass, direction: scanDirection, snapshotImageBase64 });
         } catch {
-            result = mockClassFaceScan({ classId: selectedClassId, administrativeClass: selectedAdministrativeClass, direction: scanDirection, snapshotImageBase64 });
+            setScanNotice({ type: 'error', message: 'Không gửi được lượt quét. Vui lòng thử lại.', detail: 'Không tạo bản ghi điểm danh mới.' });
+            return;
         }
         const nextMessage = result?.data?.message || result.message || 'Đã xử lý lượt quét.';
+        const succeeded = result.success && result?.data?.operationSuccess !== false;
         const nextNotice = {
-            type: result.success ? 'success' : (result.warning ? 'warning' : 'error'),
+            type: succeeded ? 'success' : ((result.warning || result?.data?.warning) ? 'warning' : 'error'),
             message: nextMessage,
-            detail: result.success
+            detail: succeeded
                 ? `Đã lưu ảnh bằng chứng từ ${snapshotImageBase64 ? 'webcam' : 'cam ảo'} tại thời điểm quét.`
                 : 'Không tạo bản ghi điểm danh mới.'
         };
@@ -519,6 +483,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         className="px-4 py-2.5 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
                         aria-label="Lọc theo học kỳ"
                     >
+                        <option value="">Tất cả học kỳ</option>
                         {semesters.map(semester => (
                             <option key={semester} value={semester}>{semester}</option>
                         ))}

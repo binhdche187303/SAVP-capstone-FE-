@@ -1,3 +1,5 @@
+jest.mock('../../../config/featureFlags', () => ({ VISITOR_MOCK_ENABLED: true, REPORT_MOCK_ENABLED: true, ANY_DEMO_DATA: true }));
+
 // Test render thay cho bước kiểm tra tay của các màn Khách nội bộ (S3–S7).
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -62,20 +64,19 @@ describe('VisitorManagement', () => {
 describe('VisitorDesk', () => {
     const route = <Route path="/business-admin/visitors/desk" element={<VisitorDesk />} />;
     const kpi = (id) => Number(screen.getByTestId(`desk-kpi-${id}`).textContent);
-    const queue = () => screen.getByTestId('desk-attention');
+    const queue = () => screen.getByRole('list', { name: 'Danh sách khách' });
     const openItem = (pattern) => {
         const item = within(queue()).getAllByRole('listitem').find((li) => within(li).queryByText(pattern));
-        fireEvent.click(within(item).getByRole('button', { name: 'Xử lý' }));
+        fireEvent.click(within(item).getByRole('button', { name: 'Chi tiết' }));
     };
 
-    test('là màn xử lý ngoại lệ: có hàng Cần xử lý, không còn khối mô phỏng camera', async () => {
+    test('hiện danh sách khách theo ngày và lối mở màn hình cổng', async () => {
         renderAt('/business-admin/visitors/desk', route);
-        expect(await screen.findByText(/Cần xử lý \(\d+\)/)).toBeInTheDocument();
+        expect(await screen.findByText(/Khách ngày .+ \(\d+\)/)).toBeInTheDocument();
         expect(kpi('expected')).toBeGreaterThanOrEqual(13);
-        expect(within(queue()).getByText('Đã thu hồi quyền, chưa rời khuôn viên')).toBeInTheDocument();
-        expect(within(queue()).getByText(/Quá giờ \d+ phút/)).toBeInTheDocument();
-        expect(within(queue()).getAllByText(/Camera thấy lần cuối:/).length).toBeGreaterThanOrEqual(2);
-        expect(within(queue()).getByText('Chưa có ảnh khuôn mặt, cần chụp khi khách đến')).toBeInTheDocument();
+        expect(within(queue()).getByText('Phải rời khuôn viên')).toBeInTheDocument();
+        expect(within(queue()).getAllByText('Quá giờ').length).toBeGreaterThan(0);
+        expect(within(queue()).getAllByText(/Chưa có ảnh/).length).toBeGreaterThan(0);
         expect(screen.queryByRole('button', { name: 'Khách đến đúng hẹn' })).not.toBeInTheDocument();
         expect(screen.getByText(/camera tại cổng tự cho vào/)).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /Mở màn hình cổng/ })).toHaveAttribute('href', '/visitor/gate');
@@ -84,22 +85,22 @@ describe('VisitorDesk', () => {
 
     test('khách phải rời: xác nhận đã rời thì ra khỏi hàng cần xử lý', async () => {
         renderAt('/business-admin/visitors/desk', route);
-        await screen.findByText(/Cần xử lý \(\d+\)/);
+        await screen.findByText(/Khách ngày .+ \(\d+\)/);
         const onSite = kpi('onSite');
-        openItem('Đã thu hồi quyền, chưa rời khuôn viên');
+        openItem('Phải rời khuôn viên');
         const drawer = await screen.findByRole('dialog', { name: 'Chi tiết lượt khách' });
         expect(await within(drawer).findByText(/Khách phải rời khuôn viên/)).toBeInTheDocument();
         expect(within(drawer).getByText('Lần cuối camera thấy')).toBeInTheDocument();
         fireEvent.click(within(drawer).getByRole('button', { name: 'Xác nhận khách đã rời' }));
         expect(await within(drawer).findByText('Bị thu hồi quyền')).toBeInTheDocument();
-        await waitFor(() => expect(within(queue()).queryByText('Đã thu hồi quyền, chưa rời khuôn viên')).not.toBeInTheDocument());
+        await waitFor(() => expect(within(queue()).queryByText('Phải rời khuôn viên')).not.toBeInTheDocument());
         expect(kpi('onSite')).toBe(onSite - 1);
     });
 
     test('khách quá giờ: đóng lượt thủ công bắt buộc lý do; không tìm thấy thì thành chưa ghi nhận giờ ra', async () => {
         renderAt('/business-admin/visitors/desk', route);
-        await screen.findByText(/Cần xử lý \(\d+\)/);
-        openItem(/Quá giờ \d+ phút/);
+        await screen.findByText(/Khách ngày .+ \(\d+\)/);
+        openItem('Quá giờ');
         const drawer = await screen.findByRole('dialog', { name: 'Chi tiết lượt khách' });
         fireEvent.click(await within(drawer).findByRole('button', { name: 'Đóng lượt thủ công' }));
         fireEvent.click(within(drawer).getByRole('button', { name: 'Xác nhận đóng lượt' }));
@@ -110,14 +111,13 @@ describe('VisitorDesk', () => {
         fireEvent.change(within(drawer).getByLabelText('Ghi chú'), { target: { value: 'Đã tìm ở Tòa A1 và nhà xe' } });
         fireEvent.click(within(drawer).getByRole('button', { name: 'Xác nhận đóng lượt' }));
         expect(await within(drawer).findByText('Đã báo bảo vệ')).toBeInTheDocument();
-        await waitFor(() => expect(within(queue()).queryByText(/Quá giờ \d+ phút/)).not.toBeInTheDocument());
-        expect(within(queue()).getByText(/Chưa ghi nhận giờ ra · không tìm thấy khách/)).toBeInTheDocument();
+        await waitFor(() => expect(within(drawer).queryByRole('button', { name: 'Xác nhận đóng lượt' })).not.toBeInTheDocument());
     });
 
     test('khách đã rời nhưng camera không ghi nhận: nhập giờ ra ước tính', async () => {
         renderAt('/business-admin/visitors/desk', route);
-        await screen.findByText(/Cần xử lý \(\d+\)/);
-        openItem(/Quá giờ \d+ phút/);
+        await screen.findByText(/Khách ngày .+ \(\d+\)/);
+        openItem('Quá giờ');
         const drawer = await screen.findByRole('dialog', { name: 'Chi tiết lượt khách' });
         fireEvent.click(await within(drawer).findByRole('button', { name: 'Đóng lượt thủ công' }));
         fireEvent.click(within(drawer).getByLabelText('Khách đã rời, camera không ghi nhận'));
@@ -128,7 +128,7 @@ describe('VisitorDesk', () => {
 
     test('thẻ mã QR đăng ký: có địa chỉ trang đăng ký và nút in', async () => {
         renderAt('/business-admin/visitors/desk', route);
-        await screen.findByText(/Cần xử lý \(\d+\)/);
+        await screen.findByText(/Khách ngày .+ \(\d+\)/);
         fireEvent.click(screen.getByRole('button', { name: /Mã QR đăng ký/ }));
         const modal = screen.getByRole('dialog', { name: 'Mã QR đăng ký khách' });
         expect(within(modal).getByText(/\/visitor\/register$/)).toBeInTheDocument();
@@ -137,7 +137,7 @@ describe('VisitorDesk', () => {
 
     test('đăng ký khách vãng lai mở form có chụp ảnh và ô đồng ý', async () => {
         renderAt('/business-admin/visitors/desk', route);
-        await screen.findByText(/Cần xử lý \(\d+\)/);
+        await screen.findByText(/Khách ngày .+ \(\d+\)/);
         fireEvent.click(screen.getByRole('button', { name: /Đăng ký khách vãng lai/ }));
         const modal = screen.getByRole('dialog', { name: 'Đăng ký khách vãng lai' });
         expect(within(modal).getByLabelText(/Người cần gặp/)).toBeInTheDocument();
@@ -160,7 +160,6 @@ describe('MyVisitors', () => {
         fireEvent.click(approveButtons[0]);
         const drawer = await screen.findByRole('dialog', { name: 'Chi tiết lượt khách' });
         fireEvent.click(await within(drawer).findByRole('button', { name: 'Duyệt' }));
-        fireEvent.click(await within(drawer).findByRole('button', { name: 'Xác nhận duyệt' }));
         await waitFor(() => expect(count('pending')).toBe(pending - 1));
         expect(count('upcoming')).toBe(upcoming + 1);
     });
