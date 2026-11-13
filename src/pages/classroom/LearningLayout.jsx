@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, BookOpen, Calendar, CalendarDays, Car, ChevronDown, FileCheck, FileText, GraduationCap, KeyRound, LogOut, Film, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, Users, X } from 'lucide-react';
+import { Activity, BookOpen, Calendar, CalendarDays, Car, ChevronDown, FileCheck, FileText, GraduationCap, KeyRound, LayoutGrid, LogOut, Film, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, Users, X } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import { getCurrentUser, logout } from '../../service/authService';
+import { getBiometricStatus } from '../../service/avatarService';
+import { MEETING_BOOKING_ENABLED } from '../../config/featureFlags';
 import UserAvatar from '../../components/common/UserAvatar';
 import NotificationBell from '../../components/common/NotificationBell';
 import BiometricReminderModal from '../../components/biometric/BiometricReminderModal';
@@ -14,6 +16,14 @@ const footerLinks = [
     { label: 'Quyền riêng tư', to: 'legal?tab=privacy' },
 ];
 
+// Trạng thái khuôn mặt hiển thị trong menu tài khoản (mục đã chuyển từ thanh điều hướng vào đây).
+const FACE_STATUS = {
+    not_uploaded: { label: 'Chưa đăng ký', className: 'bg-amber-50 text-amber-700 border-amber-200', needsAction: true },
+    rejected: { label: 'Bị từ chối', className: 'bg-red-50 text-red-700 border-red-200', needsAction: true },
+    pending_review: { label: 'Chờ duyệt', className: 'bg-blue-50 text-action-blue border-blue-200' },
+    approved: { label: 'Đã đăng ký', className: 'bg-green-50 text-green-700 border-green-200' },
+};
+
 const LearningLayout = ({ role = 'teacher' }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -22,6 +32,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [faceStatus, setFaceStatus] = useState(null);
     const profileMenuRef = useRef(null);
     const basePath = role === 'student' ? '/student' : '/teacher';
     const displayRole = role === 'student' ? 'Sinh viên' : 'Giảng viên';
@@ -41,6 +52,9 @@ const LearningLayout = ({ role = 'teacher' }) => {
                 localStorage.setItem('user', JSON.stringify(updated));
                 setCurrentUser(updated);
             }
+        }).catch(() => {});
+        getBiometricStatus().then(res => {
+            if (res?.success && res.data) setFaceStatus(res.data.biometricReviewStatus || 'not_uploaded');
         }).catch(() => {});
     }, []);
 
@@ -72,6 +86,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
         setIsChangePasswordOpen(true);
     }, []);
 
+    // Thanh trên chỉ giữ việc dùng hằng ngày; mục cài đặt một lần (khuôn mặt, xe) nằm trong menu tài khoản.
     // Giảng viên là cán bộ: ngoài giảng dạy còn họp, báo hỏng thiết bị, đón khách như Nhân viên.
     const navItems = role === 'teacher' ? [
         { label: 'Trang chủ', to: basePath, end: true, icon: BookOpen },
@@ -79,9 +94,9 @@ const LearningLayout = ({ role = 'teacher' }) => {
             label: 'Giảng dạy',
             icon: GraduationCap,
             children: [
+                { label: 'Lịch dạy', to: `${basePath}/schedule`, icon: CalendarDays },
                 { label: 'Điểm danh lớp', to: `${basePath}/attendance`, icon: UserCheck },
                 { label: 'Bảng chuyên cần', to: `${basePath}/attendance-report`, icon: Activity },
-                { label: 'Lịch dạy', to: `${basePath}/schedule`, icon: CalendarDays },
                 { label: 'Ghi hình', to: `${basePath}/recordings`, icon: Film },
             ],
         },
@@ -90,37 +105,47 @@ const LearningLayout = ({ role = 'teacher' }) => {
             icon: Calendar,
             children: [
                 { label: 'Lịch cá nhân', to: `${basePath}/my-schedule`, icon: Calendar },
-                { label: 'Đăng ký họp', to: `${basePath}/book`, icon: PlusCircle },
+                // Ẩn khi MEETING_BOOKING_ENABLED=false — lịch họp đăng ký trên VPĐT, SAVP chỉ hiển thị + điểm danh.
+                ...(MEETING_BOOKING_ENABLED ? [{ label: 'Đăng ký họp', to: `${basePath}/book`, icon: PlusCircle }] : []),
                 { label: 'Kho biên bản', to: `${basePath}/minutes`, icon: FileCheck },
                 { label: 'Tài liệu họp', to: `${basePath}/meeting-documents`, icon: FileText },
             ],
         },
-        { label: 'Báo hỏng thiết bị', to: `${basePath}/equipments`, icon: Monitor },
-        { label: 'Khách của tôi', to: `${basePath}/my-visitors`, icon: Users },
-        { label: 'Đăng ký khuôn mặt', to: `${basePath}/face-register`, icon: ScanFace },
+        {
+            label: 'Tiện ích',
+            icon: LayoutGrid,
+            children: [
+                { label: 'Khách của tôi', to: `${basePath}/my-visitors`, icon: Users },
+                { label: 'Báo hỏng thiết bị', to: `${basePath}/equipments`, icon: Monitor },
+            ],
+        },
     ] : [
         { label: 'Trang chủ', to: basePath, end: true, icon: BookOpen },
         { label: 'Chuyên cần', to: `${basePath}/attendance`, icon: UserCheck },
         { label: 'Lịch học', to: `${basePath}/schedule`, icon: CalendarDays },
-        { label: 'Đăng ký khuôn mặt', to: `${basePath}/face-register`, icon: ScanFace },
     ];
+    const faceInfo = faceStatus ? FACE_STATUS[faceStatus] || FACE_STATUS.not_uploaded : null;
+    const goTo = (path) => { setIsProfileMenuOpen(false); navigate(path); };
     const isGroupActive = (item) => item.children.some(c => location.pathname.startsWith(c.to));
-    const navLinkClass = ({ isActive }) => `px-3 py-2 rounded-xl text-sm no-underline flex items-center gap-2 whitespace-nowrap shrink-0 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`;
+    // Cùng độ đậm cho mọi trạng thái (mục đang chọn chỉ đổi màu/nền) để chiều rộng không nhảy; mũi tên sát chữ.
+    const navLinkClass = ({ isActive }) => `h-9 px-3.5 rounded-xl text-sm font-semibold no-underline inline-flex items-center gap-1 whitespace-nowrap shrink-0 transition-colors ${isActive ? 'bg-blue-50 text-action-blue' : 'text-slate-blue hover:bg-cloud-mist hover:text-midnight-indigo'}`;
     const mobileLinkClass = ({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isActive ? 'text-action-blue bg-blue-50 font-bold' : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist'}`;
     const displayName = currentUser?.fullName || currentUser?.full_name || displayRole;
 
     return (
         <div className="min-h-screen bg-cloud-mist flex flex-col">
             <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-platinum-tint">
-                <div className="max-w-[1440px] mx-auto h-16 px-4 lg:px-8 xl:px-12 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 lg:gap-8 min-w-0 flex-1">
+                <div className="max-w-[1440px] mx-auto h-16 px-6 lg:px-12 flex items-center justify-between gap-4">
+                    {/* 3 cột: logo trái · menu chính giữa · thông báo/tài khoản phải (2 cột ngoài cùng flex-1 nên menu luôn ở giữa) */}
+                    <div className="flex flex-1 items-center min-w-0">
                         <NavLink to={basePath} className="flex items-center gap-2 no-underline shrink-0">
                             <div className="w-12 h-12 bg-white flex items-center justify-center shrink-0">
                                 <img src={logo} alt="VISMA IVA" className="w-full h-full object-contain scale-[1.3]" />
                             </div>
                             <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden xl:block">VISMA IVA</span>
                         </NavLink>
-                        <nav className="hidden xl:flex items-center gap-0.5 flex-nowrap">
+                    </div>
+                    <nav className="hidden xl:flex items-center gap-6 flex-nowrap">
                             {navItems.map(item => item.children ? (
                                 <div
                                     key={item.label}
@@ -134,7 +159,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
                                         className={navLinkClass({ isActive: isGroupActive(item) })}
                                     >
                                         {item.label}
-                                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openDropdown === item.label ? 'rotate-180' : ''}`} />
+                                        <ChevronDown className={`w-3.5 h-3.5 -mr-0.5 opacity-60 transition-transform ${openDropdown === item.label ? 'rotate-180' : ''}`} />
                                     </button>
                                     {openDropdown === item.label && (
                                         <div className="absolute top-full left-0 pt-1 z-50 min-w-max">
@@ -159,35 +184,48 @@ const LearningLayout = ({ role = 'teacher' }) => {
                                     {item.label}
                                 </NavLink>
                             ))}
-                        </nav>
-                    </div>
-                    <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+                    </nav>
+                    <div className="flex flex-1 items-center justify-end gap-2 lg:gap-3 min-w-0">
                         <NotificationBell basePath={basePath} />
+                        <span aria-hidden="true" className="hidden sm:block h-7 w-px bg-platinum-tint" />
                         <div className="relative" ref={profileMenuRef}>
                             <button type="button" onClick={() => setIsProfileMenuOpen(v => !v)} className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-cloud-mist">
-                                <div className="text-right hidden sm:block xl:hidden max-w-[150px] lg:max-w-[190px]">
+                                <div className="text-right hidden sm:block max-w-[150px] lg:max-w-[200px]">
                                     <p className="text-sm font-semibold text-midnight-indigo leading-tight truncate">{displayName}</p>
                                     <p className="text-xs text-slate-blue leading-tight">{displayRole}</p>
                                 </div>
-                                <UserAvatar user={currentUser} className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20" />
+                                <span className="relative shrink-0">
+                                    <UserAvatar user={currentUser} className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20" />
+                                    {faceInfo?.needsAction && <span title="Chưa đăng ký khuôn mặt" className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-500 ring-2 ring-white" />}
+                                </span>
                                 <ChevronDown className={`w-4 h-4 text-slate-blue transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {isProfileMenuOpen && (
-                                <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-outline-gray bg-white shadow-sm-2 overflow-hidden animate-fade-in">
+                                <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-outline-gray bg-white shadow-sm-2 overflow-hidden animate-fade-in">
                                     <div className="px-4 py-3 border-b border-outline-gray bg-cloud-mist">
-                                        <p className="text-sm font-semibold text-midnight-indigo truncate">{displayName}</p>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <p className="text-sm font-semibold text-midnight-indigo truncate">{displayName}</p>
+                                            <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-blue-50 text-action-blue text-[10px] font-bold">{displayRole}</span>
+                                        </div>
                                         <p className="text-xs text-slate-blue truncate">{currentUser?.email || (role === 'student' ? 'student@meetingsys.vn' : 'teacher@meetingsys.vn')}</p>
                                     </div>
                                     <div className="py-1">
                                         <button type="button" onClick={handleProfile} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <User className="w-4 h-4" /> Hồ sơ cá nhân
                                         </button>
-                                        <button type="button" onClick={() => { setIsProfileMenuOpen(false); navigate(`${basePath}/my-vehicles`); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
+                                        <button type="button" onClick={() => goTo(`${basePath}/face-register`)} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
+                                            <ScanFace className="w-4 h-4" />
+                                            <span className="flex-1 whitespace-nowrap">Khuôn mặt</span>
+                                            {faceInfo && <span className={`shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded-md border text-[10px] font-bold ${faceInfo.className}`}>{faceInfo.label}</span>}
+                                        </button>
+                                        <button type="button" onClick={() => goTo(`${basePath}/my-vehicles`)} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <Car className="w-4 h-4" /> Xe của tôi
                                         </button>
                                         <button type="button" onClick={handleChangePassword} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <KeyRound className="w-4 h-4" /> Đổi mật khẩu
                                         </button>
+                                    </div>
+                                    <div className="py-1 border-t border-outline-gray">
                                         <button type="button" onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50">
                                             <LogOut className="w-4 h-4" /> Đăng xuất
                                         </button>

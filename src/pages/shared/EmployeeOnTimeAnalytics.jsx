@@ -9,6 +9,7 @@ import {
 import { getAttendanceAnalytics, getAttendanceUserStats, getUsers, getDepartments } from '../../service/sysAdminServices';
 import { get } from '../../utils/request';
 import { isSchoolLeader } from '../../utils/calendarRoleLabel';
+import SharedStatCard from '../../components/common/StatCard';
 
 const COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#64748b'];
 
@@ -446,15 +447,12 @@ const EmployeeOnTimeAnalytics = () => {
             {data && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                     {[
-                        { label: 'Tỷ lệ đúng giờ', value: `${data.onTimeRate ?? 0}%`, color: 'text-midnight-indigo' },
-                        { label: 'Tổng lượt tham dự bắt buộc', value: data.totalRequiredParticipants ?? 0, color: 'text-midnight-indigo' },
-                        { label: 'Lượt đi muộn', value: data.lateCount ?? 0, color: 'text-amber-500' },
-                        { label: 'Lượt vắng mặt', value: data.absentCount ?? 0, color: 'text-red-500' },
-                    ].map(({ label, value, color }) => (
-                        <div key={label} className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-2">
-                            <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">{label}</span>
-                            <span className={`text-2xl font-black ${color} block`}>{value}</span>
-                        </div>
+                        { label: 'Tỷ lệ đúng giờ', value: `${data.onTimeRate ?? 0}%`, tone: 'green' },
+                        { label: 'Tổng lượt tham dự bắt buộc', value: data.totalRequiredParticipants ?? 0, tone: 'neutral' },
+                        { label: 'Lượt đi muộn', value: data.lateCount ?? 0, tone: 'amber' },
+                        { label: 'Lượt vắng mặt', value: data.absentCount ?? 0, tone: 'red' },
+                    ].map(({ label, value, tone }) => (
+                        <SharedStatCard key={label} label={label} value={value} tone={tone} />
                     ))}
                 </div>
             )}

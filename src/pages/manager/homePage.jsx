@@ -26,6 +26,7 @@ import {
 import { getManagerSummary } from '../../service/campusService';
 import DashboardBanner from '../../components/common/DashboardBanner';
 import { subscribeToMeetingRequestUpdates } from '../../utils/socket';
+import SharedStatCard from '../../components/common/StatCard';
 
 const COLORS = ['#006BFF', '#7F3DFF', '#FFAE00', '#FF3B30'];
 
@@ -546,51 +547,23 @@ const ManagerHomePage = () => {
                     >
                         {/* Quick Status Bar */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* Card: Chờ phê duyệt */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center shrink-0">
-                                    <Sliders className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Chờ phê duyệt</p>
-                                    <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">{pendingRequests.length}</p>
-                                    <p className="text-[11px] text-slate-blue leading-none mt-0.5">yêu cầu</p>
-                                </div>
-                            </div>
-
-                            {/* Card: Tỷ lệ đúng giờ */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-purple-50 text-royal-amethyst flex items-center justify-center shrink-0">
-                                    <Calendar className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Đúng giờ tuần này</p>
-                                    <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">
-                                        {campusSummaryLoading ? '—' : `${campusSummary?.onTimeRateThisWeek?.rate ?? 0}%`}
-                                    </p>
-                                    {!campusSummaryLoading && (campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0) < 5 ? (
-                                        <p className="text-[10px] text-amber-600 leading-none mt-0.5">
-                                            {campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0} chấm công — chưa đủ dữ liệu
-                                        </p>
-                                    ) : (
-                                        <p className="text-[11px] text-slate-blue leading-none mt-0.5">tỷ lệ đúng giờ</p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Card: Phòng ban phụ trách */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Phòng ban phụ trách</p>
-                                    <p className="text-base font-extrabold text-midnight-indigo leading-tight mt-1 truncate" title={departmentName}>
-                                        {departmentName}
-                                    </p>
-                                    <p className="text-[11px] text-slate-blue leading-none mt-0.5">phòng ban</p>
-                                </div>
-                            </div>
+                            <SharedStatCard icon={Sliders} label="Chờ phê duyệt" value={pendingRequests.length} hint="yêu cầu" />
+                            <SharedStatCard
+                                icon={Calendar}
+                                tone="violet"
+                                label="Đúng giờ tuần này"
+                                value={campusSummaryLoading ? '—' : `${campusSummary?.onTimeRateThisWeek?.rate ?? 0}%`}
+                                hint={!campusSummaryLoading && (campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0) < 5
+                                    ? `${campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0} chấm công — chưa đủ dữ liệu`
+                                    : 'tỷ lệ đúng giờ'}
+                            />
+                            <SharedStatCard
+                                icon={CheckCircle2}
+                                tone="green"
+                                label="Phòng ban phụ trách"
+                                value={<span className="block truncate text-xl" title={departmentName}>{departmentName}</span>}
+                                hint="phòng ban"
+                            />
                         </div>
 
                         {/* Team Presence Today (CDB-RS-001: campus-dashboard/manager-summary) */}
@@ -871,62 +844,19 @@ const ManagerHomePage = () => {
                             <>
                                 {/* Stat Cards */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col justify-between">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-slate-blue">Họp phòng ban</span>
-                                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center">
-                                                <Calendar className="w-5 h-5" />
-                                            </div>
+                                    <SharedStatCard
+                                        icon={Calendar}
+                                        label="Họp phòng ban"
+                                        value={`${stats.meetingCount} cuộc`}
+                                        hint={`Thời lượng trung bình: ${avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}p`}
+                                    >
+                                        <div className="mt-2 pt-2 border-t border-platinum-tint/60 text-[11px] text-slate-400">
+                                            Huỷ: {cancelRateStats.cancelRate}%
                                         </div>
-                                        <div className="mt-4">
-                                            <h3 className="text-2xl font-bold text-midnight-indigo">{stats.meetingCount} cuộc</h3>
-                                            <p className="text-xs text-slate-blue mt-1">
-                                                Thời lượng trung bình: {avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}p
-                                            </p>
-                                            <div className="mt-2 pt-2 border-t border-platinum-tint/40 flex justify-between text-[11px] text-slate-blue font-medium">
-                                                <span>Huỷ: {cancelRateStats.cancelRate}%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col justify-between">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-slate-blue">Hiệu suất dùng phòng</span>
-                                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-royal-amethyst flex items-center justify-center">
-                                                <TrendingUp className="w-5 h-5" />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <h3 className="text-2xl font-bold text-midnight-indigo">{stats.utilizationRate}%</h3>
-                                            <p className="text-xs text-slate-blue mt-1">Thời gian có hiện diện thực tế</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col justify-between">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-slate-blue">Đúng giờ</span>
-                                            <div className="w-10 h-10 rounded-xl bg-green-50 text-green-700 flex items-center justify-center">
-                                                <Clock className="w-5 h-5" />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <h3 className="text-2xl font-bold text-midnight-indigo">{stats.onTimeRate}%</h3>
-                                            <p className="text-xs text-green-600 font-semibold mt-1">Điểm danh: {attendanceSummary.presentRate}%</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col justify-between">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-slate-blue">Tỷ lệ vắng mặt (No-Show)</span>
-                                            <div className="w-10 h-10 rounded-xl bg-red-50 text-red-700 flex items-center justify-center">
-                                                <AlertTriangle className="w-5 h-5" />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <h3 className="text-2xl font-bold text-midnight-indigo">{stats.noShowRate}%</h3>
-                                            <p className="text-xs text-slate-blue mt-1">Phòng tự động giải phóng</p>
-                                        </div>
-                                    </div>
+                                    </SharedStatCard>
+                                    <SharedStatCard icon={TrendingUp} tone="violet" label="Hiệu suất dùng phòng" value={`${stats.utilizationRate}%`} hint="Thời gian có hiện diện thực tế" />
+                                    <SharedStatCard icon={Clock} tone="green" label="Đúng giờ" value={`${stats.onTimeRate}%`} hint={`Điểm danh: ${attendanceSummary.presentRate}%`} />
+                                    <SharedStatCard icon={AlertTriangle} tone="red" label="Tỷ lệ vắng mặt (No-Show)" value={`${stats.noShowRate}%`} hint="Phòng tự động giải phóng" />
                                 </div>
 
                                 {/* Charts Section */}

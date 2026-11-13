@@ -9,6 +9,7 @@ import {
 import { getRoomAnalytics, getNoShowStats, getRoomUtilizationRate, getRooms } from '../../service/businessAdminServices';
 import { get } from '../../utils/request';
 import ExportReportModal from '../../components/common/ExportReportModal';
+import SharedStatCard from '../../components/common/StatCard';
 
 const PIE_COLORS = { normal: '#22c55e', noshow: '#ef4444' };
 const BAR_COLORS = ['#1e90ff', '#38bdf8', '#7dd3fc', '#93c5fd', '#bfdbfe'];
@@ -616,18 +617,9 @@ const RoomUsageAnalytics = () => {
 };
 
 const SummaryCard = ({ label, value, badge, sub, loading }) => (
-    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-2">
-        <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider block">{label}</span>
-        {loading ? (
-            <div className="h-7 bg-slate-100 animate-pulse rounded-lg" />
-        ) : (
-            <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                <span className="text-2xl font-black text-midnight-indigo">{value}</span>
-                {badge}
-                {sub && !badge && <span className="text-xs text-slate-blue font-medium">{sub}</span>}
-            </div>
-        )}
-    </div>
+    <SharedStatCard label={label} value={value} hint={!badge ? sub : undefined} loading={loading}>
+        {!loading && badge && <div className="mt-1">{badge}</div>}
+    </SharedStatCard>
 );
 
 const MetricBlock = ({ label, value, sub, dimSub }) => (

@@ -7,6 +7,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardBanner from '../../components/common/DashboardBanner';
 import { getEmployeeSummary } from '../../service/campusService';
 import { getMySchedule, getMyAttendanceStats } from '../../service/employeeServices';
+import SharedStatCard from '../../components/common/StatCard';
+import { MEETING_BOOKING_ENABLED } from '../../config/featureFlags';
 
 const PIE_COLORS = ['#22c55e', '#f59e0b', '#ef4444'];
 
@@ -290,77 +292,54 @@ const EmployeeHomePage = () => {
                     >
                         {/* Quick Status Bar */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* Card: Họp trong ngày */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center shrink-0">
-                                    <Clock className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Họp trong ngày</p>
-                                    <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">
-                                        {campusSummaryLoading ? '—' : (campusSummary?.meetingsToday ?? 0)}
-                                    </p>
-                                    <p className="text-[11px] text-slate-blue leading-none mt-0.5">cuộc họp</p>
-                                </div>
-                            </div>
-
-                            {/* Card: Lượt vào cổng */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                    <LogIn className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Vào cổng hôm nay</p>
-                                    <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">
-                                        {campusSummaryLoading ? '—' : (() => {
-                                            const g = campusSummary?.gateAccessToday;
-                                            if (g == null) return 0;
-                                            if (typeof g === 'number') return g;
-                                            if (Array.isArray(g)) return g.length;
-                                            if (typeof g === 'object') return g.count ?? g.total ?? g.value ?? 1;
-                                            return 0;
-                                        })()}
-                                    </p>
-                                    <p className="text-[11px] text-slate-blue leading-none mt-0.5">lượt</p>
-                                </div>
-                            </div>
-
-                            {/* Card: Phương tiện */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                                    <Car className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Phương tiện</p>
-                                    {campusSummaryLoading ? (
-                                        <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">—</p>
-                                    ) : campusSummary?.vehicleStatus ? (
-                                        <>
-                                            <p className="text-base font-extrabold text-midnight-indigo font-mono leading-tight mt-1 truncate">
-                                                {campusSummary.vehicleStatus.plateNumber}
-                                            </p>
-                                            <span className={`mt-1 inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                campusSummary.vehicleStatus.status === 'active'
-                                                    ? 'bg-emerald-50 text-emerald-700'
-                                                    : 'bg-gray-100 text-gray-500'
-                                            }`}>
-                                                {campusSummary.vehicleStatus.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <p className="text-sm font-bold text-steel-gray leading-tight mt-1">Chưa đăng ký</p>
-                                            <button
-                                                type="button"
-                                                onClick={() => navigate('/employee/my-vehicles')}
-                                                className="mt-0.5 text-[11px] font-bold text-action-blue hover:underline leading-none"
-                                            >
-                                                Đăng ký ngay →
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
+                            <SharedStatCard
+                                icon={Clock}
+                                label="Họp trong ngày"
+                                value={campusSummaryLoading ? '—' : (campusSummary?.meetingsToday ?? 0)}
+                                hint="cuộc họp"
+                            />
+                            <SharedStatCard
+                                icon={LogIn}
+                                tone="green"
+                                label="Vào cổng hôm nay"
+                                value={campusSummaryLoading ? '—' : (() => {
+                                    const g = campusSummary?.gateAccessToday;
+                                    if (g == null) return 0;
+                                    if (typeof g === 'number') return g;
+                                    if (Array.isArray(g)) return g.length;
+                                    if (typeof g === 'object') return g.count ?? g.total ?? g.value ?? 1;
+                                    return 0;
+                                })()}
+                                hint="lượt"
+                            />
+                            <SharedStatCard
+                                icon={Car}
+                                tone="violet"
+                                label="Phương tiện"
+                                value={campusSummaryLoading ? '—' : campusSummary?.vehicleStatus ? (
+                                    <span className="block font-mono truncate">{campusSummary.vehicleStatus.plateNumber}</span>
+                                ) : (
+                                    <span className="block text-xl">Chưa đăng ký</span>
+                                )}
+                            >
+                                {!campusSummaryLoading && (campusSummary?.vehicleStatus ? (
+                                    <span className={`mt-1 inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                        campusSummary.vehicleStatus.status === 'active'
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : 'bg-gray-100 text-gray-500'
+                                    }`}>
+                                        {campusSummary.vehicleStatus.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
+                                    </span>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/employee/my-vehicles')}
+                                        className="mt-1 text-[11px] font-bold hover:underline leading-none"
+                                    >
+                                        Đăng ký ngay →
+                                    </button>
+                                ))}
+                            </SharedStatCard>
                         </div>
 
                         {/* Quick Shortcuts */}
@@ -368,7 +347,8 @@ const EmployeeHomePage = () => {
                             <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
                                 Lối tắt chức năng nhanh
                             </h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className={`grid grid-cols-1 sm:grid-cols-2 ${MEETING_BOOKING_ENABLED ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}>
+                                {MEETING_BOOKING_ENABLED && (
                                 <div
                                     onClick={() => navigate('/employee/book')}
                                     className="group bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
@@ -384,6 +364,7 @@ const EmployeeHomePage = () => {
                                         Tạo lịch họp ngay <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
+                                )}
 
                                 <div
                                     onClick={() => navigate('/employee/schedule')}
@@ -618,31 +599,16 @@ const EmployeeHomePage = () => {
 
                                 {/* Row 1 — 4 KPI cards */}
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tỷ lệ đúng giờ</p>
-                                        <p className="text-2xl font-black text-midnight-indigo">{analyticsData.onTimeRate ?? 0}%</p>
+                                    <SharedStatCard label="Tỷ lệ đúng giờ" value={`${analyticsData.onTimeRate ?? 0}%`} tone="green">
                                         {rateDiff !== null && (
-                                            <p className={`text-[10px] font-semibold ${rateDiff >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                            <p className={`text-[11px] font-semibold mt-1 ${rateDiff >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                                 {rateDiff >= 0 ? '▲' : '▼'} {Math.abs(rateDiff)}% so với trung bình phòng ban
                                             </p>
                                         )}
-                                    </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tổng lượt bắt buộc</p>
-                                        <p className="text-2xl font-black text-midnight-indigo">{analyticsData.totalRequired ?? 0}</p>
-                                    </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Lần đi muộn</p>
-                                        <p className={`text-2xl font-black ${(analyticsData.lateCount ?? 0) > 0 ? 'text-amber-500' : 'text-midnight-indigo'}`}>
-                                            {analyticsData.lateCount ?? 0}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Lần vắng mặt</p>
-                                        <p className={`text-2xl font-black ${(analyticsData.absentCount ?? 0) > 0 ? 'text-red-500' : 'text-midnight-indigo'}`}>
-                                            {analyticsData.absentCount ?? 0}
-                                        </p>
-                                    </div>
+                                    </SharedStatCard>
+                                    <SharedStatCard label="Tổng lượt bắt buộc" value={analyticsData.totalRequired ?? 0} />
+                                    <SharedStatCard label="Lần đi muộn" value={analyticsData.lateCount ?? 0} tone={(analyticsData.lateCount ?? 0) > 0 ? 'amber' : 'neutral'} />
+                                    <SharedStatCard label="Lần vắng mặt" value={analyticsData.absentCount ?? 0} tone={(analyticsData.absentCount ?? 0) > 0 ? 'red' : 'neutral'} />
                                 </div>
 
                                 {/* Row 2 — Pie + Recent late */}

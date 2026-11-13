@@ -4,6 +4,7 @@ import { BookOpen, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, UserCh
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { fetchClassAttendanceClasses, fetchClassSessions, fetchStudentAttendanceReport } from '../../service/classAttendanceService';
 import DashboardBanner from '../../components/common/DashboardBanner';
+import SharedStatCard from '../../components/common/StatCard';
 
 const attendanceChartColors = {
     onTime: '#059669',
@@ -93,26 +94,10 @@ const StudentHome = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <CalendarDays className="w-8 h-8 p-2 rounded-xl bg-blue-50 text-action-blue" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{subjectCount}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Môn đang học</p>
-                </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <UserCheck className="w-8 h-8 p-2 rounded-xl bg-emerald-50 text-emerald-600" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{summary.attended || 0}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Đã điểm danh tuần này</p>
-                </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <CheckCircle2 className="w-8 h-8 p-2 rounded-xl bg-emerald-50 text-emerald-600" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{summary.attendanceRate || 0}%</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Tỷ lệ chuyên cần</p>
-                </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <CalendarDays className="w-8 h-8 p-2 rounded-xl bg-amber-50 text-amber-600" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{todayClassCount}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Buổi học hôm nay</p>
-                </div>
+                <SharedStatCard icon={CalendarDays} label="Môn đang học" value={subjectCount} tone="neutral" />
+                <SharedStatCard icon={UserCheck} label="Đã điểm danh tuần này" value={summary.attended || 0} tone="green" />
+                <SharedStatCard icon={CheckCircle2} label="Tỷ lệ chuyên cần" value={<>{summary.attendanceRate || 0}%</>} tone="green" />
+                <SharedStatCard icon={CalendarDays} label="Buổi học hôm nay" value={todayClassCount} tone="amber" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

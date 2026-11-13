@@ -11,6 +11,7 @@ import {
     getPenaltyMeetingSummary,
     getPenaltyMeetingDetail,
 } from '../../service/managerServices';
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 const CATEGORY_MAP = {
     present:    { label: 'Có mặt',       cls: 'bg-emerald-50 text-emerald-700' },
@@ -68,15 +69,7 @@ const SummaryCards = ({ s, label = 'Số buổi họp' }) => {
     return (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {cards.map((c) => (
-                <div key={c.label} className="bg-white rounded-2xl border border-platinum-tint p-4 flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.cls}`}>
-                        <c.icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-bold uppercase text-slate-blue">{c.label}</p>
-                        <p className="text-xl font-black text-midnight-indigo">{c.value}</p>
-                    </div>
-                </div>
+                <SharedStatCard key={c.label} icon={c.icon} label={c.label} value={c.value} tone={toneOf(c.cls)} />
             ))}
         </div>
     );

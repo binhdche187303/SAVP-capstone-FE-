@@ -87,7 +87,8 @@ const BottomNav = ({ slideIndex, paused, accent, goTo }) => (
 );
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const DashboardBanner = ({ roleName = 'bạn' }) => {
+// compact: bản thấp (~1/2) cho trang chủ nhiều nội dung — ẩn mô tả, thu nhỏ ảnh/tiêu đề.
+const DashboardBanner = ({ roleName = 'bạn', compact = false }) => {
     const [slideIndex, setSlideIndex] = useState(0);
     const [paused, setPaused]         = useState(false);
     const [userName, setUserName]     = useState('');
@@ -147,7 +148,7 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
         <div
             ref={wrapRef}
             className="relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl select-none"
-            style={{ height: 320 }}
+            style={{ height: compact ? 170 : 320 }}
             onMouseEnter={() => setPaused(true)}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
@@ -222,7 +223,7 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
                                     alt=""
                                     style={{
                                         display: 'block',
-                                        height: 270,
+                                        height: compact ? 140 : 270,
                                         width: 'auto',
                                         maxWidth: 460,
                                         objectFit: 'contain',
@@ -245,11 +246,11 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
 
                     {/* Text panel trái — CHỈ text, không có controls */}
                     <div
-                        className="absolute left-0 top-0 bottom-0 flex flex-col justify-center py-7 pl-8 pr-4"
+                        className={`absolute left-0 top-0 bottom-0 flex flex-col justify-center pl-8 pr-4 ${compact ? 'pt-3 pb-12' : 'py-7'}`}
                         style={{ zIndex: 2, width: '52%', pointerEvents: 'none' }}
                     >
                         <div
-                            className="space-y-3"
+                            className={compact ? 'space-y-2' : 'space-y-3'}
                             style={{
                                 opacity: visible ? 1 : 0,
                                 transform: visible ? 'translateY(0)' : 'translateY(10px)',
@@ -293,7 +294,7 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
                             <h2
                                 className="text-white font-extrabold leading-tight tracking-tight"
                                 style={{
-                                    fontSize: '1.5rem',
+                                    fontSize: compact ? '1.2rem' : '1.5rem',
                                     textShadow: `0 0 32px ${slide.accent}80, 0 2px 16px rgba(0,0,0,0.7)`,
                                 }}
                             >
@@ -301,9 +302,9 @@ const DashboardBanner = ({ roleName = 'bạn' }) => {
                             </h2>
 
                             {/* Description */}
-                            <p className="text-white/75 leading-relaxed line-clamp-2 max-w-xs" style={{ fontSize: '0.82rem' }}>
+                            {!compact && <p className="text-white/75 leading-relaxed line-clamp-2 max-w-xs" style={{ fontSize: '0.82rem' }}>
                                 {slide.description}
-                            </p>
+                            </p>}
                         </div>
                     </div>
 

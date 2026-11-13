@@ -6,6 +6,7 @@ import {
     fetchClassAttendanceSettings,
     fetchStudentAttendanceReport
 } from '../../service/classAttendanceService';
+import SharedStatCard from '../../components/common/StatCard';
 
 const RANGE_OPTIONS = [
     { value: 'day', label: 'Ngày' },
@@ -43,25 +44,9 @@ const formatPeriod = (mode, period) => {
     return `${start.toLocaleDateString('vi-VN')} - ${end.toLocaleDateString('vi-VN')}`;
 };
 
-const StatCard = ({ icon: Icon, label, value, helper, tone = 'blue' }) => {
-    const colors = {
-        blue: 'bg-blue-50 text-action-blue',
-        green: 'bg-emerald-50 text-emerald-600',
-        amber: 'bg-amber-50 text-amber-600',
-        red: 'bg-red-50 text-red-600'
-    };
-
-    return (
-        <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${colors[tone] || colors.blue}`}>
-                <Icon className="w-4 h-4" />
-            </div>
-            <p className="text-2xl font-bold text-midnight-indigo mt-3">{value}</p>
-            <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">{label}</p>
-            {helper && <p className="text-xs text-steel-gray mt-1">{helper}</p>}
-        </div>
-    );
-};
+const StatCard = ({ icon, label, value, helper, tone = 'blue' }) => (
+    <SharedStatCard icon={icon} label={label} value={value} hint={helper} tone={tone === 'blue' ? 'neutral' : tone} />
+);
 
 const StudentClassDashboard = () => {
     const [settings, setSettings] = useState(DEFAULT_CLASS_ATTENDANCE_SETTINGS);

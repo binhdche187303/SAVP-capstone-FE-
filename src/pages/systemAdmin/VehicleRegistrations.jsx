@@ -16,6 +16,7 @@ import {
 
 import Pagination from '../../components/common/Pagination';
 import UserAvatar from '../../components/common/UserAvatar';
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -56,19 +57,8 @@ const formatDateTime = (iso) => {
 
 // ─── stat card ─────────────────────────────────────────────────────────────
 
-const StatCard = ({ icon: Icon, label, value, colorCls, loading }) => (
-    <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm p-5 flex items-center gap-4">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${colorCls}`}>
-            <Icon className="w-5 h-5" />
-        </div>
-        <div>
-            <p className="text-xs font-semibold text-slate-blue">{label}</p>
-            {loading
-                ? <div className="h-6 w-14 bg-gray-200 rounded animate-pulse mt-0.5" />
-                : <p className="text-2xl font-extrabold text-midnight-indigo leading-tight">{value}</p>
-            }
-        </div>
-    </div>
+const StatCard = ({ icon, label, value, colorCls, loading }) => (
+    <SharedStatCard icon={icon} label={label} value={value} tone={toneOf(colorCls)} loading={loading} />
 );
 
 // ─── main component ─────────────────────────────────────────────────────────

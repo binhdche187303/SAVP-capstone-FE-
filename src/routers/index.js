@@ -76,7 +76,7 @@ import EmployeeHomePage from '../pages/employee/homePage';
 import BookMeeting from '../pages/employee/BookMeeting';
 import PersonalCalendar from '../pages/employee/PersonalCalendar';
 import EmployeeFaceRegistration from '../pages/employee/FaceRegistration';
-import EmployeeMeetingDetail from '../pages/employee/MeetingDetail';
+import MeetingDetailRoute from '../pages/employee/MeetingDetailRoute';
 import EmployeeRecordings from '../pages/employee/Recordings';
 import TeacherRecordings from '../pages/classroom/TeacherRecordings';
 import EmployeeEquipmentReport from '../pages/employee/EquipmentReport';
@@ -86,7 +86,8 @@ import LegalAndSupport from '../pages/public/LegalAndSupport';
 import GuestJoin from '../pages/guest/GuestJoin';
 import GuestMeeting from '../pages/guest/GuestMeeting';
 import VisitorGate from '../pages/public/VisitorGate';
-import { VISITOR_MOCK_ENABLED } from '../config/featureFlags';
+import { UEL_SYNC_MOCK_ENABLED, VISITOR_MOCK_ENABLED } from '../config/featureFlags';
+import UelSyncPreviewEntry from '../dev/UelSyncPreviewEntry';
 import VisitorStatus from '../pages/public/VisitorStatus';
 import VisitorStats from '../pages/shared/visitors/VisitorStats';
 import VisitorHistory from '../pages/shared/visitors/VisitorHistory';
@@ -146,6 +147,13 @@ export const router = [
             path: '/visitor/gate',
             element: <VisitorGate />
         }]),
+    // Xem trước trang Đồng bộ UEL bằng dữ liệu giả khi BE tắt (chỉ bản dev, REACT_APP_UEL_SYNC_MOCK=true).
+    ...(UEL_SYNC_MOCK_ENABLED
+        ? [{
+            path: '/dev/uel-sync-preview',
+            element: <UelSyncPreviewEntry />
+        }]
+        : []),
     {
         path: '/visitor/status',
         element: <VisitorStatus />
@@ -374,7 +382,7 @@ export const router = [
             },
             {
                 path: 'meeting/:id',
-                element: <EmployeeMeetingDetail />
+                element: <MeetingDetailRoute />
             },
             {
                 path: 'in-meeting/:id',
@@ -499,7 +507,7 @@ export const router = [
             },
             {
                 path: 'meeting/:id',
-                element: <EmployeeMeetingDetail />
+                element: <MeetingDetailRoute />
             },
             {
                 path: 'in-meeting/:id',
@@ -672,7 +680,7 @@ export const router = [
             },
             {
                 path: 'meeting/:id',
-                element: <EmployeeMeetingDetail />
+                element: <MeetingDetailRoute />
             },
             {
                 path: 'in-meeting/:id',
@@ -785,7 +793,7 @@ export const router = [
             },
             {
                 path: 'meeting/:id',
-                element: <EmployeeMeetingDetail />
+                element: <MeetingDetailRoute />
             },
             {
                 path: 'in-meeting/:id',

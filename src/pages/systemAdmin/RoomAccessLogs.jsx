@@ -23,6 +23,7 @@ import { getUsers } from '../../service/employeeServices';
 import { downloadReport, currentUserName, fmtVN, toDate } from '../../utils/exportExcel';
 import ExportMenu from '../../components/report/ExportMenu';
 import toast from '../../utils/toast';
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 // ─── constants ──────────────────────────────────────────────────────────────
 
@@ -288,17 +289,8 @@ const getSelectedRoomInfo = (rooms, selectedRoomId) => {
 
 // ─── StatCard ────────────────────────────────────────────────────────────────
 
-const StatCard = ({ icon: Icon, label, value, sub, colorCls, alert }) => (
-    <div className={`bg-white rounded-2xl border shadow-sm p-5 flex items-center gap-4 transition-all ${alert ? 'border-red-300' : 'border-platinum-tint'}`}>
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${colorCls}`}>
-            <Icon className="w-5 h-5" />
-        </div>
-        <div className="min-w-0">
-            <p className="text-xs font-semibold text-slate-blue truncate">{label}</p>
-            <p className={`text-2xl font-extrabold leading-tight ${alert ? 'text-red-600' : 'text-midnight-indigo'}`}>{value}</p>
-            {sub && <p className={`text-[10px] font-semibold mt-0.5 ${alert ? 'text-red-500' : 'text-slate-400'}`}>{sub}</p>}
-        </div>
-    </div>
+const StatCard = ({ icon, label, value, sub, colorCls, alert }) => (
+    <SharedStatCard icon={icon} label={label} value={value} hint={sub} tone={alert ? 'red' : toneOf(colorCls)} />
 );
 
 // ─── DirectionBadge ──────────────────────────────────────────────────────────

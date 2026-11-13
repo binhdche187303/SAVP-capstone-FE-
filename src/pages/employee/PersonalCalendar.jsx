@@ -1,9 +1,13 @@
-import { AlertTriangle, Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight, Clock, Filter, Grid, Info, List, MapPin, User, XCircle } from 'lucide-react';
+import { AlertTriangle, Award, Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight, Clock, Filter, Grid, Info, List, MapPin, PlusCircle, Radio, User, UserCheck, XCircle } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { MEETING_BOOKING_ENABLED, MEETING_CALENDAR_MOCK_ENABLED } from '../../config/featureFlags';
+import StatCard from '../../components/common/StatCard';
+import { ATTENDANCE_STATUS, CALENDAR_TYPES, getMockMySchedule } from '../../mocks/meetingCalendarMock';
 import { getMySchedule } from '../../service/employeeServices';
 import { isForbiddenError } from '../../utils/permissionUtils';
+import MockMyMeetingAttendance from './MockMyMeetingAttendance';
 import MyMeetingAttendance from './MyMeetingAttendance';
 
 const STATUS_CONFIG = {
@@ -24,17 +28,35 @@ const getEffectiveStatus = (meeting, nowTs = Date.now()) => {
     return status || 'scheduled';
 };
 
+// Chưa có API lịch VPĐT → dùng dữ liệu giả; tắt cờ là gọi GET /me/schedule thật, không sửa gì khác.
+const fetchMySchedule = MEETING_CALENDAR_MOCK_ENABLED ? getMockMySchedule : getMySchedule;
+
+const ROLE_LABEL = { host: 'Chủ trì', secretary: 'Thư ký', organizer: 'Người tổ chức' };
+const typeOf = (m) => CALENDAR_TYPES[m.calendarType];
+
 const PersonalCalendar = () => {
     const navigate = useNavigate();
-    const [tab, setTab] = useState('calendar'); // 'calendar' | 'attendance'
+    const location = useLocation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tab = searchParams.get('tab') === 'attendance' ? 'attendance' : 'calendar';
+    const setTab = (key) => setSearchParams(key === 'attendance' ? { tab: key } : {}, { replace: true });
     const [viewMode, setViewMode] = useState('month'); // 'month' | 'week'
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    // Quay lại từ trang chi tiết: mở đúng ngày đang xem trước đó.
+    const [currentDate, setCurrentDate] = useState(() => (location.state?.date ? new Date(location.state.date) : new Date()));
+    const [selectedDate, setSelectedDate] = useState(() => (location.state?.date ? new Date(location.state.date) : new Date()));
     const [meetings, setMeetings] = useState([]);
     const [nowTs, setNowTs] = useState(Date.now());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [statusFilter, setStatusFilter] = useState(''); // all, scheduled, in_progress, cancelled
+    const [typeFilter, setTypeFilter] = useState(''); // '' | leadership | other | unit
+
+    const openMeeting = (id, date = selectedDate) => {
+        const basePath = location.pathname.split('/')[1];
+        navigate(`/${basePath}/meeting/${id}`, {
+            state: { from: `${location.pathname}${location.search}`, date: new Date(date).toISOString() },
+        });
+    };
 
     const mapEventToMeeting = (dto) => ({
         id: dto.meetingId || dto.id,
@@ -44,6 +66,10 @@ const PersonalCalendar = () => {
         endTime: dto.endTime || dto.end_time,
         myRole: dto.userRole || dto.user_role,
         status: (dto.status || (dto.isCurrent ? 'in_progress' : dto.isPast ? 'completed' : 'scheduled')).toLowerCase(),
+        calendarType: dto.calendarType || dto.calendar_type,
+        hostName: dto.hostName || dto.host?.fullName,
+        attendanceEnabled: dto.attendanceEnabled,
+        myAttendance: dto.myAttendance || null,
     });
 
     const fetchSchedule = useCallback(async () => {
@@ -61,11 +87,11 @@ const PersonalCalendar = () => {
             let dataList = [];
             let isSuccess = false;
 
-            const res = await getMySchedule({
+            const res = await fetchMySchedule({
                 from: fromStr,
                 to: toStr,
                 view: 'month',
-                status: statusFilter ? [statusFilter, statusFilter] : ['scheduled', 'in_progress', 'completed', 'pending_approval']
+                status: statusFilter ? [statusFilter, statusFilter] : ['scheduled', 'in_progress', 'completed', 'pending_approval', ...(MEETING_CALENDAR_MOCK_ENABLED ? ['cancelled'] : [])]
             });
 
             if (res?.success) {
@@ -106,13 +132,30 @@ const PersonalCalendar = () => {
     }, []);
 
     const effectiveMeetings = useMemo(
-        () => meetings.map((meeting) => ({
-            ...meeting,
-            rawStatus: meeting.rawStatus || meeting.status,
-            status: getEffectiveStatus(meeting, nowTs),
-        })),
-        [meetings, nowTs],
+        () => meetings
+            .filter((meeting) => !typeFilter || meeting.calendarType === typeFilter)
+            .map((meeting) => ({
+                ...meeting,
+                rawStatus: meeting.rawStatus || meeting.status,
+                status: getEffectiveStatus(meeting, nowTs),
+            })),
+        [meetings, nowTs, typeFilter],
     );
+
+    // Số liệu tháng đang xem (điểm danh lấy từ myAttendance nếu API trả về).
+    const monthStats = useMemo(() => {
+        const active = effectiveMeetings.filter((m) => m.status !== 'cancelled');
+        const done = active.filter((m) => m.status === 'completed' && m.myAttendance && m.myAttendance.status !== 'not_required');
+        return {
+            total: active.length,
+            live: active.filter((m) => m.status === 'in_progress').length,
+            upcoming: active.filter((m) => ['scheduled', 'pending_approval'].includes(m.status) && new Date(m.startTime).getTime() > nowTs).length,
+            attended: done.filter((m) => m.myAttendance.status !== 'absent').length,
+            checked: done.length,
+            violations: done.filter((m) => m.myAttendance.points < 0).length,
+            points: done.reduce((sum, m) => sum + (m.myAttendance.points || 0), 0),
+        };
+    }, [effectiveMeetings, nowTs]);
 
     // Calendar generation helpers
     const getDaysInMonth = (date) => {
@@ -210,8 +253,8 @@ const PersonalCalendar = () => {
 
     const selectedDayMeetings = getMeetingsForDay(selectedDate);
 
-    // Week time slots hours definition (08:00 to 18:00)
-    const hours = Array.from({ length: 11 }, (_, i) => 8 + i);
+    // Week time slots hours definition (07:00 to 18:00) — UEL có giao ban 7h30
+    const hours = Array.from({ length: 12 }, (_, i) => 7 + i);
 
     const tabBar = (
         <div className="flex items-center bg-white p-1 rounded-xl border border-platinum-tint shadow-sm w-fit">
@@ -232,7 +275,7 @@ const PersonalCalendar = () => {
         return (
             <div className="space-y-6">
                 {tabBar}
-                <MyMeetingAttendance />
+                {MEETING_CALENDAR_MOCK_ENABLED ? <MockMyMeetingAttendance onOpen={openMeeting} /> : <MyMeetingAttendance />}
             </div>
         );
     }
@@ -240,55 +283,77 @@ const PersonalCalendar = () => {
     return (
         <div className="space-y-6">
             {tabBar}
-            {/* Header section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-                        <CalendarIcon className="w-3.5 h-3.5" />
-                        Lịch trình
-                    </span>
+            {/* Header: tiêu đề bên trái, nút Đăng ký họp bên phải; thanh công cụ riêng 1 hàng bên dưới */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue">
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                            Lịch trình
+                        </span>
+                        {MEETING_CALENDAR_MOCK_ENABLED && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                                Dữ liệu minh họa – chưa tích hợp API VPĐT
+                            </span>
+                        )}
+                    </div>
                     <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Lịch cá nhân</h1>
-                    <p className="text-slate-blue text-sm">Theo dõi lịch trình các phiên thảo luận và các cuộc họp cá nhân.</p>
+                    <p className="text-slate-blue text-sm mt-0.5">Lịch họp đồng bộ từ Văn phòng điện tử (VPĐT) — xem lịch, điểm danh và theo dõi ra vào phòng họp.</p>
                 </div>
+                {MEETING_BOOKING_ENABLED && (
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/${location.pathname.split('/')[1]}/book`)}
+                        className="h-10 shrink-0 inline-flex items-center gap-2 px-4 rounded-xl bg-action-blue text-white text-sm font-bold shadow-sm hover:bg-blue-700"
+                    >
+                        <PlusCircle className="w-4 h-4" /> Đăng ký họp
+                    </button>
+                )}
+            </div>
 
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* View Switcher */}
-                    <div className="flex items-center bg-white p-1 rounded-xl border border-platinum-tint shadow-sm">
-                        <button
-                            onClick={() => setViewMode('month')}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'month'
-                                ? 'bg-action-blue text-white shadow-sm'
-                                : 'text-slate-blue hover:text-midnight-indigo'
-                                }`}
-                        >
-                            <Grid className="w-3.5 h-3.5" /> Tháng
-                        </button>
-                        <button
-                            onClick={() => setViewMode('week')}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'week'
-                                ? 'bg-action-blue text-white shadow-sm'
-                                : 'text-slate-blue hover:text-midnight-indigo'
-                                }`}
-                        >
-                            <List className="w-3.5 h-3.5" /> Tuần
-                        </button>
+                    {/* Tháng / Tuần */}
+                    <div className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm flex items-center p-1">
+                        {[['month', 'Tháng', Grid], ['week', 'Tuần', List]].map(([key, label, Icon]) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setViewMode(key)}
+                                className={`h-full flex items-center gap-1.5 px-3.5 rounded-lg text-xs font-bold transition-all ${viewMode === key
+                                    ? 'bg-action-blue text-white shadow-sm'
+                                    : 'text-slate-blue hover:text-midnight-indigo'
+                                    }`}
+                            >
+                                <Icon className="w-3.5 h-3.5" /> {label}
+                            </button>
+                        ))}
                     </div>
 
-                    {/* Navigation controllers */}
-                    <div className="flex items-center bg-white rounded-xl border border-platinum-tint shadow-sm">
-                        <button onClick={handlePrev} className="p-2 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-l-xl border-r border-platinum-tint">
+                    {/* Điều hướng thời gian */}
+                    <div className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm flex items-stretch">
+                        <button type="button" onClick={handlePrev} className="px-2.5 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-l-xl border-r border-platinum-tint">
                             <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <span className="px-4 text-xs font-bold text-midnight-indigo min-w-[120px] text-center select-none">
+                        <span className="flex items-center justify-center px-4 text-xs font-bold text-midnight-indigo min-w-[150px] select-none">
                             {formatHeaderDate()}
                         </span>
-                        <button onClick={handleNext} className="p-2 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-r-xl border-l border-platinum-tint">
+                        <button type="button" onClick={handleNext} className="px-2.5 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-r-xl border-l border-platinum-tint">
                             <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }}
+                        className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm px-3.5 text-xs font-bold text-slate-blue hover:text-action-blue"
+                    >
+                        Hôm nay
+                    </button>
+                </div>
 
-                    {/* Status Filter */}
-                    <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-platinum-tint shadow-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Lọc trạng thái */}
+                    <label className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm flex items-center gap-1.5 px-3">
                         <Filter className="w-3.5 h-3.5 text-slate-blue" />
                         <select
                             value={statusFilter}
@@ -300,10 +365,39 @@ const PersonalCalendar = () => {
                             <option value="scheduled">Đã lên lịch</option>
                             {/* <option value="in_progress">Đang diễn ra</option> */}
                             <option value="completed">Đã kết thúc</option>
-                            {/* <option value="cancelled">Đã huỷ</option> */}
+                            {MEETING_CALENDAR_MOCK_ENABLED && <option value="cancelled">Đã huỷ</option>}
                         </select>
-                    </div>
+                    </label>
+
+                    {/* Lọc loại lịch (VPĐT) */}
+                    <label className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm flex items-center gap-1.5 px-3">
+                        <CalendarIcon className="w-3.5 h-3.5 text-slate-blue" />
+                        <select
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value)}
+                            className="bg-transparent border-0 text-xs font-bold text-midnight-indigo focus:outline-none cursor-pointer"
+                        >
+                            <option value="">Tất cả loại lịch</option>
+                            {Object.entries(CALENDAR_TYPES).map(([key, t]) => <option key={key} value={key}>{t.label}</option>)}
+                        </select>
+                    </label>
                 </div>
+            </div>
+
+            {/* Số liệu tháng */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard label="Cuộc họp trong tháng" value={loading ? undefined : monthStats.total} loading={loading} icon={CalendarIcon} hint={`${monthStats.upcoming} cuộc sắp diễn ra`} />
+                <StatCard label="Đang diễn ra" value={loading ? undefined : monthStats.live} loading={loading} icon={Radio} tone={monthStats.live ? 'violet' : 'neutral'} hint={monthStats.live ? 'Bấm cuộc họp để xem ra vào real-time' : 'Không có cuộc họp nào'} />
+                <StatCard label="Đã tham dự" value={loading ? undefined : `${monthStats.attended}/${monthStats.checked}`} loading={loading} icon={UserCheck} tone="green" hint="Cuộc họp có điểm danh đã kết thúc" />
+                <StatCard label="Điểm trừ tháng" value={loading ? undefined : monthStats.points} loading={loading} icon={Award} tone={monthStats.points < 0 ? 'red' : 'neutral'} hint={`${monthStats.violations} lần vi phạm (trễ / về sớm / vắng)`} />
+            </div>
+
+            {/* Chú thích loại lịch */}
+            <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold text-slate-blue">
+                {Object.values(CALENDAR_TYPES).map((t) => (
+                    <span key={t.label} className="inline-flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-full ${t.dot}`} />{t.label}</span>
+                ))}
+                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" />Đã hủy</span>
             </div>
 
             {/* Layout Grid */}
@@ -376,7 +470,7 @@ const PersonalCalendar = () => {
                                                 {dayMeetings.slice(0, 3).map(m => (
                                                     <span
                                                         key={m.id}
-                                                        className={`w-2 h-2 rounded-full ${STATUS_CONFIG[m.status]?.dot || 'bg-slate-400'}`}
+                                                        className={`w-2 h-2 rounded-full ${m.status === 'cancelled' ? 'bg-red-500' : typeOf(m)?.dot || STATUS_CONFIG[m.status]?.dot || 'bg-slate-400'} ${m.status === 'in_progress' ? 'ring-2 ring-purple-300 animate-pulse' : ''}`}
                                                         title={m.title}
                                                     />
                                                 ))}
@@ -446,12 +540,14 @@ const PersonalCalendar = () => {
                                                         >
                                                             {slotMeeting && (
                                                                 <div
+                                                                    onClick={(e) => { e.stopPropagation(); setSelectedDate(day); openMeeting(slotMeeting.id, day); }}
                                                                     className={`rounded-lg p-1.5 text-[10px] font-semibold border leading-tight ${slotMeeting.status === 'cancelled'
-                                                                        ? 'bg-red-50/80 text-red-700 border-red-200'
-                                                                        : slotMeeting.status === 'in_progress'
-                                                                            ? 'bg-purple-50/80 text-purple-800 border-purple-200'
-                                                                            : 'bg-blue-50/80 text-action-blue border-blue-200'
-                                                                        }`}
+                                                                        ? 'bg-red-50/80 text-red-700 border-red-200 line-through'
+                                                                        : typeOf(slotMeeting)?.block
+                                                                            || (slotMeeting.status === 'in_progress'
+                                                                                ? 'bg-purple-50/80 text-purple-800 border-purple-200'
+                                                                                : 'bg-blue-50/80 text-action-blue border-blue-200')
+                                                                        } ${slotMeeting.status === 'in_progress' ? 'ring-2 ring-purple-300' : ''}`}
                                                                 >
                                                                     <div className="truncate font-bold">{slotMeeting.title}</div>
                                                                     <div className="flex items-center gap-1 mt-0.5 text-[9px] opacity-80">
@@ -501,12 +597,13 @@ const PersonalCalendar = () => {
                                     return (
                                         <div
                                             key={meet.id}
-                                            onClick={() => {
-                                                const basePath = window.location.pathname.split('/')[1];
-                                                navigate(`/${basePath}/meeting/${meet.id}`);
-                                            }}
+                                            onClick={() => openMeeting(meet.id)}
                                             className="p-4 rounded-xl border border-platinum-tint/60 bg-cloud-mist/5 hover:shadow-md transition-all space-y-3 cursor-pointer hover:border-action-blue/30"
+                                            style={typeOf(meet) ? { borderLeft: `4px solid ${typeOf(meet).color}` } : undefined}
                                         >
+                                            {typeOf(meet) && (
+                                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${typeOf(meet).chip}`}>{typeOf(meet).label}</span>
+                                            )}
                                             <div className="flex items-start justify-between gap-3">
                                                 <h4 className="font-bold text-midnight-indigo text-sm sm:text-base leading-snug">
                                                     {meet.title}
@@ -528,12 +625,26 @@ const PersonalCalendar = () => {
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
                                                     <User className="w-3.5 h-3.5 text-slate-blue" />
-                                                    <span className="truncate">Vai trò: {
-                                                        meet.myRole === 'host' ? 'Chủ trì' :
-                                                            meet.myRole === 'organizer' ? 'Người tổ chức' : 'Người tham dự'
-                                                    }</span>
+                                                    <span className="truncate">Vai trò: {ROLE_LABEL[meet.myRole] || 'Người tham dự'}</span>
                                                 </div>
+                                                {meet.hostName && (
+                                                    <div className="flex items-center gap-1.5 col-span-2">
+                                                        <User className="w-3.5 h-3.5 text-slate-blue" />
+                                                        <span className="truncate">Chủ trì: {meet.hostName}</span>
+                                                    </div>
+                                                )}
                                             </div>
+
+                                            {meet.myAttendance && meet.myAttendance.status !== 'upcoming' && (
+                                                <div className="flex items-center gap-2 text-[11px]">
+                                                    <UserCheck className="w-3.5 h-3.5 text-slate-blue" />
+                                                    <span className={`px-2 py-0.5 rounded-full font-bold border ${ATTENDANCE_STATUS[meet.myAttendance.status]?.cls || ''}`}>
+                                                        {ATTENDANCE_STATUS[meet.myAttendance.status]?.label}{meet.myAttendance.excused ? ' (có lý do)' : ''}
+                                                    </span>
+                                                    {meet.myAttendance.checkInAt && <span className="text-slate-blue">vào {new Date(meet.myAttendance.checkInAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>}
+                                                    {meet.myAttendance.points < 0 && <span className="font-bold text-red-600">{meet.myAttendance.points} điểm</span>}
+                                                </div>
+                                            )}
 
                                             {meet.room?.location && (
                                                 <p className="text-xs text-slate-blue italic leading-relaxed pt-2 border-t border-platinum-tint/40 flex items-start gap-1">
@@ -549,7 +660,7 @@ const PersonalCalendar = () => {
                     </div>
 
                     <div className="pt-4 border-t border-platinum-tint mt-6 text-[10.5px] text-slate-blue font-medium leading-relaxed bg-cloud-mist/20 p-3 rounded-xl">
-                        Mẹo: Bạn có thể chọn ngày trên lịch lưới bên cạnh để xem nhanh toàn bộ cuộc họp chi tiết và chương trình nghị sự của ngày hôm đó.
+                        Mẹo: Chọn ngày trên lịch để xem các cuộc họp; bấm vào cuộc họp để xem chi tiết, điểm danh, log ra vào và báo cáo.
                     </div>
                 </div>
             </div>

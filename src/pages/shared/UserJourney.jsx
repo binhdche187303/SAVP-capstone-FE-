@@ -13,6 +13,7 @@ import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import { getUsers } from '../../service/businessAdminServices';
 import { getUserJourney, getMyUserJourney } from '../../service/campusService';
+import SharedStatCard from '../../components/common/StatCard';
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const getVNTodayString = () => {
@@ -720,33 +721,9 @@ const UserJourney = () => {
 
                     {/* KPI cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
-                            <div>
-                                <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Cổng ANPR (Xe)</p>
-                                <p className="text-2xl font-black text-midnight-indigo mt-1">{journeyData.gateCount || 0}</p>
-                            </div>
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                <Car className="w-5 h-5" />
-                            </div>
-                        </div>
-                        <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
-                            <div>
-                                <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Cuộc họp (FaceID)</p>
-                                <p className="text-2xl font-black text-midnight-indigo mt-1">{journeyData.meetingCount || 0}</p>
-                            </div>
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center">
-                                <CalendarCheck className="w-5 h-5" />
-                            </div>
-                        </div>
-                        <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
-                            <div>
-                                <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Khu vực Giám sát</p>
-                                <p className="text-2xl font-black text-midnight-indigo mt-1">{journeyData.zoneCount || 0}</p>
-                            </div>
-                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-royal-amethyst flex items-center justify-center">
-                                <Eye className="w-5 h-5" />
-                            </div>
-                        </div>
+                        <SharedStatCard icon={Car} tone="green" label="Cổng ANPR (Xe)" value={journeyData.gateCount || 0} />
+                        <SharedStatCard icon={CalendarCheck} label="Cuộc họp (FaceID)" value={journeyData.meetingCount || 0} />
+                        <SharedStatCard icon={Eye} tone="violet" label="Khu vực Giám sát" value={journeyData.zoneCount || 0} />
                     </div>
 
                     {/* Timeline */}
