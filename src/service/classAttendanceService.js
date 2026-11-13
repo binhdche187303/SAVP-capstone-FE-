@@ -183,21 +183,44 @@ export const exportClassAttendanceCsv = (rows = [], klass = null, date = todayKe
     downloadCsvBlob(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' }), `chuyen-can-${klass?.code || 'lop'}-${date}.csv`);
 };
 
-/** Xuất CSV cả học kỳ từ BE (/class-attendance/export.csv). Lỗi sẽ được ném ra để trang hiển thị. */
+/**
+ * Xuất bảng chuyên cần (ma trận SV × buổi + cột cảnh báo vắng cả kỳ) từ BE (/class-attendance/export.csv),
+ * theo đúng bộ lọc đang chọn; mode mặc định = cả học kỳ. Lỗi sẽ được ném ra để trang hiển thị.
+ */
 export const exportSemesterClassAttendanceCsv = async ({
+    classId = 'all',
+    semester = 'all',
+    subjectCode = 'all',
+    administrativeClass = 'all',
+    mode = 'semester',
+    anchorDate = todayKey()
+} = {}) => {
+    const dateValue = anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate;
+    const response = await get(`/class-attendance/export.csv${buildQuery({ classId, semester, subjectCode, administrativeClass, mode, anchorDate: dateValue })}`, { skipToast: true });
+    if (!response?.isBlob || !response.data) {
+        throw new Error('Không xuất được file chuyên cần từ máy chủ.');
+    }
+    const classPart = classId === 'all' ? 'tat-ca-lop' : classId;
+    const scopePart = mode === 'semester'
+        ? String(semester && semester !== 'all' ? semester : 'ca-hoc-ky').replace(/\s+/g, '-')
+        : `${mode}-${dateValue}`;
+    const adminPart = administrativeClass && administrativeClass !== 'all' ? `-${administrativeClass}` : '';
+    downloadCsvBlob(response.data, `bang-chuyen-can-${classPart}${adminPart}-${scopePart}.csv`);
+    return true;
+};
+
+/**
+ * SV vượt/gần ngưỡng vắng cả học kỳ trong các lớp người dùng được xem (GV: lớp mình dạy).
+ * Ngưỡng lấy từ cấu hình BE (mức tạm, chưa chốt theo quy chế UEL).
+ */
+export const fetchAttendanceWarnings = async ({
     classId = 'all',
     semester = 'all',
     subjectCode = 'all',
     administrativeClass = 'all'
 } = {}) => {
-    const response = await get(`/class-attendance/export.csv${buildQuery({ classId, semester, subjectCode, administrativeClass })}`, { skipToast: true });
-    if (!response?.isBlob || !response.data) {
-        throw new Error('Không xuất được file chuyên cần từ máy chủ.');
-    }
-    const classPart = classId === 'all' ? 'tat-ca-mon' : classId;
-    const semesterPart = String(semester || 'tat-ca-hoc-ky').replace(/\s+/g, '-');
-    downloadCsvBlob(response.data, `bang-chuyen-can-${classPart}-${semesterPart}.csv`);
-    return true;
+    const response = await get(`/class-attendance/warnings${buildQuery({ classId, semester, subjectCode, administrativeClass })}`, { skipToast: true });
+    return response?.data;
 };
 
 export const fetchBusinessClassAttendanceStats = async () => {
@@ -211,13 +234,33 @@ export const fetchTeacherClassAttendanceReport = async ({
     mode = 'month',
     anchorDate = todayKey(),
     subjectCode = 'all',
-    administrativeClass = 'all'
+    administrativeClass = 'all',
+    // include='warnings' → BE trả thêm warning/nextSession/slots/hasSessionToday cho từng lớp.
+    include
 } = {}) => {
     const response = await get(`/class-attendance/report${buildQuery({
         classId,
         semester,
         mode,
         subjectCode,
+        administrativeClass,
+        include,
+        anchorDate: anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate
+    })}`, { skipToast: true });
+    return response?.data;
+};
+
+// Chuyên cần từng SV của 1 lớp học phần (ma trận SV × buổi) trong cùng khoảng thời gian với báo cáo tổng.
+export const fetchClassStudentReport = async ({
+    classId,
+    semester = 'all',
+    mode = 'month',
+    anchorDate = todayKey(),
+    administrativeClass = 'all'
+} = {}) => {
+    const response = await get(`/class-attendance/classes/${encodeURIComponent(classId)}/report${buildQuery({
+        semester,
+        mode,
         administrativeClass,
         anchorDate: anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate
     })}`, { skipToast: true });

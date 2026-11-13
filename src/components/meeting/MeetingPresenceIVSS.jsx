@@ -27,6 +27,7 @@ import {
     UserX,
     BarChart2
 } from 'lucide-react';
+import SharedStatCard from '../../components/common/StatCard';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -672,44 +673,9 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
 
             {/* Summary cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-2xl border border-platinum-tint p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
-                        <UserCheck className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Có mặt thực tế</p>
-                        <p className="text-2xl font-bold text-midnight-indigo">{countPresent} <span className="text-xs font-medium text-slate-blue">người</span></p>
-                        <p className="text-[10.5px] text-emerald-600 font-semibold mt-0.5">Camera nhận diện được</p>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-platinum-tint p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
-                        <UserX className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Đăng ký nhưng vắng</p>
-                        <p className="text-2xl font-bold text-midnight-indigo">{countAbsent} <span className="text-xs font-medium text-slate-blue">người</span></p>
-                        <p className="text-[10.5px] text-slate-500 font-medium mt-0.5">Không xuất hiện trước camera</p>
-                    </div>
-                </div>
-
-                <div className={`bg-white rounded-2xl border p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow ${
-                    unmatchedCount > 0 ? 'border-amber-300' : 'border-platinum-tint'
-                }`}>
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${
-                        unmatchedCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-cloud-mist text-slate-400'
-                    }`}>
-                        <AlertTriangle className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Sự kiện chưa khớp</p>
-                        <p className="text-2xl font-bold text-midnight-indigo">{unmatchedCount} <span className="text-xs font-medium text-slate-blue">lần</span></p>
-                        <p className={`text-[10.5px] font-semibold mt-0.5 ${unmatchedCount > 0 ? 'text-amber-600' : 'text-slate-500'}`}>
-                            Người lạ hoặc ngoài lịch
-                        </p>
-                    </div>
-                </div>
+                <SharedStatCard icon={UserCheck} tone="green" label="Có mặt thực tế" value={<>{countPresent} <span className="text-xs font-medium">người</span></>} hint="Camera nhận diện được" />
+                <SharedStatCard icon={UserX} tone="slate" label="Đăng ký nhưng vắng" value={<>{countAbsent} <span className="text-xs font-medium">người</span></>} hint="Không xuất hiện trước camera" />
+                <SharedStatCard icon={AlertTriangle} tone={unmatchedCount > 0 ? 'amber' : 'neutral'} label="Sự kiện chưa khớp" value={<>{unmatchedCount} <span className="text-xs font-medium">lần</span></>} hint="Người lạ hoặc ngoài lịch" />
             </div>
 
             {/* Presence table */}

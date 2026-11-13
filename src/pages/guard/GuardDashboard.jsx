@@ -9,6 +9,7 @@ import { fetchGuardGateEvents, guardGates, scanGuardGateEvent } from '../../serv
 import useFaceGuidance from '../../hooks/useFaceGuidance';
 import DashboardBanner from '../../components/common/DashboardBanner';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 const REFRESH_MS = 15000;
 const AUTO_SCAN_COOLDOWN_MS = 4000;
@@ -86,20 +87,9 @@ const getFaceGuidanceLabel = (guidance) => {
     }
 };
 
-const StatCard = ({ icon: Icon, label, value, tone, to }) => {
-    const body = (
-        <div className={`rounded-2xl border p-5 bg-white shadow-sm-2 flex items-center gap-4 ${to ? 'hover:border-action-blue transition-colors' : ''}`}>
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tone}`}>
-                <Icon className="w-6 h-6" />
-            </div>
-            <div>
-                <p className="text-xs font-semibold text-slate-blue">{label}</p>
-                <p className="text-2xl font-bold text-midnight-indigo">{value ?? '--'}</p>
-            </div>
-        </div>
-    );
-    return to ? <Link to={to} className="no-underline">{body}</Link> : body;
-};
+const StatCard = ({ icon, label, value, tone, to }) => (
+    <SharedStatCard icon={icon} label={label} value={value ?? '--'} tone={toneOf(tone)} to={to} />
+);
 
 const ScanNotice = ({ notice, onClose }) => {
     if (!notice) return null;

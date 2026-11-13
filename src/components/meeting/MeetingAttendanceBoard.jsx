@@ -14,6 +14,7 @@ import {
     reviewAttendanceExcuse
 } from '../../service/managerServices';
 import { getSocket, subscribeToMeeting } from '../../utils/socket';
+import SharedStatCard from '../../components/common/StatCard';
 
 const CHECK_IN_METHOD_MAP = {
     door_camera: 'Nhận diện khuôn mặt',
@@ -331,55 +332,11 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
             {/* Metrics Header */}
             {summary && (
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-2 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-50 text-action-blue flex items-center justify-center shrink-0">
-                            <Users className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-slate-blue">Đã Check-in</p>
-                            <p className="text-xl font-black text-midnight-indigo">{summary.checkedInCount} <span className="text-sm font-semibold text-slate-blue">/ {summary.totalParticipants}</span></p>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-2 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                            <CheckCircle className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-slate-blue">Tỷ lệ điểm danh</p>
-                            <p className="text-xl font-black text-midnight-indigo">{Math.round(summary.attendanceRate || 0)}%</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-sm-2 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                            <AlertCircle className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-amber-700">Đến muộn</p>
-                            <p className="text-xl font-black text-amber-700">{summary.lateCount}</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-red-200 bg-red-50/20 shadow-sm-2 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-                            <XCircle className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-red-700">Vắng mặt</p>
-                            <p className="text-xl font-black text-red-700">{summary.absentCount}</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-2 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                            <AlertTriangle className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-slate-blue">Tổng điểm trừ</p>
-                            <p className="text-xl font-black text-rose-700">{summary.totalPenaltyPoints ?? 0}</p>
-                        </div>
-                    </div>
+                    <SharedStatCard icon={Users} label="Đã Check-in" value={<>{summary.checkedInCount} <span className="text-sm font-semibold opacity-60">/ {summary.totalParticipants}</span></>} />
+                    <SharedStatCard icon={CheckCircle} tone="green" label="Tỷ lệ điểm danh" value={`${Math.round(summary.attendanceRate || 0)}%`} />
+                    <SharedStatCard icon={AlertCircle} tone="amber" label="Đến muộn" value={summary.lateCount} />
+                    <SharedStatCard icon={XCircle} tone="red" label="Vắng mặt" value={summary.absentCount} />
+                    <SharedStatCard icon={AlertTriangle} tone="red" label="Tổng điểm trừ" value={summary.totalPenaltyPoints ?? 0} />
                 </div>
             )}
 

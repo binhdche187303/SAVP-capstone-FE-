@@ -8,6 +8,7 @@ import {
     GUARD_GATE_EVENTS_STORAGE_KEY,
     getGuardGateEvents
 } from '../../service/guardAccessService';
+import SharedStatCard, { STAT_VALUE_CLS } from '../../components/common/StatCard';
 
 const statusClass = {
     present: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -125,15 +126,15 @@ const GatePresenceManagement = () => {
 
     return (
         <div className="space-y-5 animate-fade-in-up">
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-                <div>
+            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+                <div className="min-w-0">
                     <h1 className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
                         <Clock3 className="w-5 h-5 text-action-blue" />
                         Quản lý hiện diện khuôn viên
                     </h1>
                     <p className="text-xs text-slate-blue mt-1">Chỉ hiển thị người đã phát sinh tín hiệu vào/ra từ cổng trong khoảng lọc, phù hợp hệ thống có số lượng hồ sơ lớn.</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:shrink-0">
                     <div className="flex items-center gap-1 bg-cloud-mist/70 rounded-xl p-1">
                         {[
                             { value: 'day', label: 'Ngày' },
@@ -169,51 +170,37 @@ const GatePresenceManagement = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <Users className="w-5 h-5 text-action-blue" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{summary.present}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Đang có mặt</p>
-                </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{summary.entries}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Lượt vào</p>
-                </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <Clock3 className="w-5 h-5 text-amber-600" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{summary.presencePeopleCount}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Người có dữ liệu hiện diện</p>
-                </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm min-h-[150px]">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <Clock3 className="w-5 h-5 text-action-blue" />
-                            <p className="text-xl font-bold text-midnight-indigo mt-3">{summary.presenceText}</p>
-                            <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Tổng thời gian quy đổi</p>
-                        </div>
-                    </div>
-                    <div className="h-14 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                {[
+                    { icon: Users, tone: 'neutral', value: summary.present, label: 'Đang có mặt' },
+                    { icon: ShieldCheck, tone: 'green', value: summary.entries, label: 'Lượt vào' },
+                    { icon: Clock3, tone: 'amber', value: summary.presencePeopleCount, label: 'Người có dữ liệu hiện diện' }
+                ].map(({ icon, tone, value, label }) => (
+                    <SharedStatCard key={label} icon={icon} tone={tone} label={label} value={value} />
+                ))}
+                <SharedStatCard icon={Clock3} tone="violet" label="Tổng thời gian quy đổi">
+                    <div className="flex items-end justify-between gap-3">
+                        <p className={`${STAT_VALUE_CLS} whitespace-nowrap`}>{summary.presenceText}</p>
                         {presenceChartData.length ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={presenceChartData} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
-                                    <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#4f6b91', fontWeight: 700 }} axisLine={false} tickLine={false} interval={0} />
-                                    <Tooltip
-                                        cursor={{ fill: '#eff6ff' }}
-                                        formatter={(value) => [formatMinutes(value), 'Thời gian']}
-                                        labelStyle={{ color: '#003459', fontWeight: 700 }}
-                                        contentStyle={{ borderRadius: 12, borderColor: '#d8e3ef', fontSize: 12 }}
-                                    />
-                                    <Bar dataKey="minutes" fill="#007BFF" radius={[6, 6, 0, 0]} maxBarSize={24} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full rounded-xl bg-cloud-mist/50 flex items-center justify-center text-[11px] font-bold text-slate-blue">
-                                Chưa có dữ liệu
+                            <div className="h-10 w-28 shrink-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={presenceChartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                                        <XAxis dataKey="name" hide />
+                                        <Tooltip
+                                            cursor={{ fill: '#eff6ff' }}
+                                            formatter={(value) => [formatMinutes(value), 'Thời gian']}
+                                            labelStyle={{ color: '#003459', fontWeight: 700 }}
+                                            contentStyle={{ borderRadius: 12, borderColor: '#d8e3ef', fontSize: 12 }}
+                                        />
+                                        <Bar dataKey="minutes" fill="#7c3aed" radius={[4, 4, 0, 0]} maxBarSize={16} />
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
+                        ) : (
+                            <span className="text-[11px] opacity-70 whitespace-nowrap">Chưa có dữ liệu</span>
                         )}
                     </div>
-                </div>
+                </SharedStatCard>
             </div>
 
             <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">

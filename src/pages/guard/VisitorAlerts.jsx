@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, UserRound } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, RefreshCw, ShieldAlert, UserRound } from 'lucide-react';
 import { acknowledgeSecurityAlert, getSecurityAlerts, resolveSecurityAlert } from '../../service/securityAlertService';
 import { getDeskToday, getVisitorLookups } from '../../service/visitorService';
 import { VISITOR_MOCK_ENABLED } from '../../config/featureFlags';
@@ -11,6 +11,7 @@ import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import VisitDetailDrawer from '../../components/visitor/VisitDetailDrawer';
 import DemoDataBanner from '../../components/common/DemoDataBanner';
 import SimpleModal from '../../components/common/SimpleModal';
+import SharedStatCard from '../../components/common/StatCard';
 
 const VISITOR_ALERT_TYPES = ['visitor_overstay', 'visitor_must_leave', 'visitor_zone_violation'];
 
@@ -250,10 +251,10 @@ const VisitorAlerts = () => {
             <DemoDataBanner onReset={load} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <button type="button" onClick={() => setStatus('all')} className={`p-5 rounded-2xl border text-left transition-colors ${status === 'all' ? 'border-action-blue ring-2 ring-action-blue/15' : 'border-platinum-tint'} bg-white`}><p className="text-xs font-semibold text-slate-blue">Tổng cảnh báo khách</p><p className="text-2xl font-bold text-midnight-indigo mt-1">{counts.total}</p></button>
-                <button type="button" onClick={() => setStatus('new')} className={`p-5 rounded-2xl border text-left transition-colors ${status === 'new' ? 'border-red-400 ring-2 ring-red-200' : 'border-red-200'} bg-red-50`}><p className="text-xs font-semibold text-red-700">Chưa tiếp nhận</p><p className="text-2xl font-bold text-red-800 mt-1">{counts.new}</p></button>
-                <button type="button" onClick={() => setStatus('acknowledged')} className={`p-5 rounded-2xl border text-left transition-colors ${status === 'acknowledged' ? 'border-amber-400 ring-2 ring-amber-200' : 'border-amber-200'} bg-amber-50`}><p className="text-xs font-semibold text-amber-700">Đang xử lý</p><p className="text-2xl font-bold text-amber-800 mt-1">{counts.acknowledged}</p></button>
-                <button type="button" onClick={() => setStatus('resolved')} className={`p-5 rounded-2xl border text-left transition-colors ${status === 'resolved' ? 'border-emerald-400 ring-2 ring-emerald-200' : 'border-emerald-200'} bg-emerald-50`}><p className="text-xs font-semibold text-emerald-700">Đã xử lý</p><p className="text-2xl font-bold text-emerald-800 mt-1">{alerts.filter((item) => item.status === 'resolved').length}</p></button>
+                <SharedStatCard icon={ShieldAlert} label="Tổng cảnh báo khách" value={counts.total} onClick={() => setStatus('all')} active={status === 'all'} />
+                <SharedStatCard icon={AlertTriangle} tone="red" label="Chưa tiếp nhận" value={counts.new} onClick={() => setStatus('new')} active={status === 'new'} />
+                <SharedStatCard icon={Clock} tone="amber" label="Đang xử lý" value={counts.acknowledged} onClick={() => setStatus('acknowledged')} active={status === 'acknowledged'} />
+                <SharedStatCard icon={CheckCircle} tone="green" label="Đã xử lý" value={alerts.filter((item) => item.status === 'resolved').length} onClick={() => setStatus('resolved')} active={status === 'resolved'} />
             </div>
 
             <section className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">

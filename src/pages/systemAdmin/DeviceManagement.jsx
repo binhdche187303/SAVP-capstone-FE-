@@ -1,4 +1,4 @@
-import { Activity, Cpu, Film } from 'lucide-react';
+import { Activity, Ban, Cpu, Film, Wifi, WifiOff, Wrench } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -24,6 +24,7 @@ import { subscribeToDeviceStatusChanges, subscribeToNotificationUpdates, subscri
 import DeviceConnectionHistoryPanel from '../../components/devices/DeviceConnectionHistoryPanel';
 import CameraAiConfigModal from '../../components/devices/CameraAiConfigModal';
 import { CAMERA_TYPES, LANE_LABEL, getAnprInfo } from '../../mocks/cameraMock';
+import SharedStatCard from '../../components/common/StatCard';
 
 // Realtime trạng thái: tải lại im lặng mỗi 30s + ngay khi có cảnh báo/thông báo mới qua
 // WebSocket (BE gửi khi camera đổi online↔offline). So trạng thái cũ/mới để báo thay đổi.
@@ -733,54 +734,13 @@ const DeviceManagement = () => {
             {/* UC-51: Device status summary cards */}
             {statusSummary && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                    <div className="bg-white rounded-xl border border-platinum-tint p-4 flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                            <Cpu className="w-4 h-4 text-action-blue" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-slate-blue font-medium">Tổng thiết bị</p>
-                            <p className="text-xl font-bold text-midnight-indigo leading-tight">{statusSummary.total ?? devicesList.length}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-xl border border-platinum-tint p-4 flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
-                            <span className="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
-                        </div>
-                        <div>
-                            <p className="text-xs text-slate-blue font-medium">Online</p>
-                            <p className="text-xl font-bold text-green-600 leading-tight">{statusSummary.online ?? 0}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-xl border border-platinum-tint p-4 flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center">
-                            <span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
-                        </div>
-                        <div>
-                            <p className="text-xs text-slate-blue font-medium">Offline</p>
-                            <p className="text-xl font-bold text-red-600 leading-tight">{statusSummary.offline ?? 0}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-xl border border-platinum-tint p-4 flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
-                            <span className="w-3 h-3 rounded-full bg-gray-400 inline-block"></span>
-                        </div>
-                        <div>
-                            <p className="text-xs text-slate-blue font-medium">Vô hiệu</p>
-                            {/* BE trước đây không tách riêng disabled khỏi "unknown" nên field
-                                này luôn undefined → hiện 0 dù có thiết bị bị vô hiệu thật. Đã
-                                sửa BE trả đúng field `disabled`. */}
-                            <p className="text-xl font-bold text-steel-gray leading-tight">{statusSummary.disabled ?? 0}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-xl border border-platinum-tint p-4 flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
-                            <span className="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
-                        </div>
-                        <div>
-                            <p className="text-xs text-slate-blue font-medium">Bảo trì</p>
-                            <p className="text-xl font-bold text-amber-600 leading-tight">{statusSummary.maintenance ?? 0}</p>
-                        </div>
-                    </div>
+                    <SharedStatCard icon={Cpu} label="Tổng thiết bị" value={statusSummary.total ?? devicesList.length} />
+                    <SharedStatCard icon={Wifi} tone="green" label="Online" value={statusSummary.online ?? 0} />
+                    <SharedStatCard icon={WifiOff} tone="red" label="Offline" value={statusSummary.offline ?? 0} />
+                    {/* BE trước đây không tách riêng disabled khỏi "unknown" nên field này luôn undefined
+                        → hiện 0 dù có thiết bị bị vô hiệu thật. Đã sửa BE trả đúng field `disabled`. */}
+                    <SharedStatCard icon={Ban} tone="slate" label="Vô hiệu" value={statusSummary.disabled ?? 0} />
+                    <SharedStatCard icon={Wrench} tone="amber" label="Bảo trì" value={statusSummary.maintenance ?? 0} />
                 </div>
             )}
 

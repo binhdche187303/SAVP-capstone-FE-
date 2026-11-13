@@ -140,19 +140,19 @@ const VisitorHistory = () => {
             {error && <div className={errorBoxCls}>{error}</div>}
 
             <div className={`${cardCls} overflow-hidden`}>
-                <div className="overflow-hidden">
-                    <table className="w-full table-fixed">
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1180px] table-fixed">
                         <colgroup>
                             <col className="w-[8%]" />
                             <col className="w-[10%]" />
                             <col className="w-[11%]" />
                             <col className="w-[13%]" />
                             <col className="w-[9%]" />
-                            <col className="w-[9%]" />
-                            <col className="w-[9%]" />
                             <col className="w-[8%]" />
-                            <col className="w-[7%]" />
-                            <col className="w-[10%]" />
+                            <col className="w-[8%]" />
+                            <col className="w-[6%]" />
+                            <col className="w-[6%]" />
+                            <col className="w-[15%]" />
                             <col className="w-[6%]" />
                         </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
@@ -172,7 +172,7 @@ const VisitorHistory = () => {
                                         </div>
                                     </td>
                                     <td className={historyTdCls}>
-                                        <button type="button" aria-label={`Xem các lượt của ${visit.visitor.fullName}`} className="font-semibold text-action-blue hover:underline" onClick={() => openProfile(visit)}>{visit.visitor.fullName}</button>
+                                        <button type="button" aria-label={`Xem các lượt của ${visit.visitor.fullName}`} className="font-semibold text-left text-action-blue hover:underline" onClick={() => openProfile(visit)}>{visit.visitor.fullName}</button>
                                     </td>
                                     <td className={historyTdCls}>{visit.visitor.organization || '—'}</td>
                                     <td className={historyTdCls}>
@@ -186,7 +186,7 @@ const VisitorHistory = () => {
                                     <td className={historyTdCls}>{fmtScore(visit.faceScore)}</td>
                                     <td className={historyTdCls}><VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} /></td>
                                     <td className={`${historyTdCls} text-right`}>
-                                        <button type="button" className="text-action-blue font-semibold hover:underline" onClick={() => setDetailId(visit.id)}>Chi tiết</button>
+                                        <button type="button" className="text-action-blue font-semibold whitespace-nowrap hover:underline" onClick={() => setDetailId(visit.id)}>Chi tiết</button>
                                     </td>
                                 </tr>
                             ))}

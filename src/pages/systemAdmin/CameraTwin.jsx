@@ -13,6 +13,7 @@ import { buildTwin, cameraKind, norm } from "../../components/cameraTwin/twinDat
 import { getCampusMap } from "../../service/campusService";
 import { getDevices, getRooms, getZones } from "../../service/sysAdminServices";
 import { buildPlan, placeCameras, savedLayout } from "../../utils/floorPlan";
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 // Sơ đồ camera 3D (Campus Digital Twin). Camera, trạng thái, zone, phòng, cảnh báo: dữ liệu thật từ BE.
 // Hình khối khuôn viên: cấu hình tĩnh đồ lại từ bản vẽ (campusModel). Mặt bằng tầng: buildPlan như sơ đồ 2D.
@@ -20,14 +21,8 @@ import { buildPlan, placeCameras, savedLayout } from "../../utils/floorPlan";
 const REFRESH_MS = 60000;
 const list = (res) => (Array.isArray(res?.data) ? res.data : res?.data?.items || []);
 
-const StatCard = ({ icon: Icon, label, value, tone }) => (
-  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-    <div className={`rounded-lg p-2 ${tone}`}><Icon className="h-4 w-4" /></div>
-    <div>
-      <p className="text-xl font-bold tabular-nums text-slate-900">{value}</p>
-      <p className="text-[11px] text-slate-500">{label}</p>
-    </div>
-  </div>
+const StatCard = ({ icon, label, value, tone }) => (
+  <SharedStatCard icon={icon} label={label} value={value} tone={toneOf(tone)} />
 );
 
 const Toggle = ({ on, onClick, color, children }) => (
@@ -292,7 +287,7 @@ const CameraTwin = () => {
       )}
 
       {stats && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="twin-stats">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" data-testid="twin-stats">
           <StatCard icon={Camera} label={view === "floor" ? "Camera trên tầng" : "Tổng camera"} value={stats.total} tone="bg-[#1e3a5f]/10 text-[#1e3a5f]" />
           <StatCard icon={Cpu} label="Camera AI" value={stats.ai} tone="bg-red-50 text-red-600" />
           <StatCard icon={WifiOff} label="Mất tín hiệu" value={stats.offline} tone="bg-slate-100 text-slate-600" />

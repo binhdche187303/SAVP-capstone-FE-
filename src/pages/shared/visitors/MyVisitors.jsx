@@ -6,6 +6,7 @@ import {
 import toast from '../../../utils/toast';
 import { VISITOR_MOCK_ENABLED } from '../../../config/featureFlags';
 import SimpleModal from '../../../components/common/SimpleModal';
+import Pagination from '../../../components/common/Pagination';
 import VisitForm from '../../../components/visitor/VisitForm';
 import VisitDetailDrawer from '../../../components/visitor/VisitDetailDrawer';
 import VisitorAvatar from '../../../components/visitor/VisitorAvatar';
@@ -26,7 +27,8 @@ const myHostId = () => {
 
 // S5 (2.10): màn của người được gặp — duyệt khách xin gặp mình, mời khách, nhận thông báo.
 const REFRESH_MS = 20000;
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
+const NOTE_PAGE_SIZE = 8;
 const VISIT_STATUS_OPTIONS = [
     ['', 'Tất cả trạng thái'],
     ['pending_approval', 'Chờ duyệt'],
@@ -59,16 +61,17 @@ const VisitLine = ({ visit, onOpen, children }) => (
     </li>
 );
 
-const Pager = ({ page, total, onChange }) => {
-    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    if (pages <= 1) return null;
+// Luôn hiện dòng "Hiển thị x–y / tổng" để người dùng thấy danh sách có phân trang; nút trang chỉ hiện khi > 1 trang.
+const Pager = ({ page, total, onChange, pageSize = PAGE_SIZE }) => {
+    if (total === 0) return null;
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    page = Math.min(page, pages);
+    const from = (page - 1) * pageSize + 1;
+    const to = Math.min(total, page * pageSize);
     return (
-        <div className="px-6 py-3 border-t border-pale-gray flex items-center justify-between gap-3 text-xs">
-            <span className="text-slate-blue">Trang {page}/{pages}</span>
-            <div className="flex gap-2">
-                <button type="button" className="px-3 py-1.5 rounded-lg border border-platinum-tint text-midnight-indigo font-semibold disabled:opacity-40" disabled={page <= 1} onClick={() => onChange(page - 1)}>Trước</button>
-                <button type="button" className="px-3 py-1.5 rounded-lg border border-platinum-tint text-midnight-indigo font-semibold disabled:opacity-40" disabled={page >= pages} onClick={() => onChange(page + 1)}>Sau</button>
-            </div>
+        <div className="px-6 py-3 border-t border-pale-gray flex flex-wrap items-center justify-between gap-3 text-xs">
+            <span className="text-slate-blue">Hiển thị {from}–{to} / {total}</span>
+            <Pagination currentPage={page} totalPages={pages} onPageChange={onChange} />
         </div>
     );
 };
@@ -133,6 +136,7 @@ const MyVisitors = () => {
     const [submitting, setSubmitting] = useState(false);
     const [invited, setInvited] = useState(null);
     const [pages, setPages] = useState({ pending: 1, upcoming: 1, past: 1 });
+    const [notePage, setNotePage] = useState(1);
     const [inviteLink, setInviteLink] = useState(null);
     const [filter, setFilter] = useState({ q: '', status: '', from: '', to: '' });
     const lastUnread = useRef(null);
@@ -203,6 +207,8 @@ const MyVisitors = () => {
     };
 
     const unreadCount = notifications.filter((n) => !n.read).length;
+    // Danh sách tự làm mới 20s/lần: nếu số thông báo giảm thì kẹp lại trang hiện tại.
+    const notePageSafe = Math.min(notePage, Math.max(1, Math.ceil(notifications.length / NOTE_PAGE_SIZE)));
     const filteredVisits = useMemo(() => {
         if (!visits) return null;
         const q = filter.q.trim().toLocaleLowerCase('vi-VN');
@@ -235,7 +241,11 @@ const MyVisitors = () => {
 
     const visibleVisits = useMemo(() => {
         if (!filteredVisits) return null;
-        const slice = (items, page) => items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+        // Duyệt/từ chối xong danh sách ngắn lại → kẹp trang về trang cuối còn dữ liệu.
+        const slice = (items, page) => {
+            const p = Math.min(page, Math.max(1, Math.ceil(items.length / PAGE_SIZE)));
+            return items.slice((p - 1) * PAGE_SIZE, p * PAGE_SIZE);
+        };
         return {
             pending: slice(filteredVisits.pending, pages.pending),
             upcoming: slice(filteredVisits.upcoming, pages.upcoming),
@@ -351,8 +361,9 @@ const MyVisitors = () => {
                         {notifications.length === 0 ? (
                             <p className="px-6 py-8 text-center text-xs text-slate-blue">Chưa có thông báo nào</p>
                         ) : (
-                            <ul className="divide-y divide-pale-gray max-h-[32rem] overflow-y-auto">
-                                {notifications.map((note) => (
+                            <>
+                            <ul className="divide-y divide-pale-gray">
+                                {notifications.slice((notePageSafe - 1) * NOTE_PAGE_SIZE, notePageSafe * NOTE_PAGE_SIZE).map((note) => (
                                     <li key={note.id} className="px-6 py-3 flex gap-2">
                                         <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${note.read ? 'bg-transparent' : 'bg-action-blue'}`} />
                                         <button type="button" className="text-left" onClick={() => setDetailId(note.visitId)}>
@@ -362,6 +373,8 @@ const MyVisitors = () => {
                                     </li>
                                 ))}
                             </ul>
+                            <Pager page={notePageSafe} total={notifications.length} pageSize={NOTE_PAGE_SIZE} onChange={setNotePage} />
+                            </>
                         )}
                     </div>
                 </div>

@@ -10,11 +10,20 @@ const MM = PAGE_PX / 210;
 const px = (mm) => Math.round(mm * MM);
 const MARGIN = { top: px(20), right: px(15), bottom: px(20), left: px(30) };
 
-const dmy = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-const samplePeriod = () => {
-    const now = new Date();
-    return { from: dmy(new Date(now.getFullYear(), now.getMonth(), 1)), to: dmy(new Date(now.getFullYear(), now.getMonth() + 1, 0)) };
+// Ngày giờ trên trang minh họa lấy theo giờ Việt Nam (UTC+7), giống renderer BE, không theo múi giờ máy.
+const VN_OFFSET_MS = 7 * 3_600_000;
+const DAY_MS = 86_400_000;
+const pad2 = (n) => String(n).padStart(2, '0');
+const vnNow = () => new Date(Date.now() + VN_OFFSET_MS); // đọc bằng getUTC*
+const dmyVn = (d) => `${pad2(d.getUTCDate())}/${pad2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+// Giống bản xem thử của BE: kỳ mẫu = 7 ngày gần nhất, kết thúc hôm nay.
+const samplePeriod = (now) => ({ from: dmyVn(new Date(now.getTime() - 6 * DAY_MS)), to: dmyVn(now) });
+// NĐ30: ngày dưới 10 và tháng 1, 2 thêm số 0 phía trước.
+const dateWordsVn = (d) => {
+    const month = d.getUTCMonth() + 1;
+    return `ngày ${pad2(d.getUTCDate())} tháng ${month < 3 ? pad2(month) : month} năm ${d.getUTCFullYear()}`;
 };
+const dateTimeVn = (d) => `${dmyVn(d)} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
 const lowerFirst = (s) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s);
 
 const AssetImage = ({ url, alt, style, className }) => {
@@ -87,7 +96,8 @@ const useFitScale = () => {
 const TemplateCanvas = ({ layout, definition, assetUrls, selected, onSelect, drag }) => {
     const L = layout;
     const h = L.header;
-    const period = samplePeriod();
+    const now = vnNow();
+    const period = samplePeriod(now);
     // Giống BE: trích yếu mặc định = tên loại báo cáo (không kèm chữ "Báo cáo" vì câu mẫu đã có).
     const subject = L.title.subject || (definition ? definition.title : '(Tên báo cáo theo loại được xuất)');
     const vars = { title: L.title.subject || definition ? lowerFirst(subject) : '(tên báo cáo theo loại được xuất)', period: `từ ngày ${period.from} đến ngày ${period.to}`, unit: h.unitName || h.agency };
@@ -217,7 +227,7 @@ const TemplateCanvas = ({ layout, definition, assetUrls, selected, onSelect, dra
                             <div className="text-center flex-1">
                                 <p className="font-bold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
                                 <p className="font-bold"><span className="underline underline-offset-4">Độc lập - Tự do - Hạnh phúc</span></p>
-                                <p className="italic mt-3">{h.place || '(địa danh)'}, ngày … tháng … năm …</p>
+                                <p className="italic mt-3">{h.place || '(địa danh)'}, {dateWordsVn(now)}</p>
                             </div>
                         </div>
                     </Region>
@@ -225,7 +235,7 @@ const TemplateCanvas = ({ layout, definition, assetUrls, selected, onSelect, dra
                     <Region {...sel('title')} label="Tên loại và trích yếu" className="text-center pt-3">
                         <p className="font-bold text-[16px]">BÁO CÁO</p>
                         <p className="font-bold">{subject}</p>
-                        <p>Từ ngày {period.from} đến ngày {period.to}</p>
+                        <p className="font-bold">từ ngày {period.from} đến ngày {period.to}</p>
                         <div className="mx-auto mt-1 border-t border-black w-28" />
                     </Region>
 
@@ -287,7 +297,7 @@ const TemplateCanvas = ({ layout, definition, assetUrls, selected, onSelect, dra
 
                 {L.footer.provenance && (
                     <Region {...sel('footer')} label="Dòng nguồn dữ liệu" className="!absolute italic text-[10px] text-slate-blue" style={{ left: MARGIN.left, width: contentWidth, bottom: px(8) }}>
-                        Báo cáo được trích xuất tự động từ Hệ thống VISMA lúc … bởi …
+                        Báo cáo được trích xuất tự động từ Hệ thống VISMA lúc {dateTimeVn(now)} bởi (tài khoản đang đăng nhập)
                     </Region>
                 )}
             </div>

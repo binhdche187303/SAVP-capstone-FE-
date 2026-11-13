@@ -20,6 +20,7 @@ import { getSecurityAlerts } from '../../service/securityAlertService';
 import { getBusinessAdminSummary } from '../../service/campusService';
 import { getAlertTypeLabel } from '../../constants/alertType';
 import ZonePresenceTable from '../../components/campus/ZonePresenceTable';
+import SharedStatCard from '../../components/common/StatCard';
 
 // ─── Design tokens (DESIGN.md — Sky Blueprint / Light Theme) ─────────────────
 
@@ -376,7 +377,10 @@ const GChartCard = ({ title, sub, delay = 0, accent = D.cyan, loading, empty, em
 
 // ─── KPI Tile ─────────────────────────────────────────────────────────────────
 
-const KpiTile = ({ icon: Icon, label, value, sub, subColor, iconColor = D.cyan, delay, progress }) => {
+// Màu icon cũ → tone thẻ chung (StatCard). Logic đếm số / hiệu ứng / thanh tiến độ giữ nguyên.
+const toneOfColor = (c) => ({ [D.red]: 'red', [D.amber]: 'amber', [D.green]: 'green', [D.purple]: 'violet', [D.muted2]: 'slate' }[c] || 'neutral');
+
+const KpiTile = ({ icon, label, value, sub, subColor, iconColor = D.cyan, delay, progress }) => {
     const [ref, inView] = useInView(0.2);
     const numericTarget = typeof value === 'number' ? value : null;
     const counted       = useCountUp(numericTarget, inView);
@@ -385,57 +389,26 @@ const KpiTile = ({ icon: Icon, label, value, sub, subColor, iconColor = D.cyan, 
     return (
         <div
             ref={ref}
-            style={{
-                background: D.cardBg,
-                border: `1px solid ${D.border}`,
-                borderRadius: 16,
-                padding: '16px 16px 14px',
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: D.shadowSm,
-                transitionDelay: inView ? `${delay}ms` : '0ms',
-            }}
-            className={`transition-all duration-600 ease-out cursor-default hover:scale-[1.025]
-                ${inView ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95'}`}
+            style={{ transitionDelay: inView ? `${delay}ms` : '0ms' }}
+            className={`h-full transition-all duration-600 ease-out ${inView ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95'}`}
         >
-            <div style={{
-                position: 'absolute', top: -24, right: -24, width: 90, height: 90,
-                borderRadius: '50%', opacity: 0.07,
-                background: iconColor, filter: 'blur(24px)', pointerEvents: 'none',
-            }} />
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-                <p style={{ fontSize: 11, fontWeight: 600, color: D.muted, lineHeight: 1.45, paddingRight: 8 }}>{label}</p>
-                <div style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: `${iconColor}15`, border: `1px solid ${iconColor}35`,
-                }}>
-                    <Icon style={{ width: 17, height: 17, color: iconColor }} />
-                </div>
-            </div>
-
-            <p style={{ fontSize: 27, fontWeight: 800, color: D.text, letterSpacing: '-0.8px', lineHeight: 1 }}
-               className="tabular-nums">
-                {displayValue}
-            </p>
-
-            {progress !== undefined && (
-                <div style={{ marginTop: 10, height: 3, borderRadius: 99, background: D.borderSub }}>
-                    <div style={{
-                        height: 3, borderRadius: 99,
-                        width: inView ? `${Math.min(progress, 100)}%` : '0%',
-                        background: `linear-gradient(90deg, ${iconColor}, ${iconColor}70)`,
-                        transition: 'width 1.1s cubic-bezier(.22,1,.36,1)',
-                    }} />
-                </div>
-            )}
-
-            {sub && (
-                <p style={{ fontSize: 11, marginTop: 8, fontWeight: 500, color: subColor || D.muted }}>
-                    {sub}
-                </p>
-            )}
+            <SharedStatCard icon={icon} label={label} value={<span className="tabular-nums">{displayValue}</span>} tone={toneOfColor(iconColor)} className="h-full">
+                {progress !== undefined && (
+                    <div className="mt-2.5 h-[3px] rounded-full" style={{ background: D.borderSub }}>
+                        <div style={{
+                            height: 3, borderRadius: 99,
+                            width: inView ? `${Math.min(progress, 100)}%` : '0%',
+                            background: `linear-gradient(90deg, ${iconColor}, ${iconColor}70)`,
+                            transition: 'width 1.1s cubic-bezier(.22,1,.36,1)',
+                        }} />
+                    </div>
+                )}
+                {sub && (
+                    <p className={`text-[11px] mt-1 font-medium ${subColor ? '' : 'opacity-70'}`} style={subColor ? { color: subColor } : undefined}>
+                        {sub}
+                    </p>
+                )}
+            </SharedStatCard>
         </div>
     );
 };

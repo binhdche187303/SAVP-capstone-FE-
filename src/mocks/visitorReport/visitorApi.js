@@ -770,7 +770,16 @@ export const getVisitorStats = (params = {}) =>
         const { from, to, departmentId, groupBy = 'day' } = params;
         if (!from || !to) fail('Vui lòng chọn kỳ thống kê');
         if (from > to) fail('Ngày bắt đầu phải trước hoặc bằng ngày kết thúc');
-        const visits = selectVisitsInRange(state, { from, to, departmentId });
+        // Lọc chéo (giống BE `cross`): { dim, values[] }. Mock chưa có khóa kỳ nên bỏ qua dim 'period'.
+        const cross = params.cross ? JSON.parse(params.cross) : null;
+        const crossValue = {
+            department: (v) => v.departmentId ?? '',
+            purpose: (v) => v.purpose,
+            hour: (v) => (v.checkInAt ? String(new Date(v.checkInAt).getHours()) : null),
+            organization: (v) => v.visitor.organization || 'Không rõ',
+        }[cross?.dim];
+        const visits = selectVisitsInRange(state, { from, to, departmentId })
+            .filter((v) => !crossValue || !cross.values.length || cross.values.includes(crossValue(v)));
         const arrived = visits.filter((v) => v.checkInAt);
         const desc = (a, b) => b.count - a.count;
 

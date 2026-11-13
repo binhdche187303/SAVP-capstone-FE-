@@ -86,7 +86,7 @@ describe('CameraTwin page', () => {
     });
 
     const renderPage = () => render(<MemoryRouter><CameraTwin /></MemoryRouter>);
-    const stat = (label) => within(screen.getByTestId('twin-stats')).getByText(label).previousSibling.textContent;
+    const stat = (label) => within(screen.getByTestId('twin-stats')).getByText(label).parentElement.nextElementSibling.textContent; // thẻ StatCard: hàng nhãn ở trên, số ở dưới
 
     test('thẻ thống kê tính từ dữ liệu API', async () => {
         renderPage();

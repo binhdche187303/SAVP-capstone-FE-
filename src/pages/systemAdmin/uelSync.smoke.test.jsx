@@ -11,6 +11,7 @@ jest.mock('../../service/uelSyncService', () => {
         getUelSyncRuns: jest.fn(),
         getStudyPeriods: jest.fn(),
         runUelSync: jest.fn(),
+        runUelSyncAll: jest.fn(),
         updateUelSyncSettings: jest.fn(),
         replaceStudyPeriods: jest.fn(),
         lookupUel: jest.fn(),
@@ -52,41 +53,53 @@ test('hiện tình trạng, lượt gần nhất với bước lỗi', async () 
     render(<UelSync />);
     expect(await screen.findByText('Đồng bộ dữ liệu Đào tạo UEL')).toBeInTheDocument();
     expect(screen.getByText('Đã cấu hình')).toBeInTheDocument();
-    expect(screen.getByText('2026-2027 · HK1')).toBeInTheDocument();
-    expect(screen.getByText('Có bước lỗi')).toBeInTheDocument();
+    expect(screen.getAllByText('Có bước lỗi').length).toBeGreaterThan(0);
     expect(screen.getByText('Bảng study_periods trống')).toBeInTheDocument();
+    // Cài đặt cũ chỉ có namHoc/hocKy → hiểu là học kỳ chỉ định.
+    expect(screen.getByLabelText('Chỉ định')).toBeChecked();
 });
 
-test('chưa có bảng giờ tiết: chặn chạy lịch học, bỏ bước lịch học thì chạy được', async () => {
-    svc.runUelSync.mockResolvedValue({ accepted: true });
+test('1 nút: Đồng bộ toàn bộ gọi run-all', async () => {
+    svc.runUelSyncAll.mockResolvedValue({ accepted: true });
     render(<UelSync />);
-    const runBtn = await screen.findByRole('button', { name: /Chạy đồng bộ/ });
-    expect(runBtn).toBeDisabled();
-    expect(screen.getByText(/Lịch học cần bảng giờ tiết/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /6\. Lịch học/ }));
-    expect(runBtn).toBeEnabled();
-    fireEvent.click(runBtn);
-    await waitFor(() =>
-        expect(svc.runUelSync).toHaveBeenCalledWith({
-            steps: ['departments', 'staff', 'students', 'sections', 'enrollments'],
-            namHoc: '2026-2027',
-            hocKy: '1',
-        }),
-    );
+    fireEvent.click(await screen.findByRole('button', { name: /Đồng bộ toàn bộ/ }));
+    await waitFor(() => expect(svc.runUelSyncAll).toHaveBeenCalledTimes(1));
+    expect(svc.runUelSync).not.toHaveBeenCalled();
 });
 
 test('chưa có API key: không cho chạy', async () => {
     svc.getUelSyncStatus.mockResolvedValue(status({ configured: false }));
     render(<UelSync />);
     expect(await screen.findByText('Chưa có API key')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Chạy đồng bộ/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Đồng bộ toàn bộ/ })).toBeDisabled();
+});
+
+test('cài đặt: bật tự động hằng tuần, chọn ngày + giờ, học kỳ tự nhận', async () => {
+    svc.updateUelSyncSettings.mockImplementation(async (p) => p);
+    render(<UelSync />);
+    fireEvent.click(await screen.findByRole('switch', { name: 'Tự động đồng bộ toàn bộ' }));
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('radio', { name: 'Hằng tuần' }));
+    expect(screen.getByRole('radio', { name: 'Hằng tuần' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.change(screen.getByLabelText('Vào ngày'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Giờ chạy'), { target: { value: '03:30' } });
+    fireEvent.click(screen.getByLabelText(/Tự nhận/));
+    expect(screen.getByText(/Lần chạy kế tiếp/)).toHaveTextContent('Thứ Hai');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt' }));
+    await waitFor(() =>
+        expect(svc.updateUelSyncSettings).toHaveBeenCalledWith({
+            autoEnabled: true, frequency: 'weekly', weekday: 1, time: '03:30',
+            sessionDaysAhead: 14, termMode: 'auto', namHoc: '', hocKy: '',
+        }),
+    );
+    expect(await screen.findByText('Đã lưu cài đặt.')).toBeInTheDocument();
 });
 
 test('thêm tiết rồi lưu bảng giờ tiết', async () => {
     svc.replaceStudyPeriods.mockImplementation(async (p) => p);
     render(<UelSync />);
-    fireEvent.click(await screen.findByRole('button', { name: /Thêm tiết/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Nâng cao/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Thêm tiết/ }));
     fireEvent.change(screen.getByLabelText('Giờ kết thúc tiết 1'), { target: { value: '07:50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu bảng giờ tiết' }));
     await waitFor(() =>
@@ -104,6 +117,7 @@ test('tra cứu trực tiếp: lịch dạy 1 ngày gửi kèm ngày, hiện b�
         items: [{ stt: 1, ngay_hoc: '2026-11-09', ma_lop_hoc_phan: '261MI0101_01', ten_hoc_phan: 'Cơ sở dữ liệu', ma_giang_vien: 'NS003' }],
     });
     render(<UelSync />);
+    fireEvent.click(await screen.findByRole('button', { name: /Nâng cao/ }));
     await screen.findByText('Tra cứu trực tiếp từ UEL');
     fireEvent.change(screen.getByLabelText('Tra cứu'), { target: { value: 'lecturerDay' } });
     fireEvent.change(screen.getByLabelText('Mã giảng viên'), { target: { value: 'NS003' } });

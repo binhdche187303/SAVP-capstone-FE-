@@ -6,6 +6,9 @@ Trong code, chỗ còn mock có comment `// MOCK-BE:` (`grep -rn "MOCK-BE" src`)
 ## 📝 CHANGELOG & REVISION HISTORY
 | Ngày cập nhật | Tóm tắt thay đổi | Các dòng thay đổi |
 | :--- | :--- | :--- |
+| 2026-11-13 | BE đã làm xong mục "Đồng bộ UEL — 1 nút + tự động": `POST /uel-sync/run-all` (lịch học chỉ từ hôm nay tới +`sessionDaysAhead`, không lấy quá khứ), tự nhận học kỳ, cài đặt mới, cron động, `status` mới, chặn hủy nhầm. Cột "Hiện trạng BE" ghi rõ. | Mục "Đồng bộ UEL — 1 nút + tự động" |
+| 2026-11-13 | Thêm mục "Lịch họp VPĐT": cờ `MEETING_BOOKING_ENABLED` để ẩn/hiện "Đăng ký họp" (hiện đang bật). `/teacher/my-schedule` (và `/employee`, `/manager` dùng chung `PersonalCalendar`) hiển thị lịch mock theo tài liệu "Mô tả về Lịch tuần UEL trên VPĐT": 3 loại lịch, điểm danh, ra vào trực tiếp, báo cáo. Ghi hợp đồng API BE cần làm. | Đầu file, mục "Lịch họp VPĐT" |
+| 2026-11-12 | Thêm mục "Đồng bộ UEL — 1 nút + tự động": trang `/system-admin/uel-sync` có 1 nút "Đồng bộ toàn bộ" và cài đặt hằng ngày/hằng tuần + giờ chạy. FE xem trước bằng mock (`REACT_APP_UEL_SYNC_MOCK=true`); ghi hợp đồng API BE cần làm. | Đầu file, mục "Đồng bộ UEL — 1 nút + tự động" |
 | 2026-11-11 | Bỏ hết `mockClassrooms` và mock điểm danh lớp: Home SV/GV, Dashboard điểm danh, Analytics, chuyên cần SV, Recordings và SystemSettings chỉ gọi API `/class-attendance/*`. Service không còn fallback cục bộ. Ghi chú fallback quét giả của BE. | Mục "Lịch học / lịch dạy", "Ghi hình & biên bản" |
 | 2026-11-11 | Thêm bảng changelog. Thêm mục "Lịch học / lịch dạy": `/student/schedule` và `/teacher/schedule` bỏ `mockClassrooms`, đọc `GET /class-attendance/sessions` (buổi học thật từ TKB UEL). | Đầu file, mục "Lịch học / lịch dạy (STUDENT/TEACHER)" |
 
@@ -18,6 +21,64 @@ Trong code, chỗ còn mock có comment `// MOCK-BE:` (`grep -rn "MOCK-BE" src`)
 | `pages/classroom/StudentSchedule.jsx` và `TeacherSchedule.jsx` trộn `GET /class-attendance/classes` (giờ đọc từ `class_sections.note`) với `mockClassrooms`. | Cả hai dùng chung `WeeklySessionSchedule.jsx` và gọi `GET /class-attendance/sessions?from=&to=` (tối đa 62 ngày), đọc từ bảng `class_sessions`. Phạm vi xem giống `/classes`: GV thấy lớp mình phụ trách (`lecturer_user_id`), SV thấy lớp đã đăng ký, admin thấy tất cả. Không còn mock và không fallback: API lỗi thì hiện thông báo lỗi. | Buổi học chỉ có khi đã chạy bước 6 "Lịch học" của đồng bộ UEL. Hiện `tkb_lophp_1ngay` của UEL trả về 0 dòng, nên phải chạy theo mã GV/SV. Mỗi lớp HP chỉ lưu 1 giảng viên. Các trang khác (Home SV/GV, Dashboard điểm danh, Analytics, chuyên cần SV, Recordings, SystemSettings) cũng đã bỏ `mockClassrooms` và chỉ đọc API thật. UEL không có `note`, nên lịch và phòng trên thẻ lớp lấy từ buổi học trong ngày. |
 
 **BE cần sửa:** `POST /class-attendance/scan` hiện vẫn tự chọn sinh viên đầu tiên chưa điểm danh (chiều vào) hoặc người đầu tiên đang có lượt vào (chiều ra) khi HGVision không nhận diện được ai. Đây là điểm danh giả. Khi không nhận diện được, BE phải trả kết quả "không nhận diện được" và không ghi điểm danh.
+
+---
+
+## Đồng bộ UEL — 1 nút + tự động (BE đã làm 2026-11-13)
+
+Tắt mock (bỏ `REACT_APP_UEL_SYNC_MOCK`) để FE gọi BE thật. FE: [UelSync.jsx](../src/pages/systemAdmin/UelSync.jsx). Mock ở [uelSyncMock.js](../src/mocks/uelSyncMock.js), chỉ bật ở bản dev khi `.env.local` có `REACT_APP_UEL_SYNC_MOCK=true`. Xem trước không cần BE: mở `/dev/uel-sync-preview` (gắn phiên SYSTEM_ADMIN giả rồi chuyển sang trang). Tắt mock thì FE gọi BE thật theo hợp đồng dưới.
+
+| API | Hợp đồng | Hiện trạng BE |
+|---|---|---|
+| `POST /uel-sync/run-all` | Body rỗng. 202 `{accepted, run}`, 409 khi đang chạy. Chạy nền đủ 6 bước theo thứ tự: đơn vị → cán bộ → SV → (tự nhận học kỳ) → lớp HP → đăng ký → lịch học từ hôm nay đến `sessionDaysAhead` ngày. | ✅ Đã có. Khoảng lịch học = hôm nay (giờ VN) → hôm nay + `sessionDaysAhead` − 1, không đụng ngày quá khứ. |
+| Tự nhận học kỳ | `termMode='auto'`: đọc `tkb_lophp_1ngay` toàn trường các ngày tới, lấy các cặp (`nam_hoc`, `hoc_ky`) khác nhau. Chồng kỳ thì chạy bước 4–5 cho từng kỳ. `termMode='fixed'`: dùng `namHoc`/`hocKy`. Ghi kết quả vào `run.options.terms`. | ✅ Đã có. TKB tải lúc nhận kỳ được dùng lại cho bước lịch học (không gọi 2 lần). API không trả kỳ nào thì lấy học kỳ `uel_api` trong DB còn hiệu lực. Mỗi kết quả bước 4–5 có thêm `term`. |
+| `GET/PUT /uel-sync/settings` | Thêm `autoEnabled`, `frequency` (`daily`/`weekly`), `weekday` (0=CN..6), `time` (`HH:mm`), `termMode` (`auto`/`fixed`). Giữ `sessionDaysAhead` (1..120), `namHoc`, `hocKy`. Lưu `system_configs`. | ✅ Đã có (khóa mới `uel_sync.auto_enabled/frequency/weekday/time/term_mode`, tự tạo khi lưu lần đầu). |
+| Bộ hẹn giờ | Đọc cài đặt, đăng ký cron động (SchedulerRegistry), sửa giờ là áp dụng ngay, không cần khởi động lại. Chỉ chạy khi env `SCHEDULER_ENABLED` + `SCHEDULER_UEL_SYNC_ENABLED` bật (bật trên 1 instance BE). | ✅ Đã có (job `uel-sync-auto`). |
+| `GET /uel-sync/status` | `schedule = {enabled, serverAllowed, nextRunAt}`; `lastRun.currentStep` (bước đang chạy) để FE vẽ tiến trình. | ✅ Đã có (giữ thêm `label`). |
+| Chặn hủy nhầm | Bước lịch học: ngày nào API trả 0 buổi mà DB đang có buổi thì không hủy, ghi cảnh báo. | ✅ Đã có. |
+
+FE đã bỏ form chạy từng bước và form chạy theo mã GV/SV. `POST /uel-sync/run` vẫn để lại ở BE cho việc gỡ lỗi.
+
+---
+
+## Lịch họp VPĐT (FE đang mock, chưa có API VPĐT)
+
+Lịch họp của trường đăng ký và duyệt trên **Văn phòng điện tử (VPĐT)**. SAVP chỉ hiển thị lịch, điểm danh vào họp, theo dõi
+người ra vào theo thời gian thực và làm báo cáo. Chưa có API VPĐT, nên FE dùng mock dựng theo tài liệu
+"Mô tả về Lịch tuần UEL trên VPĐT".
+
+- **Cờ** (`src/config/featureFlags.js`):
+  - `MEETING_BOOKING_ENABLED` (đang `true` — bật lại 2026-11-13 theo yêu cầu): đặt `false` để ẩn menu "Đăng ký họp",
+    lối tắt trên trang chủ Nhân viên và nút "Đăng ký họp" trên trang Lịch cá nhân. Route `/book` luôn còn.
+  - `MEETING_CALENDAR_MOCK_ENABLED`: bật ở bản dev. Đặt `REACT_APP_MEETING_CALENDAR_MOCK=false` để gọi `GET /me/schedule`
+    thật. Bản production luôn tắt.
+- **Code mock**:
+  - `src/mocks/meetingCalendarMock.js`: 18 cuộc họp, từ −14 đến +12 ngày quanh hôm nay. Có 1 cuộc "đang diễn ra" luôn
+    neo vào giờ hiện tại, cùng các cuộc chờ duyệt, đã hủy, Online, đi công tác. Mã giả `mock-…`, người giả `CBxxxx`;
+    người đang đăng nhập được chèn vào danh sách tham dự.
+  - `src/pages/employee/MockMeetingDetailPage.jsx`: **trang** chi tiết cuộc họp `/:role/meeting/mock-…` (4 tab, tab nằm
+    trên URL `?tab=`). `MeetingDetailRoute.jsx` chọn trang mock khi id là `mock-…`, id thật vẫn vào `MeetingDetail.jsx`.
+  - `src/pages/employee/MockMyMeetingAttendance.jsx`: tab "Lịch sử tham dự".
+  - `PersonalCalendar.jsx`: thêm lọc loại lịch, thẻ số liệu tháng và chú giải màu.
+  - Sửa điểm danh hay duyệt lý do **chỉ lưu trong state** (nhãn "Demo – chưa có API VPĐT").
+- **Quy tắc điểm danh đang giả định** (cần chốt với trường):
+  - Trễ: vào sau giờ bắt đầu hơn 5 phút.
+  - Về sớm: ra trước giờ kết thúc hơn 15 phút.
+  - Điểm trừ: vắng −2, trễ và về sớm −2, trễ −1, về sớm −1, đúng giờ 0.
+  - Lý do được chủ trì hoặc thư ký duyệt thì không trừ điểm.
+  - Phòng Online không có camera, thư ký điểm danh tay.
+
+| API | Hợp đồng FE đang dùng (theo mock) | Hiện trạng BE |
+|---|---|---|
+| `GET /me/schedule?from=&to=&status=` | Giữ dạng `{success, data:{items}}`. Mỗi item thêm: `calendarType` (`leadership` lịch lãnh đạo trường / `other` lịch hoạt động khác / `unit` lịch đơn vị), `hostName`, `attendanceEnabled`, `myAttendance {status, checkInAt, checkOutAt, points, reason, reasonStatus, excused}`, `status` thêm `cancelled`. | Có API, chưa có các trường trên và chưa lấy lịch từ VPĐT. |
+| Đồng bộ VPĐT → SAVP | Kéo lịch đã duyệt (và trạng thái chờ duyệt/hủy) từ VPĐT. Ánh xạ phòng VPĐT sang phòng/cửa có camera. Ánh xạ người theo mã CB. Đồng bộ lại khi VPĐT sửa hoặc hủy lịch. | Chưa có (chờ API VPĐT). |
+| `GET /meetings/:id/vpdt-detail` (tên tùy BE) | Các trường VPĐT: `content`, `approval`/`approvedBy`/`cancelReason`, `room`/`place`, `vehicle`, `host`, `secretary`, `participantGroups[{name, members[]}]`, `attachments[]`, `requireReport`, `requireConclusion`, `restrictedView`, `reminderMinutes`, `recurrence`, `attendanceEnabled`, `attendanceSource` (`camera`/`manual`), `myRole`. | Chưa có. |
+| `GET /meetings/:id/attendance` | Mỗi người tham dự: `{userCode, fullName, unit, role, required, checkInAt, checkOutAt, status, points, source, reason, reasonStatus, note}` kèm `summary` (số có mặt, trễ, về sớm, vắng, tổng điểm). Trạng thái tính theo quy tắc ở trên, lấy từ sự kiện camera ở cửa phòng. | Chưa có theo quy tắc này. |
+| `GET /meetings/:id/access-log?since=` | Nhật ký ra vào trực tiếp: `{at, direction in/out, userCode?, fullName?, unit?, door, confidence, identified}`, kèm số người đang trong phòng. FE gọi lại mỗi 3 giây khi cuộc họp đang diễn ra (có thể chuyển sang WebSocket). | Chưa có. |
+| `PATCH /meetings/:id/attendance/:userCode` | Chủ trì hoặc thư ký sửa giờ vào, trạng thái (kể cả `excused`) và ghi chú. Khóa khi cuộc họp kết thúc (BE cần chốt thời hạn sửa). Ghi audit. | Chưa có. |
+| `POST /meetings/:id/attendance/reason` và `.../reason/:userCode/approve` | Người tham dự gửi lý do trước hoặc trong cuộc họp; chủ trì hoặc thư ký duyệt thì điểm về 0. | Chưa có. |
+| `GET /me/meeting-attendance?from=&to=` | Lịch sử tham dự của chính mình, gồm danh sách và tổng điểm trừ. | Chưa có (FE đang tự tổng hợp từ mock). |
+| Báo cáo cuộc họp | Tab "Báo cáo" xuất CSV ở FE. Nên chuyển sang báo cáo quy chuẩn (`render-document`) và thêm báo cáo theo đơn vị hoặc nhân sự. | Chưa có. |
 
 ---
 

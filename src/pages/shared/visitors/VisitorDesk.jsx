@@ -15,6 +15,7 @@ import { pageCls, cardCls, btnPrimary, btnGhost, errorBoxCls, spinnerCls } from 
 import { subscribeToSecurityAlerts, subscribeToVisitorVisitChanges } from '../../../utils/socket';
 import { subscribeToVisitorAlertChanges } from '../../../utils/visitorRealtime';
 import { hasPermission } from '../../../utils/permissionUtils';
+import SharedStatCard from '../../../components/common/StatCard';
 
 // S4 (2.10, spec §12.2): màn xử lý ngoại lệ của bảo vệ/bảo vệ. Khách đã đăng ký, đã duyệt và có ảnh
 // được camera tại cổng tự cho vào; màn này chỉ gom những trường hợp cần người xử lý.
@@ -133,10 +134,13 @@ const VisitorDesk = () => {
                 <>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         {KPIS.map(([key, label]) => (
-                            <div key={key} className={`${cardCls} p-4 ${key === 'overstay' && desk.kpis.overstay > 0 ? 'border-red-300 bg-red-50/40' : ''}`}>
-                                <p className="text-[10px] font-bold text-slate-blue uppercase">{key === 'expected' || key === 'arrived' ? label.replace('hôm nay', displayDate(selectedDate)) : label}</p>
-                                <p data-testid={`desk-kpi-${key}`} className={`text-2xl font-bold mt-1 ${key === 'overstay' && desk.kpis.overstay > 0 ? 'text-red-600' : 'text-midnight-indigo'}`}>{desk.kpis[key]}</p>
-                            </div>
+                            <SharedStatCard
+                                key={key}
+                                label={key === 'expected' || key === 'arrived' ? label.replace('hôm nay', displayDate(selectedDate)) : label}
+                                value={desk.kpis[key]}
+                                valueTestId={`desk-kpi-${key}`}
+                                tone={key === 'overstay' && desk.kpis.overstay > 0 ? 'red' : 'neutral'}
+                            />
                         ))}
                     </div>
 

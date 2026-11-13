@@ -1,4 +1,4 @@
-import { CalendarClock, Film, HardDrive } from "lucide-react";
+import { Archive, CalendarClock, Film, Gauge, HardDrive, Video } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import RecordingScheduleModal from "../../components/devices/RecordingScheduleModal";
@@ -13,6 +13,7 @@ import {
   getDevices,
   getRecordingStorage,
 } from "../../service/sysAdminServices";
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 // 2.2.7 Lịch ghi hình & lưu trữ theo từng camera.
 // Lịch ghi đọc metadata_json.recording (chưa cấu hình → mặc định theo loại camera);
@@ -30,12 +31,10 @@ const formatGB = (gb) =>
     ? `${(gb / 1024).toFixed(2)} TB`
     : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`;
 
-const StatCard = ({ label, value, sub, tone = "text-midnight-indigo" }) => (
-  <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 p-4">
-    <p className="text-[11px] font-semibold text-slate-blue">{label}</p>
-    <p className={`text-xl font-bold leading-tight mt-1 ${tone}`}>{value}</p>
-    {sub && <p className="text-[11px] text-steel-gray mt-0.5">{sub}</p>}
-  </div>
+const StatCard = ({ icon, label, value, sub, tone = "text-midnight-indigo", children }) => (
+  <SharedStatCard icon={icon} label={label} value={value} hint={sub} tone={toneOf(tone)}>
+    {children}
+  </SharedStatCard>
 );
 
 /** Thanh 7 ngày tóm tắt lịch: mỗi ngày = tỉ lệ giờ có ghi. */
@@ -165,35 +164,41 @@ const CameraRecording = () => {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 p-4">
-          <p className="text-[11px] font-semibold text-slate-blue inline-flex items-center gap-1">
-            <HardDrive className="w-3.5 h-3.5" /> Dung lượng đã dùng
-          </p>
-          <p className="text-xl font-bold leading-tight mt-1 text-midnight-indigo">
-            {formatGB(totalUsed)}{" "}
-            <span className="text-sm font-semibold text-steel-gray">
-              / {formatGB(capacityGB)}
-            </span>
-          </p>
+        <StatCard
+          icon={HardDrive}
+          label="Dung lượng đã dùng"
+          value={
+            <>
+              {formatGB(totalUsed)}{" "}
+              <span className="text-sm font-semibold opacity-70">
+                / {formatGB(capacityGB)}
+              </span>
+            </>
+          }
+          tone={usedPct > 85 ? "text-red-600" : usedPct > 70 ? "text-amber-600" : "text-midnight-indigo"}
+        >
           <div className="h-2 rounded-full bg-cloud-mist mt-2 overflow-hidden">
             <div
               className={`h-full ${usedPct > 85 ? "bg-red-500" : usedPct > 70 ? "bg-amber-500" : "bg-green-500"}`}
               style={{ width: `${Math.min(100, usedPct)}%` }}
             />
           </div>
-        </div>
+        </StatCard>
         <StatCard
+          icon={Video}
           label="Camera đang ghi"
           value={`${recording.length} / ${rows.length}`}
           sub="Online và không tắt ghi"
           tone="text-green-600"
         />
         <StatCard
+          icon={Archive}
           label="Lưu trữ trung bình"
           value={`${avgRetention} ngày`}
           sub={`Ghi thêm ${formatGB(totalPerDay)}/ngày`}
         />
         <StatCard
+          icon={Gauge}
           label="Dự báo ổ lưu trữ"
           value={
             fits

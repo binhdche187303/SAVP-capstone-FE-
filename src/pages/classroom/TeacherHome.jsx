@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, CalendarDays, CheckCircle2, Clock, Users } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock, Users } from 'lucide-react';
 import { fetchClassAttendanceClasses, fetchClassAttendanceSummary, fetchClassSessions } from '../../service/classAttendanceService';
 import DashboardBanner from '../../components/common/DashboardBanner';
+import SharedStatCard from '../../components/common/StatCard';
 
 const toDateKey = date => {
     const year = date.getFullYear();
@@ -72,41 +73,18 @@ const TeacherHome = () => {
 
     return (
         <div className="space-y-5 animate-fade-in-up">
-            <DashboardBanner roleName="Giảng viên" />
-            <div className="bg-white border border-platinum-tint rounded-2xl p-5 shadow-sm">
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-action-blue text-[11px] font-bold">
-                    <BookOpen className="w-4 h-4" />
-                    Trang chủ giảng viên
-                </span>
-                <h1 className="text-xl font-bold text-midnight-indigo tracking-tight mt-3">Tổng quan lớp học</h1>
-                <p className="text-xs text-slate-blue mt-1">Theo dõi nhanh lịch dạy, sĩ số và tình trạng điểm danh trong ngày.</p>
-            </div>
+            <h1 className="sr-only">Trang chủ giảng viên</h1>
+            <DashboardBanner roleName="Giảng viên" compact />
 
             {loadError && (
                 <div role="alert" className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">{loadError}</div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <CalendarDays className="w-8 h-8 p-2 rounded-xl bg-blue-50 text-action-blue" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{activeSessions.length}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Buổi dạy trong ngày</p>
-                </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <Users className="w-8 h-8 p-2 rounded-xl bg-emerald-50 text-emerald-600" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{totalStudents}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Tổng sĩ số {classes.length} lớp phụ trách</p>
-                </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <CheckCircle2 className="w-8 h-8 p-2 rounded-xl bg-emerald-50 text-emerald-600" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{checkedInToday}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Đã điểm danh trong ngày</p>
-                </div>
-                <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
-                    <Clock className="w-8 h-8 p-2 rounded-xl bg-amber-50 text-amber-600" />
-                    <p className="text-2xl font-bold text-midnight-indigo mt-3">{firstStart}</p>
-                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Giờ bắt đầu buổi đầu tiên</p>
-                </div>
+                <SharedStatCard icon={CalendarDays} label="Buổi dạy trong ngày" value={activeSessions.length} tone="blue" />
+                <SharedStatCard icon={Users} label="Sĩ số phụ trách" value={totalStudents} hint={`SV · ${classes.length} lớp`} tone="violet" />
+                <SharedStatCard icon={CheckCircle2} label="Đã điểm danh trong ngày" value={checkedInToday} tone="green" />
+                <SharedStatCard icon={Clock} label="Giờ bắt đầu buổi đầu tiên" value={firstStart} tone="amber" />
             </div>
 
             <div className="bg-white border border-platinum-tint rounded-2xl p-5 shadow-sm">
@@ -115,38 +93,31 @@ const TeacherHome = () => {
                         <h2 className="text-sm font-bold text-midnight-indigo">Buổi dạy ngày {selectedDateLabel}</h2>
                         <p className="text-xs text-slate-blue mt-1">Chọn buổi để mở màn điểm danh bằng camera FaceID.</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <input
+                    <input
                             type="date"
                             value={selectedDate}
                             onChange={event => event.target.value && setSelectedDate(event.target.value)}
                             aria-label="Lọc buổi dạy theo ngày"
                             className="px-3 py-2 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
                         />
-                        <Link to="/teacher/attendance" className="px-4 py-2 rounded-xl bg-action-blue text-white text-xs font-bold no-underline">
-                            Mở điểm danh
-                        </Link>
-                    </div>
                 </div>
-                <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {sessions.length === 0 ? (
-                        <p className="lg:col-span-2 rounded-xl border border-dashed border-platinum-tint p-8 text-center text-sm text-slate-blue">
+                        <p className="col-span-full rounded-xl border border-dashed border-platinum-tint p-8 text-center text-sm text-slate-blue">
                             {loading ? 'Đang tải…' : 'Ngày này không có buổi dạy.'}
                         </p>
                     ) : sessions.map(session => {
                         const summary = summaries[session.classId] || EMPTY_SUMMARY;
                         const cancelled = session.status === 'cancelled';
                         return (
-                            <Link
+                            <div
                                 key={session.id}
-                                to={`/teacher/attendance?classId=${encodeURIComponent(session.classId)}`}
-                                className={`block rounded-xl border p-4 no-underline transition-colors ${cancelled ? 'border-red-100 bg-red-50/30 opacity-70' : 'border-platinum-tint hover:border-action-blue hover:bg-blue-50/30'}`}
+                                className={`flex flex-col rounded-xl border p-4 ${cancelled ? 'border-red-100 bg-red-50/30 opacity-70' : 'border-platinum-tint'}`}
                             >
                                 <p className="text-sm font-bold text-midnight-indigo">{session.subjectCode} - {session.classCode}{cancelled ? ' (Đã hủy)' : ''}</p>
                                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs text-slate-blue">
                                     <span><strong className="text-midnight-indigo">Môn học:</strong> {session.subject}</span>
                                     <span><strong className="text-midnight-indigo">Lớp HP:</strong> {session.classCode}</span>
-                                    <span><strong className="text-midnight-indigo">Giảng viên:</strong> {session.teacher || 'Chưa có'}</span>
                                     <span><strong className="text-midnight-indigo">Học kỳ:</strong> {session.semester}</span>
                                     <span><strong className="text-midnight-indigo">Giờ học:</strong> {session.startTime} - {session.endTime}</span>
                                     <span><strong className="text-midnight-indigo">Phòng học:</strong> {session.room || 'Chưa có phòng'}</span>
@@ -156,7 +127,15 @@ const TeacherHome = () => {
                                     <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">Đã vào {summary.checkedIn}</span>
                                     <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">Muộn {summary.late}</span>
                                 </div>
-                            </Link>
+                                {!cancelled && (
+                                    <Link
+                                        to={`/teacher/attendance?classId=${encodeURIComponent(session.classId)}`}
+                                        className="mt-auto pt-4 self-start no-underline"
+                                    >
+                                        <span className="inline-block px-3 py-1.5 rounded-lg bg-action-blue text-white text-xs font-bold hover:opacity-90">Mở điểm danh</span>
+                                    </Link>
+                                )}
+                            </div>
                         );
                     })}
                 </div>

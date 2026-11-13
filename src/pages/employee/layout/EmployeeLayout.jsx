@@ -8,6 +8,7 @@ import UserAvatar from '../../../components/common/UserAvatar';
 import ChangePasswordModal from '../../../components/auth/ChangePasswordModal';
 import NotificationBell from '../../../components/common/NotificationBell';
 import { buildDynamicNavigation, filterStaticNavigation } from '../../../utils/buildDynamicNavigation';
+import { MEETING_BOOKING_ENABLED } from '../../../config/featureFlags';
 import { getCalendarRoleLabel } from '../../../utils/calendarRoleLabel';
 
 
@@ -37,11 +38,12 @@ const STATIC_NAVIGATION_ITEMS = [
                 icon: Calendar,
                 requiredPermission: 'schedule.read.self'
             },
-            {
+            // Ẩn khi MEETING_BOOKING_ENABLED=false — lịch họp đăng ký trên VPĐT, SAVP chỉ hiển thị + điểm danh.
+            ...(MEETING_BOOKING_ENABLED ? [{
                 label: 'Đăng ký họp',
                 to: '/employee/book',
                 icon: PlusCircle
-            },
+            }] : []),
             {
                 // Văn thư đơn vị (BE cấp quyền duyệt theo cờ is_unit_clerk)
                 label: 'Duyệt lịch họp',

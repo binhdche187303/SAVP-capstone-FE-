@@ -1,4 +1,10 @@
 import { get, post, put } from '../utils/request';
+import { UEL_SYNC_MOCK_ENABLED } from '../config/featureFlags';
+import { uelSyncMock } from '../mocks/uelSyncMock';
+
+/** Bản dev có REACT_APP_UEL_SYNC_MOCK=true: dùng dữ liệu giả, không gọi BE. */
+const mock = UEL_SYNC_MOCK_ENABLED ? uelSyncMock : null;
+export const UEL_SYNC_PREVIEW = !!mock;
 
 // ============================================================
 // Đồng bộ dữ liệu API Đào tạo UEL (BE module uel-sync, quyền admin.manage_config)
@@ -17,10 +23,10 @@ export const UEL_SYNC_STEPS = [
 export const stepLabel = (key) => UEL_SYNC_STEPS.find((s) => s.key === key)?.label ?? key;
 
 /** GET /uel-sync/status — đã cấu hình API chưa, lịch tự động, cài đặt, lượt gần nhất. */
-export const getUelSyncStatus = async () => (await get('/uel-sync/status')).data;
+export const getUelSyncStatus = async () => (mock ? mock.getStatus() : (await get('/uel-sync/status')).data);
 
 /** GET /uel-sync/runs — lịch sử các lượt, mới nhất trước. */
-export const getUelSyncRuns = async (limit = 20) => (await get(`/uel-sync/runs?limit=${limit}`)).data;
+export const getUelSyncRuns = async (limit = 20) => (mock ? mock.getRuns(limit) : (await get(`/uel-sync/runs?limit=${limit}`)).data);
 
 /**
  * POST /uel-sync/run — chạy nền. 400 khi thiếu tham số, 409 khi đang có lượt khác.
@@ -28,16 +34,28 @@ export const getUelSyncRuns = async (limit = 20) => (await get(`/uel-sync/runs?l
  */
 export const runUelSync = async (payload) => (await post('/uel-sync/run', payload)).data;
 
+/**
+ * POST /uel-sync/run-all — 1 nút: chạy đủ 6 bước theo thứ tự, tự nhận học kỳ (hoặc dùng học kỳ chỉ định trong cài đặt).
+ * 409 khi đang có lượt khác.
+ */
+export const runUelSyncAll = async () => (mock ? mock.runAll() : (await post('/uel-sync/run-all', {})).data);
+
 export const getUelSyncSettings = async () => (await get('/uel-sync/settings')).data;
 
-/** PUT /uel-sync/settings — { namHoc, hocKy, sessionDaysAhead } */
-export const updateUelSyncSettings = async (payload) => (await put('/uel-sync/settings', payload)).data;
+/**
+ * PUT /uel-sync/settings —
+ * { autoEnabled, frequency: 'daily'|'weekly', weekday: 0 (CN)..6, time: 'HH:mm', sessionDaysAhead: 1..120,
+ *   termMode: 'auto'|'fixed', namHoc, hocKy }
+ */
+export const updateUelSyncSettings = async (payload) =>
+    (mock ? mock.updateSettings(payload) : (await put('/uel-sync/settings', payload)).data);
 
 /** GET /uel-sync/periods — [{ periodNo, startTime 'HH:mm', endTime 'HH:mm' }] */
-export const getStudyPeriods = async () => (await get('/uel-sync/periods')).data;
+export const getStudyPeriods = async () => (mock ? mock.getPeriods() : (await get('/uel-sync/periods')).data);
 
 /** PUT /uel-sync/periods — thay toàn bộ bảng giờ tiết. */
-export const replaceStudyPeriods = async (periods) => (await put('/uel-sync/periods', { periods })).data;
+export const replaceStudyPeriods = async (periods) =>
+    (mock ? mock.replacePeriods(periods) : (await put('/uel-sync/periods', { periods })).data);
 
 /** 6 kiểu tra cứu trực tiếp (BE chuyển tiếp sang API UEL, không ghi DB). */
 export const UEL_LOOKUP_TYPES = [
@@ -50,4 +68,4 @@ export const UEL_LOOKUP_TYPES = [
 ];
 
 /** POST /uel-sync/lookup — { type, code, date? } → { items, total, truncated } */
-export const lookupUel = async (payload) => (await post('/uel-sync/lookup', payload)).data;
+export const lookupUel = async (payload) => (mock ? mock.lookup(payload) : (await post('/uel-sync/lookup', payload)).data);
