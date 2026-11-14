@@ -54,15 +54,15 @@ test('hiện tình trạng, lượt gần nhất với bước lỗi', async () 
     expect(screen.getByText('Đã cấu hình')).toBeInTheDocument();
     expect(screen.getByText('2026-2027 · HK1')).toBeInTheDocument();
     expect(screen.getByText('Có bước lỗi')).toBeInTheDocument();
-    expect(screen.getByText('Bảng study_periods trống')).toBeInTheDocument();
+    expect(screen.getByText('Chưa có bảng giờ tiết học. Vui lòng nhập giờ bắt đầu và kết thúc của từng tiết.')).toBeInTheDocument();
 });
 
-test('chưa có bảng giờ tiết: chặn chạy lịch học, bỏ bước lịch học thì chạy được', async () => {
+test('không cần bảng tiết khi API trả giờ trực tiếp; bỏ lịch học thì chỉ gửi các bước còn lại', async () => {
     svc.runUelSync.mockResolvedValue({ accepted: true });
     render(<UelSync />);
     const runBtn = await screen.findByRole('button', { name: /Chạy đồng bộ/ });
-    expect(runBtn).toBeDisabled();
-    expect(screen.getByText(/Lịch học cần bảng giờ tiết/)).toBeInTheDocument();
+    expect(runBtn).toBeEnabled();
+    expect(screen.getByText(/bảng giờ tiết chỉ dùng khi API không trả giờ/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('checkbox', { name: /6\. Lịch học/ }));
     expect(runBtn).toBeEnabled();
@@ -114,4 +114,11 @@ test('tra cứu trực tiếp: lịch dạy 1 ngày gửi kèm ngày, hiện b�
     );
     expect(await screen.findByText('Cơ sở dữ liệu')).toBeInTheDocument();
     expect(screen.getByText('Học phần')).toBeInTheDocument();
+});
+
+test('cảnh báo của lượt cũ hiển thị tiếng Việt thay cho lỗi trùng email', async () => {
+    svc.getUelSyncRuns.mockResolvedValue([{ ...RUN, results: [{ step: 'staff', fetched: 2, upserted: 1, skipped: 1, deactivated: 0, warnings: ['cán bộ SDH162: duplicate key value violates unique constraint "ux_users_email_active"'] }] }]);
+    render(<UelSync />);
+    expect(await screen.findByText(/cán bộ SDH162: Email này đã được dùng cho một tài khoản khác/)).toBeInTheDocument();
+    expect(screen.queryByText(/duplicate key/)).not.toBeInTheDocument();
 });

@@ -1,3 +1,11 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ExportModeDialog from '../../components/report/ExportModeDialog';
+import { completeReportExport } from '../../service/reportCenterService';
+import ReportExportButton from '../../components/common/ReportExportButton';
+import StatisticCard from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import RefreshButton from '../../components/common/RefreshButton';
 import { hasPermission } from '../../utils/permissionUtils';
 import {
     Activity, AlertTriangle, ArrowRight, BarChart3, Building2, Calendar,
@@ -25,7 +33,6 @@ import { getZones } from '../../service/zoneServices';
 import { getSecurityAlerts } from '../../service/securityAlertService';
 import { getVehicleControlList } from '../../service/anprService';
 import { getBusinessAdminSummary } from '../../service/campusService';
-import { get } from '../../utils/request';
 import DashboardBanner from '../../components/common/DashboardBanner';
 import ZonePresenceTable from '../../components/campus/ZonePresenceTable';
 import { getAlertTypeLabel } from '../../constants/alertType';
@@ -55,7 +62,7 @@ const D = {
 
 const GC_BASE = {
     backgroundColor: 'transparent',
-    fontName: 'inherit',
+    fontName: 'Montserrat',
     chartArea: { backgroundColor: 'transparent', width: '88%', height: '68%' },
     hAxis: { textStyle: { color: D.axisText, fontSize: 10 }, gridlines: { color: D.grid }, baselineColor: D.grid },
     vAxis: { textStyle: { color: D.axisText, fontSize: 10 }, gridlines: { color: D.grid }, baselineColor: D.grid, minValue: 0 },
@@ -294,35 +301,19 @@ const GChartCard = ({ title, sub, delay = 0, accent = D.cyan, loading, empty, em
 
 // ─── KPI Tile ─────────────────────────────────────────────────────────────────
 
-const KpiTile = ({ icon: Icon, label, value, sub, subColor, iconColor = D.cyan, delay, progress }) => {
+const KpiTile = ({ icon, label, value, sub, subColor, iconColor = D.cyan, delay, progress }) => {
     const [ref, inView] = useInView(0.2);
     const numericTarget = typeof value === 'number' ? value : null;
-    const counted       = useCountUp(numericTarget, inView);
-    const displayValue  = numericTarget !== null ? counted : value;
-
-    return (
-        <div ref={ref}
-            style={{ background: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 16, padding: '16px 16px 14px', position: 'relative', overflow: 'hidden', boxShadow: D.shadowSm, transitionDelay: inView ? `${delay}ms` : '0ms' }}
-            className={`transition-all duration-600 ease-out cursor-default hover:scale-[1.025] ${inView ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95'}`}
-        >
-            <div style={{ position: 'absolute', top: -24, right: -24, width: 90, height: 90, borderRadius: '50%', opacity: 0.07, background: iconColor, filter: 'blur(24px)', pointerEvents: 'none' }} />
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-                <p style={{ fontSize: 11, fontWeight: 600, color: D.muted, lineHeight: 1.45, paddingRight: 8 }}>{label}</p>
-                <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${iconColor}15`, border: `1px solid ${iconColor}35` }}>
-                    <Icon style={{ width: 17, height: 17, color: iconColor }} />
-                </div>
-            </div>
-            <p style={{ fontSize: 27, fontWeight: 800, color: D.text, letterSpacing: '-0.8px', lineHeight: 1 }} className="tabular-nums">
-                {displayValue}
-            </p>
-            {progress !== undefined && (
-                <div style={{ marginTop: 10, height: 3, borderRadius: 99, background: D.borderSub }}>
-                    <div style={{ height: 3, borderRadius: 99, width: inView ? `${Math.min(progress, 100)}%` : '0%', background: `linear-gradient(90deg, ${iconColor}, ${iconColor}70)`, transition: 'width 1.1s cubic-bezier(.22,1,.36,1)' }} />
-                </div>
-            )}
-            {sub && <p style={{ fontSize: 11, marginTop: 8, fontWeight: 500, color: subColor || D.muted }}>{sub}</p>}
-        </div>
-    );
+    const counted = useCountUp(numericTarget, inView);
+    const tone = iconColor === D.red ? 'danger' : iconColor === D.amber ? 'warning' : iconColor === D.green ? 'success' : 'default';
+    return <div ref={ref} className="h-full min-w-0" style={{ transitionDelay: inView ? `${delay || 0}ms` : '0ms' }}>
+        <StatisticCard extraPosition="footer" icon={icon} label={label} value={numericTarget !== null ? counted : value} tone={tone}
+            helper={sub && <span style={{ color: subColor }}>{sub}</span>}>
+            {progress !== undefined && <div className="h-1 rounded-full bg-cloud-mist overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: inView ? `${Math.min(100, Math.max(0, progress))}%` : '0%', background: iconColor }} />
+            </div>}
+        </StatisticCard>
+    </div>;
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -333,7 +324,7 @@ const DashBoard = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [lastUpdated, setLastUpdated] = useState(null);
     const [successMsg, setSuccessMsg] = useState(null);
-    const [formError, setFormError] = useState(null);
+    const [formError] = useState(null);
 
     // ── Campus / Security data ────────────────────────────────────────────────
     const [campusLoading, setCampusLoading] = useState(true);
@@ -570,51 +561,22 @@ const DashBoard = () => {
     useEffect(() => { fetchMeetingData(); }, [fetchMeetingData]);
 
     // Export handler — 3 bước: submit job → poll đến completed → download file
-    const handleExport = async (e) => {
-        e.preventDefault();
-        setIsExporting(true); setFormError(null); setSuccessMsg(null);
+    const [exportDialogOpen, setExportDialogOpen] = useState(false);
+    const handleExport = async (_extra, options) => {
+        setIsExporting(true);
         try {
-            // Bước 1: Submit job (BE trả 202 + jobId)
-            const res = await exportMeetingActivity({
-                from: fromDate, to: toDate, format: exportForm.format,
+            const created = await exportMeetingActivity({
+                from: fromDate, to: toDate, format: options.format,
                 scope: { departmentId: selectedDept || null, roomId: null, organizerId: null },
-                sections: exportForm.sections, delivery: 'download',
+                sections: exportForm.sections, delivery: exportForm.delivery || 'download',
             });
-            if (!res?.success) {
-                setFormError(res?.message || 'Không thể tạo yêu cầu xuất báo cáo.');
-                return;
+            const result = await completeReportExport(created, { download: exportForm.delivery !== 'email', autoDownload: false, format: options.format });
+            if (result?.success) {
+                setSuccessMsg(exportForm.delivery === 'email' ? 'Báo cáo đã được xử lý theo phương thức nhận đã chọn.' : 'Báo cáo đã sẵn sàng tải xuống.');
+                if (!result.data?.downloadUrl) setExportDialogOpen(false);
             }
-            const jobId = res.data?.jobId;
-            if (!jobId) { setFormError('Không nhận được mã tiến trình từ server.'); return; }
-
-            setSuccessMsg('Đang tạo báo cáo, vui lòng chờ...');
-
-            // Bước 2: Poll /background-jobs/:jobId mỗi 2 giây, tối đa 60 giây
-            let fileId = null;
-            for (let i = 0; i < 30; i++) {
-                await new Promise(r => setTimeout(r, 2000));
-                const job = await get(`/background-jobs/${jobId}`);
-                const status = job?.data?.status;
-                if (status === 'completed') { fileId = job.data.outputFileId; break; }
-                if (status === 'failed') throw new Error(job.data?.errorMessage || 'Tạo báo cáo thất bại.');
-            }
-            if (!fileId) { setFormError('Hết thời gian chờ (60 giây). Vui lòng thử lại.'); return; }
-
-            // Bước 3: Lấy downloadUrl và mở file
-            setSuccessMsg('Đang chuẩn bị tải file...');
-            const media = await get(`/media-files/${fileId}`);
-            const url = media?.data?.downloadUrl;
-            if (url) {
-                window.open(url, '_blank');
-                setSuccessMsg('Báo cáo đã được tải xuống thành công!');
-            } else {
-                setFormError('Không lấy được đường dẫn tải file. Vui lòng thử lại.');
-            }
-        } catch (err) {
-            setFormError(err?.message || 'Lỗi khi tạo báo cáo. Vui lòng thử lại.');
-        } finally {
-            setIsExporting(false);
-        }
+            return result;
+        } finally { setIsExporting(false); }
     };
     const toggleSection = (key) => {
         setExportForm(prev => ({
@@ -665,12 +627,11 @@ const DashBoard = () => {
                             ) : 'Đang tải dữ liệu...'}
                         </p>
                     </div>
-                    <button onClick={() => { fetchCampusData(); fetchMeetingData(); }} disabled={campusLoading && meetLoading}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: D.blue, color: '#fff', border: 'none', cursor: (campusLoading && meetLoading) ? 'not-allowed' : 'pointer', opacity: (campusLoading && meetLoading) ? 0.6 : 1, transition: 'all 0.2s', flexShrink: 0, boxShadow: `0 2px 8px ${D.blue}40` }}
-                    >
-                        <RefreshCw style={{ width: 15, height: 15 }} className={(campusLoading || meetLoading) ? 'animate-spin' : ''} />
-                        Làm mới
-                    </button>
+                    <RefreshButton
+                        onClick={() => { fetchCampusData(); fetchMeetingData(); }}
+                        disabled={campusLoading && meetLoading}
+                        busy={campusLoading || meetLoading}
+                    />
                 </div>
             </ScrollReveal>
 
@@ -693,14 +654,14 @@ const DashBoard = () => {
             {activeTab === 'overview' && (
                 <>
                     {/* KPI row */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <StatisticGrid columns={6} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <KpiTile delay={0}   icon={LogIn}       label="Lượt ra/vào hôm nay"  value={campusLoading ? '—' : kpi.gateEventsToday}  sub="Qua tất cả cổng"  iconColor={D.cyan} />
                         <KpiTile delay={50}  icon={ShieldAlert} label="Cảnh báo chưa xử lý"   value={campusLoading ? '—' : kpi.alertsNew}         sub={kpi.alertsNew > 0 ? 'Cần xử lý ngay' : 'Ổn định'} iconColor={kpi.alertsNew > 0 ? D.red : D.green} subColor={kpi.alertsNew > 0 ? '#DC2626' : '#059669'} />
                         <KpiTile delay={100} icon={MapPin}      label="Khu vực giám sát"       value={campusLoading ? '—' : `${kpi.zonesActive}/${kpi.zonesTotal}`} sub="Zone có dữ liệu hôm nay" iconColor={D.purple} progress={campusLoading ? undefined : zonePct} />
                         <KpiTile delay={150} icon={Wifi}        label="Thiết bị Online"         value={campusLoading ? '—' : kpi.devicesOnline}    sub={campusLoading ? '' : `/ ${kpi.devicesTotal} thiết bị`} iconColor={D.green} progress={campusLoading ? undefined : onlinePct} />
                         <KpiTile delay={200} icon={Building2}   label="Phòng đang sử dụng"      value={meetLoading ? '—' : stats.activeRooms}      sub="Trên tổng số phòng" iconColor={D.blue} />
                         <KpiTile delay={250} icon={Car}         label="Xe khớp kiểm soát"       value={campusLoading ? '—' : kpi.vehicleHitsToday} sub={kpi.vehicleHitsToday > 0 ? 'Blocklist / Watchlist' : 'Không có khớp'} iconColor={kpi.vehicleHitsToday > 0 ? D.amber : D.muted2} subColor={kpi.vehicleHitsToday > 0 ? '#B45309' : D.muted} />
-                    </div>
+                    </StatisticGrid>
 
                     {/* Row: Severity donut + Traffic area */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -829,18 +790,18 @@ const DashBoard = () => {
                 <>
                     {/* Filter bar */}
                     <ScrollReveal delay={0} fromBelow={false}>
-                        <div style={{ background: '#fff', border: `1px solid ${D.border}`, borderRadius: 16, padding: '20px 24px', boxShadow: D.shadow, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
+                        <FilterBar variant="card" style={{ background: '#fff', border: `1px solid ${D.border}`, borderRadius: 16, padding: '20px 24px', boxShadow: D.shadow, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
                             {[
                                 { label: 'Từ ngày', value: fromDate, set: setFromDate, type: 'date' },
                                 { label: 'Đến ngày', value: toDate,  set: setToDate,   type: 'date' },
                             ].map(f => (
-                                <div key={f.label} style={{ flex: 1, minWidth: 140 }}>
+                                <div className="camai-filter-field" key={f.label} style={{ flex: 1, minWidth: 140 }}>
                                     <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: D.muted, textTransform: 'uppercase', marginBottom: 6 }}>{f.label}</label>
                                     <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)}
                                         style={{ width: '100%', padding: '8px 12px', border: `1px solid ${D.border}`, borderRadius: 10, fontSize: 13, color: D.text, background: '#fff', outline: 'none' }} />
                                 </div>
                             ))}
-                            <div style={{ flex: 1, minWidth: 160 }}>
+                            <div className="camai-filter-field" style={{ flex: 1, minWidth: 160 }}>
                                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: D.muted, textTransform: 'uppercase', marginBottom: 6 }}>Phòng ban</label>
                                 <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)}
                                     style={{ width: '100%', padding: '8px 12px', border: `1px solid ${D.border}`, borderRadius: 10, fontSize: 13, color: D.text, background: '#fff', outline: 'none' }}>
@@ -848,20 +809,20 @@ const DashBoard = () => {
                                     {departmentsList.map(d => <option key={d.id} value={d.id}>{d.departmentName}</option>)}
                                 </select>
                             </div>
-                            <button onClick={fetchMeetingData} disabled={meetLoading}
+                            <button data-filter-action onClick={fetchMeetingData} disabled={meetLoading}
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: D.blue, color: '#fff', border: 'none', cursor: 'pointer', boxShadow: `0 2px 8px ${D.blue}40`, flexShrink: 0 }}>
                                 <RefreshCw style={{ width: 15, height: 15 }} className={meetLoading ? 'animate-spin' : ''} /> Lọc
                             </button>
-                        </div>
+                        </FilterBar>
                     </ScrollReveal>
 
                     {/* Meeting KPI tiles */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatisticGrid columns={4} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <KpiTile delay={0}   icon={Calendar}      label="Tổng cuộc họp"           value={meetLoading ? '—' : stats.meetingCount}    sub={`TB: ${avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}m · Huỷ: ${cancelRateStats.cancelRate ?? 0}%`} iconColor={D.blue} />
                         <KpiTile delay={60}  icon={TrendingUp}    label="Hiệu suất phòng"           value={meetLoading ? '—' : `${stats.utilizationRate}%`} sub="Sử dụng trung bình" iconColor={D.purple} />
                         <KpiTile delay={120} icon={Clock}         label="Tham gia đúng giờ"         value={meetLoading ? '—' : `${stats.onTimeRate}%`}  sub={onTimeAssessment.text} iconColor={D.green} subColor={onTimeAssessment.color} />
                         <KpiTile delay={180} icon={AlertTriangle} label="Tỷ lệ đặt phòng vắng mặt" value={meetLoading ? '—' : `${stats.noShowRate}%`}   sub="Phòng tự giải phóng" iconColor={D.red} />
-                    </div>
+                    </StatisticGrid>
 
                     {/* Meeting trend + Status donut */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -995,7 +956,7 @@ const DashBoard = () => {
                             <div style={{ background: '#fff', border: `1px solid ${D.border}`, borderRadius: 16, padding: '20px', boxShadow: D.shadow, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 20 }}>
                                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${D.blue} 0%, ${D.blue}44 50%, transparent 100%)` }} />
                                 {/* Export form */}
-                                <form onSubmit={handleExport} className="space-y-3">
+                                <form onSubmit={event => { event.preventDefault(); setExportDialogOpen(true); }} className="space-y-3">
                                     <h3 style={{ fontSize: 14, fontWeight: 700, color: D.text, display: 'flex', alignItems: 'center', gap: 6 }}>
                                         <Sliders style={{ width: 15, height: 15, color: D.blue }} /> Xuất báo cáo
                                     </h3>
@@ -1023,10 +984,15 @@ const DashBoard = () => {
                                             </label>
                                         ))}
                                     </div>
-                                    <button type="submit" disabled={isExporting || exportForm.sections.length === 0}
-                                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: D.blue, color: '#fff', border: 'none', cursor: 'pointer', boxShadow: `0 2px 6px ${D.blue}40`, opacity: (isExporting || exportForm.sections.length === 0) ? 0.5 : 1, transition: 'all 0.2s' }}>
+                                    <ReportExportButton label="Xuất báo cáo" busy={isExporting} type="submit" disabled={isExporting || exportForm.sections.length === 0}
+                                        legacyStyle={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: D.blue, color: '#fff', border: 'none', cursor: 'pointer', boxShadow: `0 2px 6px ${D.blue}40`, opacity: (isExporting || exportForm.sections.length === 0) ? 0.5 : 1, transition: 'all 0.2s' }}>
                                         {isExporting ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Đang xuất...</> : <><Download style={{ width: 14, height: 14 }} /> Xuất báo cáo</>}
-                                    </button>
+                                    </ReportExportButton>
+                                    <ExportModeDialog isOpen={exportDialogOpen} onClose={() => setExportDialogOpen(false)}
+                                        formats={['xlsx', 'pdf']} format={exportForm.format} allowStandard={false}
+                                        initialRange={{ from: fromDate, to: toDate }}
+                                        filterSummary={[`Nội dung: ${exportForm.sections.map(value => ({ overview: 'Tổng quan', rooms: 'Sử dụng phòng', attendance: 'Điểm danh', no_show: 'Vắng mặt' })[value] || 'Nội dung khác').join(', ')}`, exportForm.delivery === 'email' ? 'Nhận qua hộp thư cá nhân' : 'Tải file trực tiếp']}
+                                        onConfirm={handleExport} />
                                 </form>
                             </div>
                         </ScrollReveal>
@@ -1038,12 +1004,12 @@ const DashBoard = () => {
             {activeTab === 'security' && (
                 <>
                     {/* Security KPI tiles */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatisticGrid columns={4} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <KpiTile delay={0}   icon={ShieldAlert} label="Cảnh báo mới"                   value={campusLoading ? '—' : kpi.alertsNew}         sub={kpi.alertsNew > 0 ? 'Chưa xử lý' : 'Ổn định'} iconColor={kpi.alertsNew > 0 ? D.red : D.green} subColor={kpi.alertsNew > 0 ? '#DC2626' : '#059669'} />
                         <KpiTile delay={60}  icon={Car}         label="Xe trong blocklist"               value={campusLoading ? '—' : kpi.vehicleHitsToday}  sub="Khớp hôm nay" iconColor={D.amber} />
                         <KpiTile delay={120} icon={LogIn}       label="Tổng lượt ra/vào hôm nay"         value={campusLoading ? '—' : kpi.gateEventsToday}   sub="Qua tất cả cổng" iconColor={D.cyan} />
                         <KpiTile delay={180} icon={Wifi}        label="Thiết bị Online"                  value={campusLoading ? '—' : kpi.devicesOnline}     sub={`Offline: ${kpi.devicesOffline}`} iconColor={D.green} progress={campusLoading ? undefined : onlinePct} />
-                    </div>
+                    </StatisticGrid>
 
                     {/* Hiện diện theo khu vực (2.12) */}
                     <ZonePresenceTable />
@@ -1085,7 +1051,9 @@ const DashBoard = () => {
                     {/* Vehicle watchlist + Gate history */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <ScrollReveal delay={0}>
-                            <div style={{ background: '#fff', border: `1px solid ${D.border}`, borderRadius: 16, padding: '20px', boxShadow: D.shadow, position: 'relative', overflow: 'hidden' }}>
+                            <PaginatedCollection items={vehicleWatchlist} itemLabel="biển số theo dõi">
+{(camaiPageItems, camaiStartIndex) => (
+<div style={{ background: '#fff', border: `1px solid ${D.border}`, borderRadius: 16, padding: '20px', boxShadow: D.shadow, position: 'relative', overflow: 'hidden' }}>
                                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${D.amber} 0%, ${D.amber}44 50%, transparent 100%)` }} />
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                                     <div>
@@ -1097,7 +1065,7 @@ const DashBoard = () => {
                                     <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="animate-pulse h-12 rounded-xl" style={{ background: D.borderSub }} />)}</div>
                                 ) : vehicleWatchlist.length === 0 ? (
                                     <div className="py-6 text-center"><p style={{ fontSize: 13, color: D.muted }}>Không có xe trong danh sách kiểm soát.</p></div>
-                                ) : vehicleWatchlist.map(v => (
+                                ) : camaiPageItems.map((camaiRecord, camaiIndex) => (v => (
                                     <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', marginBottom: 8, background: D.cardBg2, border: `1px solid ${D.border}`, borderRadius: 10 }}>
                                         <div style={{ minWidth: 0 }}>
                                             <p style={{ fontSize: 12, fontWeight: 700, color: D.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.plate_raw}</p>
@@ -1107,12 +1075,16 @@ const DashBoard = () => {
                                             {v.list_type}
                                         </span>
                                     </div>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (vehicleWatchlist)))}
                             </div>
+)}
+</PaginatedCollection>
                         </ScrollReveal>
 
                         <ScrollReveal delay={100}>
-                            <div style={{ background: '#fff', border: `1px solid ${D.border}`, borderRadius: 16, padding: '20px', boxShadow: D.shadow, position: 'relative', overflow: 'hidden' }}>
+                            <PaginatedCollection items={recentGateAccess} itemLabel="lượt ra/vào">
+{(camaiPageItems, camaiStartIndex) => (
+<div style={{ background: '#fff', border: `1px solid ${D.border}`, borderRadius: 16, padding: '20px', boxShadow: D.shadow, position: 'relative', overflow: 'hidden' }}>
                                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${D.cyan} 0%, ${D.cyan}44 50%, transparent 100%)` }} />
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                                     <div>
@@ -1124,7 +1096,7 @@ const DashBoard = () => {
                                     <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="animate-pulse h-12 rounded-xl" style={{ background: D.borderSub }} />)}</div>
                                 ) : recentGateAccess.length === 0 ? (
                                     <div className="py-6 text-center"><p style={{ fontSize: 13, color: D.muted }}>Chưa có dữ liệu ra vào hôm nay.</p></div>
-                                ) : recentGateAccess.map(log => (
+                                ) : camaiPageItems.map((camaiRecord, camaiIndex) => (log => (
                                     <div key={log.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', marginBottom: 8, background: D.cardBg2, border: `1px solid ${D.border}`, borderRadius: 10 }}>
                                         <div style={{ minWidth: 0 }}>
                                             <p style={{ fontSize: 12, fontWeight: 700, color: D.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.plate_number || log.user_name || 'Không xác định'}</p>
@@ -1134,8 +1106,10 @@ const DashBoard = () => {
                                             {log.access_time ? new Date(log.access_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
                                         </span>
                                     </div>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (recentGateAccess)))}
                             </div>
+)}
+</PaginatedCollection>
                         </ScrollReveal>
                     </div>
                 </>

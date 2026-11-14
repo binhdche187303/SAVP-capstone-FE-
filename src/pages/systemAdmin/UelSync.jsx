@@ -1,5 +1,13 @@
+import { syncMessage } from './uelSyncMessages';
+import DateInput from '../../components/common/DateInput';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import RefreshButton from '../../components/common/RefreshButton';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, Play, Plus, Trash2, ChevronDown, ChevronRight, DatabaseZap, Search } from 'lucide-react';
+import { Play, Plus, Trash2, ChevronDown, ChevronRight, DatabaseZap, Search } from 'lucide-react';
 import {
     UEL_LOOKUP_TYPES,
     UEL_SYNC_STEPS,
@@ -29,6 +37,9 @@ const localDate = (addDays = 0) => {
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 
+/** "GV0001, 22.001\nK24..." → ['GV0001', '22.001', 'K24...'] (bỏ trống, bỏ trùng). */
+const codesOf = (text) => [...new Set(String(text ?? '').split(/[\s,;]+/).map((c) => c.trim()).filter(Boolean))];
+
 const fmtTime = (iso) =>
     iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
@@ -47,13 +58,13 @@ const STATUS = {
 
 const StatusPill = ({ status }) => {
     const s = STATUS[status] ?? STATUS.failed;
-    return <span className={`inline-flex px-2.5 py-0.5 rounded-full border text-xs font-semibold whitespace-nowrap ${s.cls}`}>{s.label}</span>;
+    return <span data-ui-text="badge" className={`inline-flex px-2.5 py-0.5 rounded-full border text-xs font-semibold whitespace-nowrap ${s.cls}`}>{s.label}</span>;
 };
 
 const errorText = (e, fallback) => {
     const m = e?.error?.message;
-    if (Array.isArray(m)) return m.join(' ');
-    return typeof m === 'string' && m ? m : fallback;
+    if (Array.isArray(m)) return m.map(syncMessage).join(' ');
+    return typeof m === 'string' && m ? syncMessage(m) : fallback;
 };
 
 const Card = ({ title, children, action }) => (
@@ -66,20 +77,9 @@ const Card = ({ title, children, action }) => (
     </section>
 );
 
-const Fact = ({ label, value, tone = 'neutral', hint }) => {
-    const tones = {
-        ok: 'text-green-700',
-        warn: 'text-amber-700',
-        neutral: 'text-midnight-indigo',
-    };
-    return (
-        <div className="p-4 bg-cloud-mist/50 border border-platinum-tint/70 rounded-xl min-w-0">
-            <span className="block text-xs font-bold text-slate-blue uppercase tracking-wide">{label}</span>
-            <span className={`block mt-1 text-sm font-semibold ${tones[tone]}`}>{value}</span>
-            {hint && <span className="block mt-1 text-xs text-steel-gray break-all">{hint}</span>}
-        </div>
-    );
-};
+const Fact = ({ label, value, tone = 'neutral', hint }) => (
+    <StatisticCard label={label} value={value} helper={hint} compactValue tone={tone === 'ok' ? 'success' : tone === 'warn' ? 'warning' : 'default'} />
+);
 
 const inputCls =
     'w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo bg-white focus:outline-none focus:ring-2 focus:ring-action-blue/30 focus:border-action-blue disabled:bg-cloud-mist';
@@ -104,10 +104,10 @@ const RunRow = ({ run, defaultOpen }) => {
                 {open ? <ChevronDown className="w-4 h-4 text-slate-blue" /> : <ChevronRight className="w-4 h-4 text-slate-blue" />}
                 <span className="text-sm font-semibold text-midnight-indigo tabular-nums">{fmtTime(run.startedAt)}</span>
                 <StatusPill status={run.status} />
-                <span className="text-xs text-slate-blue">
+                <span data-ui-text="action" className="text-xs text-slate-blue">
                     {run.trigger === 'schedule' ? 'Tự động' : `Bấm tay${run.requestedByName ? ` · ${run.requestedByName}` : ''}`}
                 </span>
-                <span className="text-xs text-steel-gray ml-auto">
+                <span data-ui-text="action" className="text-xs text-steel-gray ml-auto">
                     {run.results.map((r) => stepLabel(r.step)).join(' → ') || '—'}
                     {durationOf(run) ? ` · ${durationOf(run)}` : ''}
                     {errors ? ` · ${errors} bước lỗi` : ''}
@@ -118,11 +118,22 @@ const RunRow = ({ run, defaultOpen }) => {
                     {(run.options?.namHoc || run.options?.fromDate) && (
                         <p className="text-xs text-slate-blue">
                             {run.options.namHoc && <>Năm học {run.options.namHoc}, học kỳ {run.options.hocKy}. </>}
-                            {run.options.fromDate && <>Lịch học {run.options.fromDate} → {run.options.toDate}.</>}
+                            {run.options.fromDate && <>Lịch học {run.options.fromDate} → {run.options.toDate}. </>}
+                            {(run.options.lecturerCodes?.length || run.options.studentCodes?.length) ? (
+                                <>Theo mã: {[...(run.options.lecturerCodes ?? []), ...(run.options.studentCodes ?? [])].join(', ')}.</>
+                            ) : null}
                         </p>
                     )}
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <ResponsiveTable className="w-full text-sm">
+<colgroup>
+<col style={{ width: '17%' }} />
+<col style={{ width: '9%' }} />
+<col style={{ width: '9%' }} />
+<col style={{ width: '9%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '44%' }} />
+</colgroup>
                             <thead>
                                 <tr className="text-left text-xs uppercase text-slate-blue">
                                     <th className="py-1.5 pr-3 font-semibold">Bước</th>
@@ -145,12 +156,12 @@ const RunRow = ({ run, defaultOpen }) => {
                                         <td className={`py-2 px-3 text-right ${r.skipped ? 'text-amber-700 font-semibold' : ''}`}>{r.skipped}</td>
                                         <td className="py-2 px-3 text-right">{r.deactivated}</td>
                                         <td className="py-2 pl-3 min-w-[220px]">
-                                            {r.error && <p className="text-red-700 font-medium">{r.error}</p>}
+                                            {r.error && <p className="text-red-700 font-medium">{syncMessage(r.error)}</p>}
                                             {r.warnings?.length > 0 && (
                                                 <details className="text-xs text-slate-blue">
                                                     <summary className="cursor-pointer text-amber-700 font-semibold">{r.warnings.length} cảnh báo</summary>
                                                     <ul className="mt-1 space-y-0.5 list-disc pl-4">
-                                                        {r.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                                                        {r.warnings.map((w, i) => <li key={i}>{syncMessage(w)}</li>)}
                                                     </ul>
                                                 </details>
                                             )}
@@ -159,7 +170,7 @@ const RunRow = ({ run, defaultOpen }) => {
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
                 </div>
             )}
@@ -220,7 +231,7 @@ const LookupCard = () => {
             <p className="text-xs text-slate-blue">
                 Hỏi thẳng hệ thống của Trường cho 1 người, 1 ngày hoặc 1 buổi. Chỉ xem, không lưu vào hệ thống — dùng để đối chiếu khi dữ liệu đồng bộ có vẻ sai.
             </p>
-            <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <FilterBar data-filter-grid as="form" variant="inline" onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                 <label className="block" htmlFor="uel-lk-type">
                     <span className="block text-xs font-bold text-slate-blue mb-1">Tra cứu</span>
                     <select id="uel-lk-type" className={inputCls} value={form.type}
@@ -241,7 +252,7 @@ const LookupCard = () => {
                 <button type="submit" disabled={busy} className={btnPrimary}>
                     <Search className="w-4 h-4" /> {busy ? 'Đang tra...' : 'Tra cứu'}
                 </button>
-            </form>
+            </FilterBar>
             {error && <p className="text-sm text-red-700">{error}</p>}
             {result && (result.items.length === 0 ? (
                 <p className="text-sm text-steel-gray">Trường không có dữ liệu cho mã này.</p>
@@ -251,20 +262,24 @@ const LookupCard = () => {
                         {result.total} dòng{result.truncated ? ` (hiện ${result.items.length} dòng đầu)` : ''} · API <code>{result.api}</code>
                     </p>
                     <div className="overflow-x-auto max-h-96 overflow-y-auto border border-platinum-tint/70 rounded-xl">
-                        <table className="w-full text-xs">
+                        <PaginatedCollection items={result?.items} itemLabel="kết quả">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-xs">
                             <thead className="sticky top-0 bg-cloud-mist">
                                 <tr className="text-left text-slate-blue">
                                     {columns.map((c) => <th key={c} className="py-2 px-2 font-semibold whitespace-nowrap">{FIELD_LABELS[c] ?? c}</th>)}
                                 </tr>
                             </thead>
                             <tbody>
-                                {result.items.map((row, i) => (
+                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((row, i) => (
                                     <tr key={i} className="border-t border-platinum-tint/60">
                                         {columns.map((c) => <td key={c} className="py-1.5 px-2 whitespace-nowrap text-midnight-indigo">{cellText(row[c])}</td>)}
                                     </tr>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (result.items)))}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
+)}
+</PaginatedCollection>
                     </div>
                 </div>
             ))}
@@ -281,7 +296,7 @@ const UelSync = () => {
 
     // Form chạy tay
     const [steps, setSteps] = useState(UEL_SYNC_STEPS.map((s) => s.key));
-    const [runForm, setRunForm] = useState({ namHoc: '', hocKy: '', fromDate: localDate(), toDate: localDate(13) });
+    const [runForm, setRunForm] = useState({ namHoc: '', hocKy: '', fromDate: localDate(), toDate: localDate(13), lecturerCodes: '', studentCodes: '' });
     const [starting, setStarting] = useState(false);
     const [runError, setRunError] = useState(null);
 
@@ -298,7 +313,7 @@ const UelSync = () => {
     const pollRef = useRef(null);
 
     const refresh = useCallback(async () => {
-        const [st, rs] = await Promise.all([getUelSyncStatus(), getUelSyncRuns(10)]);
+        const [st, rs] = await Promise.all([getUelSyncStatus(), getUelSyncRuns(100)]);
         setStatus(st);
         setRuns(rs ?? []);
         return st;
@@ -349,9 +364,8 @@ const UelSync = () => {
         if (!steps.length) return 'Chọn ít nhất một bước.';
         if (needSemester && (!runForm.namHoc.trim() || !runForm.hocKy.trim())) return 'Lớp học phần và đăng ký cần năm học và học kỳ.';
         if (needDates && (!runForm.fromDate || !runForm.toDate || runForm.fromDate > runForm.toDate)) return 'Lịch học cần khoảng ngày hợp lệ.';
-        if (needDates && periods.length === 0) return 'Lịch học cần bảng giờ tiết. Nhập ở mục "Bảng giờ tiết" bên dưới.';
         return null;
-    }, [status, steps, needSemester, needDates, runForm, periods.length]);
+    }, [status, steps, needSemester, needDates, runForm]);
 
     const toggleStep = (key) =>
         setSteps((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : UEL_SYNC_STEPS.map((s) => s.key).filter((k) => k === key || cur.includes(k))));
@@ -362,7 +376,13 @@ const UelSync = () => {
         try {
             const payload = { steps };
             if (needSemester) Object.assign(payload, { namHoc: runForm.namHoc.trim(), hocKy: runForm.hocKy.trim() });
-            if (needDates) Object.assign(payload, { fromDate: runForm.fromDate, toDate: runForm.toDate });
+            if (needDates) {
+                Object.assign(payload, { fromDate: runForm.fromDate, toDate: runForm.toDate });
+                const lecturerCodes = codesOf(runForm.lecturerCodes);
+                const studentCodes = codesOf(runForm.studentCodes);
+                if (lecturerCodes.length) payload.lecturerCodes = lecturerCodes;
+                if (studentCodes.length) payload.studentCodes = studentCodes;
+            }
             await runUelSync(payload);
             await refresh();
         } catch (e) {
@@ -440,10 +460,10 @@ const UelSync = () => {
     const periodsDirty = JSON.stringify(periodRows) !== JSON.stringify(periods);
 
     return (
-        <div className="space-y-6 animate-fade-in-up max-w-5xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div data-page-surface="wide" className="space-y-6 animate-fade-in-up max-w-5xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <DatabaseZap className="w-3.5 h-3.5" />
                         Tích hợp
                     </span>
@@ -453,13 +473,13 @@ const UelSync = () => {
                         bản ghi không còn ở Trường chỉ bị vô hiệu hóa, không bị xóa.
                     </p>
                 </div>
-                <button type="button" onClick={() => refresh().catch(() => undefined)} className={btnGhost}>
-                    <RefreshCw className={`w-4 h-4 ${status?.running ? 'animate-spin' : ''}`} />
-                    Làm mới
-                </button>
+                <RefreshButton
+                    type="button"
+                    onClick={() => refresh().catch(() => undefined)}
+                />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <StatisticGrid columns={4} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <Fact
                     label="Kết nối API"
                     value={status?.configured ? 'Đã cấu hình' : 'Chưa có API key'}
@@ -484,7 +504,7 @@ const UelSync = () => {
                     tone={status?.periodCount ? 'neutral' : 'warn'}
                     hint={status?.periodCount ? null : 'Chưa có thì không đồng bộ được lịch học'}
                 />
-            </div>
+            </StatisticGrid>
 
             <Card title="Chạy đồng bộ">
                 <fieldset className="space-y-2">
@@ -516,26 +536,45 @@ const UelSync = () => {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <label className="block" htmlFor="uel-run-namhoc">
-                        <span className="block text-xs font-bold text-slate-blue mb-1">Năm học</span>
+                        <span data-ui-text="primary" className="block text-xs font-bold text-slate-blue mb-1">Năm học</span>
                         <input id="uel-run-namhoc" className={inputCls} placeholder="2026-2027" disabled={!needSemester}
                             value={runForm.namHoc} onChange={(e) => setRunForm({ ...runForm, namHoc: e.target.value })} />
                     </label>
                     <label className="block" htmlFor="uel-run-hocky">
-                        <span className="block text-xs font-bold text-slate-blue mb-1">Học kỳ</span>
-                        <input id="uel-run-hocky" className={inputCls} placeholder="1" disabled={!needSemester}
+                        <span data-ui-text="primary" className="block text-xs font-bold text-slate-blue mb-1">Học kỳ</span>
+                        <input id="uel-run-hocky" className={inputCls} placeholder="HK01" disabled={!needSemester}
                             value={runForm.hocKy} onChange={(e) => setRunForm({ ...runForm, hocKy: e.target.value })} />
                     </label>
                     <label className="block" htmlFor="uel-run-from">
-                        <span className="block text-xs font-bold text-slate-blue mb-1">Lịch học từ ngày</span>
-                        <input id="uel-run-from" type="date" className={inputCls} disabled={!needDates}
+                        <span data-ui-text="primary" className="block text-xs font-bold text-slate-blue mb-1">Lịch học từ ngày</span>
+                        <DateInput id="uel-run-from" type="date" className={inputCls} disabled={!needDates}
                             value={runForm.fromDate} onChange={(e) => setRunForm({ ...runForm, fromDate: e.target.value })} />
                     </label>
                     <label className="block" htmlFor="uel-run-to">
-                        <span className="block text-xs font-bold text-slate-blue mb-1">Đến ngày</span>
-                        <input id="uel-run-to" type="date" className={inputCls} disabled={!needDates}
+                        <span data-ui-text="primary" className="block text-xs font-bold text-slate-blue mb-1">Đến ngày</span>
+                        <DateInput id="uel-run-to" type="date" className={inputCls} disabled={!needDates}
                             value={runForm.toDate} onChange={(e) => setRunForm({ ...runForm, toDate: e.target.value })} />
                     </label>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <label className="block" htmlFor="uel-run-gv">
+                        <span data-ui-text="primary" className="block text-xs font-bold text-slate-blue mb-1">Lịch học theo mã giảng viên (tùy chọn)</span>
+                        <input id="uel-run-gv" className={inputCls} placeholder="VD: GV0001, 22.001" disabled={!needDates} maxLength={500}
+                            value={runForm.lecturerCodes} onChange={(e) => setRunForm({ ...runForm, lecturerCodes: e.target.value })} />
+                    </label>
+                    <label className="block" htmlFor="uel-run-sv">
+                        <span data-ui-text="primary" className="block text-xs font-bold text-slate-blue mb-1">Lịch học theo mã sinh viên (tùy chọn)</span>
+                        <input id="uel-run-sv" className={inputCls} placeholder="VD: K240000001" disabled={!needDates} maxLength={500}
+                            value={runForm.studentCodes} onChange={(e) => setRunForm({ ...runForm, studentCodes: e.target.value })} />
+                    </label>
+                </div>
+                {needDates && (
+                    <p className="text-xs text-steel-gray">
+                        Có nhập mã: chỉ lấy lịch của những người đó (mỗi mã × mỗi ngày = 1 lần gọi API, tối đa 600) và không hủy buổi nào.
+                        Để trống: lấy lịch toàn trường theo ngày. Giờ buổi học lấy từ API; bảng giờ tiết chỉ dùng khi API không trả giờ.
+                    </p>
+                )}
 
                 <div className="flex flex-wrap items-center gap-3">
                     <button type="button" onClick={handleRun} disabled={!!runBlocker || starting} className={btnPrimary}>
@@ -551,9 +590,13 @@ const UelSync = () => {
                 {runs.length === 0 ? (
                     <p className="text-sm text-steel-gray">Chưa có lượt đồng bộ nào. Bấm "Chạy đồng bộ" ở trên để chạy lượt đầu tiên.</p>
                 ) : (
-                    <ul className="space-y-2">
-                        {runs.map((r, i) => <RunRow key={r.id ?? r.startedAt} run={r} defaultOpen={i === 0} />)}
+                    <PaginatedCollection items={runs} itemLabel="lượt đồng bộ" note="100 lượt gần nhất">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-2">
+                        {camaiPageItems.map((camaiRecord, camaiIndex) => ((r, i) => <RunRow key={r.id ?? r.startedAt} run={r} defaultOpen={i === 0} />)(camaiRecord, camaiStartIndex + camaiIndex, (runs)))}
                     </ul>
+)}
+</PaginatedCollection>
                 )}
             </Card>
 
@@ -568,17 +611,17 @@ const UelSync = () => {
                         </p>
                         <div className="grid grid-cols-3 gap-3">
                             <label className="block col-span-1" htmlFor="uel-set-namhoc">
-                                <span className="block text-xs font-bold text-slate-blue mb-1">Năm học</span>
+                                <span data-ui-text="primary" className="block text-xs font-bold text-slate-blue mb-1">Năm học</span>
                                 <input id="uel-set-namhoc" className={inputCls} placeholder="2026-2027"
                                     value={settingsForm.namHoc} onChange={(e) => setSettingsForm({ ...settingsForm, namHoc: e.target.value })} />
                             </label>
                             <label className="block" htmlFor="uel-set-hocky">
-                                <span className="block text-xs font-bold text-slate-blue mb-1">Học kỳ</span>
-                                <input id="uel-set-hocky" className={inputCls} placeholder="1"
+                                <span data-ui-text="primary" className="block text-xs font-bold text-slate-blue mb-1">Học kỳ</span>
+                                <input id="uel-set-hocky" className={inputCls} placeholder="HK01"
                                     value={settingsForm.hocKy} onChange={(e) => setSettingsForm({ ...settingsForm, hocKy: e.target.value })} />
                             </label>
                             <label className="block" htmlFor="uel-set-days">
-                                <span className="block text-xs font-bold text-slate-blue mb-1">Số ngày lịch học</span>
+                                <span data-ui-text="primary" className="block text-xs font-bold text-slate-blue mb-1">Số ngày lịch học</span>
                                 <input id="uel-set-days" type="number" min={1} max={120} className={inputCls}
                                     value={settingsForm.sessionDaysAhead}
                                     onChange={(e) => setSettingsForm({ ...settingsForm, sessionDaysAhead: e.target.value })} />
@@ -610,7 +653,15 @@ const UelSync = () => {
                         <p className="text-sm text-amber-700">Chưa có tiết nào. Bấm "Thêm tiết" để nhập theo lịch tiết của Trường.</p>
                     ) : (
                         <div className="overflow-x-auto max-h-80 overflow-y-auto">
-                            <table className="w-full text-sm">
+                            <PaginatedCollection items={periodRows} itemLabel="tiết học" resetKey="study-periods" revealAdded>
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-sm">
+<colgroup>
+<col style={{ width: '16%' }} />
+<col style={{ width: '34%' }} />
+<col style={{ width: '34%' }} />
+<col style={{ width: '16%' }} />
+</colgroup>
                                 <thead className="sticky top-0 bg-white">
                                     <tr className="text-left text-xs uppercase text-slate-blue">
                                         <th className="py-1.5 pr-2 font-semibold">Tiết</th>
@@ -620,7 +671,7 @@ const UelSync = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {periodRows.map((p, i) => (
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((p, i) => (
                                         <tr key={i} className="border-t border-platinum-tint/60">
                                             <td className="py-1.5 pr-2 w-20">
                                                 <input id={`uel-p-no-${i}`} aria-label="Số tiết" type="number" min={1} max={30} className={inputCls}
@@ -642,9 +693,11 @@ const UelSync = () => {
                                                 </button>
                                             </td>
                                         </tr>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (periodRows)))}
                                 </tbody>
-                            </table>
+                            </ResponsiveTable>
+)}
+</PaginatedCollection>
                         </div>
                     )}
                     <div className="flex flex-wrap items-center gap-3">

@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, CalendarDays, Download, Filter, Users } from 'lucide-react';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter from '../../components/common/PaginationFooter';
+import Pagination from '../../components/common/Pagination';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ReportExportAction from '../../components/common/ReportExportAction';
+import StatisticCard from '../../components/common/StatisticCard';
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, Download } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { exportSemesterClassAttendanceCsv, fetchClassAttendanceClasses, fetchTeacherClassAttendanceReport, getStudentAttendanceReport, mockClassrooms } from '../../service/classAttendanceService';
+import { exportSemesterClassAttendanceCsv, fetchClassAttendanceClasses, fetchTeacherClassAttendanceReport } from '../../service/classAttendanceService';
 
 const RANGE_OPTIONS = [
     { value: 'day', label: 'Ngày' },
@@ -15,6 +22,20 @@ const STATUS_COLORS = {
     late: '#D97706',
     absent: '#DC2626'
 };
+
+const CARD_FILTERS = [
+    { key: 'all', label: 'Tổng buổi học', field: 'totalSessions' },
+    { key: 'attended', label: 'Đã điểm danh', field: 'attended' },
+    { key: 'onTime', label: 'Đúng giờ', field: 'onTime' },
+    { key: 'late', label: 'Đi muộn', field: 'late' },
+    { key: 'absent', label: 'Vắng', field: 'absent' },
+];
+
+const STATUS_SERIES = [
+    { key: 'onTime', name: 'Đúng giờ' },
+    { key: 'late', name: 'Đi muộn' },
+    { key: 'absent', name: 'Vắng' },
+];
 
 const todayKey = () => {
     const d = new Date();
@@ -30,27 +51,6 @@ const formatDate = (date) => date.toLocaleDateString('vi-VN', {
     year: 'numeric'
 });
 
-const formatDateKey = (dateKey) => {
-    const date = new Date(`${dateKey}T00:00:00`);
-    if (Number.isNaN(date.getTime())) return dateKey || '';
-    return formatDate(date);
-};
-
-const parseDisplayDate = (value) => {
-    const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!match) return null;
-    const [, day, month, year] = match;
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    if (
-        date.getFullYear() !== Number(year)
-        || date.getMonth() !== Number(month) - 1
-        || date.getDate() !== Number(day)
-    ) {
-        return null;
-    }
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-};
-
 const formatPeriod = (mode, period) => {
     if (!period?.start || !period?.end) return '';
     const start = new Date(`${period.start}T00:00:00`);
@@ -61,108 +61,46 @@ const formatPeriod = (mode, period) => {
     return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
-const normalizeText = (value = '') => value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-
-const getStoredUser = () => {
-    try {
-        const raw = localStorage.getItem('user');
-        return raw ? JSON.parse(raw) : null;
-    } catch {
-        return null;
-    }
+const EMPTY_REPORT = {
+    rows: [],
+    period: null,
+    totals: { totalSessions: 0, attended: 0, onTime: 0, late: 0, absent: 0, rate: 0 }
 };
 
-const buildClassReport = ({ selectedSubjectCode, selectedAdministrativeClass, selectedSemester, rangeMode, anchorDate, classrooms = mockClassrooms }) => {
-    const classes = classrooms
-        .filter(item => selectedSubjectCode === 'all' || (item.subjectCode || item.code) === selectedSubjectCode)
-        .filter(item => selectedSemester === 'all' || item.semester === selectedSemester);
-    let period = null;
-
-    const rows = classes.map(klass => {
-        const students = (klass.students || []).filter(student => (
-            selectedAdministrativeClass === 'all'
-            || student.administrativeClass === selectedAdministrativeClass
-        ));
-        const entries = students.flatMap(student => {
-            const report = getStudentAttendanceReport({
-                studentId: student.id,
-                mode: rangeMode,
-                anchorDate
-            });
-            if (!period) period = report.period;
-            return (report.entries || []).filter(entry => entry.classId === klass.id);
-        });
-
-        const totalSessions = entries.length;
-        const attended = entries.filter(item => item.checkInAt).length;
-        const late = entries.filter(item => item.status === 'late').length;
-        const absent = entries.filter(item => !item.checkInAt || item.status === 'absent').length;
-        const onTime = entries.filter(item => item.status === 'on_time' || item.status === 'left').length;
-
-        return {
-            ...klass,
-            totalSessions,
-            attended,
-            onTime,
-            late,
-            absent,
-            rate: totalSessions ? Math.round((attended / totalSessions) * 100) : 0
-        };
-    });
-
-    const totals = rows.reduce((acc, item) => ({
-        totalSessions: acc.totalSessions + item.totalSessions,
-        attended: acc.attended + item.attended,
-        onTime: acc.onTime + item.onTime,
-        late: acc.late + item.late,
-        absent: acc.absent + item.absent
-    }), { totalSessions: 0, attended: 0, onTime: 0, late: 0, absent: 0 });
-
-    return {
-        rows,
-        period,
-        totals: {
-            ...totals,
-            rate: totals.totalSessions ? Math.round((totals.attended / totals.totalSessions) * 100) : 0
-        }
-    };
-};
-
-const StatCard = ({ label, value, helper }) => (
-    <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
+const LegacyStatCard = ({ label, value, helper, onClick, selected }) => (
+    <button type="button" onClick={onClick} aria-label={label} aria-pressed={selected}
+        className={`w-full text-left bg-white border rounded-2xl p-4 shadow-sm hover:border-action-blue ${selected ? 'border-action-blue ring-1 ring-action-blue' : 'border-platinum-tint'}`}>
         <p className="text-[10px] font-bold uppercase tracking-wide text-slate-blue">{label}</p>
         <p className="text-2xl font-bold text-midnight-indigo mt-1">{value}</p>
         {helper && <p className="text-xs text-steel-gray mt-1">{helper}</p>}
-    </div>
+    </button>
 );
+
+const StatCard = (props) => <StatisticCard {...props} aria-label={props.label} legacy={<LegacyStatCard {...props} />} />;
 
 const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const canExport = mode === 'teacher';
-    const [currentUser, setCurrentUser] = useState(() => getStoredUser());
-    const [classCatalog, setClassCatalog] = useState(mockClassrooms);
+    const [classCatalog, setClassCatalog] = useState([]);
     const [apiReport, setApiReport] = useState(null);
+    const [loadError, setLoadError] = useState('');
     const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState('all');
     const [selectedSemester, setSelectedSemester] = useState('all');
     const [rangeMode, setRangeMode] = useState('month');
     const [anchorDate, setAnchorDate] = useState(() => todayKey());
-    const [dateText, setDateText] = useState(() => formatDateKey(todayKey()));
-    const datePickerRef = useRef(null);
-    useEffect(() => {
-        setCurrentUser(getStoredUser());
-    }, []);
-
+    const [cardFilter, setCardFilter] = useState('all');
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [loading, setLoading] = useState(true);
     useEffect(() => {
         let cancelled = false;
-        fetchClassAttendanceClasses()
+        fetchClassAttendanceClasses({ source: 'uel_api' })
             .then(classes => {
-                if (!cancelled && classes?.length) setClassCatalog(classes);
+                if (!cancelled) setClassCatalog(Array.isArray(classes) ? classes : []);
             })
-            .catch(() => {});
+            .catch(error => {
+                if (!cancelled) setLoadError(error?.message || 'Không tải được danh sách lớp.');
+            });
         return () => {
             cancelled = true;
         };
@@ -170,36 +108,35 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
 
     useEffect(() => {
         let cancelled = false;
+        setLoading(true);
         fetchTeacherClassAttendanceReport({
             classId: 'all',
             subjectCode: selectedSubjectCode,
             administrativeClass: selectedAdministrativeClass,
             semester: selectedSemester,
             mode: rangeMode,
-            anchorDate
+            anchorDate,
+            source: 'uel_api',
         })
             .then(data => {
                 if (cancelled) return;
                 setApiReport(data || null);
+                setLoadError('');
             })
-            .catch(() => {
+            .catch(error => {
                 if (!cancelled) {
                     setApiReport(null);
+                    setLoadError(error?.message || 'Không tải được báo cáo chuyên cần.');
                 }
-            });
+            })
+            .finally(() => { if (!cancelled) setLoading(false); });
         return () => {
             cancelled = true;
         };
     }, [anchorDate, rangeMode, selectedAdministrativeClass, selectedSemester, selectedSubjectCode]);
 
-    const teacherClassrooms = useMemo(() => {
-        if (!canExport) return classCatalog;
-
-        const teacherName = normalizeText(currentUser?.fullName || currentUser?.full_name || currentUser?.name);
-        const ownedClasses = classCatalog.filter(item => normalizeText(item.teacher) === teacherName);
-
-        return ownedClasses.length > 0 ? ownedClasses : classCatalog;
-    }, [canExport, classCatalog, currentUser]);
+    // BE đã giới hạn phạm vi lớp theo vai trò (GV chỉ thấy lớp mình phụ trách).
+    const teacherClassrooms = classCatalog;
 
     const subjectOptions = useMemo(() => {
         const options = new Map();
@@ -213,12 +150,12 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const administrativeClassOptions = useMemo(() => {
         const classes = teacherClassrooms
             .filter(item => selectedSubjectCode === 'all' || (item.subjectCode || item.code) === selectedSubjectCode)
-            .flatMap(item => item.administrativeClasses || (item.students || []).map(student => student.administrativeClass))
+            .flatMap(item => item.administrativeClasses || [])
             .filter(Boolean);
         return [...new Set(classes)].sort((a, b) => a.localeCompare(b, 'vi'));
     }, [selectedSubjectCode, teacherClassrooms]);
 
-    const semesters = useMemo(() => Array.from(new Set(teacherClassrooms.map(item => item.semester))), [teacherClassrooms]);
+    const semesters = useMemo(() => Array.from(new Set(teacherClassrooms.map(item => item.semester).filter(Boolean))), [teacherClassrooms]);
 
     useEffect(() => {
         if (selectedAdministrativeClass !== 'all' && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
@@ -226,28 +163,23 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
         }
     }, [administrativeClassOptions, selectedAdministrativeClass]);
 
-    const report = useMemo(
-        () => {
-            if (apiReport?.rows) return apiReport;
-            return buildClassReport({
-                selectedSubjectCode,
-                selectedAdministrativeClass,
-                selectedSemester,
-                rangeMode,
-                anchorDate,
-                classrooms: teacherClassrooms
-            });
-        },
-        [apiReport, anchorDate, rangeMode, selectedAdministrativeClass, selectedSemester, selectedSubjectCode, teacherClassrooms]
-    );
+    const report = apiReport?.rows ? { ...EMPTY_REPORT, ...apiReport, totals: { ...EMPTY_REPORT.totals, ...apiReport.totals } } : EMPTY_REPORT;
 
-    const pieData = [
-        { name: 'Đúng giờ', value: report.totals.onTime, color: STATUS_COLORS.onTime },
-        { name: 'Đi muộn', value: report.totals.late, color: STATUS_COLORS.late },
-        { name: 'Vắng', value: report.totals.absent, color: STATUS_COLORS.absent }
-    ];
+    const filteredRows = cardFilter === 'all' ? report.rows : report.rows.filter(row => Number(row[cardFilter]) > 0);
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const pageRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
+    const changePageSize = size => { setPageSize(size); setPage(1); };
+    useEffect(() => {
+        setPage(1);
+    }, [cardFilter, selectedSubjectCode, selectedAdministrativeClass, selectedSemester, rangeMode, anchorDate]);
+    const visibleSeries = STATUS_SERIES.filter(series => cardFilter === 'all'
+        || (cardFilter === 'attended' ? series.key !== 'absent' : series.key === cardFilter));
+    const pieData = visibleSeries.map(series => ({
+        name: series.name, value: report.totals[series.key], color: STATUS_COLORS[series.key],
+    }));
     const hasPieData = pieData.some(item => item.value > 0);
-    const barData = report.rows.map(item => ({
+    const barData = filteredRows.map(item => ({
         name: item.subjectCode || item.code,
         subject: item.subject,
         'Đúng giờ': item.onTime,
@@ -255,34 +187,8 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
         'Vắng': item.absent
     }));
 
-    const handleDateTextChange = (event) => {
-        const nextValue = event.target.value;
-        setDateText(nextValue);
-        const parsedDate = parseDisplayDate(nextValue);
-        if (parsedDate) setAnchorDate(parsedDate);
-    };
-
-    const handleDatePick = (event) => {
-        const nextKey = event.target.value;
-        if (!nextKey) return;
-        setAnchorDate(nextKey);
-        setDateText(formatDateKey(nextKey));
-    };
-
-    const openDatePicker = () => {
-        const input = datePickerRef.current;
-        if (!input) return;
-        if (typeof input.showPicker === 'function') input.showPicker();
-        else input.click();
-    };
-
-    const normalizeDateText = () => {
-        const parsedDate = parseDisplayDate(dateText);
-        setDateText(formatDateKey(parsedDate || anchorDate));
-    };
-
     return (
-        <div className="p-6 space-y-5 animate-fade-in-up">
+        <div data-page-surface="wide" className="p-6 space-y-5 animate-fade-in-up">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
@@ -291,141 +197,74 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     </h1>
                     <p className="text-xs text-slate-blue mt-0.5">Lọc theo lớp, môn học và khoảng thời gian để xem tỷ lệ chuyên cần</p>
                 </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm flex flex-wrap gap-3 items-end">
-                <div className="flex flex-col gap-1 min-w-[170px]">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Lớp hành chính</label>
-                    <div className="relative">
-                        <Users className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
-                        <select
-                            value={selectedAdministrativeClass}
-                            onChange={(event) => setSelectedAdministrativeClass(event.target.value)}
-                            className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
-                        >
-                            <option value="all">Tất cả lớp</option>
-                            {administrativeClassOptions.map(className => (
-                                <option key={className} value={className}>{className}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-1 min-w-[240px]">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Môn học</label>
-                    <select
-                        value={selectedSubjectCode}
-                        onChange={(event) => setSelectedSubjectCode(event.target.value)}
-                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
-                    >
-                        <option value="all">Tất cả môn học</option>
-                        {subjectOptions.map(subject => (
-                            <option key={subject.code} value={subject.code}>{subject.code} - {subject.name}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="flex flex-col gap-1 min-w-[180px]">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Học kỳ</label>
-                    <select
-                        value={selectedSemester}
-                        onChange={(event) => setSelectedSemester(event.target.value)}
-                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
-                    >
-                        <option value="all">Tất cả học kỳ</option>
-                        {semesters.map(semester => (
-                            <option key={semester} value={semester}>{semester}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="flex flex-col gap-1 min-w-[220px]">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Khoảng thời gian</label>
-                    <div className="flex items-center gap-1 bg-cloud-mist/70 rounded-xl p-1">
-                        {RANGE_OPTIONS.map(option => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                onClick={() => setRangeMode(option.value)}
-                                className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${rangeMode === option.value ? 'bg-white text-action-blue shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-1 min-w-[140px]">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Ngày mốc</label>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            value={dateText}
-                            onChange={handleDateTextChange}
-                            onBlur={normalizeDateText}
-                            placeholder="dd/mm/yyyy"
-                            className="w-full pl-9 pr-9 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20 placeholder:text-steel-gray"
-                        />
-                        <Filter className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
-                        <button
-                            type="button"
-                            onClick={openDatePicker}
-                            title="Chọn ngày"
-                            className="absolute right-2 top-1.5 p-1 rounded-md text-slate-blue hover:text-action-blue hover:bg-cloud-mist"
-                        >
-                            <CalendarDays className="w-4 h-4" />
-                        </button>
-                        <input
-                            ref={datePickerRef}
-                            type="date"
-                            value={anchorDate}
-                            onChange={handleDatePick}
-                            tabIndex={-1}
-                            aria-hidden="true"
-                            className="absolute right-2 bottom-0 w-0 h-0 opacity-0 pointer-events-none"
-                        />
-                    </div>
-                </div>
-
                 {canExport && (
-                    <button
+                    <ReportExportAction format="csv" label="Xuất chuyên cần"
                         type="button"
                         onClick={() => exportSemesterClassAttendanceCsv({
                             classId: 'all',
                             semester: selectedSemester,
                             subjectCode: selectedSubjectCode,
+                            source: 'uel_api',
                             administrativeClass: selectedAdministrativeClass
-                        })}
-                        className="px-4 py-2 rounded-xl bg-action-blue text-white text-xs font-bold flex items-center gap-2 shadow-sm"
+                        }).catch(error => setLoadError(error?.message || 'Không xuất được file chuyên cần.'))}
+                        legacyClassName="px-4 py-2 rounded-xl bg-action-blue text-white text-xs font-bold flex items-center gap-2 shadow-sm"
                     >
                         <Download className="w-4 h-4" />
                         Xuất chuyên cần
-                    </button>
+                    </ReportExportAction>
                 )}
             </div>
 
+            {loadError && (
+                <div data-ui-text="badge" role="alert" className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">{loadError}</div>
+            )}
+
+            <FilterBar forceStandard variant="card" data-filter-grid className="grid gap-4" style={{ '--filter-column-min': '11rem' }}>
+                <FilterField label="Lớp hành chính">
+                    <select value={selectedAdministrativeClass} onChange={event => setSelectedAdministrativeClass(event.target.value)}>
+                        <option value="all">Tất cả lớp</option>
+                        {administrativeClassOptions.map(className => <option key={className} value={className}>{className}</option>)}
+                    </select>
+                </FilterField>
+                <FilterField label="Môn học">
+                    <select value={selectedSubjectCode} onChange={event => setSelectedSubjectCode(event.target.value)}>
+                        <option value="all">Tất cả môn học</option>
+                        {subjectOptions.map(subject => <option key={subject.code} value={subject.code}>{subject.code} - {subject.name}</option>)}
+                    </select>
+                </FilterField>
+                <FilterField label="Học kỳ">
+                    <select value={selectedSemester} onChange={event => setSelectedSemester(event.target.value)}>
+                        <option value="all">Tất cả học kỳ</option>
+                        {semesters.map(semester => <option key={semester} value={semester}>{semester}</option>)}
+                    </select>
+                </FilterField>
+                <FilterField label="Khoảng thời gian">
+                    <select value={rangeMode} onChange={event => setRangeMode(event.target.value)}>
+                        {RANGE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                </FilterField>
+                <FilterField label="Ngày mốc">
+                    <input type="date" value={anchorDate} onChange={event => event.target.value && setAnchorDate(event.target.value)} />
+                </FilterField>
+            </FilterBar>
+
             <div className="bg-white rounded-2xl border border-platinum-tint p-5 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-blue">Khoảng thống kê</p>
+                    <p data-ui-text="label" className="text-[10px] font-bold uppercase tracking-wide text-slate-blue">Khoảng thống kê</p>
                     <p className="text-base font-bold text-midnight-indigo mt-1">{formatPeriod(rangeMode, report.period)}</p>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-action-blue">
-                    <CalendarDays className="w-4 h-4" />
-                    {selectedAdministrativeClass === 'all' ? 'Tất cả lớp' : selectedAdministrativeClass}
-                    {' · '}
-                    {selectedSubjectCode === 'all' ? 'Tất cả môn học' : subjectOptions.find(item => item.code === selectedSubjectCode)?.name}
-                    {selectedSemester !== 'all' ? ` · ${selectedSemester}` : ''}
-                </div>
+
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <StatCard label="Tổng buổi học" value={report.totals.totalSessions} helper="Theo lịch lớp" />
-                <StatCard label="Đã điểm danh" value={report.totals.attended} helper={`${report.totals.rate}%`} />
-                <StatCard label="Đúng giờ" value={report.totals.onTime} />
-                <StatCard label="Đi muộn" value={report.totals.late} />
-                <StatCard label="Vắng" value={report.totals.absent} />
-            </div>
+            <StatisticGrid columns={5} className="grid grid-cols-1 md:grid-cols-5 gap-4" role="group" aria-label="Lọc chuyên cần theo thẻ">
+                {CARD_FILTERS.map(filter => <StatCard key={filter.key} label={filter.label}
+                    value={report.totals[filter.field]}
+                    helper={filter.key === 'all' ? 'Theo lịch lớp' : filter.key === 'attended' ? `${report.totals.rate}%` : undefined}
+                    selected={cardFilter === filter.key}
+                    loading={loading}
+                    onClick={() => setCardFilter(current => current === filter.key ? 'all' : filter.key)}
+                />)}
+            </StatisticGrid>
 
             <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.4fr] gap-5">
                 <div className="bg-white rounded-2xl border border-platinum-tint p-5 shadow-sm">
@@ -441,14 +280,14 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="h-full flex items-center justify-center text-sm text-slate-blue">Không có dữ liệu trong khoảng này</div>
+                            <div className="h-full flex items-center justify-center text-sm text-slate-blue">Không có dữ liệu phù hợp với bộ lọc.</div>
                         )}
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div data-ui-legend-grid className="grid grid-cols-3 gap-2">
                         {pieData.map(item => (
                             <div key={item.name} className="rounded-xl bg-cloud-mist p-3">
                                 <span className="block w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                                <p className="text-[11px] font-bold text-midnight-indigo mt-2">{item.name}</p>
+                                <p data-ui-text="label" className="text-[11px] font-bold text-midnight-indigo mt-2">{item.name}</p>
                                 <p className="text-base font-bold" style={{ color: item.color }}>{item.value}</p>
                             </div>
                         ))}
@@ -458,17 +297,17 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                 <div className="bg-white rounded-2xl border border-platinum-tint p-5 shadow-sm">
                     <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">So sánh theo môn học</h2>
                     <div className="h-80 mt-4">
+                        {barData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={barData} margin={{ top: 8, right: 16, left: -18, bottom: 8 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                                 <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                                 <Tooltip />
-                                <Bar dataKey="Đúng giờ" stackId="a" fill={STATUS_COLORS.onTime} radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="Đi muộn" stackId="a" fill={STATUS_COLORS.late} />
-                                <Bar dataKey="Vắng" stackId="a" fill={STATUS_COLORS.absent} />
+                                {visibleSeries.map((series, index) => <Bar key={series.key} dataKey={series.name} stackId="a" fill={STATUS_COLORS[series.key]} radius={index === 0 ? [4, 4, 0, 0] : undefined} />)}
                             </BarChart>
                         </ResponsiveContainer>
+                        ) : <div className="h-full flex items-center justify-center text-sm text-slate-blue">Không có dữ liệu phù hợp với bộ lọc.</div>}
                     </div>
                 </div>
             </div>
@@ -476,10 +315,13 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">
                 <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10">
                     <h3 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">
-                        Danh sách chuyên cần
+                        Danh sách chuyên cần{cardFilter !== 'all' ? ` · ${CARD_FILTERS.find(filter => filter.key === cardFilter)?.label}` : ''}
                     </h3>
                 </div>
-                <table className="w-full text-sm">
+                <ResponsiveTable className="w-full text-sm">
+                    {mode === 'admin' && <colgroup>
+                        {[20, 25, 10, 9, 10, 8, 8, 10].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+                    </colgroup>}
                     <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
                         <tr>
                             <th className="text-left px-5 py-4">Lớp hành chính</th>
@@ -493,7 +335,12 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {report.rows.map(item => (
+                        {pageRows.length === 0 && <tr><td colSpan={8} className="px-5 py-8 text-center text-slate-blue">
+                            {loading ? 'Đang tải dữ liệu…' : report.rows.length === 0
+                                ? 'Chưa có lớp học thực tế đã đồng bộ phù hợp với bộ lọc hiện tại.'
+                                : 'Không có lớp/môn học phù hợp với bộ lọc hiện tại.'}
+                        </td></tr>}
+                        {pageRows.map(item => (
                             <tr key={item.id} className="border-t border-platinum-tint/70">
                                 <td className="px-5 py-4">
                                     <p className="font-bold text-midnight-indigo">
@@ -513,12 +360,24 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                                     <div className="w-40 h-2 rounded-full bg-cloud-mist overflow-hidden">
                                         <div className="h-full bg-action-blue" style={{ width: `${item.rate}%` }} />
                                     </div>
-                                    <span className="text-xs font-bold text-slate-blue">{item.rate}%</span>
+                                    <span data-ui-text="primary" className="text-xs font-bold text-slate-blue">{item.rate}%</span>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
-                </table>
+                </ResponsiveTable>
+                <PaginationFooter currentPage={safePage} totalPages={totalPages} totalItems={filteredRows.length}
+                    pageSize={pageSize} onPageSizeChange={changePageSize} onPageChange={setPage} loading={loading} itemLabel="lớp/môn học"
+                    legacy={<div className="flex flex-wrap items-center justify-between gap-3 border-t border-platinum-tint p-4 text-xs text-slate-blue">
+                        <label className="flex items-center gap-2">Số dòng/trang<select aria-label="Số dòng/trang" value={pageSize}
+                            disabled={loading} onChange={event => changePageSize(Number(event.target.value))}
+                            className="rounded-lg border border-platinum-tint bg-white px-2 py-1">
+                            {[5, 10, 20, 50].map(size => <option key={size} value={size}>{size} dòng</option>)}
+                        </select></label>
+                        <span>{loading ? 'Đang tải dữ liệu…' : `Hiển thị ${filteredRows.length ? (safePage - 1) * pageSize + 1 : 0}–${Math.min(safePage * pageSize, filteredRows.length)} / ${filteredRows.length} lớp/môn học`}</span>
+                        <Pagination currentPage={safePage} totalPages={totalPages} onPageChange={setPage} disabled={loading} />
+                    </div>}
+                />
             </div>
         </div>
     );

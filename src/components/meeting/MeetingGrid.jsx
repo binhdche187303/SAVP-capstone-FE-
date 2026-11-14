@@ -244,14 +244,14 @@ const MeetingTile = ({
                     }}
                     className="flex items-center gap-1.5 max-w-[70%] group"
                 >
-                    <span className="text-white font-bold text-[11px] truncate drop-shadow">
+                    <span data-ui-text="primary" className="text-white font-bold text-[11px] truncate drop-shadow">
                         {isSelf ? `${p.fullName} (Bạn)` : p.fullName}
                     </span>
                     {(isSelf || isHost) && (
                         <Edit2 className="w-2.5 h-2.5 text-white/60 group-hover:text-white shrink-0 transition-colors" />
                     )}
                 </button>
-                <span className={`text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded-full shrink-0 ${roleBadgeClass(p.role)}`}>
+                <span data-ui-text="badge" className={`text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded-full shrink-0 ${roleBadgeClass(p.role)}`}>
                     {p.role}
                 </span>
             </div>

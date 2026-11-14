@@ -24,7 +24,7 @@ const VisitorAvatar = ({ visitor, size = 48 }) => {
                     {initial}
                 </span>
             )}
-            {missing && size >= 64 && <span className="text-[10px] text-slate-blue">Chưa có ảnh</span>}
+            {missing && size >= 64 && <span data-ui-text="secondary" className="text-[10px] text-slate-blue">Chưa có ảnh</span>}
         </span>
     );
 };

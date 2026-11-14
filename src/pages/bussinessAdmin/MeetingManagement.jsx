@@ -1,3 +1,6 @@
+import DateInput from '../../components/common/DateInput';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
 import { AlertCircle, Calendar, CheckCircle, Clock, Home, Plus, RefreshCw, Search, Users, XCircle } from 'lucide-react';
 import { htmlToPlainText } from '../../utils/richText';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -39,7 +42,7 @@ const MeetingManagement = () => {
     const [selectedRoom, setSelectedRoom] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('');
     const [page, setPage] = useState(1);
-    const [limit] = useState(10);
+    const [limit, setLimit] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
 
@@ -391,7 +394,7 @@ const MeetingManagement = () => {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                        <ResponsiveTable className="w-full text-left border-collapse whitespace-nowrap">
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/50">
                                     <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Chủ đề cuộc họp</th>
@@ -506,37 +509,12 @@ const MeetingManagement = () => {
                                     ))
                                 )}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
                 )}
 
                 {/* Pagination */}
-                {!loading && (
-                    <div className="px-6 py-4 border-t border-platinum-tint bg-cloud-mist/20 flex items-center justify-between">
-                        <span className="text-xs text-slate-blue">
-                            Hiển thị {meetingsList.length} trên tổng số {totalItems} cuộc họp
-                        </span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPage(p => Math.max(p - 1, 1))}
-                                disabled={page === 1}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50 transition-colors"
-                            >
-                                Trước
-                            </button>
-                            <span className="px-3 py-1.5 text-xs font-bold text-midnight-indigo">
-                                Trang {page} / {totalPages}
-                            </span>
-                            <button
-                                onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                                disabled={page === totalPages}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50 transition-colors"
-                            >
-                                Tiếp
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {<PaginationRegion legacyVisible={!loading}><PaginationFooter currentPage={page} totalPages={totalPages} totalItems={totalItems} pageSize={limit} loading={loading} itemLabel="cuộc họp" onPageChange={setPage} onPageSizeChange={size => { setLimit(size); setPage(1); }} /></PaginationRegion>}
             </div>
 
             {/* ── Create / Edit modal (title + description) ────────────────────── */}
@@ -585,7 +563,7 @@ const MeetingManagement = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Bắt đầu <span className="text-red-500">*</span></label>
-                                            <input
+                                            <DateInput
                                                 type="datetime-local"
                                                 required
                                                 value={formData.startTime}
@@ -595,7 +573,7 @@ const MeetingManagement = () => {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Kết thúc <span className="text-red-500">*</span></label>
-                                            <input
+                                            <DateInput
                                                 type="datetime-local"
                                                 required
                                                 value={formData.endTime}
@@ -653,7 +631,7 @@ const MeetingManagement = () => {
                         <form onSubmit={handleTimeSave} className="p-6 space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Bắt đầu <span className="text-red-500">*</span></label>
-                                <input
+                                <DateInput
                                     type="datetime-local"
                                     required
                                     value={timeForm.startTime}
@@ -663,7 +641,7 @@ const MeetingManagement = () => {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Kết thúc <span className="text-red-500">*</span></label>
-                                <input
+                                <DateInput
                                     type="datetime-local"
                                     required
                                     value={timeForm.endTime}

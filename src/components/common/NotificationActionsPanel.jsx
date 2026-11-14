@@ -1,3 +1,4 @@
+import DateInput from './DateInput';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -339,8 +340,8 @@ const NotificationActionsPanel = ({ meetingId, meetingStatus, minutesList = [], 
                 {reminderType === 'scheduled' && (
                     <div className="space-y-1.5">
                         <label className="block text-xs font-bold text-slate-blue uppercase tracking-wider">Thời điểm gửi</label>
-                        <input
-                            type="datetime-local" lang="en-GB"
+                        <DateInput
+                            type="datetime-local"
                             value={reminderSendAt}
                             onChange={e => setReminderSendAt(e.target.value)}
                             className="w-full px-4 py-2.5 bg-slate-50 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:bg-white focus:border-action-blue transition-colors"

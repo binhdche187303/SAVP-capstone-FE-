@@ -1,6 +1,12 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import RefreshButton from '../../components/common/RefreshButton';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Camera, Car, CheckCircle2, Clock, LogIn, LogOut, RefreshCw, ShieldAlert, UserCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, Camera, Car, CheckCircle2, Clock, LogIn, LogOut, ShieldAlert, UserCheck, XCircle } from 'lucide-react';
 import { acknowledgeSecurityAlert, getSecurityAlerts, resolveSecurityAlert } from '../../service/securityAlertService';
 import { getAdminGateAccessLogs } from '../../service/sysAdminServices';
 import { getAlertTypeLabel } from '../../constants/alertType';
@@ -86,20 +92,9 @@ const getFaceGuidanceLabel = (guidance) => {
     }
 };
 
-const StatCard = ({ icon: Icon, label, value, tone, to }) => {
-    const body = (
-        <div className={`rounded-2xl border p-5 bg-white shadow-sm-2 flex items-center gap-4 ${to ? 'hover:border-action-blue transition-colors' : ''}`}>
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tone}`}>
-                <Icon className="w-6 h-6" />
-            </div>
-            <div>
-                <p className="text-xs font-semibold text-slate-blue">{label}</p>
-                <p className="text-2xl font-bold text-midnight-indigo">{value ?? '--'}</p>
-            </div>
-        </div>
-    );
-    return to ? <Link to={to} className="no-underline">{body}</Link> : body;
-};
+const StatCard = ({ icon, label, value, tone, to }) => (
+    <StatisticCard icon={icon} label={label} value={value ?? '--'} tone={statisticTone(tone)} to={to} />
+);
 
 const ScanNotice = ({ notice, onClose }) => {
     if (!notice) return null;
@@ -408,25 +403,23 @@ const GuardDashboard = () => {
                     <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Trực cổng</h1>
                     <p className="text-slate-blue text-sm mt-1">Cảnh báo cần xử lý, lượt ra vào cổng hôm nay và quét cổng bằng camera.</p>
                 </div>
-                <button
+                <RefreshButton
                     type="button"
                     onClick={load}
                     disabled={loading}
-                    className="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl text-sm font-semibold disabled:opacity-60"
-                >
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Làm mới
-                </button>
+                    busy={loading}
+                />
             </div>
 
             {error && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
             <ScanNotice notice={scanNotice} onClose={() => setScanNotice(null)} />
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard icon={AlertTriangle} label="Cảnh báo mới" value={counts.new} tone="bg-red-50 text-red-600" to="/guard/security-alerts?status=new" />
                 <StatCard icon={Clock} label="Đang xử lý" value={counts.acknowledged} tone="bg-yellow-50 text-yellow-700" to="/guard/security-alerts?status=acknowledged" />
                 <StatCard icon={LogIn} label="Lượt vào hôm nay" value={traffic.in} tone="bg-emerald-50 text-emerald-700" />
                 <StatCard icon={LogOut} label="Lượt ra hôm nay" value={traffic.out} tone="bg-blue-50 text-action-blue" />
-            </div>
+            </StatisticGrid>
 
             <section className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">
                 <div className="p-5 border-b border-platinum-tint flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -436,7 +429,7 @@ const GuardDashboard = () => {
                         </h2>
                         <p className="text-xs text-slate-blue mt-1">Quét thử lượt qua cổng, BE ghi vào gate_access_logs.</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <FilterBar variant="inline" className="flex flex-wrap items-center gap-2">
                         <select value={selectedGateId} onChange={(event) => setSelectedGateId(event.target.value)} className="px-3 py-2 rounded-xl border border-platinum-tint text-xs font-bold text-midnight-indigo bg-white">
                             {guardGates.map(gate => (
                                 <option key={gate.id} value={gate.id}>{gate.name} - {gate.direction === 'in' ? 'Vào' : 'Ra'}</option>
@@ -457,7 +450,7 @@ const GuardDashboard = () => {
                         <button type="button" onClick={() => setAutoScan(v => !v)} disabled={!webcamEnabled || !cameraReady} className={`px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-60 ${autoScan ? 'bg-red-600 text-white' : 'bg-action-blue text-white'}`}>
                             {autoScan ? 'Dừng tự động' : 'Bật tự động quét'}
                         </button>
-                    </div>
+                    </FilterBar>
                 </div>
                 <div className="p-5 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-5">
                     <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center text-white text-sm font-bold relative">
@@ -470,12 +463,12 @@ const GuardDashboard = () => {
                             </div>
                         )}
                         {webcamEnabled && !cameraReady && (
-                            <span className="absolute inset-x-3 bottom-3 px-2 py-1 rounded-lg bg-amber-500/90 text-white text-[11px] text-center">
+                            <span data-ui-text="badge" className="absolute inset-x-3 bottom-3 px-2 py-1 rounded-lg bg-amber-500/90 text-white text-[11px] text-center">
                                 Đang chờ khung hình từ webcam...
                             </span>
                         )}
                         {autoScan && cameraReady && (
-                            <span className={`absolute top-3 left-3 px-2 py-1 rounded-lg text-[11px] font-bold ${faceGuidance.state === 'perfect' && !autoScanCooling ? 'bg-emerald-500 text-white' : 'bg-black/60 text-white'}`}>
+                            <span data-ui-text="badge" className={`absolute top-3 left-3 px-2 py-1 rounded-lg text-[11px] font-bold ${faceGuidance.state === 'perfect' && !autoScanCooling ? 'bg-emerald-500 text-white' : 'bg-black/60 text-white'}`}>
                                 {scanning
                                     ? 'Đang xử lý FaceID'
                                     : autoScanCooling
@@ -485,7 +478,7 @@ const GuardDashboard = () => {
                         )}
                     </div>
                     <div className="rounded-xl border border-platinum-tint bg-cloud-mist/40 p-4">
-                        <p className="text-sm font-bold text-midnight-indigo">{selectedGate?.name}</p>
+                        <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{selectedGate?.name}</p>
                         <p className="text-xs text-slate-blue mt-1">{selectedGate?.cameraName} · {selectedGate?.direction === 'in' ? 'Lượt vào' : 'Lượt ra'}</p>
                         <p className="mt-4 text-xs text-slate-blue">Bảo vệ chỉ thao tác quét và xem kết quả. Cảnh báo phát sinh sẽ xử lý trong màn Cảnh báo an ninh.</p>
                         {autoScan && (
@@ -493,7 +486,7 @@ const GuardDashboard = () => {
                                 Camera chỉ gửi ảnh khi khuôn mặt đủ sáng, đúng khoảng cách và ổn định. Sau mỗi lượt quét, hệ thống chờ 4 giây để hạn chế ghi trùng.
                             </p>
                         )}
-                        {faceModelError && <p className="mt-3 text-xs font-semibold text-red-600">{faceModelError}</p>}
+                        {faceModelError && <p data-ui-text="primary" className="mt-3 text-xs font-semibold text-red-600">{faceModelError}</p>}
                     </div>
                 </div>
             </section>
@@ -509,8 +502,10 @@ const GuardDashboard = () => {
                     {alerts.length === 0 ? (
                         <p className="text-sm text-slate-blue py-8 text-center">Không có cảnh báo đang chờ.</p>
                     ) : (
-                        <ul className="space-y-2">
-                            {alerts.map(alert => {
+                        <PaginatedCollection items={alerts} itemLabel="cảnh báo">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-2">
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => (alert => {
                                 const payload = alertPayload(alert);
                                 const subject = getAlertSubject(alert);
                                 const evidenceId = alert.source_event_id || payload.sourceEventId || payload.source_event_id;
@@ -525,24 +520,26 @@ const GuardDashboard = () => {
                                                 </p>
                                                 <p className="text-xs text-slate-blue mt-1">{formatTime(alert.triggered_at || alert.created_at)} · {alert.status === 'new' ? 'Mới' : 'Đã tiếp nhận'}</p>
                                             </div>
-                                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border shrink-0 ${SEVERITY_CLS[alert.severity] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{SEVERITY_LABEL[alert.severity] || 'Thấp'}</span>
+                                            <span data-ui-text="badge" className={`px-2 py-0.5 rounded-full text-[11px] font-bold border shrink-0 ${SEVERITY_CLS[alert.severity] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>{SEVERITY_LABEL[alert.severity] || 'Thấp'}</span>
                                         </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px] text-slate-blue">
+                                        <div data-ui-text="secondary" className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px] text-slate-blue">
                                             <span><b className="text-midnight-indigo">Zone/cổng:</b> {getAlertLocation(alert)}</span>
                                             <span><b className="text-midnight-indigo">Nhóm camera:</b> {getAlertCameraGroup(alert)}</span>
                                             <span><b className="text-midnight-indigo">Camera:</b> {getAlertCamera(alert)}</span>
                                         </div>
-                                        {(payload.detail || payload.reason || payload.message) && <p className="text-[11px] text-slate-blue">{payload.detail || payload.reason || payload.message}</p>}
+                                        {(payload.detail || payload.reason || payload.message) && <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{payload.detail || payload.reason || payload.message}</p>}
                                         <div className="flex flex-wrap items-center gap-2">
-                                            {evidenceId && <button type="button" onClick={() => setSnapshotEventId(evidenceId)} className="px-2.5 py-1.5 rounded-lg border border-platinum-tint text-[11px] font-bold text-slate-blue hover:text-action-blue">Xem ảnh bằng chứng</button>}
-                                            {alert.status === 'new' && <button type="button" disabled={busy} onClick={() => handleAcknowledge(alert.id)} className="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold disabled:opacity-60">{busy ? 'Đang xử lý...' : 'Tiếp nhận'}</button>}
-                                            {alert.status === 'acknowledged' && <button type="button" disabled={busy} onClick={() => handleResolve(alert)} className="px-2.5 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-bold disabled:opacity-60">{busy ? 'Đang xử lý...' : 'Đóng cảnh báo'}</button>}
+                                            {evidenceId && <button data-ui-text="action" type="button" onClick={() => setSnapshotEventId(evidenceId)} className="px-2.5 py-1.5 rounded-lg border border-platinum-tint text-[11px] font-bold text-slate-blue hover:text-action-blue">Xem ảnh bằng chứng</button>}
+                                            {alert.status === 'new' && <button data-ui-text="action" type="button" disabled={busy} onClick={() => handleAcknowledge(alert.id)} className="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold disabled:opacity-60">{busy ? 'Đang xử lý...' : 'Tiếp nhận'}</button>}
+                                            {alert.status === 'acknowledged' && <button data-ui-text="action" type="button" disabled={busy} onClick={() => handleResolve(alert)} className="px-2.5 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-bold disabled:opacity-60">{busy ? 'Đang xử lý...' : 'Đóng cảnh báo'}</button>}
                                             <Link to="/guard/security-alerts" className="px-2.5 py-1.5 rounded-lg border border-action-blue/30 text-action-blue text-[11px] font-bold no-underline">Mở trung tâm</Link>
                                         </div>
                                     </li>
                                 );
-                            })}
+                            })(camaiRecord, camaiStartIndex + camaiIndex, (alerts)))}
                         </ul>
+)}
+</PaginatedCollection>
                     )}
                 </section>
 
@@ -556,7 +553,16 @@ const GuardDashboard = () => {
                         </Link>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <PaginatedCollection items={logs} itemLabel="lượt ra/vào">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-sm">
+<colgroup>
+<col style={{ width: '14%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '34%' }} />
+<col style={{ width: '21%' }} />
+<col style={{ width: '21%' }} />
+</colgroup>
                             <thead>
                                 <tr className="text-left text-xs text-slate-blue border-b border-platinum-tint">
                                     <th className="py-2 pr-3">Giờ</th>
@@ -569,11 +575,11 @@ const GuardDashboard = () => {
                             <tbody>
                                 {logs.length === 0 ? (
                                     <tr><td colSpan={5} className="py-8 text-center text-slate-blue">Chưa có lượt ra vào hôm nay.</td></tr>
-                                ) : logs.map(log => (
+                                ) : camaiPageItems.map((camaiRecord, camaiIndex) => (log => (
                                     <tr key={log.id} className="border-b border-platinum-tint/60 last:border-0">
-                                        <td className="py-2 pr-3 font-mono text-xs">{formatTime(log.access_time)}</td>
+                                        <td data-ui-text="primary" className="py-2 pr-3 font-mono text-xs">{formatTime(log.access_time)}</td>
                                         <td className="py-2 pr-3">
-                                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${log.direction === 'enter' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-action-blue'}`}>
+                                            <span data-ui-text="badge" className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${log.direction === 'enter' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-action-blue'}`}>
                                                 {log.direction === 'enter' ? 'Vào' : 'Ra'}
                                             </span>
                                         </td>
@@ -581,9 +587,11 @@ const GuardDashboard = () => {
                                         <td className="py-2 pr-3 font-mono text-xs">{log.plate_number || '--'}</td>
                                         <td className="py-2 text-slate-blue">{log.zone_name || '--'}</td>
                                     </tr>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (logs)))}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
+)}
+</PaginatedCollection>
                     </div>
                 </section>
             </div>

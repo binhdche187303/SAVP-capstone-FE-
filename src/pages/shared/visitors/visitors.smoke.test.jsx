@@ -1,5 +1,3 @@
-jest.mock('../../../config/featureFlags', () => ({ VISITOR_MOCK_ENABLED: true, REPORT_MOCK_ENABLED: true, ANY_DEMO_DATA: true }));
-
 // Test render thay cho bước kiểm tra tay của các màn Khách nội bộ (S3–S7).
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -9,6 +7,8 @@ import VisitorDesk from './VisitorDesk';
 import MyVisitors from './MyVisitors';
 import VisitorHistory from './VisitorHistory';
 import VisitorStats from './VisitorStats';
+
+jest.mock('../../../config/featureFlags', () => ({ VISITOR_MOCK_ENABLED: true, REPORT_MOCK_ENABLED: true, ANY_DEMO_DATA: true }));
 
 jest.mock('recharts', () => ({
     ...jest.requireActual('recharts'),
@@ -20,7 +20,7 @@ const renderAt = (path, routes) => render(
         <Routes>{routes}</Routes>
     </MemoryRouter>,
 );
-const tabCount = (name) => Number(screen.getByRole('tab', { name }).textContent.replace(/\D/g, ''));
+const cardCount = (name) => Number(screen.getByRole('button', { name }).textContent.replace(/\D/g, ''));
 const dataRows = () => screen.getAllByRole('row').slice(1);
 
 beforeEach(() => resetState());
@@ -30,7 +30,7 @@ describe('VisitorManagement', () => {
 
     test('admin có thể mở duyệt nhanh và xử lý lượt khách chờ duyệt', async () => {
         renderAt('/business-admin/visitors', route);
-        await waitFor(() => expect(tabCount(/Chờ duyệt/)).toBeGreaterThanOrEqual(3));
+        await waitFor(() => expect(cardCount(/Chờ duyệt/)).toBeGreaterThanOrEqual(3));
         await waitFor(() => expect(dataRows().length).toBeGreaterThan(0));
         expect(screen.getAllByRole('button', { name: 'Duyệt' }).length).toBeGreaterThan(0);
         fireEvent.click(within(dataRows()[0]).getAllByRole('cell')[0]);
@@ -42,8 +42,9 @@ describe('VisitorManagement', () => {
 
     test('ngăn chi tiết: gia hạn lùi giờ bị chặn', async () => {
         renderAt('/business-admin/visitors', route);
-        await waitFor(() => expect(tabCount(/Đã duyệt/)).toBeGreaterThan(0));
-        fireEvent.click(screen.getByRole('tab', { name: /Đã duyệt/ }));
+        await waitFor(() => expect(cardCount(/Đã duyệt/)).toBeGreaterThan(0));
+        fireEvent.click(screen.getByRole('button', { name: /Đã duyệt/ }));
+        expect(screen.getByRole('button', { name: /Đã duyệt/ })).toHaveAttribute('aria-pressed', 'true');
         await waitFor(() => expect(within(dataRows()[0]).queryByText('Chờ duyệt')).not.toBeInTheDocument());
         fireEvent.click(within(dataRows()[0]).getAllByRole('cell')[0]);
         const drawer = await screen.findByRole('dialog', { name: 'Chi tiết lượt khách' });
@@ -200,9 +201,39 @@ describe('MyVisitors', () => {
 describe('VisitorHistory', () => {
     const route = <Route path="/business-admin/visitors/history" element={<VisitorHistory />} />;
 
+    test.each(['system-admin', 'business-admin'])('%s đổi số dòng, chuyển trang và quay về trang đầu', async (area) => {
+        const path = `/${area}/visitors/history`;
+        renderAt(path, <Route path={path} element={<VisitorHistory />} />);
+        await screen.findByText(/^Hiển thị \d+–\d+ \/ \d+ lượt khách$/);
+        fireEvent.change(screen.getByRole('combobox', { name: 'Số dòng/trang' }), { target: { value: '5' } });
+        await screen.findByText(/^Hiển thị 1–5 \/ \d+ lượt khách$/);
+        fireEvent.click(screen.getByRole('button', { name: 'Sau', exact: true }));
+        await screen.findByText(/^Hiển thị 6–\d+ \/ \d+ lượt khách$/);
+        fireEvent.change(screen.getByRole('combobox', { name: 'Số dòng/trang' }), { target: { value: '20' } });
+        await screen.findByText(/^Hiển thị 1–\d+ \/ \d+ lượt khách$/);
+        expect(screen.getByRole('button', { name: 'Trước', exact: true })).toBeDisabled();
+        expect(screen.getByRole('combobox', { name: 'Số dòng/trang' })).toHaveValue('20');
+    });
+
+    test.each(['system-admin', 'business-admin'])('%s dùng cùng bộ lọc và hộp xuất báo cáo', async (area) => {
+        const path = `/${area}/visitors/history`;
+        renderAt(path, <Route path={path} element={<VisitorHistory />} />);
+        await screen.findByText(/^Hiển thị \d+–\d+ \/ \d+ lượt khách$/);
+        ['Tìm kiếm', 'Đơn vị tiếp', 'Từ ngày', 'Đến ngày'].forEach(label => {
+            expect(screen.getByLabelText(label)).toBeInTheDocument();
+        });
+        expect(screen.queryByRole('button', { name: 'Xuất Excel' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Xuất báo cáo' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Xuất báo cáo' });
+        const formats = within(dialog).getByRole('radiogroup', { name: 'Định dạng file' });
+        ['Excel', 'PDF', 'Word'].forEach(name => expect(within(formats).getByRole('radio', { name })).toBeInTheDocument());
+        expect(within(dialog).getByText('Bản thường', { exact: false })).toBeInTheDocument();
+        expect(within(dialog).getByText('Bản quy chuẩn', { exact: false })).toBeInTheDocument();
+    });
+
     test('tra theo tên khách và xem các lượt của một khách', async () => {
         renderAt('/business-admin/visitors/history', route);
-        expect(await screen.findByText(/^\d+ lượt khách$/)).toBeInTheDocument();
+        expect(await screen.findByText(/^Hiển thị \d+–\d+ \/ \d+ lượt khách$/)).toBeInTheDocument();
         const first = screen.getAllByRole('button', { name: /^Xem các lượt của / })[0];
         const name = first.textContent;
         fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: name } });
@@ -217,11 +248,11 @@ describe('VisitorHistory', () => {
 
     test('khoảng ngày không có khách hiện trạng thái rỗng', async () => {
         renderAt('/business-admin/visitors/history', route);
-        await screen.findByText(/^\d+ lượt khách$/);
+        await screen.findByText(/^Hiển thị \d+–\d+ \/ \d+ lượt khách$/);
         fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2020-01-01' } });
         fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2020-01-07' } });
         expect(await screen.findByText('Không có lượt khách nào trong khoảng đã chọn')).toBeInTheDocument();
-        expect(screen.getByText('0 lượt khách')).toBeInTheDocument();
+        expect(screen.getByText('Hiển thị 0–0 / 0 lượt khách')).toBeInTheDocument();
     });
 });
 

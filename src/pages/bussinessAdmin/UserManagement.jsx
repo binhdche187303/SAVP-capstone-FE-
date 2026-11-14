@@ -1,8 +1,13 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import ReportExportAction from '../../components/common/ReportExportAction';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import { Users, RefreshCw } from 'lucide-react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import ImportAccountsModal from '../../components/user/ImportAccountsModal';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import DatePicker from "react-datepicker";
+import DatePicker from '../../components/common/AppDatePicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { vi } from 'date-fns/locale/vi';
 import TimePicker from '../../components/common/TimePicker';
@@ -117,7 +122,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
     const [studentClassOptions, setStudentClassOptions] = useState([]);
     const [selectedStatus, setSelectedStatus] = useState(''); // ACTIVE, LOCKED
     const [page, setPage] = useState(1);
-    const [limit] = useState(10);
+    const [limit, setLimit] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [totalUsers, setTotalUsers] = useState(0);
 
@@ -661,6 +666,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
             throw new Error('Phản hồi không hợp lệ');
         } catch (err) {
             setError(err?.error?.message || err?.message || 'Lỗi khi xuất dữ liệu.');
+            return { success: false, message: err?.error?.message || err?.message || 'Lỗi khi xuất dữ liệu.' };
         }
     };
 
@@ -762,7 +768,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
             {/* Header section */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Users className="w-3.5 h-3.5" />
                         Người dùng
                     </span>
@@ -772,15 +778,15 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                    <button
+                    <ReportExportAction format="xlsx" filterSummary={['Toàn bộ danh sách người dùng theo quyền truy cập. API xuất hiện chưa nhận các bộ lọc trên màn hình.']} label="Xuất dữ liệu Excel"
                         onClick={handleExportExcel}
-                        className="inline-flex items-center justify-center px-4 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
+                        legacyClassName="inline-flex items-center justify-center px-4 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
                     >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         Xuất dữ liệu Excel
-                    </button>
+                    </ReportExportAction>
                     {!isSystemAdminMode && (
                         <>
                             <button
@@ -825,8 +831,8 @@ const UserManagement = ({ mode = 'business-admin' }) => {
             )}
 
             {/* Filter controls */}
-            <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="relative flex-1 max-w-md">
+            <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1 space-y-4">
+                <FilterField label="Tìm kiếm"><div className="relative w-full">
                     <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-blue">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -839,10 +845,10 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                         onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                         className="pl-10 pr-4 py-2 w-full border border-platinum-tint rounded-xl text-sm text-midnight-indigo placeholder:text-steel-gray focus:outline-none focus:border-action-blue"
                     />
-                </div>
+                </div></FilterField>
 
-                <div className="flex flex-wrap gap-3">
-                    <select
+                <div data-filter-fields className="grid grid-cols-1 md:grid-cols-2 min-[1440px]:grid-cols-4 gap-4 items-end">
+                    <FilterField label="Loại tài khoản"><select
                         value={selectedAccountType}
                         onChange={(e) => {
                             setSelectedAccountType(e.target.value);
@@ -855,25 +861,27 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                     >
                         <option value="staff">Nhân sự</option>
                         <option value="student">Sinh viên</option>
-                    </select>
+                    </select></FilterField>
 
-                    {/* Role Filter */}
-                    {!isStudentList && (
-                        <select
-                            value={selectedRole}
-                            onChange={(e) => { setSelectedRole(e.target.value); setPage(1); }}
-                            className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
+                    {/* Keep the role slot fixed when switching between staff and students. */}
+                    <FilterField label="Vai trò"><select
+                        value={isStudentList ? 'student' : selectedRole}
+                        disabled={isStudentList}
+                        onChange={(e) => { setSelectedRole(e.target.value); setPage(1); }}
+                        className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
                         >
+                        {isStudentList ? <option value="student">Sinh viên</option> : <>
                             <option value="">Tất cả vai trò</option>
                             {visibleRoles.map(r => (
                                 <option key={r.id} value={r.id}>{formatRoleLabel(r, roles)}</option>
                             ))}
-                        </select>
-                    )}
+                        </>}
+                    </select></FilterField>
+
 
                     {/* Department Filter */}
                     {!isStudentList && (
-                        <select
+                        <FilterField label="Phòng ban"><select
                             value={selectedDept}
                             onChange={(e) => { setSelectedDept(e.target.value); setPage(1); }}
                             className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
@@ -882,12 +890,12 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                             {departments.map(d => (
                                 <option key={d.id} value={d.id}>{d.departmentName}</option>
                             ))}
-                        </select>
+                        </select></FilterField>
                     )}
 
                     {/* Class Filter */}
                     {isStudentList && (
-                        <select
+                        <FilterField label="Lớp hành chính"><select
                             value={selectedClass}
                             onChange={(e) => { setSelectedClass(e.target.value); setPage(1); }}
                             className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
@@ -898,11 +906,11 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                     {klass.code}
                                 </option>
                             ))}
-                        </select>
+                        </select></FilterField>
                     )}
 
                     {/* Status Filter */}
-                    <select
+                    <FilterField label="Trạng thái"><select
                         value={selectedStatus}
                         onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
                         className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
@@ -913,9 +921,9 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                         <option value="inactive">Tạm dừng</option>
                         <option value="pending_reset">Chờ đổi mật khẩu</option>
                         <option value="expired">Hết hạn</option>
-                    </select>
+                    </select></FilterField>
                 </div>
-            </div>
+            </FilterBar>
 
             {/* User Table card */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
@@ -926,7 +934,15 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                        <ResponsiveTable className="w-full text-left border-collapse whitespace-nowrap">
+<colgroup>
+<col style={{ width: '30%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '20%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '12%' }} />
+</colgroup>
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/50">
                                     <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">Hồ sơ</th>
@@ -959,14 +975,14 @@ const UserManagement = ({ mode = 'business-admin' }) => {
 
                                                         <div>
                                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                                                <h4
+                                                                <h4 data-ui-text="primary"
                                                                     onClick={() => handleViewDetail(user)}
                                                                     className="text-sm font-bold text-midnight-indigo leading-tight cursor-pointer hover:underline hover:text-action-blue"
                                                                 >
                                                                     {user.fullName}
                                                                 </h4>
                                                                 {isPartnerAccount(user) && (
-                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                                    <span data-ui-text="secondary" className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>
                                                                         Đối tác
                                                                     </span>
@@ -974,7 +990,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                             </div>
                                                             <p className="text-xs text-slate-blue leading-normal">{user.email}</p>
                                                             {isPartnerAccount(user) && user.accountExpiresAt && (
-                                                                <p className={`text-[10px] font-medium mt-0.5 ${
+                                                                <p data-ui-text="secondary" className={`text-[10px] font-medium mt-0.5 ${
                                                                     getExpiryStatus(user.accountExpiresAt) === 'expired' ? 'text-red-500' :
                                                                     getExpiryStatus(user.accountExpiresAt) === 'expiring_soon' ? 'text-amber-600' :
                                                                     'text-green-600'
@@ -1003,14 +1019,14 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                     <div className="flex flex-wrap gap-1">
                                                         {user.leadershipTitle ? (
                                                             // BGH mang role MANAGER nhưng hiển thị theo chức danh lãnh đạo
-                                                            <span className="inline-flex text-[10px] px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold">
+                                                            <span data-ui-text="badge" className="inline-flex text-[10px] px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-bold">
                                                                 {getLeaderRoleLabel(user)}
                                                             </span>
                                                         ) : user.roles?.map((r, idx) => {
                                                             // user.roles có thể là string[] roleCode (ManageUserItemDto, danh sách)
                                                             // hoặc object[] {id, roleCode, roleName} (UserDetailResponseDto, chi tiết).
                                                             return (
-                                                                <span key={idx} className="inline-flex text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
+                                                                <span data-ui-text="badge" key={idx} className="inline-flex text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
                                                                     {formatRoleLabel(r, roles)}
                                                                 </span>
                                                             );
@@ -1018,7 +1034,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                     </div>
                                                 </td>
                                                 <td className="py-4 px-6 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${(user.accountStatus === 'locked' || user.locked) ? 'bg-red-50 text-red-700' :
+                                                    <span data-ui-text="badge" className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${(user.accountStatus === 'locked' || user.locked) ? 'bg-red-50 text-red-700' :
                                                         isAccountExpired(user) ? 'bg-orange-50 text-orange-700' :
                                                             user.accountStatus === 'inactive' ? 'bg-slate-100 text-slate-600' :
                                                                 user.accountStatus === 'pending_reset' ? 'bg-amber-50 text-amber-700' :
@@ -1125,37 +1141,20 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                     })
                                 )}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
                 )}
 
                 {/* Pagination footer */}
-                {!loading && (
-                    <div className="px-6 py-4 border-t border-platinum-tint bg-cloud-mist/20 flex items-center justify-between">
-                        <span className="text-xs text-slate-blue">
-                            Hiển thị {usersList.length} trên tổng số {totalUsers} người dùng
-                        </span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPage(p => Math.max(p - 1, 1))}
-                                disabled={page === 1}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50 transition-colors"
-                            >
-                                Trước
-                            </button>
-                            <span className="px-3 py-1.5 text-xs font-bold text-midnight-indigo">
-                                Trang {page} / {totalPages}
-                            </span>
-                            <button
-                                onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                                disabled={page === totalPages}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50 transition-colors"
-                            >
-                                Tiếp
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {<PaginationRegion legacyVisible={!loading}><PaginationFooter
+                        currentPage={page}
+                        totalPages={totalPages}
+                        totalItems={totalUsers}
+                        pageSize={limit}
+                        onPageChange={setPage}
+                        itemLabel={"người dùng"}
+                        loading={loading}
+                     onPageSizeChange={size => { setLimit(size); setPage(1); }} /></PaginationRegion>}
             </div>
 
             {/* CREATE MODAL */}
@@ -1342,7 +1341,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                             }}
                                             className="w-full text-sm text-slate-blue file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-platinum-tint file:text-xs file:font-semibold file:bg-white file:text-slate-blue hover:file:bg-cloud-mist"
                                         />
-                                        <p className="text-[10px] text-slate-blue mt-1">JPEG / PNG / WEBP · Tối đa 5MB · Ảnh rõ mặt, không đeo kính đen</p>
+                                        <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-1">JPEG / PNG / WEBP · Tối đa 5MB · Ảnh rõ mặt, không đeo kính đen</p>
                                         {formErrors.avatarFile && <p className="text-red-500 text-xs mt-1">{formErrors.avatarFile}</p>}
                                     </div>
 
@@ -1375,7 +1374,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                 </select>
                                             </div>
                                         </div>
-                                        <p className="text-[10px] text-slate-blue mt-1">Để trống nếu chưa cần đăng ký. Có thể thêm sau trong mục ANPR.</p>
+                                        <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-1">Để trống nếu chưa cần đăng ký. Có thể thêm sau trong mục ANPR.</p>
                                     </div>
                                 </div>
                             )}
@@ -1549,7 +1548,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                             />
                                             <span>
                                                 Văn thư đơn vị
-                                                <span className="block text-xs font-normal text-slate-blue">
+                                                <span data-ui-text="secondary" className="block text-xs font-normal text-slate-blue">
                                                     {formData.departmentId
                                                         ? `Là văn thư của: ${departments.find(d => d.id === formData.departmentId)?.departmentName || ''}`
                                                         : 'Cần chọn phòng ban trước'}
@@ -1627,7 +1626,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                         <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-cloud-mist/50">
                             <div>
                                 <h3 className="font-bold text-midnight-indigo">Lịch sử hoạt động</h3>
-                                <p className="text-[10px] text-slate-blue mt-0.5">{selectedUser.fullName} ({selectedUser.email})</p>
+                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-0.5">{selectedUser.fullName} ({selectedUser.email})</p>
                             </div>
                             <button onClick={() => setIsLogsModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1643,26 +1642,30 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                             ) : userLogs.length === 0 ? (
                                 <p className="text-center text-sm text-slate-blue py-8">Không có bản ghi hoạt động nào.</p>
                             ) : (
-                                <div className="max-h-[300px] overflow-y-auto space-y-4 pr-2">
-                                    {userLogs.map((log) => (
+                                <PaginatedCollection items={userLogs} itemLabel="lượt ra/vào">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="max-h-[300px] overflow-y-auto space-y-4 pr-2">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((log) => (
                                         <div key={log.id} className="p-3 bg-cloud-mist rounded-xl border border-outline-gray/60 space-y-1">
                                             <div className="flex justify-between items-start gap-2">
-                                                <p className="text-xs font-bold text-midnight-indigo">
+                                                <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">
                                                     {log.description || ACTION_MAP[log.action] || log.action}
                                                 </p>
-                                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${log.status === 'success' ? 'bg-emerald-50 text-emerald-700' : log.status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                <span data-ui-text="badge" className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${log.status === 'success' ? 'bg-emerald-50 text-emerald-700' : log.status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
                                                     {log.status === 'success' ? 'Thành công' : log.status === 'failed' ? 'Thất bại' : log.status || ''}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between items-center pt-0.5">
-                                                <p className="text-[10px] text-slate-blue">Tác nhân: {log.actorName || log.actorEmail || '—'}</p>
-                                                <span className="text-[10px] text-slate-blue">
+                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Tác nhân: {log.actorName || log.actorEmail || '—'}</p>
+                                                <span data-ui-text="secondary" className="text-[10px] text-slate-blue">
                                                     {log.timestamp ? new Date(log.timestamp).toLocaleString('vi-VN') : ''}
                                                 </span>
                                             </div>
                                         </div>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (userLogs)))}
                                 </div>
+)}
+</PaginatedCollection>
                             )}
                             <div className="pt-4 flex justify-end border-t border-platinum-tint mt-4">
                                 <button
@@ -1709,7 +1712,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                         <div className="flex gap-1.5 mt-1 flex-wrap">
                                             {selectedUserDetail.roles?.map((r, idx) => {
                                                 return (
-                                                    <span key={idx} className="text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
+                                                    <span data-ui-text="badge" key={idx} className="text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
                                                         {formatRoleLabel(r, roles)}
                                                     </span>
                                                 );
@@ -1789,7 +1792,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                                             <div>
                                                 <span className="text-slate-blue block text-xs">Trạng thái hoạt động:</span>
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${(selectedUserDetail.accountStatus === 'locked' || selectedUserDetail.locked) ? 'bg-red-50 text-red-700' :
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${(selectedUserDetail.accountStatus === 'locked' || selectedUserDetail.locked) ? 'bg-red-50 text-red-700' :
                                                     isAccountExpired(selectedUserDetail) ? 'bg-orange-50 text-orange-700' :
                                                         selectedUserDetail.accountStatus === 'inactive' ? 'bg-slate-100 text-slate-600' :
                                                             selectedUserDetail.accountStatus === 'pending_reset' ? 'bg-amber-50 text-amber-700' :
@@ -1811,7 +1814,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                             <div>
                                                 <span className="text-slate-blue block text-xs">Hồ sơ khuôn mặt (FaceID):</span>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${selectedUserDetail.biometricReviewStatus === 'approved' ? 'bg-green-50 text-green-700' :
+                                                    <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${selectedUserDetail.biometricReviewStatus === 'approved' ? 'bg-green-50 text-green-700' :
                                                         selectedUserDetail.biometricReviewStatus === 'pending_review' ? 'bg-amber-50 text-amber-700' :
                                                             selectedUserDetail.biometricReviewStatus === 'rejected' ? 'bg-red-50 text-red-700' :
                                                                 'bg-slate-100 text-slate-500'
@@ -1822,7 +1825,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                                     'Chưa nộp ảnh'}
                                                     </span>
                                                     {selectedUserDetail.biometricReviewStatus === 'approved' && (
-                                                        <button
+                                                        <button data-ui-text="action"
                                                             type="button"
                                                             disabled={isResyncing}
                                                             onClick={() => handleResyncPortrait(selectedUserDetail.id)}

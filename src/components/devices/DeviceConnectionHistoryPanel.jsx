@@ -1,3 +1,4 @@
+import PaginatedCollection from '../common/PaginatedCollection';
 import { Activity, AlertTriangle, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -54,7 +55,7 @@ const buildDays = (segments, to) => {
 
 const UptimeStat = ({ label, value }) => (
     <div className="bg-cloud-mist rounded-xl p-3">
-        <p className="text-[11px] text-slate-blue font-medium">{label}</p>
+        <p data-ui-text="label" className="text-[11px] text-slate-blue font-medium">{label}</p>
         <p className={`text-lg font-bold leading-tight ${value == null ? 'text-steel-gray' : value >= 99 ? 'text-green-600' : value >= 95 ? 'text-amber-600' : 'text-red-600'}`}>
             {value == null ? '—' : `${value}%`}
         </p>
@@ -92,11 +93,11 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
             <div className="relative w-full max-w-lg h-full bg-white shadow-xl flex flex-col animate-fade-in-up">
                 <div className="px-6 py-4 border-b border-platinum-tint flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                        <p className="inline-flex items-center gap-1.5 text-[11px] font-bold text-action-blue">
+                        <p data-ui-text="primary" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-action-blue">
                             <Activity className="w-3.5 h-3.5" /> Lịch sử kết nối
                         </p>
                         <h3 className="text-base font-bold text-midnight-indigo truncate">{device.device_name}</h3>
-                        <p className="text-[10px] font-mono text-steel-gray tracking-wider">{device.device_code}</p>
+                        <p data-ui-text="code" className="text-[10px] font-mono text-steel-gray tracking-wider">{device.device_code}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <select
@@ -127,11 +128,11 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
                                 <UptimeStat label="Uptime 7 ngày" value={data.uptime_7d_percent} />
                                 <UptimeStat label={`Uptime ${days} ngày`} value={data.uptime_percent} />
                                 <div className="bg-cloud-mist rounded-xl p-3">
-                                    <p className="text-[11px] text-slate-blue font-medium">Số lần mất kết nối</p>
+                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue font-medium">Số lần mất kết nối</p>
                                     <p className="text-lg font-bold text-midnight-indigo leading-tight">{data.offline_count}</p>
                                 </div>
                                 <div className="bg-cloud-mist rounded-xl p-3">
-                                    <p className="text-[11px] text-slate-blue font-medium">Lâu nhất</p>
+                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue font-medium">Lâu nhất</p>
                                     <p className="text-lg font-bold text-midnight-indigo leading-tight">
                                         {data.longest_offline_seconds > 0 ? formatDuration(data.longest_offline_seconds) : '—'}
                                     </p>
@@ -139,11 +140,11 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
                             </div>
 
                             <div>
-                                <p className="text-xs font-bold text-midnight-indigo mb-2">7 ngày qua</p>
+                                <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo mb-2">7 ngày qua</p>
                                 <div className="space-y-1.5">
                                     {dayRows.map((d) => (
                                         <div key={d.start.toISOString()} className="flex items-center gap-2">
-                                            <span className="w-14 text-[11px] text-slate-blue shrink-0">
+                                            <span data-ui-text="secondary" className="w-14 text-[11px] text-slate-blue shrink-0">
                                                 {WEEKDAY[d.start.getDay()]} {d.start.getDate()}/{d.start.getMonth() + 1}
                                             </span>
                                             <div className="relative flex-1 h-3 rounded bg-platinum-tint overflow-hidden">
@@ -165,7 +166,7 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
                                         </div>
                                     ))}
                                 </div>
-                                <div className="flex gap-4 mt-2 text-[10px] text-slate-blue">
+                                <div data-ui-text="secondary" className="flex gap-4 mt-2 text-[10px] text-slate-blue">
                                     <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-green-500" /> Online</span>
                                     <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-500" /> Offline</span>
                                     <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-gray-300" /> Vô hiệu / bảo trì</span>
@@ -173,19 +174,21 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
                             </div>
 
                             <div>
-                                <p className="text-xs font-bold text-midnight-indigo mb-2">Sự cố gần đây</p>
+                                <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo mb-2">Sự cố gần đây</p>
                                 {data.incidents.length === 0 ? (
                                     <p className="text-xs text-steel-gray italic">Không có lần mất kết nối nào trong {days} ngày.</p>
                                 ) : (
-                                    <ul className="space-y-2">
-                                        {data.incidents.map((i) => (
+                                    <PaginatedCollection items={data?.incidents} itemLabel="sự cố">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-2">
+                                        {camaiPageItems.map((camaiRecord, camaiIndex) => ((i) => (
                                             <li key={i.started_at} className="border border-platinum-tint rounded-xl px-3 py-2 flex items-start gap-2">
                                                 <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${i.ended_at ? 'text-amber-500' : 'text-red-500'}`} />
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-semibold text-midnight-indigo">
+                                                    <p data-ui-text="secondary" className="text-xs font-semibold text-midnight-indigo">
                                                         {formatTime(i.started_at)} → {i.ended_at ? formatTime(i.ended_at) : <span className="text-red-600">đang mất kết nối</span>}
                                                     </p>
-                                                    <p className="text-[11px] text-slate-blue">Mất kết nối {formatDuration(i.duration_seconds)}</p>
+                                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Mất kết nối {formatDuration(i.duration_seconds)}</p>
                                                 </div>
                                                 {i.alert_id && (
                                                     <Link to={`/${window.location.pathname.split("/")[1]}/security-alerts`} className="text-[11px] font-semibold text-action-blue hover:underline shrink-0">
@@ -193,8 +196,10 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
                                                     </Link>
                                                 )}
                                             </li>
-                                        ))}
+                                        ))(camaiRecord, camaiStartIndex + camaiIndex, (data.incidents)))}
                                     </ul>
+)}
+</PaginatedCollection>
                                 )}
                             </div>
                         </>

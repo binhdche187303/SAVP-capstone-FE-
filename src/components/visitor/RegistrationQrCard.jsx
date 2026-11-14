@@ -38,7 +38,7 @@ const RegistrationQrCard = () => {
                         <QRCodeSVG value={url} size={220} level="M" />
                     </div>
                     <p className="text-xs font-mono text-midnight-indigo break-all">{url}</p>
-                    <p className="text-[11px] text-slate-blue">Đăng ký xong, nhìn vào camera tại cổng để được xác thực bằng khuôn mặt.</p>
+                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Đăng ký xong, nhìn vào camera tại cổng để được xác thực bằng khuôn mặt.</p>
                 </div>
             </SimpleModal>
         </>

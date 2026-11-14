@@ -71,7 +71,7 @@ const ZoneLocationPicker = ({ latitude, longitude, onChange }) => {
                     {position && <CircleMarker center={position} radius={8} pathOptions={{ color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }} />}
                 </MapContainer>
             </div>
-            <p className="text-[11px] text-slate-blue mt-1">Bấm lên bản đồ để chọn vị trí. Để trống nếu chưa muốn hiển thị khu vực trên bản đồ.</p>
+            <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-1">Bấm lên bản đồ để chọn vị trí. Để trống nếu chưa muốn hiển thị khu vực trên bản đồ.</p>
         </div>
     );
 };

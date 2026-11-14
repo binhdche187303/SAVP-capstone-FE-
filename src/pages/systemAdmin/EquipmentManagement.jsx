@@ -1,3 +1,8 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
 import { AlertTriangle, Bell, Clock, Cpu, History, MapPin, MapPinOff, Mic, Monitor, Package, Plus, RefreshCw, Search, Speaker, Trash2, Video, Wrench, Check } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 
@@ -21,7 +26,7 @@ const EquipmentManagement = () => {
     const [equipmentType, setEquipmentType] = useState('');
     const [healthStatus, setHealthStatus] = useState('');
     const [page, setPage] = useState(1);
-    const [limit] = useState(10);
+    const [limit, setLimit] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
 
@@ -394,10 +399,10 @@ const EquipmentManagement = () => {
     const hasActiveFault = (status) => ['warning', 'faulty', 'offline'].includes(status);
 
     return (
-        <div className="p-6 h-full flex flex-col bg-snow-white">
+        <div data-page-surface="wide" className="p-6 h-full flex flex-col bg-snow-white">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 animate-fade-in-up">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Monitor className="w-3.5 h-3.5" />
                         Thiết bị
                     </span>
@@ -445,9 +450,9 @@ const EquipmentManagement = () => {
                 </div>
             )}
 
-            <div className="bg-white rounded-2xl shadow-sm-1 border border-platinum-tint flex flex-col flex-1 overflow-hidden animate-fade-in-up delay-100">
-                <div className="p-4 border-b border-platinum-tint bg-cloud-mist/30 flex flex-wrap gap-4 items-center">
-                    <div className="relative flex-1 min-w-[250px]">
+            <div className="bg-white rounded-2xl shadow-sm-1 border border-platinum-tint flex flex-col flex-1 min-w-0 overflow-hidden animate-fade-in-up delay-100">
+                <FilterBar variant="inline" className="p-4 border-b border-platinum-tint bg-cloud-mist/30 flex flex-wrap gap-4 items-end">
+                    <FilterField label="Tìm kiếm"><div className="relative flex-1 min-w-[250px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue" />
                         <input 
                             type="text" 
@@ -457,8 +462,8 @@ const EquipmentManagement = () => {
                             onKeyDown={(e) => e.key === 'Enter' && fetchEquipments()}
                             className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                         />
-                    </div>
-                    <select
+                    </div></FilterField>
+                    <FilterField label="Loại thiết bị"><select
                         value={equipmentType}
                         onChange={(e) => { setEquipmentType(e.target.value); setPage(1); }}
                         className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
@@ -469,8 +474,8 @@ const EquipmentManagement = () => {
                         <option value="display">Màn hình</option>
                         <option value="speaker">Loa</option>
                         <option value="capture_agent">Bộ xử lý</option>
-                    </select>
-                    <select
+                    </select></FilterField>
+                    <FilterField label="Tình trạng thiết bị"><select
                         value={healthStatus}
                         onChange={(e) => { setHealthStatus(e.target.value); setPage(1); }}
                         className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
@@ -480,18 +485,24 @@ const EquipmentManagement = () => {
                         <option value="warning">Cảnh báo</option>
                         <option value="faulty">Lỗi</option>
                         <option value="offline">Mất kết nối (Offline)</option>
-                    </select>
-                    <button 
+                    </select></FilterField>
+                    <RefreshButton
                         onClick={fetchEquipments}
-                        className="p-2 border border-platinum-tint rounded-xl hover:bg-cloud-mist text-slate-blue transition-colors"
                         title="Làm mới"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-                </div>
+                        busy={loading}
+                    />
+                </FilterBar>
 
-                <div className="flex-1 overflow-x-auto overflow-y-auto">
-                    <table className="w-full text-left min-w-[900px]">
+                <div className="flex-1 min-w-0 w-full overflow-x-auto overflow-y-auto">
+                    <ResponsiveTable className="w-full text-left min-w-[1100px]">
+<colgroup>
+<col style={{ width: '24%' }} />
+<col style={{ width: '23%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '17%' }} />
+<col style={{ width: '13%' }} />
+</colgroup>
                         <thead className="sticky top-0 bg-white shadow-sm z-10">
                             <tr className="border-b border-platinum-tint text-xs font-bold text-slate-blue uppercase tracking-wider">
                                 <th className="p-4">Thiết bị</th>
@@ -534,39 +545,39 @@ const EquipmentManagement = () => {
                                                     {getEquipmentIcon(eq.equipmentType)}
                                                 </div>
                                                 <div>
-                                                    <p className="font-semibold text-sm text-midnight-indigo">{eq.equipmentName}</p>
+                                                    <p data-ui-text="primary" className="font-semibold text-sm text-midnight-indigo">{eq.equipmentName}</p>
                                                     <p className="text-xs text-slate-blue line-clamp-1">{eq.brand || 'N/A'} - {eq.model || 'N/A'}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-4">
+                                        <td className="p-4 whitespace-nowrap">
                                             <p className="text-sm font-medium text-midnight-indigo">{eq.equipmentCode}</p>
                                             <p className="text-xs text-slate-blue">SN: {eq.serialNumber || 'N/A'}</p>
                                         </td>
-                                        <td className="p-4 text-sm text-slate-blue">
+                                        <td className="p-4 text-sm text-slate-blue whitespace-nowrap">
                                             {getTypeLabel(eq.equipmentType)}
                                         </td>
                                         <td className="p-4">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${getHealthStatusMeta(eq.healthStatus).cls}`}>
+                                            <span data-ui-text="badge" className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${getHealthStatusMeta(eq.healthStatus).cls}`}>
                                                 {getHealthStatusMeta(eq.healthStatus).label}
                                             </span>
                                             {eq.assetStatus === 'maintenance' && (
-                                                <span className="inline-flex items-center px-2 py-1 ml-2 rounded-md text-xs font-semibold bg-gray-100 text-gray-700">
+                                                <span data-ui-text="badge" className="inline-flex items-center px-2 py-1 ml-2 rounded-md text-xs font-semibold bg-gray-100 text-gray-700">
                                                     Bảo trì
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="p-4">
+                                        <td className="p-4 min-w-[200px]">
                                             {assignedRoom ? (
                                                 <div className="flex items-center text-sm text-midnight-indigo">
-                                                    <MapPin className="w-4 h-4 mr-1 text-slate-blue" />
+                                                    <MapPin className="w-4 h-4 mr-1 shrink-0 text-slate-blue" />
                                                     {assignedRoom.roomName}
                                                 </div>
                                             ) : (
                                                 <span className="text-sm text-slate-blue italic">Chưa gán</span>
                                             )}
                                         </td>
-                                        <td className="p-4 text-right">
+                                        <td className="p-4 text-right whitespace-nowrap">
                                             <button
                                                 onClick={() => { setSelectedEquipment(eq); setAssignForm({ roomId: eq.currentRoomId || '', assignmentNote: '' }); setIsAssignModalOpen(true); }}
                                                 className="inline-flex p-1.5 rounded-lg text-slate-blue hover:text-action-blue hover:bg-blue-50 transition-colors mr-1"
@@ -637,35 +648,18 @@ const EquipmentManagement = () => {
                                 })
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
 
-                {!loading && (
-                    <div className="px-6 py-4 border-t border-platinum-tint bg-cloud-mist/20 flex items-center justify-between">
-                        <span className="text-xs text-slate-blue">
-                            Hiển thị {equipmentList.length} trên tổng số {totalItems} thiết bị
-                        </span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPage(p => Math.max(p - 1, 1))}
-                                disabled={page === 1}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50"
-                            >
-                                Trước
-                            </button>
-                            <span className="px-3 py-1.5 text-xs font-bold text-midnight-indigo">
-                                Trang {page} / {totalPages}
-                            </span>
-                            <button
-                                onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                                disabled={page === totalPages}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50"
-                            >
-                                Tiếp
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {<PaginationRegion legacyVisible={!loading}><PaginationFooter
+                        currentPage={page}
+                        totalPages={totalPages}
+                        totalItems={totalItems}
+                        pageSize={limit}
+                        onPageChange={setPage}
+                        itemLabel={"thiết bị"}
+                        loading={loading}
+                     onPageSizeChange={size => { setLimit(size); setPage(1); }} /></PaginationRegion>}
             </div>
 
             {/* CREATE MODAL */}
@@ -720,7 +714,7 @@ const EquipmentManagement = () => {
                                         <option key={r.roomId} value={r.roomId}>{r.roomName}</option>
                                     ))}
                                 </select>
-                                <p className="text-[11px] text-slate-blue mt-1">Hệ thống sẽ chặn nếu phòng chưa đăng ký loại thiết bị này.</p>
+                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-1">Hệ thống sẽ chặn nếu phòng chưa đăng ký loại thiết bị này.</p>
                             </div>
                             {createForm.roomId && (
                                 <div>
@@ -748,7 +742,7 @@ const EquipmentManagement = () => {
                         </div>
                         <form onSubmit={handleAssignSubmit} className="p-6 space-y-4">
                             <div className="p-3 bg-cloud-mist/30 rounded-xl mb-4">
-                                <p className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
+                                <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
                                 <p className="text-xs text-slate-blue">Mã: {selectedEquipment.equipmentCode}</p>
                             </div>
                             <div>
@@ -789,7 +783,7 @@ const EquipmentManagement = () => {
                         </div>
                         <form onSubmit={handleFaultSubmit} className="p-6 space-y-4">
                             <div className="p-3 bg-cloud-mist/30 rounded-xl mb-4">
-                                <p className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
+                                <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
                                 <p className="text-xs text-slate-blue">Mã: {selectedEquipment.equipmentCode}</p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -836,7 +830,7 @@ const EquipmentManagement = () => {
                         </div>
                         <form onSubmit={handleConfirmFaultSubmit} className="p-6 space-y-4">
                             <div className="p-3 bg-cloud-mist/30 rounded-xl mb-4 text-xs">
-                                <p className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
+                                <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
                                 <p className="text-xs text-slate-blue mt-0.5">Mã: {selectedEquipment.equipmentCode} • Trạng thái lỗi: <span className="text-red-500 font-semibold">{getHealthStatusMeta(selectedEquipment.healthStatus).label}</span></p>
                             </div>
                             <div>
@@ -865,7 +859,7 @@ const EquipmentManagement = () => {
                         </div>
                         <form onSubmit={handleResolveFaultSubmit} className="p-6 space-y-4">
                             <div className="p-3 bg-cloud-mist/30 rounded-xl mb-4">
-                                <p className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
+                                <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
                                 <p className="text-xs text-slate-blue mt-0.5">Mã: {selectedEquipment.equipmentCode}</p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -911,7 +905,7 @@ const EquipmentManagement = () => {
                             <p className="text-sm text-slate-blue mb-1">
                                 Bạn có chắc chắn muốn xoá thiết bị <span className="font-bold text-midnight-indigo">{equipmentToDelete.equipmentName}</span>?
                             </p>
-                            <p className="text-[11px] text-red-500 bg-red-50 p-2 rounded-lg mt-3 text-left">
+                            <p data-ui-text="badge" className="text-[11px] text-red-500 bg-red-50 p-2 rounded-lg mt-3 text-left">
                                 Lưu ý: Thao tác này sẽ xoá hoàn toàn thiết bị khỏi hệ thống và không thể khôi phục. Hãy chắc chắn thiết bị không còn được sử dụng.
                             </p>
                         </div>
@@ -948,7 +942,7 @@ const EquipmentManagement = () => {
                             <p className="text-sm text-slate-blue mb-1">
                                 Gỡ thiết bị <span className="font-bold text-midnight-indigo">{equipmentToUnassign.equipmentName}</span> khỏi phòng đang gán?
                             </p>
-                            <p className="text-[11px] text-slate-blue bg-cloud-mist/50 p-2 rounded-lg mt-3 text-left">
+                            <p data-ui-text="badge" className="text-[11px] text-slate-blue bg-cloud-mist/50 p-2 rounded-lg mt-3 text-left">
                                 Thiết bị sẽ trở về trạng thái chưa gán phòng. Bạn có thể gán lại vào phòng khác bất cứ lúc nào.
                             </p>
                         </div>
@@ -1001,23 +995,27 @@ const EquipmentManagement = () => {
                                     <p className="text-sm text-slate-blue">Tất cả phòng đã đăng ký thiết bị đều đã được gán đủ.</p>
                                 </div>
                             ) : (
-                                <ul className="space-y-3">
-                                    {gapRooms.map((room) => (
+                                <PaginatedCollection items={gapRooms} itemLabel="phòng thiếu thiết bị">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-3">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((room) => (
                                         <li key={room.roomId} className="p-3 rounded-xl border border-orange-100 bg-orange-50/60">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-sm font-bold text-midnight-indigo">{room.roomName}</span>
-                                                <span className="text-[11px] text-slate-blue">{room.roomCode}</span>
+                                                <span data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{room.roomName}</span>
+                                                <span data-ui-text="secondary" className="text-[11px] text-slate-blue">{room.roomCode}</span>
                                             </div>
                                             <div className="flex flex-wrap gap-1.5 mt-2">
                                                 {(room.missingTypeLabels || []).map((label) => (
-                                                    <span key={label} className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                                                    <span data-ui-text="badge" key={label} className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
                                                         Thiếu {label}
                                                     </span>
                                                 ))}
                                             </div>
                                         </li>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (gapRooms)))}
                                 </ul>
+)}
+</PaginatedCollection>
                             )}
                         </div>
                     </div>
@@ -1056,8 +1054,10 @@ const EquipmentManagement = () => {
                                     <p className="text-sm text-slate-blue">Thiết bị này chưa từng được báo hỏng.</p>
                                 </div>
                             ) : (
-                                <ol className="space-y-4">
-                                    {historyList.map((item) => {
+                                <PaginatedCollection items={historyList} itemLabel="lần điều chuyển">
+{(camaiPageItems, camaiStartIndex) => (
+<ol className="space-y-4">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((item) => {
                                         const meta = getHistoryEventMeta(item.eventType);
                                         return (
                                             <li key={item.id} className={`p-3 rounded-xl border ${meta.cls}`}>
@@ -1065,7 +1065,7 @@ const EquipmentManagement = () => {
                                                     <span className="inline-flex items-center gap-1.5 text-sm font-bold">
                                                         {meta.icon} {meta.label}
                                                     </span>
-                                                    <span className="text-[11px] text-slate-blue">{fmtDateTime(item.createdAt)}</span>
+                                                    <span data-ui-text="secondary" className="text-[11px] text-slate-blue">{fmtDateTime(item.createdAt)}</span>
                                                 </div>
                                                 <p className="text-sm text-midnight-indigo mt-1.5">
                                                     <span className="font-semibold">{item.actorName || 'Không rõ người thực hiện'}</span>
@@ -1081,8 +1081,10 @@ const EquipmentManagement = () => {
                                                 )}
                                             </li>
                                         );
-                                    })}
+                                    })(camaiRecord, camaiStartIndex + camaiIndex, (historyList)))}
                                 </ol>
+)}
+</PaginatedCollection>
                             )}
                         </div>
                     </div>

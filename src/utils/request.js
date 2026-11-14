@@ -83,6 +83,7 @@ const isPublicEndpoint = (path) => {
         '/auth/login',
         '/auth/password-reset/request',
         '/auth/password-reset/confirm',
+        '/auth/sso/',
         '/public/visitor-'
     ];
     // Normalize path (remove leading/trailing slashes for check)
@@ -255,6 +256,7 @@ const handleResponse = async (response, options = {}) => {
     const contentType = response.headers.get('Content-Type') || '';
     if (
         contentType.includes('spreadsheetml') ||
+        contentType.includes('wordprocessingml') ||
         contentType.includes('excel') ||
         contentType.includes('pdf') ||
         contentType.includes('octet-stream') ||

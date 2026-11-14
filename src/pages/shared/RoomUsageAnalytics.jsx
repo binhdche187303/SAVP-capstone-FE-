@@ -1,3 +1,9 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ReportExportButton from '../../components/common/ReportExportButton';
+import StatisticCard from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
 import { AlertTriangle, BarChart3, Building2, ChevronRight, FileText, Info, TrendingUp, X } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
@@ -8,7 +14,7 @@ import {
 } from 'recharts';
 import { getRoomAnalytics, getNoShowStats, getRoomUtilizationRate, getRooms } from '../../service/businessAdminServices';
 import { get } from '../../utils/request';
-import ExportReportModal from '../../components/common/ExportReportModal';
+import ExportReportModal, { reportPresetRange } from '../../components/common/ExportReportModal';
 
 const PIE_COLORS = { normal: '#22c55e', noshow: '#ef4444' };
 const BAR_COLORS = ['#1e90ff', '#38bdf8', '#7dd3fc', '#93c5fd', '#bfdbfe'];
@@ -127,11 +133,11 @@ const RoomUsageAnalytics = () => {
     const occupancyRate = summaryUtil?.roomOccupancyRate ?? null;
 
     return (
-        <div className="space-y-6 p-6 max-w-7xl mx-auto">
+        <div data-page-surface="wide" className="space-y-6 p-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-platinum-tint pb-5">
                 <div>
-                    <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <BarChart3 className="w-6 h-6 text-action-blue" />
                         Phân tích Hiệu suất Sử dụng Phòng họp
                     </h2>
@@ -139,18 +145,18 @@ const RoomUsageAnalytics = () => {
                         Theo dõi tần suất đặt phòng, tỷ lệ lấp đầy thực tế, tỷ lệ vắng mặt và phân tích chi tiết hiệu năng phòng họp.
                     </p>
                 </div>
-                <button
+                <ReportExportButton label="Xuất báo cáo"
                     onClick={() => setIsExportOpen(true)}
-                    className="px-4 py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm self-start md:self-auto"
+                    legacyClassName="px-4 py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm self-start md:self-auto"
                 >
                     <FileText className="w-4 h-4" />
                     Xuất báo cáo
-                </button>
+                </ReportExportButton>
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-4 items-end">
-                <div className="space-y-1">
+            <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-4 items-end">
+                <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Bộ lọc nhanh</label>
                     <select
                         value={preset}
@@ -165,7 +171,7 @@ const RoomUsageAnalytics = () => {
                 </div>
                 {preset === 'custom' && (
                     <>
-                        <div className="space-y-1">
+                        <div className="camai-filter-field space-y-1">
                             <label className="block text-[10px] font-bold text-slate-blue uppercase">Từ ngày</label>
                             <input
                                 type="date"
@@ -174,7 +180,7 @@ const RoomUsageAnalytics = () => {
                                 className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo"
                             />
                         </div>
-                        <div className="space-y-1">
+                        <div className="camai-filter-field space-y-1">
                             <label className="block text-[10px] font-bold text-slate-blue uppercase">Đến ngày</label>
                             <input
                                 type="date"
@@ -185,7 +191,7 @@ const RoomUsageAnalytics = () => {
                         </div>
                     </>
                 )}
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tòa nhà</label>
                     <select
                         value={siteName}
@@ -198,7 +204,7 @@ const RoomUsageAnalytics = () => {
                         ))}
                     </select>
                 </div>
-            </div>
+            </FilterBar>
 
             {error && (
                 <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-start text-sm">
@@ -208,11 +214,11 @@ const RoomUsageAnalytics = () => {
             )}
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <StatisticGrid columns={5} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 <SummaryCard
                     label="Tỷ lệ đặt phòng"
                     value={utilizationRate != null ? `${utilizationRate}%` : '—'}
-                    badge={<span className="text-xs font-semibold text-green-500 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-0.5"><TrendingUp className="w-3 h-3" /> Hiệu suất</span>}
+                    badge={<span data-ui-text="badge" className="text-xs font-semibold text-green-500 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-0.5"><TrendingUp className="w-3 h-3" /> Hiệu suất</span>}
                     loading={loading}
                 />
                 <SummaryCard
@@ -236,14 +242,14 @@ const RoomUsageAnalytics = () => {
                     value={noShowData?.noShowRate != null ? `${noShowData.noShowRate}%` : '—'}
                     badge={
                         noShowData?.noShowRate > 10
-                            ? <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> Cao</span>
+                            ? <span data-ui-text="badge" className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> Cao</span>
                             : noShowData?.noShowRate != null
-                                ? <span className="text-xs font-semibold text-green-500 bg-green-50 px-2 py-0.5 rounded-full">Bình thường</span>
+                                ? <span data-ui-text="badge" className="text-xs font-semibold text-green-500 bg-green-50 px-2 py-0.5 rounded-full">Bình thường</span>
                                 : null
                     }
                     loading={loading}
                 />
-            </div>
+            </StatisticGrid>
 
             {/* Main grid: room table + trend chart */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -253,7 +259,16 @@ const RoomUsageAnalytics = () => {
                         <h3 className="font-bold text-midnight-indigo text-sm">So sánh hiệu suất giữa các phòng</h3>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <PaginatedCollection items={data?.rooms} itemLabel="phòng">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-left border-collapse">
+<colgroup>
+<col style={{ width: '40%' }} />
+<col style={{ width: '17%' }} />
+<col style={{ width: '17%' }} />
+<col style={{ width: '18%' }} />
+<col style={{ width: '8%' }} />
+</colgroup>
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-slate-50/50">
                                     <th className="px-6 py-3 text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tên phòng</th>
@@ -271,7 +286,7 @@ const RoomUsageAnalytics = () => {
                                         </tr>
                                     ))
                                 ) : (data?.rooms?.length ? (
-                                    data.rooms.map((room) => {
+                                    camaiPageItems.map((camaiRecord, camaiIndex) => ((room) => {
                                         const rate = room.reservationUtilizationRate ?? room.utilizationRate;
                                         const occ = room.roomOccupancyRate ?? null;
                                         return (
@@ -283,7 +298,7 @@ const RoomUsageAnalytics = () => {
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
                                                         <Building2 className="w-4 h-4 text-slate-blue flex-shrink-0" />
-                                                        <span className="font-bold text-midnight-indigo text-xs">{room.roomName}</span>
+                                                        <span data-ui-text="primary" className="font-bold text-midnight-indigo text-xs">{room.roomName}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-right text-xs font-semibold text-slate-blue">
@@ -294,11 +309,11 @@ const RoomUsageAnalytics = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex flex-col items-end gap-1">
-                                                        <span className="text-xs font-bold text-midnight-indigo">
+                                                        <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">
                                                             {rate != null ? `${rate}%` : '—'}
                                                         </span>
                                                         {occ != null && (
-                                                            <span className="text-[10px] text-green-500 font-semibold bg-green-50 px-1.5 py-0.5 rounded-md">
+                                                            <span data-ui-text="badge" className="text-[10px] text-green-500 font-semibold bg-green-50 px-1.5 py-0.5 rounded-md">
                                                                 Thực tế: {occ}%
                                                             </span>
                                                         )}
@@ -309,7 +324,7 @@ const RoomUsageAnalytics = () => {
                                                 </td>
                                             </tr>
                                         );
-                                    })
+                                    })(camaiRecord, camaiStartIndex + camaiIndex, (data.rooms)))
                                 ) : (
                                     <tr>
                                         <td colSpan={5} className="px-6 py-10 text-center text-xs text-slate-400">
@@ -318,7 +333,9 @@ const RoomUsageAnalytics = () => {
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
+)}
+</PaginatedCollection>
                     </div>
                 </div>
 
@@ -347,7 +364,7 @@ const RoomUsageAnalytics = () => {
                         ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-400">
                                 <BarChart3 className="w-8 h-8 opacity-30" />
-                                <p className="text-xs text-center">Chưa có dữ liệu xu hướng<br /><span className="text-[10px] opacity-70">BE cần bổ sung dữ liệu trend[]</span></p>
+                                <p className="text-xs text-center">Chưa có dữ liệu xu hướng<br /><span data-ui-text="secondary" className="text-[10px] opacity-70">BE cần bổ sung dữ liệu trend[]</span></p>
                             </div>
                         )}
                     </div>
@@ -364,7 +381,7 @@ const RoomUsageAnalytics = () => {
                             Phân bố tình trạng sử dụng phòng
                         </h3>
                         {noShowData && (
-                            <span className="text-[10px] font-bold text-slate-blue bg-slate-100 px-2 py-0.5 rounded-full">
+                            <span data-ui-text="badge" className="text-[10px] font-bold text-slate-blue bg-slate-100 px-2 py-0.5 rounded-full">
                                 {noShowData.totalBookings || 0} lượt đặt
                             </span>
                         )}
@@ -392,7 +409,7 @@ const RoomUsageAnalytics = () => {
                                     <Legend
                                         iconType="circle"
                                         iconSize={8}
-                                        formatter={(value) => <span className="text-[10px] text-midnight-indigo font-semibold">{value}</span>}
+                                        formatter={(value) => <span data-ui-text="primary" className="text-[10px] text-midnight-indigo font-semibold">{value}</span>}
                                     />
                                 </PieChart>
                             </ResponsiveContainer>
@@ -406,11 +423,11 @@ const RoomUsageAnalytics = () => {
                         <div className="grid grid-cols-2 gap-3 pt-1 border-t border-platinum-tint">
                             <div className="text-center">
                                 <p className="text-lg font-black text-red-500">{noShowData.noShowCount || 0}</p>
-                                <p className="text-[10px] font-bold text-slate-blue uppercase">Lượt vắng mặt</p>
+                                <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase">Lượt vắng mặt</p>
                             </div>
                             <div className="text-center">
                                 <p className="text-lg font-black text-midnight-indigo">{noShowData.noShowRate || 0}%</p>
-                                <p className="text-[10px] font-bold text-slate-blue uppercase">Tỷ lệ no-show</p>
+                                <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase">Tỷ lệ no-show</p>
                             </div>
                         </div>
                     )}
@@ -454,7 +471,7 @@ const RoomUsageAnalytics = () => {
                         </div>
                     )}
                     {noShowRanking.length > 0 && (
-                        <p className="text-[10px] text-slate-400">
+                        <p data-ui-text="secondary" className="text-[10px] text-slate-400">
                             Màu đỏ: &gt;15% · Màu vàng: 8–15% · Màu xanh: &lt;8%
                         </p>
                     )}
@@ -517,22 +534,22 @@ const RoomUsageAnalytics = () => {
                                     {/* Room spec */}
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl">
                                         <div>
-                                            <span className="text-[10px] font-bold text-slate-blue uppercase">Vị trí</span>
-                                            <p className="text-xs font-bold text-midnight-indigo mt-0.5">{roomDetail.room?.areaName || '—'}</p>
+                                            <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase">Vị trí</span>
+                                            <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo mt-0.5">{roomDetail.room?.areaName || '—'}</p>
                                         </div>
                                         <div>
-                                            <span className="text-[10px] font-bold text-slate-blue uppercase">Sức chứa</span>
-                                            <p className="text-xs font-bold text-midnight-indigo mt-0.5">{roomDetail.room?.capacity != null ? `${roomDetail.room.capacity} người` : '—'}</p>
+                                            <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase">Sức chứa</span>
+                                            <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo mt-0.5">{roomDetail.room?.capacity != null ? `${roomDetail.room.capacity} người` : '—'}</p>
                                         </div>
                                         <div>
-                                            <span className="text-[10px] font-bold text-slate-blue uppercase">Hiệu suất đặt</span>
-                                            <p className="text-xs font-bold text-midnight-indigo mt-0.5">
+                                            <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase">Hiệu suất đặt</span>
+                                            <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo mt-0.5">
                                                 {roomDetail.reservationUtilizationRate != null ? `${roomDetail.reservationUtilizationRate}%` : '—'}
                                             </p>
                                         </div>
                                         <div>
-                                            <span className="text-[10px] font-bold text-slate-blue uppercase">Tỷ lệ lấp đầy</span>
-                                            <p className="text-xs font-bold text-midnight-indigo mt-0.5">
+                                            <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase">Tỷ lệ lấp đầy</span>
+                                            <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo mt-0.5">
                                                 {roomDetail.roomOccupancyRate != null ? `${roomDetail.roomOccupancyRate}%` : 'N/A'}
                                             </p>
                                         </div>
@@ -557,7 +574,7 @@ const RoomUsageAnalytics = () => {
                                                     </BarChart>
                                                 </ResponsiveContainer>
                                             </div>
-                                            <p className="text-[10px] text-slate-400">Đỏ: &gt;400 phút · Vàng: 200–400 phút · Xanh: &lt;200 phút</p>
+                                            <p data-ui-text="secondary" className="text-[10px] text-slate-400">Đỏ: &gt;400 phút · Vàng: 200–400 phút · Xanh: &lt;200 phút</p>
                                         </div>
                                     )}
 
@@ -566,7 +583,15 @@ const RoomUsageAnalytics = () => {
                                         <div className="space-y-3">
                                             <h4 className="text-xs font-bold text-midnight-indigo uppercase">Lịch sử các cuộc họp</h4>
                                             <div className="border border-platinum-tint rounded-xl overflow-hidden">
-                                                <table className="w-full text-left">
+                                                <PaginatedCollection items={roomDetail?.meetings} itemLabel="cuộc họp">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-left">
+<colgroup>
+<col style={{ width: '38%' }} />
+<col style={{ width: '26%' }} />
+<col style={{ width: '18%' }} />
+<col style={{ width: '18%' }} />
+</colgroup>
                                                     <thead>
                                                         <tr className="bg-slate-50 border-b border-platinum-tint text-[10px] font-bold text-slate-blue uppercase">
                                                             <th className="px-4 py-2">Tiêu đề</th>
@@ -576,7 +601,7 @@ const RoomUsageAnalytics = () => {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-platinum-tint text-xs text-midnight-indigo">
-                                                        {roomDetail.meetings.map((m) => (
+                                                        {camaiPageItems.map((camaiRecord, camaiIndex) => ((m) => (
                                                             <tr key={m.meetingId}>
                                                                 <td className="px-4 py-3 font-semibold">{m.title}</td>
                                                                 <td className="px-4 py-3 text-slate-blue">{m.organizerName}</td>
@@ -593,9 +618,11 @@ const RoomUsageAnalytics = () => {
                                                                     )}
                                                                 </td>
                                                             </tr>
-                                                        ))}
+                                                        ))(camaiRecord, camaiStartIndex + camaiIndex, (roomDetail.meetings)))}
                                                     </tbody>
-                                                </table>
+                                                </ResponsiveTable>
+)}
+</PaginatedCollection>
                                             </div>
                                         </div>
                                     )}
@@ -610,12 +637,12 @@ const RoomUsageAnalytics = () => {
                 </div>
             , document.body)}
 
-            <ExportReportModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
+            <ExportReportModal isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} range={reportPresetRange(preset, from, to)} filters={{ building: siteName }} filterSummary={[siteName ? `Tòa nhà: ${siteName}` : 'Tất cả tòa nhà']} />
         </div>
     );
 };
 
-const SummaryCard = ({ label, value, badge, sub, loading }) => (
+const LegacySummaryCard = ({ label, value, badge, sub, loading }) => (
     <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-2">
         <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider block">{label}</span>
         {loading ? (
@@ -630,11 +657,18 @@ const SummaryCard = ({ label, value, badge, sub, loading }) => (
     </div>
 );
 
+const SummaryCard = (props) => (
+    <StatisticCard label={props.label} value={props.value} helper={props.sub} loading={props.loading}
+        legacy={<LegacySummaryCard {...props} />}>
+        {props.badge}
+    </StatisticCard>
+);
+
 const MetricBlock = ({ label, value, sub, dimSub }) => (
     <div className="text-center py-3 px-2 bg-slate-50 rounded-xl">
         <p className="text-xl font-black text-midnight-indigo">{value}</p>
-        <p className="text-[10px] font-bold text-slate-blue uppercase mt-0.5">{label}</p>
-        {sub && <p className={`text-[9px] mt-0.5 ${dimSub ? 'text-slate-300' : 'text-slate-400'}`}>{sub}</p>}
+        <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase mt-0.5">{label}</p>
+        {sub && <p data-ui-text="secondary" className={`text-[9px] mt-0.5 ${dimSub ? 'text-slate-300' : 'text-slate-400'}`}>{sub}</p>}
     </div>
 );
 

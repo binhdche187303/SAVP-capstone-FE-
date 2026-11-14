@@ -1,4 +1,9 @@
-import { Activity, AlertTriangle, BarChart3, Calendar, Camera, CheckCircle, ChevronLeft, ChevronRight, Edit2, Eye, History, Info, LogIn, LogOut, Map, MapPin, Monitor, Plus, RefreshCw, Search, Server, Shield, ShieldCheck, ShieldQuestion, Trash2, Users, Video, X } from 'lucide-react';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { Activity, AlertTriangle, BarChart3, Calendar, Camera, CheckCircle, Edit2, Eye, History, Info, LogIn, LogOut, Map, MapPin, Monitor, Plus, RefreshCw, Search, Server, Shield, ShieldCheck, ShieldQuestion, Trash2, Users, Video, X } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { createPortal } from 'react-dom';
@@ -31,23 +36,24 @@ const fmtEventTime = (iso) => {
 
 const ZoneDirectionBadge = ({ direction }) => {
     if (direction === 'enter')
-        return <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 whitespace-nowrap"><LogIn className="w-2.5 h-2.5" />Vào</span>;
+        return <span data-ui-text="badge" className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 whitespace-nowrap"><LogIn className="w-2.5 h-2.5" />Vào</span>;
     if (direction === 'leave')
-        return <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 whitespace-nowrap"><LogOut className="w-2.5 h-2.5" />Ra</span>;
-    return <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 whitespace-nowrap"><Eye className="w-2.5 h-2.5" />Thấy</span>;
+        return <span data-ui-text="badge" className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 whitespace-nowrap"><LogOut className="w-2.5 h-2.5" />Ra</span>;
+    return <span data-ui-text="badge" className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 whitespace-nowrap"><Eye className="w-2.5 h-2.5" />Thấy</span>;
 };
 
 const ZoneStatusBadge = ({ isStranger }) => {
     if (isStranger)
-        return <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 whitespace-nowrap"><AlertTriangle className="w-2.5 h-2.5" />Người lạ</span>;
-    return <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 whitespace-nowrap"><ShieldCheck className="w-2.5 h-2.5" />Khớp</span>;
+        return <span data-ui-text="badge" className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 whitespace-nowrap"><AlertTriangle className="w-2.5 h-2.5" />Người lạ</span>;
+    return <span data-ui-text="badge" className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 whitespace-nowrap"><ShieldCheck className="w-2.5 h-2.5" />Khớp</span>;
 };
 
 // ─── ZoneAccessLogCard ───────────────────────────────────────────────────────
 
-const ZONE_LOG_LIMIT = 20;
+
 
 const ZoneAccessLogCard = ({ zoneId }) => {
+    const [ZONE_LOG_LIMIT, setZoneLogLimit] = useState(20);
     const [date, setDate] = useState(getTodayVN);
     const [page, setPage] = useState(1);
     const [events, setEvents] = useState([]);
@@ -97,7 +103,7 @@ const ZoneAccessLogCard = ({ zoneId }) => {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [zoneId, date, page]);
+    }, [zoneId, date, page, ZONE_LOG_LIMIT]);
 
     useEffect(() => { fetchLog(); }, [fetchLog]);
 
@@ -136,14 +142,14 @@ const ZoneAccessLogCard = ({ zoneId }) => {
                     </h3>
                     {!loading && total > 0 && (
                         <div className="flex items-center gap-1.5">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">{total} sự kiện</span>
-                            {matchedCount > 0 && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">{matchedCount} khớp</span>}
+                            <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">{total} sự kiện</span>
+                            {matchedCount > 0 && <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">{matchedCount} khớp</span>}
                             {/* Tạm ẩn badge "lượt người lạ" theo yêu cầu, giữ nguyên code để bật lại khi cần */}
                             {/* {unmatchedCount > 0 && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700">{unmatchedCount} lượt người lạ</span>} */}
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
+                <FilterBar variant="inline" className="flex items-center gap-2">
                     <div className="relative">
                         <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-action-blue pointer-events-none" />
                         <input
@@ -154,20 +160,18 @@ const ZoneAccessLogCard = ({ zoneId }) => {
                             className="pl-8 pr-3 py-1.5 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo bg-white hover:border-action-blue/50 focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/10 transition-all cursor-pointer"
                         />
                     </div>
-                    <span className="text-[10px] text-slate-400">Tự động cập nhật mỗi 2s</span>
-                    <button
+                    <span data-ui-text="secondary" className="text-[10px] text-slate-400">Tự động cập nhật mỗi 2s</span>
+                    <RefreshButton
                         onClick={() => fetchLog()}
-                        className="p-1.5 text-slate-blue hover:text-action-blue hover:bg-blue-50 rounded-lg transition-colors"
                         title="Làm mới"
-                    >
-                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-                </div>
+                        busy={loading}
+                    />
+                </FilterBar>
             </div>
 
             {/* Error */}
             {error && (
-                <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                <div data-ui-text="badge" className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                     {error}
                 </div>
@@ -213,7 +217,7 @@ const ZoneAccessLogCard = ({ zoneId }) => {
                                             className="w-full aspect-video cursor-pointer"
                                         />
                                         {/* Time overlay */}
-                                        <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-mono leading-none">
+                                        <span data-ui-text="secondary" className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-mono leading-none">
                                             {time}
                                         </span>
                                         {/* Direction badge overlay */}
@@ -223,7 +227,7 @@ const ZoneAccessLogCard = ({ zoneId }) => {
                                     </div>
                                     {/* Info row */}
                                     <div className="px-3 py-2.5 flex items-center justify-between gap-2">
-                                        <p className={`text-xs font-bold truncate ${ev.isStranger ? 'text-red-700' : 'text-midnight-indigo'}`}>
+                                        <p data-ui-text="primary" className={`text-xs font-bold truncate ${ev.isStranger ? 'text-red-700' : 'text-midnight-indigo'}`}>
                                             {name}
                                         </p>
                                         <ZoneStatusBadge isStranger={ev.isStranger} />
@@ -236,30 +240,15 @@ const ZoneAccessLogCard = ({ zoneId }) => {
             </div>
 
             {/* Pagination */}
-            {!loading && events.length > 0 && (
-                <div className="px-5 py-3 border-t border-platinum-tint flex items-center justify-between">
-                    <span className="text-[10px] text-slate-400">
-                        Trang {page}/{totalPages} · {total} sự kiện
-                    </span>
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1 || loading}
-                            className="p-1.5 rounded-lg text-slate-blue hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                            <ChevronLeft className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="text-[10px] font-semibold text-midnight-indigo px-1">{page}</span>
-                        <button
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                            disabled={page === totalPages || loading}
-                            className="p-1.5 rounded-lg text-slate-blue hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                            <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
-                </div>
-            )}
+            {<PaginationRegion legacyVisible={!loading && events.length > 0}><PaginationFooter
+                    currentPage={page}
+                    totalPages={totalPages}
+                    totalItems={total}
+                    pageSize={ZONE_LOG_LIMIT}
+                    onPageChange={setPage}
+                    itemLabel={"sự kiện"}
+                    loading={loading}
+                 onPageSizeChange={size => { setZoneLogLimit(size); setPage(1); }} /></PaginationRegion>}
 
             {/* Snapshot modal */}
             <EventSnapshotModal
@@ -293,12 +282,12 @@ const MAX_TIMELINE_DAYS = 31;
 
 const EVENT_TYPE_BADGE = {
     appear: (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+        <span data-ui-text="badge" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
             <Eye className="w-2.5 h-2.5" />Xuất hiện
         </span>
     ),
     disappear: (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-200 whitespace-nowrap">
+        <span data-ui-text="badge" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-200 whitespace-nowrap">
             <X className="w-2.5 h-2.5" />Rời đi
         </span>
     ),
@@ -397,9 +386,9 @@ const ZoneTimelineCard = ({ zoneId }) => {
                     <Activity className="w-4 h-4 text-action-blue" />
                     Dòng thời gian hiện diện
                 </h3>
-                <div className="flex items-center gap-2 flex-wrap">
+                <FilterBar variant="inline" className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-slate-blue font-medium">Từ</span>
+                        <span data-ui-text="secondary" className="text-[10px] text-slate-blue font-medium">Từ</span>
                         <input
                             type="date"
                             value={fromDate}
@@ -408,7 +397,7 @@ const ZoneTimelineCard = ({ zoneId }) => {
                         />
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-slate-blue font-medium">Đến</span>
+                        <span data-ui-text="secondary" className="text-[10px] text-slate-blue font-medium">Đến</span>
                         <input
                             type="date"
                             value={toDate}
@@ -417,16 +406,14 @@ const ZoneTimelineCard = ({ zoneId }) => {
                             className="px-2 py-1 border border-platinum-tint rounded-lg text-xs text-midnight-indigo focus:outline-none focus:border-action-blue"
                         />
                     </div>
-                    <span className="text-[10px] text-slate-400">Tự động cập nhật mỗi 6s</span>
-                    <button
+                    <span data-ui-text="secondary" className="text-[10px] text-slate-400">Tự động cập nhật mỗi 6s</span>
+                    <RefreshButton
                         onClick={() => fetchTimeline()}
                         disabled={loading}
                         title="Tải lại"
-                        className="p-1.5 rounded-lg text-slate-blue hover:text-action-blue hover:bg-blue-50 transition-colors disabled:opacity-50"
-                    >
-                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-                </div>
+                        busy={loading}
+                    />
+                </FilterBar>
             </div>
 
             {/* Body */}
@@ -451,11 +438,11 @@ const ZoneTimelineCard = ({ zoneId }) => {
                     {/* KPI chips */}
                     <div className="grid grid-cols-3 gap-2.5">
                         <div className="bg-cloud-mist/40 rounded-xl p-3 text-center">
-                            <p className="text-[10px] text-slate-blue font-medium uppercase">Tổng sự kiện</p>
+                            <p data-ui-text="label" className="text-[10px] text-slate-blue font-medium uppercase">Tổng sự kiện</p>
                             <p className="text-lg font-bold text-midnight-indigo mt-0.5">{data.events.length}</p>
                         </div>
                         <div className="bg-blue-50 rounded-xl p-3 text-center">
-                            <p className="text-[10px] text-blue-600 font-medium uppercase">Lượt xuất hiện</p>
+                            <p data-ui-text="label" className="text-[10px] text-blue-600 font-medium uppercase">Lượt xuất hiện</p>
                             <p className="text-lg font-bold text-blue-700 mt-0.5">{appearTotal}</p>
                         </div>
                     </div>
@@ -471,7 +458,7 @@ const ZoneTimelineCard = ({ zoneId }) => {
                     {/* Bar chart — appear events by VN hour */}
                     {hasChart && (
                         <div>
-                            <p className="text-[10px] font-bold text-midnight-indigo uppercase mb-3 flex items-center gap-1.5">
+                            <p data-ui-text="label" className="text-[10px] font-bold text-midnight-indigo uppercase mb-3 flex items-center gap-1.5">
                                 <BarChart3 className="w-3.5 h-3.5 text-action-blue" />
                                 Phân bố lượt xuất hiện theo giờ (giờ VN)
                             </p>
@@ -511,14 +498,21 @@ const ZoneTimelineCard = ({ zoneId }) => {
 
                     {/* Recent events list (30 sự kiện gần nhất) */}
                     <div>
-                        <p className="text-[10px] font-bold text-midnight-indigo uppercase mb-3 flex items-center gap-1.5">
+                        <p data-ui-text="label" className="text-[10px] font-bold text-midnight-indigo uppercase mb-3 flex items-center gap-1.5">
                             <History className="w-3.5 h-3.5 text-slate-blue" />
                             {recentEvents.length < (data?.events?.length ?? 0)
                                 ? `${recentEvents.length} sự kiện gần nhất (tổng ${data.events.length})`
                                 : `${recentEvents.length} sự kiện`}
                         </p>
                         <div className="border border-platinum-tint rounded-xl overflow-hidden">
-                            <table className="w-full text-left text-xs">
+                            <PaginatedCollection items={recentEvents} itemLabel="sự kiện">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-left text-xs">
+<colgroup>
+<col style={{ width: '22%' }} />
+<col style={{ width: '22%' }} />
+<col style={{ width: '56%' }} />
+</colgroup>
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-platinum-tint text-[10px] font-bold text-slate-blue uppercase">
                                         <th className="px-3 py-2">Thời điểm</th>
@@ -527,35 +521,37 @@ const ZoneTimelineCard = ({ zoneId }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-platinum-tint">
-                                    {recentEvents.map((ev, i) => (
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((ev, i) => (
                                         <tr key={i} className="hover:bg-cloud-mist/30 transition-colors">
-                                            <td className="px-3 py-2 font-mono text-[10px] text-midnight-indigo whitespace-nowrap">
+                                            <td data-ui-text="primary" className="px-3 py-2 font-mono text-[10px] text-midnight-indigo whitespace-nowrap">
                                                 {fmtEventTime(ev.eventTime)}
                                             </td>
                                             <td className="px-3 py-2">
                                                 {EVENT_TYPE_BADGE[ev.eventType] ?? (
-                                                    <span className="text-[10px] text-slate-blue">{ev.eventType}</span>
+                                                    <span data-ui-text="secondary" className="text-[10px] text-slate-blue">{ev.eventType}</span>
                                                 )}
                                             </td>
                                             <td className="px-3 py-2">
                                                 {ev.isStranger ? (
-                                                    <span className="inline-flex items-center gap-1 text-[10px] text-red-700 font-medium">
+                                                    <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[10px] text-red-700 font-medium">
                                                         <AlertTriangle className="w-2.5 h-2.5" />Người lạ
                                                     </span>
                                                 ) : ev.userId ? (
-                                                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-medium">
+                                                    <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-medium">
                                                         <CheckCircle className="w-2.5 h-2.5" />Đã nhận dạng
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1 text-[10px] text-steel-gray">
+                                                    <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[10px] text-steel-gray">
                                                         <Shield className="w-2.5 h-2.5" />Chưa xác định
                                                     </span>
                                                 )}
                                             </td>
                                         </tr>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (recentEvents)))}
                                 </tbody>
-                            </table>
+                            </ResponsiveTable>
+)}
+</PaginatedCollection>
                         </div>
                     </div>
                 </div>
@@ -898,7 +894,7 @@ const ZoneManagement = () => {
                 {/* HEADER */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm-1 border border-platinum-tint">
                     <div>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                        <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                             <MapPin className="w-3.5 h-3.5" />
                             Khu vực
                         </span>
@@ -928,7 +924,7 @@ const ZoneManagement = () => {
                 <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
                     {/* ZONES LIST PANE */}
                     <div className="w-full lg:w-1/3 flex flex-col bg-white rounded-2xl shadow-sm-1 border border-platinum-tint overflow-hidden">
-                        <div className="p-4 border-b border-platinum-tint bg-cloud-mist/30">
+                        <FilterBar variant="inline" className="p-4 border-b border-platinum-tint bg-cloud-mist/30">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue" />
                                 <input
@@ -939,10 +935,12 @@ const ZoneManagement = () => {
                                     className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
                                 />
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-2">Tự động cập nhật mỗi 2s</p>
-                        </div>
+                            <p data-ui-text="secondary" className="text-[10px] text-slate-400 mt-2">Tự động cập nhật mỗi 2s</p>
+                        </FilterBar>
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                        <PaginatedCollection items={filteredZones} itemLabel="khu vực">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="flex-1 overflow-y-auto p-4 space-y-2">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center h-40 text-slate-blue">
                                     <RefreshCw className="w-8 h-8 animate-spin mb-4" />
@@ -954,7 +952,7 @@ const ZoneManagement = () => {
                                     <p className="text-sm">Không tìm thấy khu vực nào</p>
                                 </div>
                             ) : (
-                                filteredZones.map((zone) => (
+                                camaiPageItems.map((camaiRecord, camaiIndex) => ((zone) => (
                                     <div
                                         key={zone.id}
                                         onClick={() => handleSelectZone(zone)}
@@ -987,9 +985,11 @@ const ZoneManagement = () => {
                                             {[zone.building, zone.floor].filter(Boolean).join(' - ') || 'Chưa cập nhật vị trí'}
                                         </p>
                                     </div>
-                                ))
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (filteredZones)))
                             )}
                         </div>
+)}
+</PaginatedCollection>
                     </div>
 
                     {/* ZONE DETAIL PANE */}
@@ -1171,7 +1171,7 @@ const ZoneManagement = () => {
                                     <select value={editForm.visitor_policy} onChange={e => setEditForm({ ...editForm, visitor_policy: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white">
                                         {VISITOR_POLICY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                                     </select>
-                                    <p className="text-[11px] text-slate-blue mt-1">Lượt khách đã duyệt giữ nguyên khu đã cấp; chính sách mới áp cho lần duyệt / sửa khu sau.</p>
+                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-1">Lượt khách đã duyệt giữ nguyên khu đã cấp; chính sách mới áp cho lần duyệt / sửa khu sau.</p>
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="flex-1">
@@ -1231,42 +1231,42 @@ const ZoneManagement = () => {
                                 </div>
                                 <div className="grid grid-cols-3 gap-2.5 pt-2">
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Loại khu vực</p>
+                                        <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Loại khu vực</p>
                                         <p className="text-sm font-semibold text-midnight-indigo">
                                             {ZONE_TYPE_LABELS[selectedZone.zone_type] || selectedZone.zone_type || '—'}
                                         </p>
                                     </div>
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Trạng thái</p>
+                                        <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Trạng thái</p>
                                         <span className={`inline-flex items-center gap-1 text-xs font-bold ${selectedZone.status === 'active' || !selectedZone.status ? 'text-emerald-700' : 'text-slate-500'}`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${selectedZone.status === 'inactive' ? 'bg-slate-400' : 'bg-emerald-500'}`} />
                                             {selectedZone.status === 'inactive' ? 'Không hoạt động' : 'Đang hoạt động'}
                                         </span>
                                     </div>
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Khách đến làm việc</p>
+                                        <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Khách đến làm việc</p>
                                         <p className={`text-sm font-semibold ${selectedZone.visitor_policy === 'restricted' ? 'text-red-700' : 'text-midnight-indigo'}`}>
                                             {VISITOR_POLICY_LABELS[selectedZone.visitor_policy] || '—'}
                                         </p>
                                     </div>
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Tòa nhà</p>
+                                        <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Tòa nhà</p>
                                         <p className="text-sm font-semibold text-midnight-indigo">{selectedZone.building || '—'}</p>
                                     </div>
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Tầng</p>
+                                        <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Tầng</p>
                                         <p className="text-sm font-semibold text-midnight-indigo">{selectedZone.floor || '—'}</p>
                                     </div>
                                 </div>
                                 {selectedZone.description && (
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Mô tả</p>
+                                        <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Mô tả</p>
                                         <p className="text-sm text-midnight-indigo">{selectedZone.description}</p>
                                     </div>
                                 )}
                                 {selectedZone.createdAt && (
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Ngày tạo</p>
+                                        <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Ngày tạo</p>
                                         <p className="text-sm font-semibold text-midnight-indigo">
                                             {new Date(selectedZone.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })}
                                         </p>

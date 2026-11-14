@@ -1,4 +1,10 @@
-import { Calendar, Camera, Clock, RefreshCw, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X } from 'lucide-react';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard from '../../components/common/StatisticCard';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { Calendar, Camera, Clock, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -10,7 +16,7 @@ import { getDevices } from '../../service/sysAdminServices';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import { CAMERA_TYPES } from '../../mocks/cameraMock';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
-import Pagination from '../../components/common/Pagination';
+
 import StrangerReviewModal from '../../components/security/StrangerReviewModal';
 import StrangerDismissModal, { dismissReasonLabel } from '../../components/security/StrangerDismissModal';
 
@@ -21,7 +27,7 @@ import StrangerDismissModal, { dismissReasonLabel } from '../../components/secur
  * người lạ xuất hiện thêm lượt mới sau khi đóng sẽ tự quay lại tab "Chờ xử lý".
  */
 
-const PAGE_SIZE = 12;
+
 const TABS = [
     { key: 'pending', label: 'Chờ xử lý' },
     { key: 'dismissed', label: 'Đã đóng' },
@@ -39,6 +45,7 @@ const errMsg = (e, fallback) => e?.error?.message || e?.response?.data?.message 
 const inputCls = 'px-3 py-2 bg-white border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none';
 
 const Strangers = () => {
+    const [PAGE_SIZE, setPageSize] = useState(12);
     const [from, setFrom] = useState(daysAgo(6));
     const [to, setTo] = useState(vnToday());
     const [deviceId, setDeviceId] = useState('');
@@ -89,7 +96,7 @@ const Strangers = () => {
         } catch (e) {
             setError(errMsg(e, 'Không tải được danh sách người lạ.'));
         } finally { setLoading(false); }
-    }, [from, to, deviceId, tab, page]);
+    }, [from, to, deviceId, tab, page, PAGE_SIZE]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -172,8 +179,8 @@ const Strangers = () => {
     const personControlLink = `/${window.location.pathname.split('/')[1]}/person-control-list`;
 
     return (
-        <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-            <div className="flex flex-wrap items-end justify-between gap-4">
+        <div data-page-surface="wide" className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="min-w-0">
                     <h1 className="text-2xl font-extrabold text-midnight-indigo flex items-center gap-2">
                         <UserX className="w-6 h-6 text-amber-600" /> Người lạ
@@ -183,37 +190,42 @@ const Strangers = () => {
                         <Link to={personControlLink} className="text-action-blue font-semibold hover:underline">Danh sách người giám sát</Link>.
                     </p>
                 </div>
-                <button onClick={fetchData} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-platinum-tint text-sm font-semibold text-midnight-indigo hover:bg-cloud-mist">
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Làm mới
-                </button>
+                <RefreshButton
+                    onClick={fetchData}
+                    busy={loading}
+                />
             </div>
 
-            <div className="bg-white rounded-2xl border border-platinum-tint p-4 flex flex-wrap items-center gap-x-6 gap-y-3">
-                <div className="inline-flex p-1 rounded-xl bg-cloud-mist/70 border border-platinum-tint" role="tablist">
-                    {TABS.map(t => (
-                        <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => changeFilter(setTab)(t.key)}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition ${tab === t.key ? 'bg-white text-midnight-indigo shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}>
-                            {t.label}
-                            {counts[t.key] !== null && (
-                                <span className={`min-w-[1.4rem] px-1.5 rounded-full text-[11px] font-bold text-center ${tab === t.key ? 'bg-action-blue text-white' : 'bg-slate-200 text-slate-600'}`}>{counts[t.key]}</span>
-                            )}
-                        </button>
-                    ))}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
+            <StatisticGrid columns={2} className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-stat-grid role="group" aria-label="Thống kê trạng thái người lạ">
+                {TABS.map(t => (
+                    <StatisticCard
+                        key={t.key}
+                        label={t.label}
+                        value={counts[t.key]}
+                        icon={t.key === 'pending' ? UserX : UserCheck}
+                        tone={t.key === 'pending' ? 'warning' : 'success'}
+                        selected={tab === t.key}
+                        onClick={() => changeFilter(setTab)(t.key)}
+                    />
+                ))}
+            </StatisticGrid>
+
+            <FilterBar variant="card" className="bg-white rounded-2xl border border-platinum-tint p-4 flex flex-wrap items-center gap-x-6 gap-y-3">
+
+                <div data-filter-fields className="camai-filter-range flex flex-wrap items-center gap-2">
                     <Calendar className="w-4 h-4 text-slate-blue" />
-                    <input type="date" value={from} max={to} onChange={e => e.target.value && changeFilter(setFrom)(e.target.value)} className={inputCls} />
-                    <span className="text-slate-blue">→</span>
-                    <input type="date" value={to} min={from} max={vnToday()} onChange={e => e.target.value && changeFilter(setTo)(e.target.value)} className={inputCls} />
+                    <FilterField label="Từ ngày"><input type="date" value={from} max={to} onChange={e => e.target.value && changeFilter(setFrom)(e.target.value)} className={inputCls} /></FilterField>
+                    <span data-filter-separator className="text-slate-blue">→</span>
+                    <FilterField label="Đến ngày"><input type="date" value={to} min={from} max={vnToday()} onChange={e => e.target.value && changeFilter(setTo)(e.target.value)} className={inputCls} /></FilterField>
                 </div>
                 <div className="flex items-center gap-2">
                     <Camera className="w-4 h-4 text-slate-blue" />
-                    <select value={deviceId} onChange={e => changeFilter(setDeviceId)(e.target.value)} className={`${inputCls} max-w-[16rem]`}>
+                    <FilterField label="Camera"><select value={deviceId} onChange={e => changeFilter(setDeviceId)(e.target.value)} className={`${inputCls} max-w-[16rem]`}>
                         <option value="">Tất cả camera</option>
                         {devices.map(d => <option key={d.id} value={d.id}>{d.device_code}{d.device_name ? ` — ${d.device_name}` : ''}</option>)}
-                    </select>
+                    </select></FilterField>
                 </div>
-            </div>
+            </FilterBar>
 
             {error && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
 
@@ -234,16 +246,16 @@ const Strangers = () => {
                                     <UserX className="w-8 h-8" /> Không có ảnh
                                 </button>
                             )}
-                            <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-bold shadow ${tab === 'pending' && s.hitCount >= 3 ? 'bg-amber-500 text-white' : 'bg-white text-midnight-indigo'}`}>
+                            <span data-ui-text="badge" className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-bold shadow ${tab === 'pending' && s.hitCount >= 3 ? 'bg-amber-500 text-white' : 'bg-white text-midnight-indigo'}`}>
                                 {s.hitCount} lần
                             </span>
                         </div>
                         <div className="p-3 space-y-1 flex-1 min-w-0">
                             <p className="text-sm font-bold text-midnight-indigo truncate" title={placeOf(s)}>{placeOf(s)}</p>
                             <p className="text-xs text-slate-blue flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" /> Lần cuối {fmtDateTime(s.lastSeen)}</p>
-                            <p className="text-[11px] text-slate-400 truncate" title={s.deviceCode}>{s.deviceCode}{s.strangerId ? ` · mã ${s.strangerId}` : ' · thiết bị không gán mã'}</p>
+                            <p data-ui-text="secondary" className="text-[11px] text-slate-400 truncate" title={s.deviceCode}>{s.deviceCode}{s.strangerId ? ` · mã ${s.strangerId}` : ' · thiết bị không gán mã'}</p>
                             {tab === 'dismissed' && (
-                                <div className="mt-2 rounded-lg bg-slate-50 border border-slate-100 px-2 py-1.5 text-[11px] text-slate-blue space-y-0.5">
+                                <div data-ui-text="secondary" className="mt-2 rounded-lg bg-slate-50 border border-slate-100 px-2 py-1.5 text-[11px] text-slate-blue space-y-0.5">
                                     <p className="font-semibold text-midnight-indigo">{dismissReasonLabel(s.dismissReason)}</p>
                                     {s.dismissNote && <p className="line-clamp-2" title={s.dismissNote}>{s.dismissNote}</p>}
                                     <p className="text-slate-400">{s.dismissedBy || 'Không rõ'} · {s.dismissedAt ? fmtDateTime(s.dismissedAt) : ''}</p>
@@ -279,9 +291,7 @@ const Strangers = () => {
                 ))}
             </div>
 
-            {total > PAGE_SIZE && (
-                <Pagination currentPage={page} totalPages={Math.ceil(total / PAGE_SIZE)} onPageChange={setPage} />
-            )}
+            {<PaginationRegion legacyVisible={total > PAGE_SIZE}><PaginationFooter currentPage={page} totalPages={Math.ceil(total / PAGE_SIZE)} totalItems={total} pageSize={PAGE_SIZE} itemLabel="người lạ" onPageChange={setPage} loading={loading}  onPageSizeChange={size => { setPageSize(size); setPage(1); }} /></PaginationRegion>}
 
             {/* modal chi tiết các lần xuất hiện */}
             {detail && createPortal(
@@ -295,9 +305,11 @@ const Strangers = () => {
                                 </div>
                                 <button onClick={() => setDetail(null)} className="p-1.5 rounded-lg hover:bg-slate-100"><X className="w-5 h-5" /></button>
                             </div>
-                            <div className="overflow-y-auto p-4 space-y-2">
+                            <PaginatedCollection items={detail?.sightings} itemLabel="lần xuất hiện">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="overflow-y-auto p-4 space-y-2">
                                 {detail.loading && <p className="text-sm text-slate-blue">Đang tải…</p>}
-                                {detail.sightings.map((x, i) => (
+                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((x, i) => (
                                     <div key={x.eventId} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-100">
                                         {x.hasSnapshot ? (
                                             <ThumbnailImage eventId={x.eventId} className="w-16 h-16" onClick={() => {
@@ -310,8 +322,10 @@ const Strangers = () => {
                                             {x.similarity && <p className="text-xs text-slate-blue">Độ giống gần nhất: {x.similarity}%</p>}
                                         </div>
                                     </div>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (detail.sightings)))}
                             </div>
+)}
+</PaginatedCollection>
                             <div className="p-4 border-t border-platinum-tint space-y-2">
                                 <button onClick={() => { const s = detail.stranger; setDetail(null); setReviewing(s); }} className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold inline-flex items-center justify-center gap-2">
                                     <UserCheck className="w-4 h-4" /> Đây là người quen — xác nhận là ai
@@ -370,7 +384,7 @@ const Strangers = () => {
                         </label>
                         {addForm.sightings.length > 0 && (
                             <div>
-                                <p className="text-xs font-bold text-slate-blue mb-1">Các lượt là người này ({addForm.picked.size}/{addForm.sightings.length}) — cảnh báo chứa các lượt được chọn sẽ chuyển sang "Đối tượng theo dõi"</p>
+                                <p data-ui-text="primary" className="text-xs font-bold text-slate-blue mb-1">Các lượt là người này ({addForm.picked.size}/{addForm.sightings.length}) — cảnh báo chứa các lượt được chọn sẽ chuyển sang "Đối tượng theo dõi"</p>
                                 <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto">
                                     {addForm.sightings.map(x => (
                                         <label key={x.eventId} className={`relative rounded-lg border-2 cursor-pointer p-1 text-[10px] text-center ${addForm.picked.has(x.eventId) ? 'border-action-blue bg-blue-50' : 'border-slate-200 opacity-60'}`}>

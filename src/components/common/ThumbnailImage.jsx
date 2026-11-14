@@ -29,7 +29,7 @@ const ThumbnailImage = ({ eventId, onClick, alt = "Snapshot", className = "w-32 
             ) : (
                 <div className="flex flex-col items-center justify-center gap-1 w-full h-full px-1">
                     <ImageIcon className="w-4 h-4 text-slate-400" />
-                    <span className="text-[9px] text-slate-400 font-medium uppercase tracking-wide leading-none text-center">Không có ảnh</span>
+                    <span data-ui-text="action" className="text-[9px] text-slate-400 font-medium uppercase tracking-wide leading-none text-center">Không có ảnh</span>
                 </div>
             )}
         </button>

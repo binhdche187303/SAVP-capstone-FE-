@@ -1,4 +1,13 @@
-import { AlertTriangle, ArrowRight, Calendar, CheckCircle, CheckCircle2, Clock, Download, FileText, PieChart as PieIcon, RefreshCw, Sliders, TrendingUp, XCircle } from 'lucide-react';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ExportModeDialog from '../../components/report/ExportModeDialog';
+import { completeReportExport } from '../../service/reportCenterService';
+import ReportExportButton from '../../components/common/ReportExportButton';
+import StatisticCard from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import RefreshButton from '../../components/common/RefreshButton';
+import { AlertTriangle, ArrowRight, Calendar, CheckCircle, CheckCircle2, Clock, Download, FileText, PieChart as PieIcon, Sliders, TrendingUp, XCircle } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -347,36 +356,22 @@ const ManagerHomePage = () => {
         }
     }, [fromDate, toDate, currentUser]);
 
-    const handleExport = async (e) => {
-        e.preventDefault();
+    const [exportDialogOpen, setExportDialogOpen] = useState(false);
+    const handleExport = async (_extra, options) => {
         setIsExporting(true);
-        setError(null);
-        setSuccessMsg(null);
         try {
-            const data = {
-                from: fromDate,
-                to: toDate,
-                format: exportForm.format,
-                scope: {
-                    departmentId: currentUser?.departmentId || null,
-                    roomId: null,
-                    organizerId: null
-                },
-                sections: exportForm.sections,
-                delivery: exportForm.delivery
-            };
-
-            const res = await exportMeetingActivity(data);
-            if (res?.success) {
-                setSuccessMsg(`Báo cáo của phòng ban đang được trích xuất. Mã tiến trình: ${res.data?.jobId || 'N/A'}`);
-            } else {
-                setSuccessMsg('Đã khởi tạo yêu cầu xuất file báo cáo hoạt động cuộc họp của phòng ban thành công.');
+            const created = await exportMeetingActivity({
+                from: fromDate, to: toDate, format: options.format,
+                scope: { departmentId: currentUser?.departmentId || null, roomId: null, organizerId: null },
+                sections: exportForm.sections, delivery: exportForm.delivery || 'download',
+            });
+            const result = await completeReportExport(created, { download: exportForm.delivery !== 'email', autoDownload: false, format: options.format });
+            if (result?.success) {
+                setSuccessMsg(exportForm.delivery === 'email' ? 'Báo cáo đã được xử lý theo phương thức nhận đã chọn.' : 'Báo cáo đã sẵn sàng tải xuống.');
+                if (!result.data?.downloadUrl) setExportDialogOpen(false);
             }
-        } catch {
-            setSuccessMsg('Đã khởi tạo yêu cầu xuất file báo cáo hoạt động cuộc họp của phòng ban thành công.');
-        } finally {
-            setIsExporting(false);
-        }
+            return result;
+        } finally { setIsExporting(false); }
     };
 
     const toggleSection = (sectionName) => {
@@ -545,53 +540,16 @@ const ManagerHomePage = () => {
                         className="space-y-8"
                     >
                         {/* Quick Status Bar */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <StatisticGrid columns={3} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Card: Chờ phê duyệt */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center shrink-0">
-                                    <Sliders className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Chờ phê duyệt</p>
-                                    <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">{pendingRequests.length}</p>
-                                    <p className="text-[11px] text-slate-blue leading-none mt-0.5">yêu cầu</p>
-                                </div>
-                            </div>
+                            <StatisticCard label="Chờ phê duyệt" value={pendingRequests.length} icon={Sliders} helper="yêu cầu" />
 
                             {/* Card: Tỷ lệ đúng giờ */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-purple-50 text-royal-amethyst flex items-center justify-center shrink-0">
-                                    <Calendar className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Đúng giờ tuần này</p>
-                                    <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">
-                                        {campusSummaryLoading ? '—' : `${campusSummary?.onTimeRateThisWeek?.rate ?? 0}%`}
-                                    </p>
-                                    {!campusSummaryLoading && (campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0) < 5 ? (
-                                        <p className="text-[10px] text-amber-600 leading-none mt-0.5">
-                                            {campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0} chấm công — chưa đủ dữ liệu
-                                        </p>
-                                    ) : (
-                                        <p className="text-[11px] text-slate-blue leading-none mt-0.5">tỷ lệ đúng giờ</p>
-                                    )}
-                                </div>
-                            </div>
+                            <StatisticCard label="Đúng giờ tuần này" value={campusSummaryLoading ? '—' : `${campusSummary?.onTimeRateThisWeek?.rate ?? 0}%`} icon={Calendar} helper={!campusSummaryLoading && (campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0) < 5 ? <>{campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0} chấm công — chưa đủ dữ liệu</> : 'tỷ lệ đúng giờ'} />
 
                             {/* Card: Phòng ban phụ trách */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Phòng ban phụ trách</p>
-                                    <p className="text-base font-extrabold text-midnight-indigo leading-tight mt-1 truncate" title={departmentName}>
-                                        {departmentName}
-                                    </p>
-                                    <p className="text-[11px] text-slate-blue leading-none mt-0.5">phòng ban</p>
-                                </div>
-                            </div>
-                        </div>
+                            <StatisticCard label="Phòng ban phụ trách" value={departmentName} icon={CheckCircle2} compactValue helper="phòng ban" />
+                        </StatisticGrid>
 
                         {/* Team Presence Today (CDB-RS-001: campus-dashboard/manager-summary) */}
                         <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
@@ -636,7 +594,7 @@ const ManagerHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Phê duyệt đặt lịch</h3>
                                     <p className="text-xs text-indigo-100 mb-4">Xét duyệt nhanh chóng các yêu cầu đặt phòng họp có điều kiện của nhân viên.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Xem yêu cầu ({pendingRequests.length}) <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -652,7 +610,7 @@ const ManagerHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Trạng thái phòng</h3>
                                     <p className="text-xs text-blue-100 mb-4">Xem thông tin và hình ảnh hiện diện thực tế (Occupancy) tại các phòng.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Xem phòng họp <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -668,7 +626,7 @@ const ManagerHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Điểm danh phòng ban</h3>
                                     <p className="text-xs text-emerald-100 mb-4">Xem chi tiết tình trạng điểm danh các cuộc họp thuộc phòng ban.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Xem danh sách <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -684,7 +642,7 @@ const ManagerHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Báo cáo & Thống kê</h3>
                                     <p className="text-xs text-purple-100 mb-4">Mở trang phân tích biểu đồ tần suất họp và hiệu suất sử dụng phòng.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Xem thống kê <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -708,12 +666,10 @@ const ManagerHomePage = () => {
                                     >
                                         Quản lý chi tiết
                                     </button>
-                                    <button
+                                    <RefreshButton
                                         onClick={() => fetchPendingRequests()}
-                                        className="p-2 text-slate-blue hover:text-action-blue rounded-lg hover:bg-cloud-mist transition-colors"
-                                    >
-                                        <RefreshCw className="w-4 h-4" />
-                                    </button>
+                                        busy={loadingOverview}
+                                    />
                                 </div>
                             </div>
 
@@ -723,7 +679,18 @@ const ManagerHomePage = () => {
                                 ) : pendingRequests.length === 0 ? (
                                     <div className="p-8 text-center text-slate-blue font-medium">Không có yêu cầu đặt phòng nào chờ phê duyệt.</div>
                                 ) : (
-                                    <table className="w-full text-left border-collapse">
+                                    <PaginatedCollection items={pendingRequests} itemLabel="yêu cầu" initialPageSize={5}>
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-left border-collapse">
+<colgroup>
+<col style={{ width: '11%' }} />
+<col style={{ width: '23%' }} />
+<col style={{ width: '20%' }} />
+<col style={{ width: '14%' }} />
+<col style={{ width: '14%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '8%' }} />
+</colgroup>
                                         <thead>
                                             <tr className="border-b border-platinum-tint bg-cloud-mist/20 text-xs font-bold text-slate-blue uppercase">
                                                 <th className="p-4">Mã yêu cầu</th>
@@ -736,7 +703,7 @@ const ManagerHomePage = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {pendingRequests.slice(0, 5).map(req => {
+                                            {camaiPageItems.map((camaiRecord, camaiIndex) => (req => {
                                                 const hasConflict = getRequestHasConflict(req);
                                                 return (
                                                     <tr key={req.id} className="border-b border-platinum-tint/60 text-sm hover:bg-cloud-mist/20 transition-colors">
@@ -751,12 +718,12 @@ const ManagerHomePage = () => {
                                                         </td>
                                                         <td className="p-4">
                                                             {hasConflict ? (
-                                                                <span className="inline-flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                                                                <span data-ui-text="badge" className="inline-flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
                                                                     <AlertTriangle className="w-3.5 h-3.5" />
                                                                     Bị trùng lịch
                                                                 </span>
                                                             ) : (
-                                                                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                                                <span data-ui-text="badge" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                                                                     Không trùng
                                                                 </span>
                                                             )}
@@ -787,9 +754,11 @@ const ManagerHomePage = () => {
                                                         </td>
                                                     </tr>
                                                 );
-                                            })}
+                                            })(camaiRecord, camaiStartIndex + camaiIndex, (pendingRequests)))}
                                         </tbody>
-                                    </table>
+                                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                                 )}
                             </div>
 
@@ -816,9 +785,9 @@ const ManagerHomePage = () => {
                         className="space-y-8"
                     >
                         {/* Filters */}
-                        <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col md:flex-row md:items-end justify-between gap-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
-                                <div>
+                        <FilterBar variant="card" className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col md:flex-row md:items-end justify-between gap-4">
+                            <div data-filter-grid data-filter-fields className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
+                                <div className="camai-filter-field">
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1 flex items-center gap-1">
                                         <Calendar className="w-3.5 h-3.5" /> Từ ngày
                                     </label>
@@ -829,7 +798,7 @@ const ManagerHomePage = () => {
                                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
                                     />
                                 </div>
-                                <div>
+                                <div className="camai-filter-field">
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1 flex items-center gap-1">
                                         <Calendar className="w-3.5 h-3.5" /> Đến ngày
                                     </label>
@@ -840,7 +809,7 @@ const ManagerHomePage = () => {
                                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
                                     />
                                 </div>
-                                <div>
+                                <div className="camai-filter-field">
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">
                                         Phòng ban phụ trách
                                     </label>
@@ -853,14 +822,12 @@ const ManagerHomePage = () => {
                                 </div>
                             </div>
                             <div>
-                                <button
+                                <RefreshButton
                                     onClick={() => fetchDashboardData()}
-                                    className="px-5 py-2.5 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2"
-                                >
-                                    <RefreshCw className="w-4 h-4" /> Làm mới
-                                </button>
+                                    busy={loadingAnalytics}
+                                />
                             </div>
-                        </div>
+                        </FilterBar>
 
                         {loadingAnalytics ? (
                             <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -870,64 +837,15 @@ const ManagerHomePage = () => {
                         ) : (
                             <>
                                 {/* Stat Cards */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col justify-between">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-slate-blue">Họp phòng ban</span>
-                                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center">
-                                                <Calendar className="w-5 h-5" />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <h3 className="text-2xl font-bold text-midnight-indigo">{stats.meetingCount} cuộc</h3>
-                                            <p className="text-xs text-slate-blue mt-1">
-                                                Thời lượng trung bình: {avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}p
-                                            </p>
-                                            <div className="mt-2 pt-2 border-t border-platinum-tint/40 flex justify-between text-[11px] text-slate-blue font-medium">
-                                                <span>Huỷ: {cancelRateStats.cancelRate}%</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <StatisticGrid columns={4} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    <StatisticCard label="Họp phòng ban" value={`${stats.meetingCount} cuộc`} icon={Calendar} helper={<>Thời lượng trung bình: {avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}p · Huỷ: {cancelRateStats.cancelRate}%</>} />
 
-                                    <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col justify-between">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-slate-blue">Hiệu suất dùng phòng</span>
-                                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-royal-amethyst flex items-center justify-center">
-                                                <TrendingUp className="w-5 h-5" />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <h3 className="text-2xl font-bold text-midnight-indigo">{stats.utilizationRate}%</h3>
-                                            <p className="text-xs text-slate-blue mt-1">Thời gian có hiện diện thực tế</p>
-                                        </div>
-                                    </div>
+                                    <StatisticCard label="Hiệu suất dùng phòng" value={`${stats.utilizationRate}%`} icon={TrendingUp} helper="Thời gian có hiện diện thực tế" />
 
-                                    <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col justify-between">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-slate-blue">Đúng giờ</span>
-                                            <div className="w-10 h-10 rounded-xl bg-green-50 text-green-700 flex items-center justify-center">
-                                                <Clock className="w-5 h-5" />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <h3 className="text-2xl font-bold text-midnight-indigo">{stats.onTimeRate}%</h3>
-                                            <p className="text-xs text-green-600 font-semibold mt-1">Điểm danh: {attendanceSummary.presentRate}%</p>
-                                        </div>
-                                    </div>
+                                    <StatisticCard label="Đúng giờ" value={`${stats.onTimeRate}%`} icon={Clock} helper={<>Điểm danh: {attendanceSummary.presentRate}%</>} />
 
-                                    <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col justify-between">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-slate-blue">Tỷ lệ vắng mặt (No-Show)</span>
-                                            <div className="w-10 h-10 rounded-xl bg-red-50 text-red-700 flex items-center justify-center">
-                                                <AlertTriangle className="w-5 h-5" />
-                                            </div>
-                                        </div>
-                                        <div className="mt-4">
-                                            <h3 className="text-2xl font-bold text-midnight-indigo">{stats.noShowRate}%</h3>
-                                            <p className="text-xs text-slate-blue mt-1">Phòng tự động giải phóng</p>
-                                        </div>
-                                    </div>
-                                </div>
+                                    <StatisticCard label="Tỷ lệ vắng mặt (No-Show)" value={`${stats.noShowRate}%`} icon={AlertTriangle} helper={<>Phòng tự động giải phóng</>} />
+                                </StatisticGrid>
 
                                 {/* Charts Section */}
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -996,13 +914,13 @@ const ManagerHomePage = () => {
                                         </div>
 
                                         <div className="mt-4 pt-3 border-t border-platinum-tint/60 space-y-2">
-                                            <span className="text-[11px] font-bold text-slate-blue uppercase block tracking-wider">Tỷ lệ vắng mặt theo phòng</span>
+                                            <span data-ui-text="label" className="text-[11px] font-bold text-slate-blue uppercase block tracking-wider">Tỷ lệ vắng mặt theo phòng</span>
                                             {noShowTrend.length === 0 && (
-                                                <p className="text-[11px] text-slate-400">Chưa có dữ liệu vắng mặt trong kỳ này</p>
+                                                <p data-ui-text="secondary" className="text-[11px] text-slate-400">Chưa có dữ liệu vắng mặt trong kỳ này</p>
                                             )}
                                             {noShowTrend.slice(0, 3).map((room) => (
                                                 <div key={room.id ?? room.name} className="space-y-1">
-                                                    <div className="flex justify-between text-[11px] font-semibold">
+                                                    <div data-ui-text="secondary" className="flex justify-between text-[11px] font-semibold">
                                                         <span className="text-midnight-indigo truncate max-w-[70%]">{room.name}</span>
                                                         <span className="text-red-600">{room.noShowRate}%</span>
                                                     </div>
@@ -1049,7 +967,7 @@ const ManagerHomePage = () => {
                                             <p className="text-xs text-slate-blue mb-4">Xuất báo cáo dữ liệu hoạt động cuộc họp của phòng ban</p>
                                         </div>
 
-                                        <form onSubmit={handleExport} className="space-y-4">
+                                        <form onSubmit={event => { event.preventDefault(); setExportDialogOpen(true); }} className="space-y-4">
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1">Định dạng</label>
@@ -1091,17 +1009,17 @@ const ManagerHomePage = () => {
                                                                 onChange={() => toggleSection(sec.key)}
                                                                 className="w-3.5 h-3.5 text-action-blue rounded focus:ring-action-blue"
                                                             />
-                                                            <span className="text-xs font-semibold text-midnight-indigo">{sec.label}</span>
+                                                            <span data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">{sec.label}</span>
                                                         </label>
                                                     ))}
                                                 </div>
                                             </div>
 
                                             <div className="flex justify-end pt-2">
-                                                <button
+                                                <ReportExportButton label="Xuất báo cáo" busy={isExporting} fullWidth
                                                     type="submit"
                                                     disabled={isExporting || exportForm.sections.length === 0}
-                                                    className="w-full py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-bold shadow-sm transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                                                    legacyClassName="w-full py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-bold shadow-sm transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
                                                 >
                                                     {isExporting ? (
                                                         <>
@@ -1114,7 +1032,12 @@ const ManagerHomePage = () => {
                                                             Xuất báo cáo
                                                         </>
                                                     )}
-                                                </button>
+                                                </ReportExportButton>
+                                    <ExportModeDialog isOpen={exportDialogOpen} onClose={() => setExportDialogOpen(false)}
+                                        formats={['xlsx', 'pdf']} format={exportForm.format} allowStandard={false}
+                                        initialRange={{ from: fromDate, to: toDate }}
+                                        filterSummary={[`Nội dung: ${exportForm.sections.map(value => ({ overview: 'Tổng quan', rooms: 'Sử dụng phòng', attendance: 'Điểm danh', no_show: 'Vắng mặt' })[value] || 'Nội dung khác').join(', ')}`, exportForm.delivery === 'email' ? 'Nhận qua hộp thư cá nhân' : 'Tải file trực tiếp']}
+                                        onConfirm={handleExport} />
                                             </div>
                                         </form>
                                     </div>

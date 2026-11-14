@@ -1,3 +1,7 @@
+import PaginatedCollection from '../../../components/common/PaginatedCollection';
+import StatisticGrid from '../../../components/common/StatisticGrid';
+import StatisticCard from '../../../components/common/StatisticCard';
+import FilterBar from '../../../components/common/FilterBar';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, ConciergeBell, ExternalLink, MonitorSmartphone, ShieldAlert, UserPlus } from 'lucide-react';
@@ -86,10 +90,10 @@ const VisitorDesk = () => {
     };
 
     return (
-        <div className={pageCls}>
+        <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <ConciergeBell className="w-6 h-6 text-action-blue" />
                         Chốt bảo vệ
                     </h2>
@@ -112,8 +116,8 @@ const VisitorDesk = () => {
                 </div>
             </div>
 
-            <div className={`${cardCls} flex flex-wrap items-end gap-3 p-4`}>
-                <div className="min-w-[220px]">
+            <FilterBar variant="card" className={`${cardCls} flex flex-wrap items-end gap-3 p-4`}>
+                <div className="camai-filter-field min-w-[220px]">
                     <label htmlFor="desk-date" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Ngày xem dữ liệu</label>
                     <div className="relative">
                         <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
@@ -122,7 +126,7 @@ const VisitorDesk = () => {
                 </div>
                 <button type="button" className={btnGhost} onClick={() => setSelectedDate(localDateKey())}>Hôm nay</button>
                 <p className="text-xs text-slate-blue pb-2">Đang xem dữ liệu ngày {displayDate(selectedDate)}; khách còn trong khuôn viên vẫn được giữ lại để bảo vệ theo dõi.</p>
-            </div>
+            </FilterBar>
 
             <DemoDataBanner onReset={load} />
 
@@ -131,14 +135,20 @@ const VisitorDesk = () => {
 
             {desk && (
                 <>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         {KPIS.map(([key, label]) => (
-                            <div key={key} className={`${cardCls} p-4 ${key === 'overstay' && desk.kpis.overstay > 0 ? 'border-red-300 bg-red-50/40' : ''}`}>
+                            <StatisticCard key={key}
+                                label={key === 'expected' || key === 'arrived' ? label.replace('hôm nay', displayDate(selectedDate)) : label}
+                                value={desk.kpis[key]} valueProps={{ 'data-testid': `desk-kpi-${key}` }}
+                                tone={key === 'overstay' && desk.kpis.overstay > 0 ? 'danger' : 'default'}
+                                legacy={(
+                            <div className={`${cardCls} p-4 ${key === 'overstay' && desk.kpis.overstay > 0 ? 'border-red-300 bg-red-50/40' : ''}`}>
                                 <p className="text-[10px] font-bold text-slate-blue uppercase">{key === 'expected' || key === 'arrived' ? label.replace('hôm nay', displayDate(selectedDate)) : label}</p>
                                 <p data-testid={`desk-kpi-${key}`} className={`text-2xl font-bold mt-1 ${key === 'overstay' && desk.kpis.overstay > 0 ? 'text-red-600' : 'text-midnight-indigo'}`}>{desk.kpis[key]}</p>
                             </div>
+                                )} />
                         ))}
-                    </div>
+                    </StatisticGrid>
 
                     <div className="grid lg:grid-cols-3 gap-6 items-start">
                         <div className={`${cardCls} overflow-hidden lg:col-span-2`}>
@@ -148,13 +158,15 @@ const VisitorDesk = () => {
                             {desk.items.length === 0 ? (
                                 <p className="px-6 py-10 text-center text-xs text-slate-blue">Ngày này chưa có khách đăng ký</p>
                             ) : (
-                                <ul aria-label="Danh sách khách" className="divide-y divide-pale-gray">
-                                    {desk.items.map((visit) => (
+                                <PaginatedCollection items={desk?.items} itemLabel="lượt khách">
+{(camaiPageItems, camaiStartIndex) => (
+<ul aria-label="Danh sách khách" className="divide-y divide-pale-gray">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((visit) => (
                                         <li key={visit.id} className="px-6 py-3 flex flex-wrap items-center gap-3">
                                             <VisitorAvatar visitor={visit.visitor} size={40} />
                                             <div className="flex-1 min-w-[180px]">
-                                                <p className="text-sm font-semibold text-midnight-indigo">{visit.visitor.fullName}</p>
-                                                <p className="text-[11px] text-slate-blue">
+                                                <p data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{visit.visitor.fullName}</p>
+                                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">
                                                     Gặp {visit.hostName} · {visit.departmentName} · {fmtTimeRange(visit.scheduledFrom, visit.scheduledTo)}
                                                     {visit.visitor.hasPhoto ? '' : ' · Chưa có ảnh'}
                                                 </p>
@@ -162,7 +174,7 @@ const VisitorDesk = () => {
                                             <VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} />
                                             <div className="flex gap-2">
                                                 {visit.status === 'approved' && (
-                                                    <a
+                                                    <a data-ui-text="action"
                                                         href={`/visitor/gate?code=${visit.code}`}
                                                         target="_blank"
                                                         rel="noreferrer"
@@ -173,13 +185,15 @@ const VisitorDesk = () => {
                                                         <ExternalLink className="w-3 h-3" /> Cổng
                                                     </a>
                                                 )}
-                                                <button type="button" className={`${smallBtn} border border-platinum-tint text-midnight-indigo hover:bg-cloud-mist`} onClick={() => setDetailId(visit.id)}>
+                                                <button data-ui-text="action" type="button" className={`${smallBtn} border border-platinum-tint text-midnight-indigo hover:bg-cloud-mist`} onClick={() => setDetailId(visit.id)}>
                                                     Chi tiết
                                                 </button>
                                             </div>
                                         </li>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (desk.items)))}
                                 </ul>
+)}
+</PaginatedCollection>
                             )}
                         </div>
 
@@ -190,8 +204,10 @@ const VisitorDesk = () => {
                             {desk.alerts.length === 0 ? (
                                 <p className="px-6 py-6 text-center text-xs text-slate-blue">Chưa có cảnh báo nào</p>
                             ) : (
-                                <ul className="divide-y divide-pale-gray max-h-96 overflow-y-auto">
-                                    {desk.alerts.map((alert, i) => (
+                                <PaginatedCollection items={desk?.alerts} itemLabel="cảnh báo">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="divide-y divide-pale-gray max-h-96 overflow-y-auto">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((alert, i) => (
                                         // Cảnh báo không có id; khóa ghép từ lượt, thời điểm và vị trí trong danh sách.
                                         <li key={`${alert.visitId}-${alert.at}-${i}`} className="px-6 py-3 text-xs">
                                             <button type="button" className="text-left" onClick={() => setDetailId(alert.visitId)}>
@@ -199,8 +215,10 @@ const VisitorDesk = () => {
                                                 <p className="text-slate-blue">{alert.note} · {alert.zoneName} · {fmtDateTime(alert.at)}</p>
                                             </button>
                                         </li>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (desk.alerts)))}
                                 </ul>
+)}
+</PaginatedCollection>
                             )}
                         </div>
                     </div>

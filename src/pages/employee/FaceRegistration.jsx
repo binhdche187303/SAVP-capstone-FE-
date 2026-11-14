@@ -293,7 +293,7 @@ const EmployeeFaceRegistration = () => {
     return (
         <div className="max-w-2xl mx-auto space-y-6 animate-fade-in-up">
             <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                     <ScanFace className="w-3.5 h-3.5" />
                     Sinh trắc học
                 </span>
@@ -324,15 +324,15 @@ const EmployeeFaceRegistration = () => {
                     </div>
 
                     <div className="p-4 bg-cloud-mist rounded-xl border border-outline-gray text-sm text-slate-blue leading-relaxed space-y-3 max-h-60 overflow-y-auto">
-                        <p className="font-semibold text-midnight-indigo text-xs">1. Mục đích thu thập dữ liệu:</p>
+                        <p data-ui-text="primary" className="font-semibold text-midnight-indigo text-xs">1. Mục đích thu thập dữ liệu:</p>
                         <p className="text-xs">
                             {roleCopy.purposeText}
                         </p>
-                        <p className="font-semibold text-midnight-indigo text-xs">2. Bảo mật và lưu trữ:</p>
+                        <p data-ui-text="primary" className="font-semibold text-midnight-indigo text-xs">2. Bảo mật và lưu trữ:</p>
                         <p className="text-xs">
                             Ảnh khuôn mặt gốc và vector đặc trưng được mã hóa bảo mật cấp cao, lưu trữ độc lập trên hệ thống nội bộ của doanh nghiệp và tuân thủ chặt chẽ Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân. Chúng tôi cam kết KHÔNG chia sẻ dữ liệu này cho bên thứ ba.
                         </p>
-                        <p className="font-semibold text-midnight-indigo text-xs">3. Quyền rút lại sự đồng thuận:</p>
+                        <p data-ui-text="primary" className="font-semibold text-midnight-indigo text-xs">3. Quyền rút lại sự đồng thuận:</p>
                         <p className="text-xs">
                             {roleCopy.revokeText}
                         </p>
@@ -345,7 +345,7 @@ const EmployeeFaceRegistration = () => {
                             checked={pdpaAgreed}
                             onChange={(e) => setPdpaAgreed(e.target.checked)}
                         />
-                        <span className="text-xs text-midnight-indigo font-medium leading-relaxed">
+                        <span data-ui-text="secondary" className="text-xs text-midnight-indigo font-medium leading-relaxed">
                             Tôi đã đọc, hiểu rõ và đồng ý cho phép hệ thống VISMA IVA thu thập, xử lý và lưu trữ dữ liệu sinh trắc học khuôn mặt của tôi cho các mục đích quản lý nêu trên.
                         </span>
                     </label>
@@ -382,7 +382,7 @@ const EmployeeFaceRegistration = () => {
                             {phase === 'captured' ? 'Xác nhận khuôn mặt' : 'Quét sinh trắc học FaceID'}
                         </span>
                         {phase !== 'captured' && cameraStream && (
-                            <button
+                            <button data-ui-text="action"
                                 type="button"
                                 onClick={startWebcam}
                                 className="inline-flex items-center gap-1 text-[10px] font-bold text-action-blue bg-action-blue/10 px-2.5 py-1 rounded-full hover:bg-action-blue/20 transition-all"
@@ -398,7 +398,7 @@ const EmployeeFaceRegistration = () => {
                             <div className="p-6 text-center text-rose-400 text-xs flex flex-col items-center gap-2">
                                 <AlertCircle className="w-8 h-8" />
                                 <p>{cameraError}</p>
-                                <button type="button" onClick={startWebcam} className="mt-3 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-bold">Thử lại</button>
+                                <button data-ui-text="action" type="button" onClick={startWebcam} className="mt-3 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-bold">Thử lại</button>
                             </div>
                         ) : phase === 'captured' && capturedPreview ? (
                             <img src={capturedPreview} alt="Captured Snapshot" className="w-full h-full object-cover" />
@@ -430,7 +430,7 @@ const EmployeeFaceRegistration = () => {
 
                                     {/* HUD instruction text — phản ánh trạng thái thật từ phân tích khung hình */}
                                     <div className="absolute bottom-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl text-center max-w-[85%] border border-white/10">
-                                        <p className="text-[10px] font-bold text-white tracking-wide uppercase">
+                                        <p data-ui-text="label" className="text-[10px] font-bold text-white tracking-wide uppercase">
                                             {phase === 'countdown' ? `📸 CHUẨN BỊ CHỤP TRONG ${countdownVal}s` : getHudText()}
                                         </p>
                                     </div>
@@ -452,7 +452,7 @@ const EmployeeFaceRegistration = () => {
                         ) : (
                             <div className="py-12 text-center text-slate-blue flex flex-col items-center gap-2">
                                 <RefreshCw className="w-8 h-8 text-action-blue animate-spin" />
-                                <span className="text-xs font-semibold mt-2">Đang kết nối webcam...</span>
+                                <span data-ui-text="primary" className="text-xs font-semibold mt-2">Đang kết nối webcam...</span>
                             </div>
                         )}
                     </div>
@@ -493,9 +493,9 @@ const EmployeeFaceRegistration = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="flex justify-between items-center text-[10.5px] text-slate-blue border border-platinum-tint p-3 rounded-xl bg-cloud-mist/20 max-w-md mx-auto w-full">
+                        <div data-ui-text="secondary" className="flex justify-between items-center text-[10.5px] text-slate-blue border border-platinum-tint p-3 rounded-xl bg-cloud-mist/20 max-w-md mx-auto w-full">
                             <span>⚠️ Hãy đảm bảo ánh sáng đủ tốt và không đội mũ bảo hiểm/kính râm.</span>
-                            <button
+                            <button data-ui-text="action"
                                 type="button"
                                 onClick={capturePhoto}
                                 disabled={!cameraStream}
@@ -578,19 +578,19 @@ const EmployeeFaceRegistration = () => {
 
                     <div className="max-w-md mx-auto p-4 bg-cloud-mist rounded-xl border border-outline-gray/60 grid grid-cols-2 gap-4 text-left text-xs text-slate-blue">
                         <div>
-                            <span className="block font-bold text-midnight-indigo uppercase text-[10px]">{roleCopy.codeLabel}</span>
+                            <span data-ui-text="label" className="block font-bold text-midnight-indigo uppercase text-[10px]">{roleCopy.codeLabel}</span>
                             <span className="font-semibold text-sm mt-0.5 block">{employeeCode}</span>
                         </div>
                         <div>
-                            <span className="block font-bold text-midnight-indigo uppercase text-[10px]">Trạng thái liên kết</span>
+                            <span data-ui-text="label" className="block font-bold text-midnight-indigo uppercase text-[10px]">Trạng thái liên kết</span>
                             <span className="font-semibold text-sm text-green-600 mt-0.5 block">Đã liên kết (Active)</span>
                         </div>
                         <div>
-                            <span className="block font-bold text-midnight-indigo uppercase text-[10px]">Phiên bản mô hình</span>
+                            <span data-ui-text="label" className="block font-bold text-midnight-indigo uppercase text-[10px]">Phiên bản mô hình</span>
                             <span className="font-semibold text-sm mt-0.5 block">v2.1 (DeepFace ID)</span>
                         </div>
                         <div>
-                            <span className="block font-bold text-midnight-indigo uppercase text-[10px]">Thời gian cam kết</span>
+                            <span data-ui-text="label" className="block font-bold text-midnight-indigo uppercase text-[10px]">Thời gian cam kết</span>
                             <span className="font-semibold text-sm mt-0.5 block">{new Date().toLocaleDateString('vi-VN')}</span>
                         </div>
                     </div>

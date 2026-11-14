@@ -5,6 +5,7 @@ import { get, post, patch, dele, buildQuery } from '../utils/request';
 import { REPORT_MOCK_ENABLED } from '../config/featureFlags';
 import * as mock from '../mocks/visitorReport/reportApi';
 import { runExport } from '../mocks/visitorReport/exporters';
+import { assertStandardExport } from '../mocks/visitorReport/templateApi';
 
 const delay = () =>
     new Promise((resolve) => setTimeout(resolve, process.env.NODE_ENV === 'test' ? 0 : 200 + Math.random() * 300));
@@ -81,19 +82,27 @@ const openSignedUrl = (url) => {
     if (typeof window !== 'undefined' && url) window.open(url, '_blank');
 };
 
-const realExport = async (type, params) => {
-    const created = await post(`/reports/center/${type}/exports`, params);
+export const completeReportExport = async (created, { download = true, autoDownload = true, format } = {}) => {
     if (!created?.success) return created;
+    if (!created.data?.jobId) return { success: false, message: 'Máy chủ chưa trả mã tác vụ xuất báo cáo' };
     const job = await waitForExportJob(created.data.jobId);
     if (!job.success) return job;
+    if (!download) return { success: true, data: job.data };
     const file = await get(`/media-files/${job.data.outputFileId}`);
     if (!file?.success || !file.data?.downloadUrl) return { success: false, message: file?.message || 'Không tạo được liên kết tải xuống' };
-    openSignedUrl(file.data.downloadUrl);
-    return { success: true, data: { fileName: job.data.result?.fileName || file.data.fileName || `${type}.${params?.format}`, format: params?.format } };
+    if (autoDownload) openSignedUrl(file.data.downloadUrl);
+    return { success: true, data: { fileName: job.data.result?.fileName || file.data.fileName || 'bao-cao', ...(format ? { format } : {}), downloadUrl: file.data.downloadUrl } };
 };
 
-export const exportReport = (type, params) =>
-    call(() => exportInBrowser(mock.prepareExport(type, params), params?.format), () => realExport(type, params));
+const realExport = async (type, params, options) => completeReportExport(await post(`/reports/center/${type}/exports`, params), { ...options, format: params?.format });
+
+// `params.mode === 'standard'` (kèm templateId, signers…) = bản quy chuẩn theo mẫu NĐ 30; bộ dựng nằm ở BE
+// nên chế độ giả chỉ xuất được bản thường.
+export const exportReport = (type, params, options) =>
+    call(() => {
+        if (params?.mode === 'standard') assertStandardExport(type, params);
+        return exportInBrowser(mock.prepareExport(type, params), params?.format);
+    }, () => realExport(type, params, options));
 
 const realDownloadRunFile = async (runId, format) => {
     const res = await get(`/report-schedule-runs/${runId}/files/${format}`);

@@ -1,4 +1,9 @@
-import { AlertTriangle, Calendar, CheckCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Eye, FileText, Info, LayoutGrid, List, MapPin, RefreshCw, Search, UserX, Users, X, XCircle } from 'lucide-react';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { AlertTriangle, Calendar, CheckCircle, CheckCircle2, Clock, Eye, FileText, Info, LayoutGrid, List, MapPin, Search, UserX, Users, X, XCircle } from 'lucide-react';
 import { htmlToPlainText } from '../../utils/richText';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
@@ -22,7 +27,7 @@ const CALENDAR_TYPE_BADGES = {
 const CalendarTypeBadge = ({ type }) => {
     const b = CALENDAR_TYPE_BADGES[type];
     if (!b) return null;
-    return <span className={`px-2 py-0.5 rounded border text-[10px] font-bold w-max ${b.cls}`}>{b.label}</span>;
+    return <span data-ui-text="badge" className={`px-2 py-0.5 rounded border text-[10px] font-bold w-max ${b.cls}`}>{b.label}</span>;
 };
 
 const containerVariants = {
@@ -112,17 +117,17 @@ const getParticipantConflictInfo = (req) => {
 const ConflictMeetingCard = ({ meeting, compact = false }) => (
     <div className={`bg-white/70 rounded-lg border border-amber-200 ${compact ? 'px-2.5 py-2' : 'px-3 py-2.5'}`}>
         <div className="flex items-start justify-between gap-2">
-            <span className="font-bold text-midnight-indigo text-xs leading-snug">
+            <span data-ui-text="primary" className="font-bold text-midnight-indigo text-xs leading-snug">
                 {meeting.meetingTitle || 'Cuộc họp khác'}
             </span>
-            <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200">
+            <span data-ui-text="badge" className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200">
                 {MEETING_STATUS_LABELS[meeting.meetingStatus] || meeting.meetingStatus || 'Khác'}
             </span>
         </div>
         {meeting.meetingCode && (
-            <span className="block mt-0.5 text-[9.5px] font-mono font-bold text-amber-700/80">#{meeting.meetingCode}</span>
+            <span data-ui-text="code" className="block mt-0.5 text-[9.5px] font-mono font-bold text-amber-700/80">#{meeting.meetingCode}</span>
         )}
-        <div className={`mt-1.5 grid ${compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'} gap-x-3 gap-y-1 text-[10.5px] text-amber-900/90`}>
+        <div data-ui-text="secondary" className={`mt-1.5 grid ${compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'} gap-x-3 gap-y-1 text-[10.5px] text-amber-900/90`}>
             <span className="inline-flex items-center gap-1.5">
                 <Clock className="w-3 h-3 shrink-0 opacity-70" />
                 {fmtDate(meeting.startTime)} · {fmtTime(meeting.startTime)} - {fmtTime(meeting.endTime)}
@@ -201,7 +206,7 @@ const ParticipantConflictPanel = ({ info }) => {
                             <> — trong đó <strong>{summary.requiredUserCount}</strong> người thuộc diện bắt buộc</>
                         )}.
                     </p>
-                    <p className="flex items-start gap-1.5 text-[11px] text-amber-800/90 bg-amber-100/60 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                    <p data-ui-text="secondary" className="flex items-start gap-1.5 text-[11px] text-amber-800/90 bg-amber-100/60 border border-amber-200 rounded-lg px-2.5 py-1.5">
                         <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
                         <span>
                             Đây chỉ là <strong>cảnh báo mềm</strong>, không chặn phê duyệt. Bạn vẫn có thể duyệt cả hai
@@ -213,7 +218,7 @@ const ParticipantConflictPanel = ({ info }) => {
 
             {/* Thông tin đầy đủ của các cuộc họp gây trùng */}
             <div className="space-y-1.5">
-                <h5 className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                <h5 data-ui-text="label" className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
                     Cuộc họp gây trùng ({details.length})
                 </h5>
                 <div className="space-y-1.5">
@@ -226,7 +231,7 @@ const ParticipantConflictPanel = ({ info }) => {
             {/* Danh sách người — có filter + vùng cuộn RIÊNG */}
             <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h5 className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                    <h5 data-ui-text="label" className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
                         Người bị trùng lịch ({filteredRows.length}/{rows.length})
                     </h5>
                     <div className="relative">
@@ -242,7 +247,7 @@ const ParticipantConflictPanel = ({ info }) => {
                 </div>
 
                 <div className="flex items-center gap-1.5 flex-wrap">
-                    <button
+                    <button data-ui-text="action"
                         type="button"
                         onClick={() => setMeetingFilter('all')}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${meetingFilter === 'all'
@@ -253,7 +258,7 @@ const ParticipantConflictPanel = ({ info }) => {
                         Tất cả ({rows.length})
                     </button>
                     {details.map((m) => (
-                        <button
+                        <button data-ui-text="action"
                             key={m.meetingId}
                             type="button"
                             onClick={() => setMeetingFilter(m.meetingId)}
@@ -266,7 +271,7 @@ const ParticipantConflictPanel = ({ info }) => {
                             {m.meetingTitle || 'Cuộc họp khác'} ({m.participants?.length || 0})
                         </button>
                     ))}
-                    <button
+                    <button data-ui-text="action"
                         type="button"
                         onClick={() => setRequiredOnly((v) => !v)}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${requiredOnly
@@ -281,7 +286,7 @@ const ParticipantConflictPanel = ({ info }) => {
                 {/* CHỈ vùng này cuộn — modal chi tiết giữ nguyên chiều cao */}
                 <div className="max-h-52 overflow-y-auto rounded-lg border border-amber-200 bg-white/60 divide-y divide-amber-100">
                     {filteredRows.length === 0 ? (
-                        <p className="px-3 py-6 text-[11px] text-center text-amber-700/80">
+                        <p data-ui-text="secondary" className="px-3 py-6 text-[11px] text-center text-amber-700/80">
                             Không có người nào khớp bộ lọc.
                         </p>
                     ) : (
@@ -294,24 +299,24 @@ const ParticipantConflictPanel = ({ info }) => {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-[11.5px] font-bold text-midnight-indigo truncate">
+                                        <span data-ui-text="primary" className="text-[11.5px] font-bold text-midnight-indigo truncate">
                                             {r.fullName || 'Không rõ tên'}
                                         </span>
                                         {r.isRequired && (
-                                            <span className="px-1.5 py-px rounded text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-200">
+                                            <span data-ui-text="badge" className="px-1.5 py-px rounded text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-200">
                                                 Bắt buộc
                                             </span>
                                         )}
                                         {r.conflictingRole === 'host' && (
-                                            <span className="px-1.5 py-px rounded text-[9px] font-bold bg-blue-50 text-action-blue border border-blue-200">
+                                            <span data-ui-text="badge" className="px-1.5 py-px rounded text-[9px] font-bold bg-blue-50 text-action-blue border border-blue-200">
                                                 Chủ trì bên kia
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-[10px] text-slate-blue truncate">
+                                    <p data-ui-text="secondary" className="text-[10px] text-slate-blue truncate">
                                         {[r.employeeCode, r.departmentName, r.email].filter(Boolean).join(' · ') || '—'}
                                     </p>
-                                    <p className="text-[10px] text-amber-700 truncate">
+                                    <p data-ui-text="secondary" className="text-[10px] text-amber-700 truncate">
                                         Bận ở: <strong>{r.meeting.meetingTitle || 'Cuộc họp khác'}</strong>{' '}
                                         ({fmtTime(r.meeting.startTime)} - {fmtTime(r.meeting.endTime)}
                                         {r.meeting.roomName ? ` · ${r.meeting.roomName}` : ''})
@@ -327,6 +332,7 @@ const ParticipantConflictPanel = ({ info }) => {
 };
 
 const MeetingApprovals = () => {
+    const [limit, setLimit] = useState(10);
 
 
     // List & pagination states
@@ -347,7 +353,7 @@ const MeetingApprovals = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-    const limit = 10;
+
 
     // Modal states
     const [selectedRequest, setSelectedRequest] = useState(null);
@@ -398,7 +404,7 @@ const MeetingApprovals = () => {
         } finally {
             setLoading(false);
         }
-    }, [statusFilter, currentPage, searchVal, fromDate, toDate]);
+    }, [statusFilter, currentPage, searchVal, fromDate, toDate, limit]);
 
     useEffect(() => {
         fetchRequests();
@@ -535,7 +541,7 @@ const MeetingApprovals = () => {
     };
 
     return (
-        <motion.div
+        <motion.div data-page-surface="wide"
             variants={containerVariants}
             initial="hidden"
             animate="show"
@@ -544,7 +550,7 @@ const MeetingApprovals = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-platinum-tint pb-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <CheckCircle className="w-3.5 h-3.5" />
                         Phê duyệt
                     </span>
@@ -555,12 +561,10 @@ const MeetingApprovals = () => {
                         Danh sách đầy đủ và chi tiết các yêu cầu phê duyệt đặt phòng họp của phòng ban.
                     </p>
                 </div>
-                <button
+                <RefreshButton
                     onClick={() => fetchRequests()}
-                    className="p-2.5 bg-white border border-platinum-tint hover:bg-cloud-mist rounded-xl text-slate-blue hover:text-midnight-indigo transition-all shadow-sm flex items-center justify-center gap-2 text-xs font-bold self-stretch sm:self-auto shrink-0"
-                >
-                    <RefreshCw className="w-4 h-4" /> Tải lại danh sách
-                </button>
+                    busy={loading}
+                />
             </div>
 
             {/* Toasts / Alert Messages */}
@@ -596,11 +600,11 @@ const MeetingApprovals = () => {
             </AnimatePresence>
 
             {/* Filters panel */}
-            <motion.div variants={itemVariants} className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
+            <FilterBar as={motion.div} variant="card" variants={itemVariants} className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
                 <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-end justify-between">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 flex-1">
+                    <div data-filter-grid data-filter-fields className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 flex-1">
                         {/* Search keyword */}
-                        <div className="relative">
+                        <div className="camai-filter-field relative">
                             <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Từ khóa tìm kiếm</label>
                             <div className="relative">
                                 <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-blue/60" />
@@ -615,7 +619,7 @@ const MeetingApprovals = () => {
                         </div>
 
                         {/* From Date */}
-                        <div>
+                        <div className="camai-filter-field">
                             <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Từ ngày</label>
                             <input
                                 type="date"
@@ -626,7 +630,7 @@ const MeetingApprovals = () => {
                         </div>
 
                         {/* To Date */}
-                        <div>
+                        <div className="camai-filter-field">
                             <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Đến ngày</label>
                             <input
                                 type="date"
@@ -638,14 +642,14 @@ const MeetingApprovals = () => {
                     </div>
 
                     <div className="flex gap-2.5 justify-end shrink-0">
-                        <button
+                        <button data-filter-action
                             type="button"
                             onClick={handleResetFilters}
                             className="px-4 py-2 border border-platinum-tint hover:bg-cloud-mist rounded-xl text-xs font-bold text-slate-blue transition-all"
                         >
                             Đặt lại bộ lọc
                         </button>
-                        <button
+                        <button data-filter-action
                             type="submit"
                             className="px-5 py-2 bg-action-blue hover:bg-action-blue/90 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
                         >
@@ -653,10 +657,10 @@ const MeetingApprovals = () => {
                         </button>
                     </div>
                 </form>
-            </motion.div>
+            </FilterBar>
 
             {/* Status tabs */}
-            <motion.div variants={itemVariants} className="flex border-b border-platinum-tint gap-1 bg-white p-1 rounded-xl border border-platinum-tint/80 shadow-sm w-max">
+            <motion.div variants={itemVariants} className="flex flex-wrap max-w-full border-b border-platinum-tint gap-1 bg-white p-1 rounded-xl border border-platinum-tint/80 shadow-sm w-fit">
                 {[
                     { key: 'pending', label: 'Chờ phê duyệt' },
                     { key: 'approved', label: 'Đã phê duyệt' },
@@ -707,7 +711,7 @@ const MeetingApprovals = () => {
                     {loading ? (
                         <div className="p-16 flex flex-col items-center justify-center text-slate-blue gap-3">
                             <div className="w-9 h-9 border-3 border-action-blue border-t-transparent rounded-full animate-spin" />
-                            <span className="text-xs font-bold">Đang tải danh sách yêu cầu đặt lịch họp...</span>
+                            <span data-ui-text="primary" className="text-xs font-bold">Đang tải danh sách yêu cầu đặt lịch họp...</span>
                         </div>
                     ) : requests.length === 0 ? (
                         <div className="p-16 text-center text-slate-blue font-medium flex flex-col items-center gap-2.5">
@@ -724,35 +728,35 @@ const MeetingApprovals = () => {
                                         {/* Header: Request Code & Status */}
                                         <div className="flex justify-between items-start gap-2 border-b border-platinum-tint/40 pb-3">
                                             <div className="flex flex-col gap-1.5">
-                                                <span className="font-mono text-[10px] font-extrabold text-action-blue bg-blue-50/50 px-2.5 py-0.5 rounded border border-blue-100 w-max tracking-wider">
+                                                <span data-ui-text="code" className="font-mono text-[10px] font-extrabold text-action-blue bg-blue-50/50 px-2.5 py-0.5 rounded border border-blue-100 w-max tracking-wider">
                                                     #{req.requestCode}
                                                 </span>
-                                                <h4 className="font-bold text-sm text-midnight-indigo line-clamp-1" title={req.meeting?.title}>{req.meeting?.title || 'Đặt lịch phòng họp'}</h4>
+                                                <h4 data-ui-text="primary" className="font-bold text-sm text-midnight-indigo break-words" title={req.meeting?.title}>{req.meeting?.title || 'Đặt lịch phòng họp'}</h4>
                                                 <CalendarTypeBadge type={req.meeting?.calendarType} />
                                             </div>
                                             <div className="flex shrink-0">
                                                 {req.approvalStatus === 'pending' && (
-                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
                                                         Chờ duyệt
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'approved' && (
-                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase tracking-wider">
                                                         Đã duyệt
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'rejected' && (
-                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider">
                                                         Từ chối
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'expired' && (
-                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-300 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-300 uppercase tracking-wider">
                                                         Hết hạn
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'cancelled' && (
-                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-50 text-gray-600 border border-gray-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-50 text-gray-600 border border-gray-200 uppercase tracking-wider">
                                                         Đã hủy
                                                     </span>
                                                 )}
@@ -767,7 +771,7 @@ const MeetingApprovals = () => {
                                                 </div>
                                                 <div>
                                                     <span className="font-semibold text-midnight-indigo block">{req.requestedBy?.fullName || 'Nhân viên'}</span>
-                                                    <span className="text-[10px] opacity-80">{req.requestedBy?.email}</span>
+                                                    <span data-ui-text="secondary" className="text-[10px] opacity-80">{req.requestedBy?.email}</span>
                                                 </div>
                                             </div>
 
@@ -777,7 +781,7 @@ const MeetingApprovals = () => {
                                                 </div>
                                                 <div>
                                                     <span className="font-semibold text-midnight-indigo block">{req.targetRoom?.roomName || 'N/A'}</span>
-                                                    <span className="text-[10px] opacity-80">{req.targetRoom?.siteName || 'Khu vực'}</span>
+                                                    <span data-ui-text="secondary" className="text-[10px] opacity-80">{req.targetRoom?.siteName || 'Khu vực'}</span>
                                                 </div>
                                             </div>
 
@@ -792,7 +796,7 @@ const MeetingApprovals = () => {
                                                             ? ` - ${new Date(req.requestedEndTime).toLocaleDateString('vi-VN')}` 
                                                             : ''}
                                                     </span>
-                                                    <span className="text-[10px] font-medium mt-0.5 block text-slate-blue">
+                                                    <span data-ui-text="secondary" className="text-[10px] font-medium mt-0.5 block text-slate-blue">
                                                         <Clock className="w-3 h-3 inline mr-1 opacity-70" />
                                                         {new Date(req.requestedStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {new Date(req.requestedEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
@@ -804,22 +808,22 @@ const MeetingApprovals = () => {
                                         <div className="mt-auto pt-3 border-t border-platinum-tint/40 flex items-center justify-between">
                                             <div>
                                                 {conflictLevel === 'conflict' ? (
-                                                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200" title="Bị trùng lịch">
+                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200" title="Bị trùng lịch">
                                                         <AlertTriangle className="w-3.5 h-3.5 text-red-600 animate-pulse" /> Bị trùng lịch
                                                     </span>
                                                 ) : conflictLevel === 'pending' ? (
-                                                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200" title="Trùng với yêu cầu khác đang chờ duyệt">
+                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200" title="Trùng với yêu cầu khác đang chờ duyệt">
                                                         <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Trùng yêu cầu chờ duyệt
                                                     </span>
                                                 ) : participantInfo.hasConflict ? null : (
-                                                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                                                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Không trùng
                                                     </span>
                                                 )}
                                                 {/* MKM-PCONF-01: badge RIÊNG cho trùng người — 1 yêu cầu có thể
                                                     vừa trùng phòng vừa trùng người, không được nuốt mất cái nào. */}
                                                 {participantInfo.hasConflict && (
-                                                    <span
+                                                    <span data-ui-text="badge"
                                                         className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200"
                                                         title="Có người tham dự bận ở cuộc họp khác — vẫn duyệt được"
                                                     >
@@ -874,7 +878,17 @@ const MeetingApprovals = () => {
                             })}
                         </div>
                     ) : (
-                        <table className="w-full text-left border-collapse min-w-[900px]">
+                        <ResponsiveTable className="w-full text-left border-collapse min-w-[900px]">
+<colgroup>
+<col style={{ width: '9%' }} />
+<col style={{ width: '21%' }} />
+<col style={{ width: '21%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '6%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '6%' }} />
+</colgroup>
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/20 text-xs font-bold text-slate-blue uppercase">
                                     <th className="p-4 w-32">Mã yêu cầu</th>
@@ -907,13 +921,13 @@ const MeetingApprovals = () => {
                                             {/* Requester */}
                                             <td className="p-4 text-slate-blue font-medium whitespace-nowrap">
                                                 {req.requestedBy?.fullName || 'Nhân viên'}
-                                                <span className="block text-[10px] opacity-75">{req.requestedBy?.email}</span>
+                                                <span data-ui-text="secondary" className="block text-[10px] opacity-75">{req.requestedBy?.email}</span>
                                             </td>
 
                                             {/* Room */}
                                             <td className="p-4 font-medium text-midnight-indigo whitespace-nowrap">
                                                 {req.targetRoom?.roomName || 'N/A'}
-                                                <span className="block text-[10px] text-slate-blue font-normal">{req.targetRoom?.siteName || 'Khu vực'}</span>
+                                                <span data-ui-text="secondary" className="block text-[10px] text-slate-blue font-normal">{req.targetRoom?.siteName || 'Khu vực'}</span>
                                             </td>
 
                                             {/* Time */}
@@ -924,7 +938,7 @@ const MeetingApprovals = () => {
                                                         ? ` - ${new Date(req.requestedEndTime).toLocaleDateString('vi-VN')}` 
                                                         : ''}
                                                 </span>
-                                                <span className="block text-[10px] mt-0.5 text-slate-blue font-semibold">
+                                                <span data-ui-text="primary" className="block text-[10px] mt-0.5 text-slate-blue font-semibold">
                                                     {new Date(req.requestedStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {new Date(req.requestedEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </td>
@@ -932,22 +946,22 @@ const MeetingApprovals = () => {
                                             {/* Conflict Indicator */}
                                             <td className="p-4 whitespace-nowrap">
                                                 {conflictLevel === 'conflict' ? (
-                                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
                                                         <AlertTriangle className="w-3 h-3 text-red-600 animate-pulse" />
                                                         Bị trùng lịch
                                                     </span>
                                                 ) : conflictLevel === 'pending' ? (
-                                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                                                         <AlertTriangle className="w-3 h-3 text-amber-600" />
                                                         Trùng yêu cầu chờ duyệt
                                                     </span>
                                                 ) : participantInfo.hasConflict ? null : (
-                                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-250">
+                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-250">
                                                         Không trùng
                                                     </span>
                                                 )}
                                                 {participantInfo.hasConflict && (
-                                                    <span
+                                                    <span data-ui-text="badge"
                                                         className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200"
                                                         title="Có người tham dự bận ở cuộc họp khác — vẫn duyệt được"
                                                     >
@@ -960,27 +974,27 @@ const MeetingApprovals = () => {
                                             {/* Status Badge */}
                                             <td className="p-4 whitespace-nowrap">
                                                 {req.approvalStatus === 'pending' && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
                                                         Chờ duyệt
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'approved' && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase tracking-wider">
                                                         Đã duyệt
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'rejected' && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider">
                                                         Từ chối
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'expired' && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-red-50 text-red-600 border border-red-300 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-red-50 text-red-600 border border-red-300 uppercase tracking-wider">
                                                         Hết hạn
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'cancelled' && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-gray-50 text-gray-600 border border-gray-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-gray-50 text-gray-600 border border-gray-200 uppercase tracking-wider">
                                                         Đã hủy
                                                     </span>
                                                 )}
@@ -1031,33 +1045,20 @@ const MeetingApprovals = () => {
                                     );
                                 })}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     )}
                 </div>
 
                 {/* Pagination Controls */}
-                {!loading && totalPages > 1 && (
-                    <div className="p-4 bg-cloud-mist/20 border-t border-platinum-tint flex items-center justify-between text-xs font-semibold text-slate-blue select-none">
-                        <span>Hiển thị kết quả từ {((currentPage - 1) * limit) + 1} - {Math.min(currentPage * limit, totalCount)} trên {totalCount} yêu cầu</span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                                disabled={currentPage === 1}
-                                className="px-3 py-1.5 bg-white border border-platinum-tint rounded-lg flex items-center gap-1 hover:bg-cloud-mist hover:text-midnight-indigo disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-slate-blue transition-all"
-                            >
-                                <ChevronLeft className="w-3.5 h-3.5" /> Trang trước
-                            </button>
-                            <span className="flex items-center px-2">Trang {currentPage} / {totalPages}</span>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                                disabled={currentPage === totalPages}
-                                className="px-3 py-1.5 bg-white border border-platinum-tint rounded-lg flex items-center gap-1 hover:bg-cloud-mist hover:text-midnight-indigo disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-slate-blue transition-all"
-                            >
-                                Trang sau <ChevronRight className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {<PaginationRegion legacyVisible={!loading && totalPages > 1}><PaginationFooter
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalCount}
+                        pageSize={limit}
+                        onPageChange={setCurrentPage}
+                        itemLabel={"yêu cầu"}
+                        loading={loading}
+                     onPageSizeChange={size => { setLimit(size); setCurrentPage(1); }} /></PaginationRegion>}
             </motion.div>
 
             {/* MODALS */}
@@ -1075,7 +1076,7 @@ const MeetingApprovals = () => {
                                 {/* Modal Header */}
                                 <div className="p-5 border-b border-platinum-tint flex justify-between items-center bg-cloud-mist/40 shrink-0">
                                     <div>
-                                        <span className="text-[10px] font-mono font-extrabold text-action-blue tracking-wider bg-blue-50 px-2 py-0.5 rounded border border-blue-150">
+                                        <span data-ui-text="code" className="text-[10px] font-mono font-extrabold text-action-blue tracking-wider bg-blue-50 px-2 py-0.5 rounded border border-blue-150">
                                             YÊU CẦU: {selectedRequest.requestCode}
                                         </span>
                                         <h3 className="text-base font-bold text-midnight-indigo mt-1">Chi tiết yêu cầu đặt phòng họp</h3>
@@ -1093,11 +1094,11 @@ const MeetingApprovals = () => {
                                     {/* Basic Info Cards */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="p-4 bg-cloud-mist/20 rounded-xl border border-platinum-tint/60 space-y-2">
-                                            <h4 className="text-[11px] font-bold text-slate-blue uppercase tracking-wider">Thông tin chung cuộc họp</h4>
+                                            <h4 data-ui-text="label" className="text-[11px] font-bold text-slate-blue uppercase tracking-wider">Thông tin chung cuộc họp</h4>
                                             <div className="text-xs space-y-1 text-midnight-indigo">
-                                                <p className="font-semibold text-sm">{selectedRequest.meeting?.title || 'Cuộc họp nội bộ'}</p>
+                                                <p data-ui-text="primary" className="font-semibold text-sm">{selectedRequest.meeting?.title || 'Cuộc họp nội bộ'}</p>
                                                 {selectedRequest.meeting?.description && (
-                                                    <p className="text-[11px] text-slate-blue italic line-clamp-2 mt-1">{htmlToPlainText(selectedRequest.meeting?.description)}</p>
+                                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue italic line-clamp-2 mt-1">{htmlToPlainText(selectedRequest.meeting?.description)}</p>
                                                 )}
                                                 <p className="pt-1 flex items-center gap-1.5 text-slate-blue">
                                                     <Calendar className="w-3.5 h-3.5 text-action-blue" />
@@ -1113,19 +1114,19 @@ const MeetingApprovals = () => {
                                         </div>
 
                                         <div className="p-4 bg-cloud-mist/20 rounded-xl border border-platinum-tint/60 space-y-2">
-                                            <h4 className="text-[11px] font-bold text-slate-blue uppercase tracking-wider">Phòng họp & Sức chứa</h4>
+                                            <h4 data-ui-text="label" className="text-[11px] font-bold text-slate-blue uppercase tracking-wider">Phòng họp & Sức chứa</h4>
                                             <div className="text-xs space-y-1.5 text-midnight-indigo">
-                                                <p className="font-bold text-sm text-action-blue">{selectedRequest.targetRoom?.roomName}</p>
-                                                <p className="text-[11px] text-slate-blue">{selectedRequest.targetRoom?.siteName || 'Khu vực chính'}</p>
+                                                <p data-ui-text="primary" className="font-bold text-sm text-action-blue">{selectedRequest.targetRoom?.roomName}</p>
+                                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{selectedRequest.targetRoom?.siteName || 'Khu vực chính'}</p>
                                                 <p className="font-semibold">Sức chứa tối đa: <span className="text-midnight-indigo font-bold">{selectedRequest.targetRoom?.capacity} người</span></p>
-                                                <p className="text-[10px] text-slate-blue">Camera: {selectedRequest.targetRoom?.hasCamera ? 'Có' : 'Không'} • Micro: {selectedRequest.targetRoom?.hasMicrophone ? 'Có' : 'Không'}</p>
+                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Camera: {selectedRequest.targetRoom?.hasCamera ? 'Có' : 'Không'} • Micro: {selectedRequest.targetRoom?.hasMicrophone ? 'Có' : 'Không'}</p>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Requester Details */}
                                     <div className="p-4 bg-blue-50/10 rounded-xl border border-blue-100/60 space-y-2">
-                                        <h4 className="text-[11px] font-bold text-action-blue uppercase tracking-wider">Người tạo yêu cầu</h4>
+                                        <h4 data-ui-text="label" className="text-[11px] font-bold text-action-blue uppercase tracking-wider">Người tạo yêu cầu</h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-midnight-indigo">
                                             <p><strong className="text-slate-blue font-semibold">Họ tên:</strong> {selectedRequest.requestedBy?.fullName}</p>
                                             <p><strong className="text-slate-blue font-semibold">Hòm thư:</strong> {selectedRequest.requestedBy?.email}</p>
@@ -1176,16 +1177,20 @@ const MeetingApprovals = () => {
                                                         {hasRoomConflict ? (
                                                             <div className="space-y-1.5">
                                                                 <p className="opacity-90">Khung giờ này đã trùng với {selectedRequest.conflictDetails.length} cuộc họp khác đã được duyệt tại cùng phòng:</p>
-                                                                <ul className="space-y-1">
-                                                                    {selectedRequest.conflictDetails.map((c, idx) => (
+                                                                <PaginatedCollection items={selectedRequest?.conflictDetails} itemLabel="xung đột">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-1">
+                                                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((c, idx) => (
                                                                         <li key={c.bookingId || idx} className="bg-white/60 rounded-lg px-2.5 py-1.5 border border-rose-100">
                                                                             <span className="font-semibold">{c.meetingTitle || 'Cuộc họp khác'}</span>
                                                                             {' — '}{c.roomName || 'phòng đã chọn'}
                                                                             {' · '}{fmtTime(c.startTime)}-{fmtTime(c.endTime)}
                                                                             {c.hostName ? ` · Chủ trì: ${c.hostName}` : ''}
                                                                         </li>
-                                                                    ))}
+                                                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (selectedRequest.conflictDetails)))}
                                                                 </ul>
+)}
+</PaginatedCollection>
                                                                 <p className="opacity-80 italic">Vui lòng cân nhắc từ chối yêu cầu này hoặc yêu cầu khác cho phù hợp.</p>
                                                             </div>
                                                         ) : hasBlockedFlag ? (
@@ -1193,16 +1198,20 @@ const MeetingApprovals = () => {
                                                         ) : hasPendingConflict ? (
                                                             <div className="space-y-1.5">
                                                                 <p className="opacity-90">Khung giờ này đang trùng với {selectedRequest.pendingConflictDetails.length} yêu cầu khác cũng đang chờ duyệt tại cùng phòng — chưa có booking nào được duyệt nên hệ thống KHÔNG chặn bạn duyệt, nhưng chỉ 1 trong các yêu cầu này nên được giữ phòng:</p>
-                                                                <ul className="space-y-1">
-                                                                    {selectedRequest.pendingConflictDetails.map((c, idx) => (
+                                                                <PaginatedCollection items={selectedRequest?.pendingConflictDetails} itemLabel="yêu cầu">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-1">
+                                                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((c, idx) => (
                                                                         <li key={c.bookingId || idx} className="bg-white/60 rounded-lg px-2.5 py-1.5 border border-amber-100">
                                                                             <span className="font-semibold">{c.meetingTitle || 'Cuộc họp khác'}</span>
                                                                             {' — '}{c.roomName || 'phòng đã chọn'}
                                                                             {' · '}{fmtTime(c.startTime)}-{fmtTime(c.endTime)}
                                                                             {c.hostName ? ` · Chủ trì: ${c.hostName}` : ''}
                                                                         </li>
-                                                                    ))}
+                                                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (selectedRequest.pendingConflictDetails)))}
                                                                 </ul>
+)}
+</PaginatedCollection>
                                                                 <p className="opacity-80 italic">Nếu bạn duyệt yêu cầu này, các yêu cầu PENDING trùng giờ ở trên sẽ không tự động bị từ chối — khi có người duyệt tiếp yêu cầu đó, hệ thống sẽ báo lỗi trùng phòng (ROOM_CONFLICT) và cần từ chối thủ công.</p>
                                                             </div>
                                                         ) : (
@@ -1238,7 +1247,7 @@ const MeetingApprovals = () => {
                                                     ? 'bg-red-50/40 border-red-200 text-red-800'
                                                     : 'bg-slate-50 border-slate-200 text-slate-700'
                                             }`}>
-                                            <h4 className="text-[11px] font-bold uppercase tracking-wider">
+                                            <h4 data-ui-text="label" className="text-[11px] font-bold uppercase tracking-wider">
                                                 Lịch sử xét duyệt ({{ approved: 'Đã duyệt', rejected: 'Đã từ chối', expired: 'Hết hạn', cancelled: 'Đã hủy' }[selectedRequest.approvalStatus] || selectedRequest.approvalStatus})
                                             </h4>
                                             <div className="text-xs space-y-1 text-midnight-indigo">
@@ -1348,7 +1357,7 @@ const MeetingApprovals = () => {
                                                 </div>
                                             )}
 
-                                            <p className="text-[11px] leading-relaxed bg-amber-100/60 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                                            <p data-ui-text="secondary" className="text-[11px] leading-relaxed bg-amber-100/60 border border-amber-200 rounded-lg px-2.5 py-1.5">
                                                 Hệ thống <strong>vẫn cho phép duyệt cả hai cuộc họp</strong> — trùng người không
                                                 chặn phê duyệt. Danh sách chi tiết từng người bị trùng xem ở màn{' '}
                                                 <strong>Chi tiết yêu cầu đặt phòng</strong>.

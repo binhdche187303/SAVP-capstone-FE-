@@ -233,7 +233,7 @@ const ManagerLayout = () => {
                         <nav
                             ref={navRef}
                             aria-label="Primary navigation"
-                            className="hidden xl:flex items-center gap-0.5"
+                            className="hidden min-[1440px]:flex items-center gap-0.5"
                         >
                             {navigationItems.map((item) => (
                                 item.isDropdown ? (
@@ -420,7 +420,10 @@ const ManagerLayout = () => {
                         <button
                             type="button"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="xl:hidden flex items-center justify-center p-2 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist transition-colors bg-transparent border-0"
+                            aria-label={isMobileMenuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
+                            aria-expanded={isMobileMenuOpen}
+                            aria-controls="manager-mobile-menu"
+                            className="min-[1440px]:hidden flex items-center justify-center p-2 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist transition-colors bg-transparent border-0"
                         >
                             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
@@ -429,7 +432,7 @@ const ManagerLayout = () => {
             </header>
 
             {/* ========== MOBILE MENU DRAWER ========== */}
-            <div className={`xl:hidden fixed inset-0 z-40 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div id="manager-mobile-menu" className={`min-[1440px]:hidden fixed inset-0 z-40 overflow-hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 {/* Overlay backdrop */}
                 <div 
                     className="absolute inset-0 bg-midnight-indigo/20 backdrop-blur-sm mobile-menu-overlay" 
@@ -486,7 +489,7 @@ const ManagerLayout = () => {
             </div>
 
             {/* ========== MAIN CONTENT ========== */}
-            <main className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
+            <main data-page-frame="wide" className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
                 <Outlet />
                 <BiometricReminderModal />
                 <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />

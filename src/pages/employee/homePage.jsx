@@ -1,3 +1,6 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard from '../../components/common/StatisticCard';
 import { AlertCircle, ArrowRight, Award, BarChart2, BookOpen, Calendar, Car, CheckCircle, Clock, LogIn, PlusCircle, ShieldAlert, TrendingUp, User, Video } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { useState, useEffect, useMemo } from 'react';
@@ -289,29 +292,12 @@ const EmployeeHomePage = () => {
                         className="space-y-8"
                     >
                         {/* Quick Status Bar */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <StatisticGrid columns={3} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Card: Họp trong ngày */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center shrink-0">
-                                    <Clock className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Họp trong ngày</p>
-                                    <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">
-                                        {campusSummaryLoading ? '—' : (campusSummary?.meetingsToday ?? 0)}
-                                    </p>
-                                    <p className="text-[11px] text-slate-blue leading-none mt-0.5">cuộc họp</p>
-                                </div>
-                            </div>
+                            <StatisticCard label="Họp trong ngày" value={campusSummaryLoading ? '—' : (campusSummary?.meetingsToday ?? 0)} icon={Clock} helper="cuộc họp" />
 
                             {/* Card: Lượt vào cổng */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                    <LogIn className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Vào cổng hôm nay</p>
-                                    <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">
+                            <StatisticCard label="Vào cổng hôm nay" value={<>
                                         {campusSummaryLoading ? '—' : (() => {
                                             const g = campusSummary?.gateAccessToday;
                                             if (g == null) return 0;
@@ -320,48 +306,15 @@ const EmployeeHomePage = () => {
                                             if (typeof g === 'object') return g.count ?? g.total ?? g.value ?? 1;
                                             return 0;
                                         })()}
-                                    </p>
-                                    <p className="text-[11px] text-slate-blue leading-none mt-0.5">lượt</p>
-                                </div>
-                            </div>
+                                    </>} icon={LogIn} helper="lượt" />
 
                             {/* Card: Phương tiện */}
-                            <div className="bg-white px-4 py-4 rounded-2xl border border-platinum-tint shadow-sm flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                                    <Car className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wide leading-none">Phương tiện</p>
-                                    {campusSummaryLoading ? (
-                                        <p className="text-2xl font-extrabold text-midnight-indigo leading-tight mt-1">—</p>
-                                    ) : campusSummary?.vehicleStatus ? (
-                                        <>
-                                            <p className="text-base font-extrabold text-midnight-indigo font-mono leading-tight mt-1 truncate">
-                                                {campusSummary.vehicleStatus.plateNumber}
-                                            </p>
-                                            <span className={`mt-1 inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                campusSummary.vehicleStatus.status === 'active'
-                                                    ? 'bg-emerald-50 text-emerald-700'
-                                                    : 'bg-gray-100 text-gray-500'
-                                            }`}>
-                                                {campusSummary.vehicleStatus.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <p className="text-sm font-bold text-steel-gray leading-tight mt-1">Chưa đăng ký</p>
-                                            <button
-                                                type="button"
-                                                onClick={() => navigate('/employee/my-vehicles')}
-                                                className="mt-0.5 text-[11px] font-bold text-action-blue hover:underline leading-none"
-                                            >
-                                                Đăng ký ngay →
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                            <StatisticCard label="Phương tiện" icon={Car} compactValue
+ value={campusSummaryLoading ? '—' : campusSummary?.vehicleStatus?.plateNumber || 'Chưa đăng ký'}
+ helper={!campusSummaryLoading && (campusSummary?.vehicleStatus
+    ? (campusSummary.vehicleStatus.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng')
+    : <button type="button" onClick={() => navigate('/employee/my-vehicles')} className="font-bold text-action-blue hover:underline">Đăng ký ngay →</button>)} />
+                        </StatisticGrid>
 
                         {/* Quick Shortcuts */}
                         <div className="space-y-4">
@@ -380,7 +333,7 @@ const EmployeeHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Đăng ký họp</h3>
                                     <p className="text-xs text-blue-100 mb-4">Lên lịch cuộc họp mới và đặt phòng họp theo kế hoạch.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Tạo lịch họp ngay <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -396,7 +349,7 @@ const EmployeeHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Lịch họp cá nhân</h3>
                                     <p className="text-xs text-indigo-100 mb-4">Theo dõi và quản lý lịch trình các cuộc họp cá nhân của bạn.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Xem lịch trình <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -412,7 +365,7 @@ const EmployeeHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Đăng ký khuôn mặt</h3>
                                     <p className="text-xs text-emerald-100 mb-4">Cập nhật dữ liệu khuôn mặt phục vụ điểm danh thông minh bằng Camera AI.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Đăng ký ngay <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -428,7 +381,7 @@ const EmployeeHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Bản ghi & Tài liệu</h3>
                                     <p className="text-xs text-amber-100 mb-4">Tra cứu video ghi âm, ghi hình và tài liệu tóm tắt cuộc họp.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Xem bản ghi <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -443,7 +396,7 @@ const EmployeeHomePage = () => {
                                         <h2 className="text-base font-bold text-midnight-indigo">Cuộc họp sắp tới</h2>
                                         <p className="text-xs text-slate-blue">Các lịch họp được lên lịch sắp tới của bạn</p>
                                     </div>
-                                    <span 
+                                    <span data-ui-text="primary"
                                         onClick={() => navigate('/employee/schedule')}
                                         className="text-xs font-bold text-action-blue hover:underline cursor-pointer"
                                     >
@@ -451,9 +404,11 @@ const EmployeeHomePage = () => {
                                     </span>
                                 </div>
 
-                                <div className="space-y-4">
+                                <PaginatedCollection items={upcomingMeetings} itemLabel="cuộc họp">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="space-y-4">
                                     {upcomingMeetings.length > 0 ? (
-                                        upcomingMeetings.map(meet => (
+                                        camaiPageItems.map((camaiRecord, camaiIndex) => (meet => (
                                             <div
                                                 key={meet.id}
                                                 onClick={() => navigate(`/employee/meeting/${meet.id}`)}
@@ -461,31 +416,31 @@ const EmployeeHomePage = () => {
                                             >
                                                 <div className="space-y-1.5">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-action-blue">
+                                                        <span data-ui-text="badge" className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-action-blue">
                                                             {meet.room}
                                                         </span>
                                                         {meet.status === 'pending_approval' && (
-                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">
+                                                            <span data-ui-text="badge" className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">
                                                                 Chờ duyệt
                                                             </span>
                                                         )}
                                                         {meet.status === 'draft' && (
-                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">
+                                                            <span data-ui-text="badge" className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">
                                                                 Bản nháp
                                                             </span>
                                                         )}
                                                         {meet.status === 'in_progress' && (
-                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                                                            <span data-ui-text="badge" className="text-[11px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
                                                                 Đang diễn ra
                                                             </span>
                                                         )}
                                                         {meet.recordingEnabled && (
-                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-red-50 text-red-600 flex items-center gap-1">
+                                                            <span data-ui-text="badge" className="text-[11px] font-bold px-2 py-0.5 rounded bg-red-50 text-red-600 flex items-center gap-1">
                                                                 <Video className="w-3 h-3" /> Ghi hình
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <h4 className="font-bold text-midnight-indigo text-sm sm:text-base">
+                                                    <h4 data-ui-text="primary" className="font-bold text-midnight-indigo text-sm sm:text-base">
                                                         {meet.title}
                                                     </h4>
                                                     <div className="flex items-center gap-4 text-xs text-slate-blue font-medium">
@@ -500,7 +455,7 @@ const EmployeeHomePage = () => {
                                                     consent theo participant ở BE, bấm chỉ set local state rồi mất khi
                                                     reload. Bật lại khi có endpoint thật. */}
                                             </div>
-                                        ))
+                                        ))(camaiRecord, camaiStartIndex + camaiIndex, (upcomingMeetings)))
                                     ) : (
                                         <div className="py-12 flex flex-col items-center justify-center text-center bg-cloud-mist/30 rounded-xl border border-dashed border-outline-gray/60">
                                             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
@@ -513,6 +468,8 @@ const EmployeeHomePage = () => {
                                         </div>
                                     )}
                                 </div>
+)}
+</PaginatedCollection>
                             </div>
 
                             <div className="bg-gradient-to-br from-indigo-900 to-purple-950 p-6 rounded-2xl text-white shadow-sm flex flex-col justify-between">
@@ -530,7 +487,7 @@ const EmployeeHomePage = () => {
                                         <li>Bản ghi hình cuộc họp được tự động xóa sau 90 ngày.</li>
                                     </ul>
                                 </div>
-                                <div className="pt-4 border-t border-white/10 mt-6 text-[10px] text-indigo-300 font-mono">
+                                <div data-ui-text="secondary" className="pt-4 border-t border-white/10 mt-6 text-[10px] text-indigo-300 font-mono">
                                     Quy định bảo vệ dữ liệu cá nhân VN áp dụng
                                 </div>
                             </div>
@@ -607,7 +564,7 @@ const EmployeeHomePage = () => {
                                 {/* Ngưỡng “đúng giờ” của trang này (graceMinutes) khác với báo cáo cấp
                                     phòng ban, nên phải nói rõ để người dùng không tưởng số liệu bị sai. */}
                                 {analyticsData.graceMinutes != null && (
-                                    <p className="text-[11px] text-slate-blue bg-cloud-mist/60 border border-platinum-tint rounded-xl px-3 py-2">
+                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue bg-cloud-mist/60 border border-platinum-tint rounded-xl px-3 py-2">
                                         Cách tính: được xem là <b>đúng giờ</b> nếu điểm danh muộn không quá{' '}
                                         <b>{analyticsData.graceMinutes} phút</b> so với giờ bắt đầu cuộc họp.
                                         {analyticsData.period && (
@@ -617,33 +574,12 @@ const EmployeeHomePage = () => {
                                 )}
 
                                 {/* Row 1 — 4 KPI cards */}
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tỷ lệ đúng giờ</p>
-                                        <p className="text-2xl font-black text-midnight-indigo">{analyticsData.onTimeRate ?? 0}%</p>
-                                        {rateDiff !== null && (
-                                            <p className={`text-[10px] font-semibold ${rateDiff >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                {rateDiff >= 0 ? '▲' : '▼'} {Math.abs(rateDiff)}% so với trung bình phòng ban
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tổng lượt bắt buộc</p>
-                                        <p className="text-2xl font-black text-midnight-indigo">{analyticsData.totalRequired ?? 0}</p>
-                                    </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Lần đi muộn</p>
-                                        <p className={`text-2xl font-black ${(analyticsData.lateCount ?? 0) > 0 ? 'text-amber-500' : 'text-midnight-indigo'}`}>
-                                            {analyticsData.lateCount ?? 0}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-1">
-                                        <p className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Lần vắng mặt</p>
-                                        <p className={`text-2xl font-black ${(analyticsData.absentCount ?? 0) > 0 ? 'text-red-500' : 'text-midnight-indigo'}`}>
-                                            {analyticsData.absentCount ?? 0}
-                                        </p>
-                                    </div>
-                                </div>
+                                <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <StatisticCard label="Tỷ lệ đúng giờ" value={`${analyticsData.onTimeRate ?? 0}%`} helper={rateDiff !== null && <>{rateDiff >= 0 ? '▲' : '▼'} {Math.abs(rateDiff)}% so với trung bình phòng ban</>} />
+                                    <StatisticCard label="Tổng lượt bắt buộc" value={analyticsData.totalRequired ?? 0} />
+                                    <StatisticCard label="Lần đi muộn" value={analyticsData.lateCount ?? 0} tone="warning" />
+                                    <StatisticCard label="Lần vắng mặt" value={analyticsData.absentCount ?? 0} tone="danger" />
+                                </StatisticGrid>
 
                                 {/* Row 2 — Pie + Recent late */}
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -677,21 +613,25 @@ const EmployeeHomePage = () => {
                                                 <p className="text-xs text-slate-blue">Không có lần đi muộn nào trong kỳ này</p>
                                             </div>
                                         ) : (
-                                            <div className="divide-y divide-platinum-tint">
-                                                {analyticsData.recentLate.slice(0, 5).map((item, i) => (
+                                            <PaginatedCollection items={analyticsData?.recentLate} itemLabel="lần đi muộn" initialPageSize={5}>
+{(camaiPageItems, camaiStartIndex) => (
+<div className="divide-y divide-platinum-tint">
+                                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((item, i) => (
                                                     <div key={i} className="flex items-center justify-between gap-3 py-2.5">
                                                         <div className="min-w-0">
-                                                            <p className="text-xs font-bold text-midnight-indigo truncate">{item.meetingTitle}</p>
-                                                            <p className="text-[10px] text-slate-blue font-mono mt-0.5">
+                                                            <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo truncate">{item.meetingTitle}</p>
+                                                            <p data-ui-text="code" className="text-[10px] text-slate-blue font-mono mt-0.5">
                                                                 {toVNTime(item.scheduledTime)} → {toVNTime(item.checkinTime)}
                                                             </p>
                                                         </div>
-                                                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 whitespace-nowrap">
+                                                        <span data-ui-text="badge" className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 whitespace-nowrap">
                                                             +{item.lateMinutes} phút
                                                         </span>
                                                     </div>
-                                                ))}
+                                                ))(camaiRecord, camaiStartIndex + camaiIndex, (analyticsData.recentLate)))}
                                             </div>
+)}
+</PaginatedCollection>
                                         )}
                                     </div>
                                 </div>

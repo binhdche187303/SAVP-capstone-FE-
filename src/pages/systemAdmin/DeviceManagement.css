@@ -1,0 +1,44 @@
+/* Keep each label and control together; wrap fields by the panel's available width. */
+.device-filter-panel {
+    container-type: inline-size;
+}
+
+.device-filter-panel .device-filter-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: flex-end;
+    gap: 16px;
+    min-width: 0;
+}
+
+@container (min-width: 480px) {
+    .device-filter-panel .device-filter-fields {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .device-filter-panel .device-filter-search {
+        grid-column: 1 / -1;
+    }
+}
+
+@container (min-width: 860px) {
+    .device-filter-panel .device-filter-fields {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@container (min-width: 1120px) {
+    .device-filter-panel .device-filter-fields {
+        grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(0, 1fr));
+    }
+
+    .device-filter-panel .device-filter-search {
+        grid-column: auto;
+    }
+}
+
+.device-filter-panel .device-filter-count {
+    display: block;
+    margin-top: 8px;
+    text-align: right;
+}

@@ -107,7 +107,7 @@ describe('xuất báo cáo qua job (BE thật)', () => {
         expect(get).toHaveBeenCalledWith('/background-jobs/job-1');
         expect(get).toHaveBeenLastCalledWith('/media-files/f-1');
         expect(window.open).toHaveBeenCalledWith('http://api/secure?token=t', '_blank');
-        expect(res).toEqual({ success: true, data: { fileName: 'vehicle_2026-10-01_2026-10-07.xlsx', format: 'xlsx' } });
+        expect(res).toEqual({ success: true, data: { fileName: 'vehicle_2026-10-01_2026-10-07.xlsx', format: 'xlsx', downloadUrl: 'http://api/secure?token=t' } });
     });
 
     test('job failed → trả { success: false, message } của BE', async () => {

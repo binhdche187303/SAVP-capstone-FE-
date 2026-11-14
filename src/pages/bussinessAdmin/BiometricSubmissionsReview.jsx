@@ -1,3 +1,7 @@
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
 import { CheckCircle, Briefcase, Mail, Phone, X } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from "react";
 
@@ -208,7 +212,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
 
                 <div className="p-6 space-y-6">
                     {actionError && (
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">{actionError}</div>
+                        <div data-ui-text="badge" className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">{actionError}</div>
                     )}
 
                     {loadingDetail ? (
@@ -226,7 +230,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
                                 ) : downloadUrl ? (
                                     <img src={downloadUrl} alt="Biometric submission" className="w-48 h-48 object-cover rounded-xl border border-platinum-tint" />
                                 ) : (
-                                    <div className="w-48 h-48 bg-cloud-mist rounded-xl flex items-center justify-center text-xs text-slate-blue">
+                                    <div data-ui-text="badge" className="w-48 h-48 bg-cloud-mist rounded-xl flex items-center justify-center text-xs text-slate-blue">
                                         {detail.hasPreview ? "Không thể tải ảnh" : "Ảnh không khả dụng"}
                                     </div>
                                 )}
@@ -267,7 +271,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
                                 </div>
                                 <div>
                                     <span className="text-xs text-slate-blue block">Trạng thái</span>
-                                    <span className={"inline-flex text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_MAP[detail.status] || STATUS_MAP.pending_review).badge)}>
+                                    <span data-ui-text="badge" className={"inline-flex text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_MAP[detail.status] || STATUS_MAP.pending_review).badge)}>
                                         {(STATUS_MAP[detail.status] || STATUS_MAP.pending_review).label}
                                     </span>
                                 </div>
@@ -291,7 +295,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
 
                             {detail.status === "rejected" && detail.reviewMetadata?.rejectionReason && (
                                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
-                                    <span className="text-xs font-bold text-red-700 block">Lý do từ chối</span>
+                                    <span data-ui-text="primary" className="text-xs font-bold text-red-700 block">Lý do từ chối</span>
                                     <span className="text-xs text-red-600 mt-1 block">{detail.reviewMetadata.rejectionReason}</span>
                                 </div>
                             )}
@@ -390,7 +394,7 @@ const BiometricSubmissionsReview = () => {
 
     // Pagination
     const [page, setPage] = useState(1);
-    const [limit] = useState(20);
+    const [limit, setLimit] = useState(20);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
 
@@ -515,7 +519,7 @@ const BiometricSubmissionsReview = () => {
     return (
         <div className="space-y-6 animate-fade-in-up">
             <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                     <CheckCircle className="w-3.5 h-3.5" />
                     Phê duyệt
                 </span>
@@ -541,8 +545,8 @@ const BiometricSubmissionsReview = () => {
             )}
 
             {/* Filter bar */}
-            <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-2 flex flex-wrap items-center gap-3">
-                <select
+            <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-2 flex flex-wrap items-center gap-3">
+                <FilterField label="Trạng thái"><select
                     value={statusFilter}
                     onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
@@ -551,17 +555,17 @@ const BiometricSubmissionsReview = () => {
                     <option value="rejected">Bị từ chối</option>
                     <option value="active">Đã duyệt</option>
                     <option value="">Tất cả trạng thái</option>
-                </select>
+                </select></FilterField>
 
-                <input
+                <FilterField label="Tìm kiếm"><input
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Tìm kiếm (tối thiểu 2 ký tự)..."
                     className="flex-1 min-w-[200px] px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
-                />
+                /></FilterField>
 
-                <select
+                <FilterField label="Phòng ban"><select
                     value={deptFilter}
                     onChange={(e) => { setDeptFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
@@ -570,9 +574,9 @@ const BiometricSubmissionsReview = () => {
                     {departments.map((d) => (
                         <option key={d.id} value={d.id}>{d.departmentName || d.name}</option>
                     ))}
-                </select>
+                </select></FilterField>
 
-                <select
+                <FilterField label="Vai trò"><select
                     value={roleFilter}
                     onChange={(e) => {
                         setRoleFilter(e.target.value);
@@ -584,9 +588,9 @@ const BiometricSubmissionsReview = () => {
                     {ROLE_OPTIONS.map((role) => (
                         <option key={role.value} value={role.value}>{role.label}</option>
                     ))}
-                </select>
+                </select></FilterField>
 
-                <select
+                <FilterField label="Lớp hành chính"><select
                     value={classFilter}
                     onChange={(e) => { setClassFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
@@ -595,20 +599,28 @@ const BiometricSubmissionsReview = () => {
                     {classOptions.map((klass) => (
                         <option key={klass.value} value={klass.value}>{klass.label}</option>
                     ))}
-                </select>
+                </select></FilterField>
 
-                <button
+                <RefreshButton
                     onClick={handleRefresh}
-                    className="px-4 py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-semibold transition-all"
-                >
-                    Làm mới
-                </button>
-            </div>
+                    busy={loading}
+                />
+            </FilterBar>
 
             {/* Table */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <ResponsiveTable className="w-full text-sm">
+<colgroup>
+<col style={{ width: '6%' }} />
+<col style={{ width: '16%' }} />
+<col style={{ width: '19%' }} />
+<col style={{ width: '14%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '9%' }} />
+<col style={{ width: '12%' }} />
+</colgroup>
                         <thead>
                             <tr className="bg-cloud-mist border-b border-platinum-tint">
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Gương mặt</th>
@@ -671,7 +683,7 @@ const BiometricSubmissionsReview = () => {
                                             ""
                                         }</td>
                                         <td className="px-4 py-3">
-                                            <span className={"inline-flex whitespace-nowrap text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_MAP[sub.status] || STATUS_MAP.pending_review).badge)}>
+                                            <span data-ui-text="badge" className={"inline-flex whitespace-nowrap text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_MAP[sub.status] || STATUS_MAP.pending_review).badge)}>
                                                 {(STATUS_MAP[sub.status] || STATUS_MAP.pending_review).label}
                                             </span>
                                         </td>
@@ -688,32 +700,19 @@ const BiometricSubmissionsReview = () => {
                                 ))
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="px-4 py-3 border-t border-platinum-tint flex items-center justify-between bg-cloud-mist/50">
-                        <span className="text-xs text-slate-blue">Tổng: {total} yêu cầu</span>
-                        <div className="flex items-center gap-2">
-                            <button
-                                disabled={page <= 1}
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                className="px-3 py-1.5 border border-platinum-tint bg-white text-slate-blue rounded-lg text-xs font-semibold disabled:opacity-40"
-                            >
-                                Trước
-                            </button>
-                            <span className="text-xs text-slate-blue">Trang {page} / {totalPages}</span>
-                            <button
-                                disabled={page >= totalPages}
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                className="px-3 py-1.5 border border-platinum-tint bg-white text-slate-blue rounded-lg text-xs font-semibold disabled:opacity-40"
-                            >
-                                Sau
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {<PaginationRegion legacyVisible={totalPages > 1}><PaginationFooter
+                        currentPage={page}
+                        totalPages={totalPages}
+                        totalItems={total}
+                        pageSize={limit}
+                        onPageChange={setPage}
+                        itemLabel={"yêu cầu"}
+                        loading={loading}
+                     onPageSizeChange={size => { setLimit(size); setPage(1); }} /></PaginationRegion>}
             </div>
 
             {/* Detail modal */}
@@ -760,7 +759,7 @@ const BiometricSubmissionsReview = () => {
                                                     className="w-24 h-24 rounded-full text-3xl mb-4 border-4 border-cloud-mist shadow-sm" />
                                             )}
                                             <h4 className="text-xl font-extrabold text-midnight-indigo text-center">{name}</h4>
-                                            {code && <span className="mt-1.5 text-[11px] font-mono text-slate-blue bg-cloud-mist px-2.5 py-0.5 rounded-full border border-platinum-tint">{code}</span>}
+                                            {code && <span data-ui-text="code" className="mt-1.5 text-[11px] font-mono text-slate-blue bg-cloud-mist px-2.5 py-0.5 rounded-full border border-platinum-tint">{code}</span>}
                                         </div>
                                         <div className="space-y-3">
                                             {[
@@ -773,7 +772,7 @@ const BiometricSubmissionsReview = () => {
                                                         <Icon className="w-5 h-5" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-[11px] font-semibold text-slate-blue">{label}</p>
+                                                        <p data-ui-text="label" className="text-[11px] font-semibold text-slate-blue">{label}</p>
                                                         <p className="text-sm font-bold text-midnight-indigo truncate">{value}</p>
                                                     </div>
                                                 </div>

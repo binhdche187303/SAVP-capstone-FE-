@@ -1,0 +1,32 @@
+/* Sidebar width matters: use the content container, rather than viewport breakpoints. */
+.camai-stat-container[data-stat-container] {
+    display: block;
+    container-type: inline-size;
+    min-width: 0;
+    max-width: 100%;
+}
+.camai-stat-grid[data-stat-columns] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    min-width: 0;
+}
+@container (min-width: 480px) {
+    .camai-stat-grid[data-stat-columns]:where(:not([data-stat-columns="1"])) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@container (min-width: 720px) {
+    .camai-stat-grid:is([data-stat-columns="3"], [data-stat-columns="5"], [data-stat-columns="6"]) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@container (min-width: 960px) {
+    .camai-stat-grid[data-stat-columns="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@container (min-width: 1200px) {
+    .camai-stat-grid[data-stat-columns="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@container (min-width: 1440px) {
+    .camai-stat-grid[data-stat-columns="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}

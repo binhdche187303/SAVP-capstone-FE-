@@ -6,12 +6,14 @@ import * as service from '../../service/classAttendanceService';
 jest.mock('../../service/classAttendanceService', () => ({
     ...jest.requireActual('../../service/classAttendanceService'),
     fetchClassAttendanceClasses: jest.fn(),
+    fetchClassSessions: jest.fn(),
     fetchClassAttendanceRows: jest.fn().mockResolvedValue([]),
     fetchClassAttendanceEvents: jest.fn().mockResolvedValue([]),
     fetchClassAttendanceSettings: jest.fn().mockResolvedValue({}),
 }));
 
 beforeEach(() => {
+    service.fetchClassSessions.mockResolvedValue([]);
     service.fetchClassAttendanceRows.mockResolvedValue([]);
     service.fetchClassAttendanceEvents.mockResolvedValue([]);
     service.fetchClassAttendanceSettings.mockResolvedValue({});
@@ -26,6 +28,7 @@ test('an empty API response leaves the class list empty instead of showing demo 
 });
 
 test('keeps the requested real class and exposes the actual semester from UEL', async () => {
+    service.fetchClassSessions.mockResolvedValue([{ classId: 'real-class', startTime: '09:00', endTime: '11:00', room: 'A101' }]);
     service.fetchClassAttendanceClasses.mockResolvedValue([{
         id: 'real-class', code: 'UEL-01', subjectCode: 'UEL', subject: 'Môn đồng bộ UEL',
         semester: 'Học kỳ 1 năm học 2026-2027', schedule: '09:00 - 11:00',
@@ -34,5 +37,6 @@ test('keeps the requested real class and exposes the actual semester from UEL', 
     render(<MemoryRouter initialEntries={['/?classId=real-class']}><ClassAttendanceDashboard /></MemoryRouter>);
     await waitFor(() => expect(service.fetchClassAttendanceRows).toHaveBeenCalledWith('real-class', expect.any(String)));
     expect(await screen.findByRole('option', { name: 'Học kỳ 1 năm học 2026-2027' })).toBeInTheDocument();
+    expect(await screen.findByText(/09:00 - 11:00.*A101/)).toBeInTheDocument();
     expect(screen.queryByText('Lập trình Web')).not.toBeInTheDocument();
 });

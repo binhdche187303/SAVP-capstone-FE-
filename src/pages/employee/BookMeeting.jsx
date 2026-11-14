@@ -1,3 +1,7 @@
+import TableColumns from '../../components/common/TableColumns';
+import DateInput from '../../components/common/DateInput';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
 import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench, Monitor, Bell, Mail, MessageSquare, Smartphone, Repeat, FileText, PenLine } from 'lucide-react';
 import RichTextEditor from '../../components/common/RichTextEditor';
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -11,7 +15,7 @@ import { getAvailableRooms, createMeeting, addRecordingConfig, replaceAgendas, u
 import { LEADERSHIP_TITLE_LABELS } from '../../utils/calendarRoleLabel';
 import { getDepartments, getDepartmentMembers } from '../../service/businessAdminServices';
 import * as XLSX from 'xlsx';
-import DatePicker from "react-datepicker";
+import DatePicker from '../../components/common/AppDatePicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { vi } from 'date-fns/locale/vi';
 import TimePicker from '../../components/common/TimePicker';
@@ -87,7 +91,7 @@ const RoomFaultNote = ({ room }) => {
         .map(eq => `${eq.equipmentName}${eq.lastIssueNote ? `: ${eq.lastIssueNote}` : ''}`)
         .join('; ');
     return (
-        <p className="text-[10px] text-red-600 mt-1 flex items-center gap-1" title={detail}>
+        <p data-ui-text="secondary" className="text-[10px] text-red-600 mt-1 flex items-center gap-1" title={detail}>
             <Wrench className="w-3 h-3 shrink-0" />
             <span className="line-clamp-1">Thiết bị lỗi: {text}</span>
         </p>
@@ -1407,10 +1411,10 @@ const BookMeeting = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div data-page-surface="wide" className="max-w-7xl mx-auto space-y-6">
             {/* Header */}
             <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                     <CalendarPlus className="w-3.5 h-3.5" />
                     Đặt lịch
                 </span>
@@ -1574,8 +1578,10 @@ const BookMeeting = () => {
                                     <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Phòng họp trống ({availableRooms.length})
                                 </h4>
                                 {availableRooms.length > 0 ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {availableRooms.map(room => {
+                                    <PaginatedCollection items={availableRooms} itemLabel="phòng">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {camaiPageItems.map((camaiRecord, camaiIndex) => (room => {
                                             const roomId = room.id || room.roomId;
                                             const isSelected = selectedRoomId === roomId;
                                             return (
@@ -1589,8 +1595,8 @@ const BookMeeting = () => {
                                                 >
                                                     <div>
                                                         <div className="flex justify-between items-start">
-                                                            <h5 className="font-bold text-sm text-midnight-indigo">{room.roomName || room.room_name}</h5>
-                                                            <span className="text-[11px] font-bold text-slate-blue bg-cloud-mist px-2 py-0.5 rounded">
+                                                            <h5 data-ui-text="primary" className="font-bold text-sm text-midnight-indigo">{room.roomName || room.room_name}</h5>
+                                                            <span data-ui-text="badge" className="text-[11px] font-bold text-slate-blue bg-cloud-mist px-2 py-0.5 rounded">
                                                                 Sức chứa: {room.capacity} người
                                                             </span>
                                                         </div>
@@ -1599,7 +1605,7 @@ const BookMeeting = () => {
                                                         </p>
                                                         {/* Nhóm D — cảnh báo mềm, không loại phòng khỏi danh sách */}
                                                         {room.pendingConflicts?.length > 0 && (
-                                                            <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1" title="Chưa được duyệt nên chưa chắc chắn giữ được phòng">
+                                                            <p data-ui-text="secondary" className="text-[10px] text-amber-600 mt-1 flex items-center gap-1" title="Chưa được duyệt nên chưa chắc chắn giữ được phòng">
                                                                 <AlertTriangle className="w-3 h-3 shrink-0" />
                                                                 {room.pendingConflicts.length} yêu cầu khác đang chờ duyệt cùng giờ
                                                             </p>
@@ -1612,14 +1618,16 @@ const BookMeeting = () => {
                                                         <div className="flex items-center gap-2.5 text-slate-blue/70">
                                                             <RoomEquipmentIcons room={room} />
                                                         </div>
-                                                        <span className={`text-xs font-bold transition-colors ${isSelected ? 'text-action-blue' : 'text-slate-blue/60'}`}>
+                                                        <span data-ui-text="primary" className={`text-xs font-bold transition-colors ${isSelected ? 'text-action-blue' : 'text-slate-blue/60'}`}>
                                                             {isSelected ? 'Đã chọn' : 'Chọn phòng'}
                                                         </span>
                                                     </div>
                                                 </div>
                                             );
-                                        })}
+                                        })(camaiRecord, camaiStartIndex + camaiIndex, (availableRooms)))}
                                     </div>
+)}
+</PaginatedCollection>
                                 ) : (
                                     <p className="text-xs text-slate-blue italic pl-2 py-2">Không tìm thấy phòng họp trống trong khung giờ này. Vui lòng đổi giờ hoặc số người dự kiến.</p>
                                 )}
@@ -1656,7 +1664,7 @@ const BookMeeting = () => {
                                             <Building className="w-5 h-5" />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-[10px] font-bold text-action-blue uppercase tracking-wider">Phòng họp đã chọn</p>
+                                            <p data-ui-text="label" className="text-[10px] font-bold text-action-blue uppercase tracking-wider">Phòng họp đã chọn</p>
                                             <h3 className="font-bold text-base text-midnight-indigo truncate">
                                                 {selectedRoom?.roomName || selectedRoom?.room_name}
                                             </h3>
@@ -1731,7 +1739,7 @@ const BookMeeting = () => {
                                                     Lịch đơn vị{bookingCtx?.unit?.departmentName ? ` — ${bookingCtx.unit.departmentName}` : ''}
                                                 </div>
                                             )}
-                                            <p className="text-[11px] text-slate-blue mt-1">
+                                            <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-1">
                                                 {calendarType === 'SCHOOL_LEADERSHIP'
                                                     ? 'Do Ban Giám hiệu chủ trì, hiển thị trên lịch tuần toàn trường.'
                                                     : calendarType === 'SCHOOL_OTHER'
@@ -1762,7 +1770,7 @@ const BookMeeting = () => {
                                                     <option key={o.id || 'me'} value={o.id}>{o.label}</option>
                                                 ))}
                                             </select>
-                                            <p className="text-[11px] text-slate-blue mt-1">
+                                            <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-1">
                                                 {calendarType === 'SCHOOL_LEADERSHIP'
                                                     ? 'Bắt buộc là thành viên Ban Giám hiệu.'
                                                     : calendarType === 'UNIT'
@@ -1804,7 +1812,7 @@ const BookMeeting = () => {
                                         <h3 className="font-bold text-sm text-midnight-indigo uppercase tracking-wider flex items-center gap-2">
                                             <Users className="w-4 h-4 text-royal-amethyst" /> Thành phần tham gia *
                                         </h3>
-                                        <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${(selectedParticipantIds.length + externalParticipants.length + 1) > (selectedRoom?.capacity || 0)
+                                        <span data-ui-text="badge" className={`text-xs font-bold px-2.5 py-1 rounded-lg ${(selectedParticipantIds.length + externalParticipants.length + 1) > (selectedRoom?.capacity || 0)
                                             ? 'bg-rose-50 text-rose-600 border border-rose-100 animate-pulse'
                                             : 'bg-cloud-mist text-slate-blue'
                                             }`}>
@@ -1874,13 +1882,13 @@ const BookMeeting = () => {
                                                                             <Building className="w-4 h-4 text-royal-amethyst" />
                                                                         </div>
                                                                         <div>
-                                                                            <p className="text-sm font-bold text-royal-amethyst">
+                                                                            <p data-ui-text="primary" className="text-sm font-bold text-royal-amethyst">
                                                                                 Phòng: {dept.departmentName || dept.department_name}
                                                                             </p>
-                                                                            <p className="text-[11px] font-medium text-slate-blue opacity-80 mt-0.5">Thêm toàn bộ nhân viên phòng này vào danh sách</p>
+                                                                            <p data-ui-text="secondary" className="text-[11px] font-medium text-slate-blue opacity-80 mt-0.5">Thêm toàn bộ nhân viên phòng này vào danh sách</p>
                                                                         </div>
                                                                     </div>
-                                                                    <div className="px-3 py-2 rounded-lg bg-royal-amethyst hover:bg-purple-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors w-full sm:w-auto mt-2 sm:mt-0">
+                                                                    <div data-ui-text="badge" className="px-3 py-2 rounded-lg bg-royal-amethyst hover:bg-purple-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors w-full sm:w-auto mt-2 sm:mt-0">
                                                                         <Users className="w-3.5 h-3.5" /> Thêm tất cả
                                                                     </div>
                                                                 </div>
@@ -1921,11 +1929,11 @@ const BookMeeting = () => {
                                                                             </div>
                                                                             <div className="space-y-0.5 min-w-0 flex-1">
                                                                                 <div className="flex items-center gap-1.5 min-w-0">
-                                                                                    <p className={`text-sm font-semibold truncate ${isSelected ? 'text-midnight-indigo' : 'text-midnight-indigo'}`} title={user.fullName || user.full_name}>
+                                                                                    <p data-ui-text="primary" className={`text-sm font-semibold truncate ${isSelected ? 'text-midnight-indigo' : 'text-midnight-indigo'}`} title={user.fullName || user.full_name}>
                                                                                         {user.fullName || user.full_name}
                                                                                     </p>
                                                                                     {deptCode && (
-                                                                                        <span
+                                                                                        <span data-ui-text="badge"
                                                                                             className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 max-w-[85px] truncate ${isSelected ? 'bg-action-blue/20 text-action-blue' : 'bg-action-blue/10 text-action-blue'
                                                                                                 }`}
                                                                                             title={deptCode}
@@ -2001,13 +2009,13 @@ const BookMeeting = () => {
                                                         <div key={deptCode} className="space-y-3">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="h-px bg-platinum-tint/70 flex-1"></div>
-                                                                <span className="text-[10px] font-bold text-slate-blue tracking-widest uppercase px-2 py-0.5 rounded bg-cloud-mist/50 border border-platinum-tint/50 shadow-sm">
+                                                                <span data-ui-text="badge" className="text-[10px] font-bold text-slate-blue tracking-widest uppercase px-2 py-0.5 rounded bg-cloud-mist/50 border border-platinum-tint/50 shadow-sm">
                                                                     {deptCode} ({deptUsers.length})
                                                                 </span>
                                                                 <div className="h-px bg-platinum-tint/70 flex-1"></div>
                                                             </div>
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                                {deptUsers.map(user => {
+                                                                {<PaginatedCollection items={deptUsers} itemLabel="người tham gia">{(camaiInnerItems, camaiInnerStart) => camaiInnerItems.map((camaiInnerRecord, camaiInnerIndex) => (user => {
                                                                     const userDeptCode = getUserDeptCode(user);
                                                                     return (
                                                                         <div
@@ -2037,14 +2045,14 @@ const BookMeeting = () => {
                                                                                 </div>
                                                                                 <div className="space-y-0.5 min-w-0 flex-1">
                                                                                     <div className="flex items-center gap-1.5 min-w-0">
-                                                                                        <span
+                                                                                        <span data-ui-text="primary"
                                                                                             className="text-sm font-semibold text-midnight-indigo group-hover:text-rose-950 transition-colors truncate"
                                                                                             title={user.fullName || user.full_name}
                                                                                         >
                                                                                             {user.fullName || user.full_name}
                                                                                         </span>
                                                                                         {userDeptCode && (
-                                                                                            <span
+                                                                                            <span data-ui-text="badge"
                                                                                                 className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-action-blue/10 text-action-blue group-hover:bg-rose-100 group-hover:text-rose-700 transition-colors shrink-0 max-w-[85px] truncate"
                                                                                                 title={userDeptCode}
                                                                                             >
@@ -2058,7 +2066,7 @@ const BookMeeting = () => {
                                                                                             />
                                                                                         )}
                                                                                     </div>
-                                                                                    <p
+                                                                                    <p data-ui-text="secondary"
                                                                                         className="text-[11px] font-normal text-slate-blue/80 group-hover:text-rose-700/60 transition-colors truncate"
                                                                                         title={user.email}
                                                                                     >
@@ -2072,7 +2080,7 @@ const BookMeeting = () => {
                                                                             </div>
                                                                         </div>
                                                                     );
-                                                                })}
+                                                                })(camaiInnerRecord, camaiInnerStart + camaiInnerIndex, deptUsers))}</PaginatedCollection>}
                                                             </div>
                                                         </div>
                                                     ));
@@ -2084,11 +2092,13 @@ const BookMeeting = () => {
                                     {/* External Participants List */}
                                     {externalParticipants.length > 0 && (
                                         <div className="pt-2 border-t border-platinum-tint/50 space-y-2">
-                                            <p className="text-xs font-semibold text-slate-blue">
+                                            <p data-ui-text="primary" className="text-xs font-semibold text-slate-blue">
                                                 Khách mời ngoài hệ thống ({externalParticipants.length}):
                                             </p>
-                                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1">
-                                                {externalParticipants.map((ext) => (
+                                            <PaginatedCollection items={externalParticipants} itemLabel="khách" resetKey="external-participants" revealAdded>
+{(camaiPageItems, camaiStartIndex) => (
+<div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1">
+                                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((ext) => (
                                                     <div
                                                         key={ext.id}
                                                         className={`flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full border text-xs font-medium transition-colors max-w-full min-w-0 ${ext.isCompanyUnmatched
@@ -2099,7 +2109,7 @@ const BookMeeting = () => {
                                                         <span className="truncate max-w-[150px] sm:max-w-[200px]" title={ext.email}>
                                                             {ext.email}
                                                         </span>
-                                                        <span className="text-[10px] px-1 py-0.2 bg-white/70 rounded-full font-bold shrink-0">
+                                                        <span data-ui-text="badge" className="text-[10px] px-1 py-0.2 bg-white/70 rounded-full font-bold shrink-0">
                                                             {ext.isCompanyUnmatched ? 'Chưa khớp NV' : 'Khách ngoài'}
                                                         </span>
                                                         <button
@@ -2110,8 +2120,10 @@ const BookMeeting = () => {
                                                             <X className="w-3.5 h-3.5" />
                                                         </button>
                                                     </div>
-                                                ))}
+                                                ))(camaiRecord, camaiStartIndex + camaiIndex, (externalParticipants)))}
                                             </div>
+)}
+</PaginatedCollection>
                                         </div>
                                     )}
                                     <div className="pt-4 border-t border-cloud-mist">
@@ -2126,7 +2138,7 @@ const BookMeeting = () => {
                                                 <option key={o.id} value={o.id}>{o.label}</option>
                                             ))}
                                         </select>
-                                        <p className="text-[11px] text-slate-blue mt-1">
+                                        <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-1">
                                             Chọn từ thành phần tham gia. Thư ký điểm danh thủ công cùng Chủ trì, sửa được tới 24 giờ sau khi họp kết thúc.
                                         </p>
                                     </div>
@@ -2138,7 +2150,7 @@ const BookMeeting = () => {
                                         <h3 className="font-bold text-sm text-midnight-indigo uppercase tracking-wider flex items-center gap-2">
                                             <Clock className="w-4 h-4 text-emerald-600" /> Chương trình họp (Agenda)
                                         </h3>
-                                        <span className="text-xs font-bold text-slate-blue bg-cloud-mist px-2.5 py-1 rounded-lg">
+                                        <span data-ui-text="badge" className="text-xs font-bold text-slate-blue bg-cloud-mist px-2.5 py-1 rounded-lg">
                                             Đã lên: {agendaTotalDuration} / {meetingDuration} phút
                                         </span>
                                     </div>
@@ -2211,15 +2223,17 @@ const BookMeeting = () => {
                                         {agendaInputError && (
                                             <div className="flex items-center gap-1.5 mt-2 text-rose-500 bg-rose-50 px-3 py-2 rounded-lg border border-rose-100 animate-fade-in-up">
                                                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                                                <p className="text-xs font-medium">{agendaInputError}</p>
+                                                <p data-ui-text="secondary" className="text-xs font-medium">{agendaInputError}</p>
                                             </div>
                                         )}
                                     </div>
 
                                     {/* Agenda List */}
                                     {agendaList.length > 0 ? (
-                                        <div className="space-y-2 pt-2">
-                                            {agendaList.map((item, index) => (
+                                        <PaginatedCollection items={agendaList} itemLabel="nội dung" resetKey="agenda" revealAdded>
+{(camaiPageItems, camaiStartIndex) => (
+<div className="space-y-2 pt-2">
+                                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((item, index) => (
                                                 <div 
                                                     key={index} 
                                                     draggable
@@ -2250,16 +2264,16 @@ const BookMeeting = () => {
                                                         <div className="space-y-1">
                                                             <div className="font-semibold text-midnight-indigo break-words break-all">{item.title}</div>
                                                             {item.file && (
-                                                                <div className="flex items-center gap-1.5 text-[10px] text-action-blue font-semibold bg-action-blue/5 px-2 py-0.5 rounded-lg border border-action-blue/10 w-max select-none">
+                                                                <div data-ui-text="secondary" className="flex items-center gap-1.5 text-[10px] text-action-blue font-semibold bg-action-blue/5 px-2 py-0.5 rounded-lg border border-action-blue/10 w-max select-none">
                                                                     <Paperclip className="w-3 h-3 text-action-blue" />
                                                                     <span className="max-w-[200px] truncate">{item.file.name}</span>
-                                                                    <span className="text-[9px] opacity-60">({(item.file.size / 1024).toFixed(1)} KB)</span>
+                                                                    <span data-ui-text="secondary" className="text-[9px] opacity-60">({(item.file.size / 1024).toFixed(1)} KB)</span>
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-xs font-medium text-slate-blue bg-cloud-mist px-2.5 py-0.5 rounded-full">{item.durationMin} phút</span>
+                                                        <span data-ui-text="badge" className="text-xs font-medium text-slate-blue bg-cloud-mist px-2.5 py-0.5 rounded-full">{item.durationMin} phút</span>
                                                         <button
                                                             type="button"
                                                             onClick={() => handleEditAgenda(index)}
@@ -2277,8 +2291,10 @@ const BookMeeting = () => {
                                                         </button>
                                                     </div>
                                                 </div>
-                                            ))}
+                                            ))(camaiRecord, camaiStartIndex + camaiIndex, (agendaList)))}
                                         </div>
+)}
+</PaginatedCollection>
                                     ) : (
                                         <p className="text-xs text-slate-blue text-center py-4 italic">Chưa thiết lập chương trình thảo luận chi tiết.</p>
                                     )}
@@ -2302,11 +2318,11 @@ const BookMeeting = () => {
                                         <div className="flex justify-between items-center text-sm">
                                             <span className="text-slate-blue">Quy trình duyệt:</span>
                                             {isManagerAutoApprove ? (
-                                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold border border-emerald-100">
+                                                <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold border border-emerald-100">
                                                     Tự duyệt
                                                 </span>
                                             ) : (
-                                                <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 text-xs font-bold border border-amber-100">
+                                                <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 text-xs font-bold border border-amber-100">
                                                     Chờ {approvalScope?.departmentName || 'đơn vị'} duyệt
                                                 </span>
                                             )}
@@ -2315,13 +2331,17 @@ const BookMeeting = () => {
                                         {!isManagerAutoApprove && approvers.length > 0 && (
                                             <div className="text-sm">
                                                 <span className="text-slate-blue">Người duyệt:</span>
-                                                <ul className="mt-1 space-y-0.5">
-                                                    {approvers.map(a => (
+                                                <PaginatedCollection items={approvers} itemLabel="người duyệt">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="mt-1 space-y-0.5">
+                                                    {camaiPageItems.map((camaiRecord, camaiIndex) => (a => (
                                                         <li key={a.id} className="text-xs font-semibold text-midnight-indigo">
                                                             {a.fullName} <span className="font-normal text-slate-blue">({a.isUnitClerk ? 'Văn thư' : 'Trưởng phòng'})</span>
                                                         </li>
-                                                    ))}
+                                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (approvers)))}
                                                 </ul>
+)}
+</PaginatedCollection>
                                             </div>
                                         )}
 
@@ -2473,7 +2493,7 @@ const BookMeeting = () => {
                                             <label className="flex items-center gap-2 cursor-pointer">
                                                 <input type="radio" checked={recurrence.endMode === 'date'} onChange={() => setRecurrence(prev => ({ ...prev, endMode: 'date' }))} className="text-action-blue focus:ring-action-blue" />
                                                 <span>Đến hết ngày</span>
-                                                <input
+                                                <DateInput
                                                     type="date"
                                                     value={recurrence.endDate}
                                                     min={startStr || undefined}
@@ -2753,8 +2773,10 @@ const BookMeeting = () => {
                                     </h4>
 
                                     {alternativeRooms.length > 0 ? (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            {alternativeRooms.map(room => {
+                                        <PaginatedCollection items={alternativeRooms} itemLabel="phòng">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {camaiPageItems.map((camaiRecord, camaiIndex) => (room => {
                                                 const roomId = room.id || room.roomId;
                                                 return (
                                                     <div
@@ -2764,8 +2786,8 @@ const BookMeeting = () => {
                                                     >
                                                         <div>
                                                             <div className="flex justify-between items-start">
-                                                                <h5 className="font-bold text-sm text-midnight-indigo group-hover:text-action-blue transition-colors">{room.roomName || room.room_name}</h5>
-                                                                <span className="text-[10px] font-bold text-slate-blue bg-cloud-mist px-2 py-0.5 rounded-md">
+                                                                <h5 data-ui-text="primary" className="font-bold text-sm text-midnight-indigo group-hover:text-action-blue transition-colors">{room.roomName || room.room_name}</h5>
+                                                                <span data-ui-text="badge" className="text-[10px] font-bold text-slate-blue bg-cloud-mist px-2 py-0.5 rounded-md">
                                                                     Sức chứa: {room.capacity} người
                                                                 </span>
                                                             </div>
@@ -2779,14 +2801,16 @@ const BookMeeting = () => {
                                                             <div className="flex items-center gap-2 text-slate-blue/60">
                                                                 <RoomEquipmentIcons room={room} showDisplay={false} />
                                                             </div>
-                                                            <span className="text-[11px] font-bold text-action-blue group-hover:underline">
+                                                            <span data-ui-text="primary" className="text-[11px] font-bold text-action-blue group-hover:underline">
                                                                 Đổi sang phòng này
                                                             </span>
                                                         </div>
                                                     </div>
                                                 );
-                                            })}
+                                            })(camaiRecord, camaiStartIndex + camaiIndex, (alternativeRooms)))}
                                         </div>
+)}
+</PaginatedCollection>
                                     ) : (
                                         <div className="p-8 text-center bg-cloud-mist/10 rounded-2xl border border-platinum-tint border-dashed">
                                             <Building className="w-8 h-8 text-slate-blue/40 mx-auto mb-2" />
@@ -2916,7 +2940,7 @@ const BookMeeting = () => {
                                                     <h4 className="text-xs font-bold text-midnight-indigo flex items-center gap-1.5">
                                                         <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Tải file Excel mẫu:
                                                     </h4>
-                                                    <p className="text-[10.5px] text-slate-blue">Sử dụng file mẫu có cấu trúc định dạng chuẩn phục vụ import khách mời.</p>
+                                                    <p data-ui-text="secondary" className="text-[10.5px] text-slate-blue">Sử dụng file mẫu có cấu trúc định dạng chuẩn phục vụ import khách mời.</p>
                                                 </div>
                                                 <button
                                                     type="button"
@@ -2940,17 +2964,17 @@ const BookMeeting = () => {
                                                 ) : (
                                                     <Upload className="w-8 h-8 text-slate-blue/60 group-hover:text-action-blue transition-colors mb-2" />
                                                 )}
-                                                <p className="text-xs font-bold text-midnight-indigo">
+                                                <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">
                                                     {importProcessing ? 'Đang đối chiếu dữ liệu với hệ thống...' : 'Click để chọn hoặc kéo thả file Excel vào đây'}
                                                 </p>
-                                                <p className="text-[10px] text-slate-blue mt-1">Hỗ trợ file định dạng .xlsx, .xls</p>
+                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-1">Hỗ trợ file định dạng .xlsx, .xls</p>
                                             </div>
 
                                             <div className="p-3.5 bg-blue-50/40 border border-blue-100 rounded-xl space-y-1.5">
                                                 <h4 className="text-xs font-bold text-midnight-indigo flex items-center gap-1.5">
                                                     <Info className="w-3.5 h-3.5 text-action-blue" /> Hướng dẫn định dạng cột Excel:
                                                 </h4>
-                                                <p className="text-[11px] text-slate-blue leading-relaxed">
+                                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue leading-relaxed">
                                                     File dùng đúng bộ cột như trong file mẫu (hệ thống tự nhận diện nhân viên nội bộ/khách ngoài):
                                                 </p>
                                                 <ul className="list-disc pl-4 text-[11px] text-slate-blue space-y-0.5">
@@ -2963,7 +2987,8 @@ const BookMeeting = () => {
 
                                                 {/* Mini preview table */}
                                                 <div className="mt-2 border border-blue-100 rounded-lg overflow-hidden overflow-x-auto">
-                                                    <table className="w-full text-[10.5px] text-left">
+                                                    <ResponsiveTable className="w-full text-[10.5px] text-left">
+<TableColumns widths={[27, 14, 23, 21, 15]} />
                                                         <thead>
                                                             <tr className="bg-blue-50/60 text-slate-blue font-bold">
                                                                 <th className="py-1.5 px-2">Email</th>
@@ -2989,7 +3014,7 @@ const BookMeeting = () => {
                                                                 <td className="py-1 px-2">0900000000</td>
                                                             </tr>
                                                         </tbody>
-                                                    </table>
+                                                    </ResponsiveTable>
                                                 </div>
                                             </div>
                                         </div>
@@ -3003,13 +3028,16 @@ const BookMeeting = () => {
                                                     Xem trước dữ liệu import ({importPreview.length} dòng):
                                                 </h4>
                                                 {importPreview.some(p => p.error) && (
-                                                    <span className="text-[10px] bg-rose-50 border border-rose-200 text-rose-600 px-2 py-0.5 rounded-lg font-bold animate-pulse">
+                                                    <span data-ui-text="badge" className="text-[10px] bg-rose-50 border border-rose-200 text-rose-600 px-2 py-0.5 rounded-lg font-bold animate-pulse">
                                                         Phát hiện dòng dữ liệu bị lỗi! Vui lòng kiểm tra lại.
                                                     </span>
                                                 )}
                                             </div>
                                             <div className="border border-platinum-tint rounded-xl overflow-hidden max-h-52 overflow-y-auto">
-                                                <table className="w-full text-left text-xs border-collapse">
+                                                <PaginatedCollection items={importPreview} itemLabel="người tham gia" resetKey="import-preview">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-left text-xs border-collapse">
+<TableColumns widths={[45, 17, 38]} />
                                                     <thead>
                                                         <tr className="bg-cloud-mist/50 border-b border-platinum-tint font-bold text-slate-blue">
                                                             <th className="p-3">Định danh</th>
@@ -3018,7 +3046,7 @@ const BookMeeting = () => {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {importPreview.map((item, idx) => {
+                                                        {camaiPageItems.map((camaiRecord, camaiIndex) => ((item, idx) => {
                                                             const isInternal = item.type === 'internal';
                                                             const resolvedUser = isInternal && item.resolvedUserId
                                                                 ? usersById[item.resolvedUserId]
@@ -3048,24 +3076,26 @@ const BookMeeting = () => {
                                                                     <td className="p-3 font-medium text-midnight-indigo">
                                                                         <span className={item.error ? 'text-rose-600 font-semibold' : ''}>{identifier}</span>
                                                                         {item.error && (
-                                                                            <span className="block text-[10px] text-rose-500 font-bold mt-0.5">{item.error}</span>
+                                                                            <span data-ui-text="primary" className="block text-[10px] text-rose-500 font-bold mt-0.5">{item.error}</span>
                                                                         )}
                                                                     </td>
                                                                     <td className="p-3 text-center">
-                                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isInternal ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                                        <span data-ui-text="badge" className={`px-2 py-0.5 rounded text-[10px] font-bold ${isInternal ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
                                                                             {isInternal ? 'Nội bộ' : 'Ngoài'}
                                                                         </span>
                                                                     </td>
                                                                     <td className="p-3 text-right">
-                                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeClass}`}>
+                                                                        <span data-ui-text="badge" className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${badgeClass}`}>
                                                                             {matchStatus}
                                                                         </span>
                                                                     </td>
                                                                 </tr>
                                                             );
-                                                        })}
+                                                        })(camaiRecord, camaiStartIndex + camaiIndex, (importPreview)))}
                                                     </tbody>
-                                                </table>
+                                                </ResponsiveTable>
+)}
+</PaginatedCollection>
                                             </div>
                                         </div>
                                     )}
@@ -3121,29 +3151,33 @@ const BookMeeting = () => {
                                 Phòng họp bạn chọn hiện đang có một số thiết bị gặp sự cố hoặc ngoại tuyến. Bạn có chắc chắn vẫn muốn tiếp tục đặt phòng này không?
                             </p>
 
-                            <div className="bg-cloud-mist/40 rounded-xl border border-platinum-tint p-4 space-y-3 max-h-48 overflow-y-auto">
+                            <PaginatedCollection items={faultyEquipmentWarning?.faultyEquipments} itemLabel="thiết bị">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="bg-cloud-mist/40 rounded-xl border border-platinum-tint p-4 space-y-3 max-h-48 overflow-y-auto">
                                 <span className="text-xs font-bold text-slate-blue uppercase block mb-1">
                                     Danh sách thiết bị sự cố:
                                 </span>
-                                {faultyEquipmentWarning.faultyEquipments.map((eq) => (
+                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((eq) => (
                                     <div key={eq.id} className="flex items-start gap-2.5 text-xs bg-white p-2.5 rounded-lg border border-platinum-tint shadow-sm">
                                         <div className="w-6 h-6 rounded-md bg-red-50 text-red-500 flex items-center justify-center shrink-0">
                                             <Wrench className="w-3.5 h-3.5" />
                                         </div>
                                         <div>
                                             <p className="font-bold text-midnight-indigo">{eq.equipmentName}</p>
-                                            <p className="text-[11px] text-slate-blue mt-0.5">
+                                            <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-0.5">
                                                 Loại: <span className="font-semibold">{eq.equipmentType}</span> • Trạng thái: <span className="text-red-500 font-semibold">{eq.healthStatus === 'faulty' ? 'Lỗi' : 'Ngoại tuyến'}</span>
                                             </p>
                                             {eq.lastIssueNote && (
-                                                <p className="text-[11px] text-slate-blue mt-0.5 italic bg-cloud-mist/50 p-1 rounded border border-platinum-tint/30">
+                                                <p data-ui-text="badge" className="text-[11px] text-slate-blue mt-0.5 italic bg-cloud-mist/50 p-1 rounded border border-platinum-tint/30">
                                                     Chi tiết: "{eq.lastIssueNote}"
                                                 </p>
                                             )}
                                         </div>
                                     </div>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (faultyEquipmentWarning.faultyEquipments)))}
                             </div>
+)}
+</PaginatedCollection>
                         </div>
 
                         <div className="px-6 py-4 border-t border-platinum-tint bg-cloud-mist/35 flex justify-end gap-2">
@@ -3187,13 +3221,13 @@ const BookMeeting = () => {
 
                         <div className="p-6 space-y-6">
                             {detailError && (
-                                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">{detailError}</div>
+                                <div data-ui-text="badge" className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">{detailError}</div>
                             )}
 
                             {loadingDetail ? (
                                 <div className="flex flex-col items-center justify-center py-12">
                                     <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
-                                    <p className="mt-4 text-xs text-slate-blue font-medium">Đang tải thông tin chi tiết...</p>
+                                    <p data-ui-text="secondary" className="mt-4 text-xs text-slate-blue font-medium">Đang tải thông tin chi tiết...</p>
                                 </div>
                             ) : userDetail ? (
                                 <>

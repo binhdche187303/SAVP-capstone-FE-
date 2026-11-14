@@ -177,7 +177,7 @@ const AudioUploader = ({ meetingId, onUploadSuccess }) => {
                             <FileAudio className="w-5 h-5 text-purple-600" />
                         </div>
                         <div className="flex-1 truncate">
-                            <p className="text-sm font-bold text-midnight-indigo truncate">{file.name}</p>
+                            <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo truncate">{file.name}</p>
                             <p className="text-xs text-slate-blue">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                         </div>
                         {status === 'idle' && (
@@ -223,7 +223,7 @@ const AudioUploader = ({ meetingId, onUploadSuccess }) => {
                             <div className="flex flex-col gap-3 p-4 bg-green-50/50 rounded-xl border border-green-100">
                                 <div className="flex items-center gap-3 text-green-700">
                                     <CheckCircle className="w-5 h-5" />
-                                    <span className="text-xs font-bold">Tải file thành công. Bấm để bắt đầu chuyển đổi giọng nói.</span>
+                                    <span data-ui-text="primary" className="text-xs font-bold">Tải file thành công. Bấm để bắt đầu chuyển đổi giọng nói.</span>
                                 </div>
                                 <button
                                     onClick={handleRunStt}
@@ -237,21 +237,21 @@ const AudioUploader = ({ meetingId, onUploadSuccess }) => {
                         {status === 'processing' && (
                             <div className="flex items-center gap-3 p-4 bg-purple-50/50 rounded-xl border border-purple-100 text-purple-700">
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                <span className="text-xs font-bold">Đang khởi tạo AI xử lý (Speech-to-Text)...</span>
+                                <span data-ui-text="primary" className="text-xs font-bold">Đang khởi tạo AI xử lý (Speech-to-Text)...</span>
                             </div>
                         )}
 
                         {status === 'success' && (
                             <div className="flex items-center gap-3 p-4 bg-green-50/50 rounded-xl border border-green-100 text-green-700">
                                 <CheckCircle className="w-5 h-5" />
-                                <span className="text-xs font-bold">Khởi tạo thành công! Hệ thống đang tiến hành chuyển đổi.</span>
+                                <span data-ui-text="primary" className="text-xs font-bold">Khởi tạo thành công! Hệ thống đang tiến hành chuyển đổi.</span>
                             </div>
                         )}
 
                         {status === 'error' && (
                             <div className="flex items-start gap-3 p-4 bg-red-50/50 rounded-xl border border-red-100 text-red-700">
                                 <AlertCircle className="w-5 h-5 shrink-0" />
-                                <span className="text-xs font-medium leading-relaxed">{errorMsg}</span>
+                                <span data-ui-text="secondary" className="text-xs font-medium leading-relaxed">{errorMsg}</span>
                             </div>
                         )}
                     </motion.div>

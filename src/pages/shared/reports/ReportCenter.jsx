@@ -1,13 +1,15 @@
+import PaginatedCollection from '../../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../../components/common/ResponsiveTable';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarClock, FileBarChart } from 'lucide-react';
+import { ArrowRight, CalendarClock, FileBarChart, LayoutTemplate } from 'lucide-react';
 import { getReportDefinition } from '../../../config/reportDefinitions';
 import { getReportCatalog, getRecentExports, exportReport, getExportDownloadUrl } from '../../../service/reportCenterService';
 import { formatDateTime } from '../../../utils/reportFormat';
 import toast from '../../../utils/toast';
 import useAreaBase from '../../../hooks/useAreaBase';
 import DemoDataBanner from '../../../components/common/DemoDataBanner';
-import { pageCls, cardCls, thCls, tdCls, errorBoxCls, spinnerCls } from '../../../components/common/uiClasses';
+import { pageCls, cardCls, btnGhost, thCls, tdCls, errorBoxCls, spinnerCls } from '../../../components/common/uiClasses';
 
 // S8 (2.13): danh mục 7 báo cáo + các file đã xuất gần đây.
 const FORMAT_LABELS = { pdf: 'PDF', xlsx: 'Excel', docx: 'Word' };
@@ -35,7 +37,9 @@ const ReportCenter = () => {
 
     const exportAgain = async (item) => {
         setBusyId(item.id);
-        const res = await exportReport(item.reportType, { format: item.format, from: item.from, to: item.to });
+        // Bản quy chuẩn: dựng lại đúng mẫu và người ký của lần xuất trước.
+        const standard = item.mode === 'standard' && item.standard ? { mode: 'standard', ...item.standard } : {};
+        const res = await exportReport(item.reportType, { format: item.format, from: item.from, to: item.to, ...standard });
         if (res?.success) {
             toast.success(res.data?.fileName ? `Đã xuất ${res.data.fileName}` : 'Đã tạo yêu cầu xuất mới');
             load();
@@ -57,15 +61,22 @@ const ReportCenter = () => {
     };
 
     return (
-        <div className={pageCls}>
-            <div className="border-b border-platinum-tint pb-5">
-                <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                    <FileBarChart className="w-6 h-6 text-action-blue" />
-                    Trung tâm báo cáo
-                </h2>
-                <p className="text-xs text-slate-blue mt-1">
-                    Xem, xuất PDF / Excel / Word và đặt lịch gửi tự động cho 7 báo cáo quản trị.
-                </p>
+        <div data-page-surface="wide" className={pageCls}>
+            <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                        <FileBarChart className="w-6 h-6 text-action-blue" />
+                        Trung tâm báo cáo
+                    </h2>
+                    <p className="text-xs text-slate-blue mt-1">
+                        Xem, xuất PDF / Excel / Word và đặt lịch gửi tự động cho 7 báo cáo quản trị.
+                    </p>
+                </div>
+                {base !== '/manager' && (
+                    <Link to={`${base}/report-templates`} className={btnGhost}>
+                        <LayoutTemplate className="w-4 h-4" /> Mẫu báo cáo quy chuẩn
+                    </Link>
+                )}
             </div>
 
             <DemoDataBanner onReset={load} />
@@ -86,13 +97,13 @@ const ReportCenter = () => {
                                     </span>
                                     <h3 className="font-bold text-midnight-indigo text-sm">{item.title}</h3>
                                 </div>
-                                <p className="text-xs text-slate-blue flex-1">{item.description}</p>
+                                <p data-ui-text="body" className="text-sm leading-5 text-slate-blue flex-1">{item.description}</p>
                                 {unavailable ? (
-                                    <p data-testid={`unavailable-${item.type}`} className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                    <p data-ui-text="badge" data-testid={`unavailable-${item.type}`} className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                                         Chưa khả dụng{item.unavailableReason ? `: ${item.unavailableReason}` : ''}
                                     </p>
                                 ) : (
-                                    <div className="flex items-center justify-between text-[11px]">
+                                    <div data-ui-text="secondary" className="flex items-center justify-between text-[11px]">
                                         <span className="inline-flex items-center gap-1 text-slate-blue">
                                             <CalendarClock className="w-3.5 h-3.5" /> {item.activeSchedules} lịch gửi đang bật
                                         </span>
@@ -120,7 +131,17 @@ const ReportCenter = () => {
                         <h3 className="font-bold text-midnight-indigo text-sm">File xuất gần đây</h3>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="w-full">
+                        <PaginatedCollection items={recent} itemLabel="file xuất">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full">
+<colgroup>
+<col style={{ width: '18%' }} />
+<col style={{ width: '17%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '27%' }} />
+<col style={{ width: '16%' }} />
+<col style={{ width: '10%' }} />
+</colgroup>
                             <thead className="border-b border-platinum-tint">
                                 <tr>
                                     {['Báo cáo', 'Kỳ dữ liệu', 'Định dạng', 'Tên file', 'Thời điểm xuất', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
@@ -129,11 +150,14 @@ const ReportCenter = () => {
                             <tbody>
                                 {recent.length === 0 ? (
                                     <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-slate-blue">Chưa có file nào được xuất</td></tr>
-                                ) : recent.map((item) => (
+                                ) : camaiPageItems.map((camaiRecord, camaiIndex) => ((item) => (
                                     <tr key={item.id} className="border-b border-pale-gray last:border-0">
                                         <td className={`${tdCls} font-semibold`}>{item.reportTitle}</td>
                                         <td className={tdCls}>{dmy(item.from)} – {dmy(item.to)}</td>
-                                        <td className={tdCls}><span className="px-2 py-0.5 rounded-md bg-pale-gray text-[11px] font-semibold">{FORMAT_LABELS[item.format] || item.format}</span></td>
+                                        <td className={tdCls}>
+                                            <span data-ui-text="badge" className="inline-block px-2 py-0.5 rounded-md bg-pale-gray text-[11px] font-semibold">{FORMAT_LABELS[item.format] || item.format}</span>
+                                            {item.mode === 'standard' && <span data-ui-text="badge" className="inline-block ml-1.5 px-2 py-0.5 rounded-md bg-blue-50 text-action-blue text-[11px] font-semibold">Quy chuẩn</span>}
+                                        </td>
                                         <td className={`${tdCls} text-slate-blue`}>{item.fileName}</td>
                                         <td className={tdCls}>{formatDateTime(item.createdAt)}</td>
                                         <td className={`${tdCls} text-right`}>
@@ -147,9 +171,11 @@ const ReportCenter = () => {
                                             </button>
                                         </td>
                                     </tr>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (recent)))}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
+)}
+</PaginatedCollection>
                     </div>
                 </div>
             )}

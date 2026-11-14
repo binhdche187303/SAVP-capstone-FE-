@@ -1,3 +1,4 @@
+import { changeReportFilters, reportFilterChoices } from './reportFilterChoices';
 import { useEffect, useState } from 'react';
 import { Mail, Paperclip, X } from 'lucide-react';
 import SimpleModal from '../common/SimpleModal';
@@ -142,14 +143,12 @@ const ScheduleFormModal = ({ isOpen, initial, lookups = {}, onClose, onSaved }) 
                             </select>
                         </div>
                         {definition.filters.map((filter) => {
-                            const choices = filter.options
-                                ? filter.options.map((o) => ({ value: o.value, label: o.label }))
-                                : (lookups[filter.lookup] || []).map((o) => ({ value: o.id, label: o.name }));
+                            const choices = reportFilterChoices(definition, filter, lookups, form.filters);
                             return (
                                 <div className="space-y-1" key={filter.key}>
                                     <label className={labelCls} htmlFor={`sf-filter-${filter.key}`}>{filter.label}</label>
-                                    <select id={`sf-filter-${filter.key}`} className={full} value={form.filters[filter.key] || ''} onChange={(e) => patch({ filters: { ...form.filters, [filter.key]: e.target.value } })}>
-                                        <option value="">Tất cả</option>
+                                    <select id={`sf-filter-${filter.key}`} className={full} value={form.filters[filter.key] || ''} onChange={(e) => patch({ filters: changeReportFilters(definition, form.filters, { [filter.key]: e.target.value }) })}>
+                                        <option value="">{definition.type === 'student-attendance' && filter.lookup && choices.length === 0 ? 'Chưa có dữ liệu đã đồng bộ' : 'Tất cả'}</option>
                                         {choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                                     </select>
                                 </div>
@@ -188,7 +187,7 @@ const ScheduleFormModal = ({ isOpen, initial, lookups = {}, onClose, onSaved }) 
                             <input id="sf-time" type="time" className={full} value={form.time} onChange={(e) => patch({ time: e.target.value })} />
                         </div>
                     </div>
-                    <p className="text-[11px] text-slate-blue">Giờ Việt Nam (UTC+7).</p>
+                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Giờ Việt Nam (UTC+7).</p>
                 </Section>
 
                 <Section title="3. Định dạng và người nhận">
@@ -226,14 +225,14 @@ const ScheduleFormModal = ({ isOpen, initial, lookups = {}, onClose, onSaved }) 
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         {form.recipients.map((r) => (
-                            <span key={r.value} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pale-gray text-[11px] font-semibold text-midnight-indigo">
+                            <span data-ui-text="secondary" key={r.value} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pale-gray text-[11px] font-semibold text-midnight-indigo">
                                 {r.label}
                                 <button type="button" aria-label={`Bỏ ${r.label}`} onClick={() => patch({ recipients: form.recipients.filter((x) => x.value !== r.value) })}>
                                     <X className="w-3 h-3" />
                                 </button>
                             </span>
                         ))}
-                        <span className="text-[11px] text-slate-blue">{form.recipients.length}/{MAX_RECIPIENTS}</span>
+                        <span data-ui-text="secondary" className="text-[11px] text-slate-blue">{form.recipients.length}/{MAX_RECIPIENTS}</span>
                     </div>
                 </Section>
 
@@ -247,8 +246,8 @@ const ScheduleFormModal = ({ isOpen, initial, lookups = {}, onClose, onSaved }) 
                         <textarea id="sf-message" rows={2} className={full} value={form.message} onChange={(e) => patch({ message: e.target.value })} />
                     </div>
                     <div className="rounded-xl border border-platinum-tint bg-cloud-mist/40 p-4 space-y-2">
-                        <p className="text-[10px] font-bold text-slate-blue uppercase flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Xem trước email</p>
-                        <p className="text-xs font-semibold text-midnight-indigo">{form.subject.trim() || `[SAVP] ${form.name || 'Tên lịch gửi'}`}</p>
+                        <p data-ui-text="secondary" className="text-[10px] font-bold text-slate-blue uppercase flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Xem trước email</p>
+                        <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">{form.subject.trim() || `[SAVP] ${form.name || 'Tên lịch gửi'}`}</p>
                         <p className="text-xs text-slate-blue whitespace-pre-line">{form.message}</p>
                         <ul className="space-y-1">
                             {form.formats.map((format) => (

@@ -1,3 +1,12 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ReportActions from '../../components/common/ReportActions';
+import ReportExportButton from '../../components/common/ReportExportButton';
+import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
 import { AlertTriangle, CheckCircle, CheckSquare, Clock, Download, Edit3, Eye, Filter, RefreshCw, Search, Shield, ShieldAlert, Image as ImageIcon, Users, Car, Tag, User, AlertCircle } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
@@ -13,7 +22,7 @@ import { getZones } from '../../service/zoneServices';
 import { getUserById } from '../../service/sysAdminServices';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
-import Pagination from '../../components/common/Pagination';
+
 import { getAlertTypeLabel } from '../../constants/alertType';
 import { subscribeToSecurityAlerts } from '../../utils/socket';
 
@@ -80,7 +89,7 @@ const AlertImagesStack = ({ alert, onClick }) => {
         return (
             <div className="w-32 md:w-40 aspect-video bg-slate-100 rounded-lg flex flex-col items-center justify-center border border-slate-200 mx-auto select-none">
                 <ImageIcon className="w-4.5 h-4.5 text-slate-400" />
-                <span className="text-[8px] text-slate-400 mt-1 uppercase font-bold tracking-wider">Không ảnh</span>
+                <span data-ui-text="label" className="text-[8px] text-slate-400 mt-1 uppercase font-bold tracking-wider">Không ảnh</span>
             </div>
         );
     }
@@ -121,7 +130,7 @@ const AlertImagesStack = ({ alert, onClick }) => {
                     />
                 </div>
             )}
-            
+
             {/* Second photo (middle) */}
             <div 
                 className="absolute inset-0 rounded-lg shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:rotate-[3deg]"
@@ -145,9 +154,9 @@ const AlertImagesStack = ({ alert, onClick }) => {
                     eventId={ids[0]}
                     className="w-full h-full object-cover rounded-lg pointer-events-none"
                 />
-                
+
                 {/* Count badge */}
-                <div className="absolute bottom-1.5 right-1.5 bg-slate-950/80 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md border border-white/10">
+                <div data-ui-text="secondary" className="absolute bottom-1.5 right-1.5 bg-slate-950/80 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md border border-white/10">
                     <ImageIcon className="w-3.5 h-3.5 text-white/90" />
                     <span>{ids.length}</span>
                 </div>
@@ -467,9 +476,9 @@ const SecurityAlerts = () => {
     const getStatusBadge = (status) => {
         switch (status) {
             case 'new': return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-red-100 text-red-700 border border-red-200"><span className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5 animate-pulse" />Mới</span>;
-            case 'acknowledged': return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200"><Clock className="w-3 h-3 mr-1" />Đã tiếp nhận</span>;
-            case 'resolved': return <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-green-100 text-green-700 border border-green-200"><CheckCircle className="w-3 h-3 mr-1" />Đã xử lý</span>;
-            default: return <span className="text-xs bg-slate-100 px-2 py-1 rounded">{status}</span>;
+            case 'acknowledged': return <span data-ui-text="badge" className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200"><Clock className="w-3 h-3 mr-1" />Đã tiếp nhận</span>;
+            case 'resolved': return <span data-ui-text="badge" className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-green-100 text-green-700 border border-green-200"><CheckCircle className="w-3 h-3 mr-1" />Đã xử lý</span>;
+            default: return <span data-ui-text="badge" className="text-xs bg-slate-100 px-2 py-1 rounded">{status}</span>;
         }
     };
 
@@ -478,7 +487,7 @@ const SecurityAlerts = () => {
             {/* HEADER */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-platinum-tint">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <ShieldAlert className="w-3.5 h-3.5" />
                         An ninh
                     </span>
@@ -490,26 +499,24 @@ const SecurityAlerts = () => {
                         Giám sát và xử lý các sự kiện an ninh, bất thường trong hệ thống.
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => setIsExportOpen(true)}
-                        className="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors"
-                        title="Xuất báo cáo"
-                    >
-                        <Download className="w-4 h-4" />
-                        Xuất báo cáo
-                    </button>
-                    <div className="flex flex-col items-center gap-1">
-                        <button
+                <div className="flex flex-wrap items-center gap-2">
+                    <ReportActions>
+                        <ReportExportButton label="Xuất báo cáo"
+                            onClick={() => setIsExportOpen(true)}
+                            legacyClassName="inline-flex h-9 items-center gap-2 px-3 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors"
+                            title="Xuất báo cáo"
+                        >
+                            <Download className="w-4 h-4" />
+                            Xuất báo cáo
+                        </ReportExportButton>
+                        <RefreshButton
                             onClick={() => fetchAlerts()}
                             disabled={loading}
-                            className="inline-flex items-center justify-center p-2.5 text-slate-blue bg-cloud-mist/50 rounded-xl hover:bg-cloud-mist transition-colors"
                             title="Làm mới"
-                        >
-                            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                        </button>
-                        <span className="text-[10px] text-slate-400 whitespace-nowrap">Realtime · dự phòng mỗi 30s</span>
-                    </div>
+                            aria-label="Làm mới"
+                            busy={loading}
+                        />
+                    </ReportActions>
                     {selectedIds.length > 0 && (
                         <button
                             onClick={handleBulkAcknowledge}
@@ -532,46 +539,32 @@ const SecurityAlerts = () => {
             )}
 
             {/* STATUS CARDS — bấm để lọc, bấm lại để bỏ lọc */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button
-                    onClick={() => handleFilterChange('status', filters.status === 'open' ? '' : 'open')}
-                    className={`text-left p-4 rounded-2xl border shadow-sm bg-white border-platinum-tint hover:shadow-md transition-all ${filters.status === 'open' ? 'ring-2 ring-action-blue' : ''}`}
-                >
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase text-slate-blue">Đang mở</span>
-                        <ShieldAlert className="w-5 h-5 text-action-blue" />
-                    </div>
-                    <p className="text-3xl font-bold text-midnight-indigo mt-2">{(counts.new ?? 0) + (counts.acknowledged ?? 0)}</p>
-                    <p className="text-[11px] text-slate-400 mt-1">Mới + Đã tiếp nhận · cần xử lý</p>
-                </button>
+            <StatisticGrid columns={4} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatisticCard icon={ShieldAlert} label="Đang mở"
+                    value={(counts.new ?? 0) + (counts.acknowledged ?? 0)}
+                    helper="Mới + Đã tiếp nhận · cần xử lý"
+                    selected={filters.status === 'open'}
+                    onClick={() => handleFilterChange('status', filters.status === 'open' ? '' : 'open')} />
                 {STATUS_CARDS.map(c => {
                     const Icon = c.icon;
                     const active = filters.status === c.value;
                     return (
-                        <button
-                            key={c.value}
-                            onClick={() => handleFilterChange('status', active ? '' : c.value)}
-                            className={`text-left p-4 rounded-2xl border shadow-sm hover:shadow-md transition-all ${c.tone} ${active ? `ring-2 ${c.ring}` : ''}`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold uppercase">{c.label}</span>
-                                <Icon className="w-5 h-5" />
-                            </div>
-                            <p className="text-3xl font-bold mt-2">{counts[c.value] ?? 0}</p>
-                            <p className="text-[11px] opacity-70 mt-1">{c.hint}</p>
-                        </button>
+                        <StatisticCard key={c.value} icon={Icon} label={c.label}
+                            value={counts[c.value] ?? 0} helper={c.hint} tone={statisticTone(c.tone)}
+                            selected={active}
+                            onClick={() => handleFilterChange('status', active ? '' : c.value)} />
                     );
                 })}
-            </div>
+            </StatisticGrid>
 
             {/* FILTERS */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-platinum-tint grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="relative">
+            <FilterBar data-filter-grid variant="card" className="bg-white p-4 rounded-2xl shadow-sm border border-platinum-tint grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Trạng thái</label>
                     <select
                         value={filters.status}
                         onChange={(e) => handleFilterChange('status', e.target.value)}
-                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
+                        className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                     >
                         <option value="">Tất cả</option>
                         <option value="open">Đang mở (Mới + Đã tiếp nhận)</option>
@@ -580,12 +573,12 @@ const SecurityAlerts = () => {
                         <option value="resolved">Đã xử lý</option>
                     </select>
                 </div>
-                <div className="relative">
+                <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại cảnh báo</label>
                     <select
                         value={filters.alert_type}
                         onChange={(e) => handleFilterChange('alert_type', e.target.value)}
-                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
+                        className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                     >
                         <option value="">Tất cả</option>
                         <option value="stranger">Người lạ</option>
@@ -599,12 +592,12 @@ const SecurityAlerts = () => {
                         <option value="device_maintenance">Camera cần bảo trì</option>
                     </select>
                 </div>
-                <div className="relative">
+                <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Khu vực</label>
                     <select
                         value={filters.zone_id}
                         onChange={(e) => handleFilterChange('zone_id', e.target.value)}
-                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
+                        className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                     >
                         <option value="">Toàn hệ thống</option>
                         {zones.map(z => (
@@ -613,19 +606,29 @@ const SecurityAlerts = () => {
                     </select>
                 </div>
                 <div className="relative flex items-end">
-                    <button
+                    <button data-filter-action
                         onClick={() => setFilters({ page: 1, limit: PAGE_SIZE, status: '', alert_type: '', zone_id: '' })}
                         className="w-full px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
                     >
                         <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
                     </button>
                 </div>
-            </div>
+            </FilterBar>
 
             {/* ALERTS TABLE */}
             <div className="flex-1 bg-white rounded-2xl shadow-sm border border-platinum-tint overflow-hidden flex flex-col min-h-0">
                 <div className="flex-1 overflow-auto">
-                    <table className="w-full text-left border-collapse">
+                    <ResponsiveTable className="w-full text-left border-collapse">
+<colgroup>
+<col style={{ width: '10%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '19%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '12%' }} />
+</colgroup>
                         <thead className="bg-cloud-mist/30 sticky top-0 z-10 border-b border-platinum-tint">
                             <tr>
                                 <th className="p-4 text-xs font-bold text-slate-blue uppercase tracking-wider text-center">Ngày</th>
@@ -634,7 +637,7 @@ const SecurityAlerts = () => {
                                 <th className="p-4 text-xs font-bold text-slate-blue uppercase tracking-wider text-center">Loại</th>
                                 <th className="p-4 text-xs font-bold text-slate-blue uppercase tracking-wider text-center">Mức độ</th>
                                 <th className="p-4 text-xs font-bold text-slate-blue uppercase tracking-wider text-center">Vị trí</th>
-                                <th className="p-4 text-xs font-bold text-slate-blue uppercase tracking-wider text-center">Trạng thái</th>
+                                <th className="p-4 text-xs font-bold text-slate-blue uppercase tracking-wider text-center whitespace-nowrap">Trạng thái</th>
                                 <th className="p-4 text-xs font-bold text-slate-blue uppercase tracking-wider text-right">Thao tác</th>
                             </tr>
                         </thead>
@@ -661,13 +664,13 @@ const SecurityAlerts = () => {
                                             <p className="text-sm font-bold text-midnight-indigo">
                                                 {formatDate(alert.updated_at || alert.triggered_at)}
                                             </p>
-                                            <p className="text-[10px] text-slate-blue/60 mt-1 font-mono">ID: {alert.id.substring(0, 8)}</p>
+                                            <p data-ui-text="code" className="text-[10px] text-slate-blue/60 mt-1 font-mono">ID: {alert.id.substring(0, 8)}</p>
                                         </td>
                                         <td className="p-4 text-center whitespace-nowrap">
                                             <p className="text-sm font-bold text-midnight-indigo" title="Cập nhật gần nhất">
                                                 {formatTime(alert.updated_at || alert.triggered_at)}
                                             </p>
-                                            <p className="text-[10px] text-slate-blue mt-1" title="Xảy ra lần đầu">
+                                            <p data-ui-text="primary" className="text-[10px] text-slate-blue mt-1" title="Xảy ra lần đầu">
                                                 Lần đầu: {formatTime(alert.created_at || alert.triggered_at)}
                                             </p>
                                         </td>
@@ -686,11 +689,11 @@ const SecurityAlerts = () => {
                                         <td className="p-4 text-center">
                                             <p className={`text-sm font-bold ${getConversions(alert).length ? 'text-orange-700' : 'text-midnight-indigo'}`}>{getTypeDisplay(alert)}</p>
                                             {getConversions(alert).length > 0 && (
-                                                <p className="text-[10px] text-slate-blue">(từ {getAlertTypeLabel(alert.alert_type)})</p>
+                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">(từ {getAlertTypeLabel(alert.alert_type)})</p>
                                             )}
                                             <div className="flex flex-col items-center gap-1 mt-1">
                                                 {alert.alert_type === 'vehicle_control_match' && getAlertPlateNumber(alert) && (
-                                                    <span
+                                                    <span data-ui-text="code"
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-900 text-white font-mono text-[10px] font-bold rounded uppercase tracking-wider shadow-sm border border-slate-950"
                                                         title="Biển số"
                                                     >
@@ -699,7 +702,7 @@ const SecurityAlerts = () => {
                                                     </span>
                                                 )}
                                                 {alert.alert_type === 'person_watchlist_match' && alert.payload_json?.displayName && (
-                                                    <span
+                                                    <span data-ui-text="badge"
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 text-[10px] font-bold rounded border border-orange-200"
                                                         title={alert.payload_json?.reason || 'Đối tượng theo dõi'}
                                                     >
@@ -707,7 +710,7 @@ const SecurityAlerts = () => {
                                                     </span>
                                                 )}
                                                 {String(alert.alert_type).startsWith('visitor_') && alert.payload_json?.visitorName && (
-                                                    <span
+                                                    <span data-ui-text="badge"
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 text-[10px] font-bold rounded border border-violet-200"
                                                         title={[
                                                             alert.payload_json?.detail,
@@ -720,12 +723,12 @@ const SecurityAlerts = () => {
                                                     </span>
                                                 )}
                                                 {getConversions(alert).map(c => (
-                                                    <span key={c.personControlId + c.at} className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 text-[10px] font-bold rounded border border-orange-200">
+                                                    <span data-ui-text="badge" key={c.personControlId + c.at} className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 text-[10px] font-bold rounded border border-orange-200">
                                                         📌 {c.watchlistName}
                                                     </span>
                                                 ))}
                                                 {(alert.occurrence_count > 1 || alert.occurrenceCount > 1 || getConversions(alert).length > 0) && (
-                                                    <button
+                                                    <button data-ui-text="action"
                                                         onClick={() => { clearBump(alert.id); getConversions(alert).forEach(c => resolveUserName(c.byUserId)); setOccurrencesModal({ open: true, alert }); }}
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 transition-colors"
                                                         title="Bấm để xem tất cả lượt vi phạm"
@@ -735,7 +738,7 @@ const SecurityAlerts = () => {
                                                     </button>
                                                 )}
                                                 {freshBumps[alert.id] > 0 && (
-                                                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse" title="Lượt mới từ lúc mở trang — bấm 'x lần' để xem">
+                                                    <span data-ui-text="badge" className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse" title="Lượt mới từ lúc mở trang — bấm 'x lần' để xem">
                                                         +{freshBumps[alert.id]} mới
                                                     </span>
                                                 )}
@@ -744,7 +747,7 @@ const SecurityAlerts = () => {
 
                                         {/* Mức độ */}
                                         <td className="p-4 text-center">
-                                            <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border ${getSeverityStyle(alert.severity)}`}>
+                                            <span data-ui-text="badge" className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border ${getSeverityStyle(alert.severity)}`}>
                                                 {getSeverityMeta(alert.severity).label}
                                             </span>
                                         </td>
@@ -796,9 +799,6 @@ const SecurityAlerts = () => {
                                                                 Tự động đóng
                                                             </button>
                                                         )}
-                                                        <p className="text-[10px] text-slate-400 mt-1 truncate max-w-[120px]" title={alert.resolution_note}>
-                                                            Note: {alert.resolution_note}
-                                                        </p>
                                                     </div>
                                                 )}
                                             </div>
@@ -807,20 +807,20 @@ const SecurityAlerts = () => {
                                 ))
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
 
                 {/* PAGINATION */}
-                {meta && meta.totalPages > 1 && (
-                    <div className="p-4 border-t border-platinum-tint bg-cloud-mist/30 flex items-center justify-between text-sm">
-                        <span className="text-slate-blue font-medium">Hiển thị {alerts.length} / {meta.total} cảnh báo</span>
-                        <Pagination
-                            currentPage={filters.page}
-                            totalPages={meta.totalPages}
-                            onPageChange={(p) => handleFilterChange('page', p)}
-                        />
-                    </div>
-                )}
+                {meta && <PaginationRegion legacyVisible={meta && meta.totalPages > 1}><PaginationFooter
+                        currentPage={filters.page}
+                        totalPages={meta.totalPages}
+                        totalItems={meta.total}
+                        pageSize={filters.limit}
+                        onPageChange={(p) => handleFilterChange('page', p)}
+                        itemLabel={"cảnh báo"}
+                        loading={loading}
+                        visibleCount={alerts.length}
+                     onPageSizeChange={size => { setFilters(previous => ({ ...previous, limit: size, page: 1 })); }} /></PaginationRegion>}
             </div>
 
             {/* RESOLVE MODAL */}
@@ -857,8 +857,10 @@ const SecurityAlerts = () => {
                                         <p className="text-xs text-slate-blue mb-2">
                                             {count > 1 ? <>Từ <b>{formatDateTime(first)}</b> → <b>{formatDateTime(last)}</b></> : <>Lúc <b>{formatDateTime(first)}</b></>}
                                         </p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {occs.map((o, i) => (
+                                        <PaginatedCollection items={occs} itemLabel="lượt ghi nhận">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="flex flex-wrap gap-2">
+                                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((o, i) => (
                                                 <div key={i} className="flex flex-col items-center w-12">
                                                     <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 bg-white flex items-center justify-center">
                                                         {o.sourceEventId ? (
@@ -875,15 +877,17 @@ const SecurityAlerts = () => {
                                                             <ImageIcon className="w-4 h-4 text-slate-300" />
                                                         )}
                                                     </div>
-                                                    <span className="text-[10px] text-slate-400">#{i + 1}</span>
+                                                    <span data-ui-text="secondary" className="text-[10px] text-slate-400">#{i + 1}</span>
                                                     {o.watchlistName && (
-                                                        <span className="text-[9px] text-orange-700 truncate w-full text-center" title={o.watchlistName}>📌 {o.watchlistName}</span>
+                                                        <span data-ui-text="secondary" className="text-[9px] text-orange-700 truncate w-full text-center" title={o.watchlistName}>📌 {o.watchlistName}</span>
                                                     )}
                                                 </div>
-                                            ))}
+                                            ))(camaiRecord, camaiStartIndex + camaiIndex, (occs)))}
                                         </div>
+)}
+</PaginatedCollection>
                                         {count > 1 && (
-                                            <p className="text-[11px] text-amber-800 mt-2">💡 Kiểm tra kỹ: các lượt có thể là nhiều người/xe khác nhau. Ghi chú xử lý cho tất cả.</p>
+                                            <p data-ui-text="secondary" className="text-[11px] text-amber-800 mt-2">💡 Kiểm tra kỹ: các lượt có thể là nhiều người/xe khác nhau. Ghi chú xử lý cho tất cả.</p>
                                         )}
                                     </div>
                                 );
@@ -896,7 +900,7 @@ const SecurityAlerts = () => {
                                     </p>
                                     <p className="text-sm font-bold text-midnight-indigo">
                                         {getUserDisplay(resolveModal.alert.acknowledged_by)}
-                                        <span className="text-xs font-normal text-slate-blue ml-2">
+                                        <span data-ui-text="secondary" className="text-xs font-normal text-slate-blue ml-2">
                                             lúc {formatDateTime(resolveModal.alert.acknowledged_at)}
                                         </span>
                                     </p>
@@ -988,7 +992,7 @@ const SecurityAlerts = () => {
                                     </p>
                                     <p className="text-sm font-bold text-midnight-indigo">
                                         {getUserDisplay(historyModal.alert.acknowledged_by)}
-                                        <span className="text-xs font-normal text-slate-blue ml-2">
+                                        <span data-ui-text="secondary" className="text-xs font-normal text-slate-blue ml-2">
                                             lúc {formatDateTime(historyModal.alert.acknowledged_at)}
                                         </span>
                                     </p>
@@ -1005,7 +1009,7 @@ const SecurityAlerts = () => {
                                     </p>
                                     <p className="text-sm font-bold text-midnight-indigo">
                                         {getUserDisplay(historyModal.alert.resolved_by)}
-                                        <span className="text-xs font-normal text-slate-blue ml-2">
+                                        <span data-ui-text="secondary" className="text-xs font-normal text-slate-blue ml-2">
                                             lúc {formatDateTime(historyModal.alert.resolved_at)}
                                         </span>
                                     </p>
@@ -1060,30 +1064,36 @@ const SecurityAlerts = () => {
                                 className="text-slate-blue hover:text-red-500 transition-colors text-xl leading-none"
                             >✕</button>
                         </div>
-                        <div className="overflow-y-auto flex-1 p-4 space-y-3 bg-slate-50/30">
+                        <PaginatedCollection items={occurrencesModal?.alert?.payload_json?.occurrences} itemLabel="lượt ghi nhận">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="overflow-y-auto flex-1 p-4 space-y-3 bg-slate-50/30">
                             {getConversions(occurrencesModal.alert).length > 0 && (
                                 <div className="p-4 bg-white rounded-2xl border border-orange-200">
                                     <p className="text-xs font-bold text-orange-700 uppercase mb-2">Lịch sử trạng thái</p>
-                                    <ol className="space-y-2 text-xs">
+                                    <PaginatedCollection items={getConversions(occurrencesModal.alert)} itemLabel="lượt ghi nhận">
+{(camaiPageItems, camaiStartIndex) => (
+<ol className="space-y-2 text-xs">
                                         <li className="flex gap-3">
                                             <span className="font-bold text-midnight-indigo w-32 shrink-0">{formatDateTime(occurrencesModal.alert?.triggered_at || occurrencesModal.alert?.created_at)}</span>
                                             <span>Tạo cảnh báo: <b>{getAlertTypeLabel(occurrencesModal.alert?.alert_type)}</b></span>
                                         </li>
-                                        {getConversions(occurrencesModal.alert).map(c => (
+                                        {camaiPageItems.map((camaiRecord, camaiIndex) => (c => (
                                             <li key={c.personControlId + c.at} className="flex gap-3">
                                                 <span className="font-bold text-midnight-indigo w-32 shrink-0">{formatDateTime(c.at)}</span>
                                                 <span>
                                                     {getUserDisplay(c.byUserId)} chuyển sang <b className="text-orange-700">Đối tượng theo dõi</b>: "{c.watchlistName}" · mức {PRIORITY_LABEL[c.watchlistPriority] || c.watchlistPriority} · {c.eventIds?.length || 0} lượt
                                                 </span>
                                             </li>
-                                        ))}
+                                        ))(camaiRecord, camaiStartIndex + camaiIndex, (getConversions(occurrencesModal.alert))))}
                                     </ol>
+)}
+</PaginatedCollection>
                                 </div>
                             )}
                             {(occurrencesModal.alert?.payload_json?.occurrences || []).length === 0 ? (
                                 <p className="text-center text-slate-blue py-8 text-sm">Không có dữ liệu occurrence.</p>
                             ) : (
-                                (occurrencesModal.alert.payload_json.occurrences).map((occ, idx) => (
+                                camaiPageItems.map((camaiRecord, camaiIndex) => ((occ, idx) => (
                                     <div key={idx} className="flex items-start gap-4 p-4 bg-white hover:bg-slate-50 hover:shadow-md hover:border-action-blue/20 rounded-2xl border border-platinum-tint transition-all duration-200">
                                         <div className="w-20 h-20 bg-slate-50 rounded-xl border border-slate-100 flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm">
                                             {occ.sourceEventId ? (
@@ -1103,7 +1113,7 @@ const SecurityAlerts = () => {
                                             ) : (
                                                 <div className="w-full h-full bg-slate-50 rounded-xl flex flex-col items-center justify-center border border-slate-100/50">
                                                     <ImageIcon className="w-5 h-5 text-slate-300" />
-                                                    <span className="text-[8px] text-slate-400 font-bold uppercase mt-1 tracking-wider">Không ảnh</span>
+                                                    <span data-ui-text="label" className="text-[8px] text-slate-400 font-bold uppercase mt-1 tracking-wider">Không ảnh</span>
                                                 </div>
                                             )}
                                         </div>
@@ -1112,10 +1122,10 @@ const SecurityAlerts = () => {
                                                 <Clock className="w-3.5 h-3.5 text-slate-400" />
                                                 <span>{formatDateTime(occ.occurredAt)}</span>
                                             </div>
-                                            
+
                                             {occurrencesModal.alert?.alert_type === 'intrusion' && (
                                                 <div>
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${occ.userId ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                                    <span data-ui-text="badge" className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${occ.userId ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                                                         {occ.userId ? '👤 Người quen' : '❓ Người lạ'}
                                                     </span>
                                                 </div>
@@ -1129,7 +1139,7 @@ const SecurityAlerts = () => {
                                             )}
 
                                             {occ.userId && (
-                                                <p className="text-[10px] text-slate-500 font-mono select-all">
+                                                <p data-ui-text="code" className="text-[10px] text-slate-500 font-mono select-all">
                                                     ID: {occ.userId}
                                                 </p>
                                             )}
@@ -1137,11 +1147,11 @@ const SecurityAlerts = () => {
                                             {occ.plateNumber && (
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <Car className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                    <span className="inline-flex px-2 py-0.5 bg-slate-900 text-white font-mono text-[10px] font-bold rounded uppercase tracking-wider shadow-sm border border-slate-950">
+                                                    <span data-ui-text="code" className="inline-flex px-2 py-0.5 bg-slate-900 text-white font-mono text-[10px] font-bold rounded uppercase tracking-wider shadow-sm border border-slate-950">
                                                         {occ.plateNumber}
                                                     </span>
                                                     {occ.vehicleType && (
-                                                        <span className="text-[10px] text-slate-400">
+                                                        <span data-ui-text="secondary" className="text-[10px] text-slate-400">
                                                             ({occ.vehicleType === 'CAR' ? 'Ô tô' : occ.vehicleType === 'MOTORBIKE' ? 'Xe máy' : occ.vehicleType})
                                                         </span>
                                                     )}
@@ -1149,11 +1159,11 @@ const SecurityAlerts = () => {
                                             )}
 
                                             {getConversions(occurrencesModal.alert).length > 0 && !occ.watchlistName && (
-                                                <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">❓ Người lạ</span>
+                                                <span data-ui-text="badge" className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">❓ Người lạ</span>
                                             )}
                                             {(occ.watchlistName || occ.name) && (
                                                 <div className="flex items-center gap-1">
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                                         📌 {occ.watchlistName || occ.name}
                                                     </span>
                                                 </div>
@@ -1162,7 +1172,7 @@ const SecurityAlerts = () => {
                                             {occ.occupancyCount !== undefined && occ.occupancyCount !== null && (
                                                 <div className="flex items-center gap-1.5 mt-1">
                                                     <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                    <span className={`text-[11px] font-bold ${occ.threshold != null && occ.occupancyCount > occ.threshold ? 'text-red-600' : 'text-slate-700'}`}>
+                                                    <span data-ui-text="primary" className={`text-[11px] font-bold ${occ.threshold != null && occ.occupancyCount > occ.threshold ? 'text-red-600' : 'text-slate-700'}`}>
                                                         {occ.occupancyCount}{occ.threshold != null ? `/${occ.threshold}` : ''} người
                                                     </span>
                                                 </div>
@@ -1170,8 +1180,8 @@ const SecurityAlerts = () => {
 
                                             {occ.confidence !== undefined && occ.confidence !== null && (
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-[10px] text-slate-400">Độ tin cậy:</span>
-                                                    <span className={`text-[10px] font-bold ${occ.confidence >= 0.8 ? 'text-green-600' : 'text-amber-600'}`}>
+                                                    <span data-ui-text="secondary" className="text-[10px] text-slate-400">Độ tin cậy:</span>
+                                                    <span data-ui-text="primary" className={`text-[10px] font-bold ${occ.confidence >= 0.8 ? 'text-green-600' : 'text-amber-600'}`}>
                                                         {Math.round(occ.confidence * 100)}%
                                                     </span>
                                                     <div className="w-12 bg-slate-200 h-1 rounded-full overflow-hidden shrink-0">
@@ -1184,7 +1194,7 @@ const SecurityAlerts = () => {
                                             )}
 
                                             {(occ.reason || occ.description || occ.errorDetail || occ.error_detail) && (
-                                                <div className="flex items-start gap-1.5 text-[11px] text-slate-600 mt-1 bg-slate-50 p-2 rounded-lg border border-slate-200/50">
+                                                <div data-ui-text="secondary" className="flex items-start gap-1.5 text-[11px] text-slate-600 mt-1 bg-slate-50 p-2 rounded-lg border border-slate-200/50">
                                                     <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                                                     <span className="leading-tight">{occ.reason || occ.description || occ.errorDetail || occ.error_detail}</span>
                                                 </div>
@@ -1192,9 +1202,11 @@ const SecurityAlerts = () => {
                                         </div>
                                         <span className="text-xs text-slate-300 font-bold font-mono shrink-0 select-none">#{idx + 1}</span>
                                     </div>
-                                ))
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (occurrencesModal.alert.payload_json.occurrences)))
                             )}
                         </div>
+)}
+</PaginatedCollection>
                         <div className="px-6 py-4 border-t border-platinum-tint bg-cloud-mist/30 text-right shrink-0">
                             <button
                                 onClick={() => setOccurrencesModal({ open: false, alert: null })}
@@ -1217,6 +1229,8 @@ const SecurityAlerts = () => {
                 isOpen={isExportOpen}
                 onClose={() => setIsExportOpen(false)}
                 endpoint="/reports/security-alert/exports"
+                filters={{ status: filters.status, alertType: filters.alert_type, zoneId: filters.zone_id }}
+                filterSummary={[filters.status ? `Trạng thái: ${{ new: 'Mới', acknowledged: 'Đã tiếp nhận', resolved: 'Đã xử lý' }[filters.status] || 'Đã chọn'}` : 'Tất cả trạng thái', filters.alert_type ? `Loại cảnh báo: ${getAlertTypeLabel(filters.alert_type)}` : 'Tất cả loại cảnh báo']}
                 formats={['xlsx', 'pdf']}
                 title="Xuất báo cáo sự kiện an ninh"
             />

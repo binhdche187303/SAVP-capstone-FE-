@@ -11,7 +11,7 @@ export const UEL_SYNC_STEPS = [
     { key: 'students', label: 'Sinh viên', hint: 'Theo lớp sinh hoạt' },
     { key: 'sections', label: 'Lớp học phần', hint: 'Cần năm học + học kỳ' },
     { key: 'enrollments', label: 'Đăng ký học phần', hint: 'Cần năm học + học kỳ' },
-    { key: 'sessions', label: 'Lịch học', hint: 'Cần khoảng ngày + bảng giờ tiết' },
+    { key: 'sessions', label: 'Lịch học', hint: 'Cần khoảng ngày; có thể chỉ lấy theo mã GV/SV' },
 ];
 
 export const stepLabel = (key) => UEL_SYNC_STEPS.find((s) => s.key === key)?.label ?? key;

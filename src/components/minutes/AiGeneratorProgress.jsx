@@ -115,7 +115,7 @@ const AiGeneratorProgress = ({ jobId, onComplete, onError }) => {
                 >
                     {progressText}
                 </motion.p>
-                <p className="text-[10px] text-slate-blue/60 mt-2 italic">(Quá trình này có thể mất từ 30-100 giây tùy thuộc vào độ dài cuộc họp)</p>
+                <p data-ui-text="secondary" className="text-[10px] text-slate-blue/60 mt-2 italic">(Quá trình này có thể mất từ 30-100 giây tùy thuộc vào độ dài cuộc họp)</p>
             </div>
 
             {/* Skeleton blocks để giả lập text đang được gõ ra */}

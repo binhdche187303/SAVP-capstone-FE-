@@ -1,3 +1,5 @@
+import PaginatedCollection from '../../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../../components/common/ResponsiveTable';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarClock, Copy, Pencil, Plus, Send, Trash2 } from 'lucide-react';
@@ -66,10 +68,10 @@ const ReportSchedules = () => {
     });
 
     return (
-        <div className={pageCls}>
+        <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <CalendarClock className="w-6 h-6 text-action-blue" />
                         Lịch gửi báo cáo tự động
                     </h2>
@@ -90,7 +92,20 @@ const ReportSchedules = () => {
 
             <div className={`${cardCls} overflow-hidden`}>
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <PaginatedCollection items={schedules} itemLabel="lịch gửi">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full">
+<colgroup>
+<col style={{ width: '18%' }} />
+<col style={{ width: '16%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '8%' }} />
+<col style={{ width: '18%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '4%' }} />
+<col style={{ width: '4%' }} />
+</colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
                                 {['Tên lịch', 'Báo cáo', 'Tần suất', 'Định dạng', 'Người nhận', 'Chạy gần nhất', 'Chạy kế tiếp', 'Bật', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
@@ -102,18 +117,18 @@ const ReportSchedules = () => {
                                 <tr>
                                     <td colSpan={9} className="px-4 py-10 text-center text-xs text-slate-blue space-y-3">
                                         <p>Chưa có lịch gửi nào</p>
-                                        <button type="button" className={btnPrimary} onClick={() => setForm({ open: true, initial: null })}>Tạo lịch gửi đầu tiên</button>
+                                        <button data-ui-text="primary" type="button" className={btnPrimary} onClick={() => setForm({ open: true, initial: null })}>Tạo lịch gửi đầu tiên</button>
                                     </td>
                                 </tr>
                             )}
-                            {schedules?.map((schedule) => (
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((schedule) => (
                                 <tr key={schedule.id} className="border-b border-pale-gray last:border-0">
                                     <td className={`${tdCls} font-semibold`}>{schedule.name}</td>
                                     <td className={tdCls}>{schedule.reportTitle}</td>
                                     <td className={tdCls}>{describeFrequency(schedule)}</td>
                                     <td className={tdCls}>
                                         <span className="flex gap-1">
-                                            {schedule.formats.map((f) => <span key={f} className="px-2 py-0.5 rounded-md bg-pale-gray text-[11px] font-semibold">{FORMAT_LABELS[f]}</span>)}
+                                            {schedule.formats.map((f) => <span data-ui-text="badge" key={f} className="px-2 py-0.5 rounded-md bg-pale-gray text-[11px] font-semibold">{FORMAT_LABELS[f]}</span>)}
                                         </span>
                                     </td>
                                     <td className={tdCls} title={schedule.recipients.map((r) => r.label).join('\n')}>{schedule.recipients.length} người</td>
@@ -142,9 +157,11 @@ const ReportSchedules = () => {
                                         </span>
                                     </td>
                                 </tr>
-                            ))}
+                            ))(camaiRecord, camaiStartIndex + camaiIndex, (schedules)))}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                 </div>
             </div>
 

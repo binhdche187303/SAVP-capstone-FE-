@@ -325,9 +325,9 @@ const Profile = () => {
     }
 
     return (
-        <div className="space-y-6 animate-fade-in-up max-w-5xl mx-auto">
+        <div data-page-surface="wide" className="space-y-6 animate-fade-in-up max-w-5xl mx-auto">
             <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                     <User className="w-3.5 h-3.5" />
                     Cá nhân
                 </span>
@@ -368,7 +368,7 @@ const Profile = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
-                            <span className="text-[10px] font-bold mt-1 uppercase">Đổi ảnh</span>
+                            <span data-ui-text="label" className="text-[10px] font-bold mt-1 uppercase">Đổi ảnh</span>
                         </div>
                     </div>
                     
@@ -386,21 +386,21 @@ const Profile = () => {
                     <h3 className="text-lg font-bold text-midnight-indigo leading-tight">{profile?.fullName || ""}</h3>
                     <p className="text-xs text-slate-blue mt-1">{profile?.email || ""}</p>
                     <div className="flex flex-wrap gap-1.5 justify-center mt-3">
-                        <span className="inline-flex text-[10px] px-2.5 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">{getLeaderRoleLabel(profile) || getCalendarRoleLabel(profile) || roleLabel}</span>
+                        <span data-ui-text="badge" className="inline-flex text-[10px] px-2.5 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">{getLeaderRoleLabel(profile) || getCalendarRoleLabel(profile) || roleLabel}</span>
                     </div>
 
                     {showFaceRegisterBtn && !biometricStatusLoading && biometricStatus && (
                         <div className="w-full mt-3">
                             <div className="w-full flex flex-col p-3 bg-cloud-mist rounded-xl border border-outline-gray/60">
-                                <span className="block text-[10px] font-bold text-slate-blue uppercase text-left">Trạng thái duyệt ảnh FaceID</span>
-                                <span className={"inline-flex self-start mt-1.5 text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_LABEL[biometricStatus.biometricReviewStatus] || STATUS_LABEL.not_uploaded).badge)}>
+                                <span data-ui-text="label" className="block text-[10px] font-bold text-slate-blue uppercase text-left">Trạng thái duyệt ảnh FaceID</span>
+                                <span data-ui-text="badge" className={"inline-flex self-start mt-1.5 text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_LABEL[biometricStatus.biometricReviewStatus] || STATUS_LABEL.not_uploaded).badge)}>
                                     {(STATUS_LABEL[biometricStatus.biometricReviewStatus] || STATUS_LABEL.not_uploaded).label}
                                 </span>
                                 {biometricStatus.biometricReviewStatus === "rejected" && biometricStatus.message && (
-                                    <p className="text-[10px] text-red-600 mt-1.5 text-left leading-relaxed">{biometricStatus.message}</p>
+                                    <p data-ui-text="secondary" className="text-[10px] text-red-600 mt-1.5 text-left leading-relaxed">{biometricStatus.message}</p>
                                 )}
                                 {biometricStatus.biometricReviewStatus === "approved" && (
-                                    <p className="text-[10px] text-green-600 mt-1.5 text-left">Ảnh sinh trắc học đã được duyệt.</p>
+                                    <p data-ui-text="secondary" className="text-[10px] text-green-600 mt-1.5 text-left">Ảnh sinh trắc học đã được duyệt.</p>
                                 )}
                                 
                                 {(biometricStatus.biometricReviewStatus === "rejected" || biometricStatus.biometricReviewStatus === "not_uploaded") && (
@@ -424,7 +424,7 @@ const Profile = () => {
                                 <span className="block text-xs font-bold text-slate-blue uppercase">Hồ sơ khuôn mặt</span>
                                 <span className="text-xs text-steel-gray mt-0.5 block">Dữ liệu FaceID</span>
                             </div>
-                            <span className={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold " + (profile?.hasFaceProfile ? "bg-green-50 text-green-700 border border-green-200" : "bg-amber-50 text-amber-700 border border-amber-200")}>
+                            <span data-ui-text="badge" className={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold " + (profile?.hasFaceProfile ? "bg-green-50 text-green-700 border border-green-200" : "bg-amber-50 text-amber-700 border border-amber-200")}>
                                 {profile?.hasFaceProfile ? "Đã hợp lệ" : "Chưa đăng ký"}
                             </span>
                         </div>
@@ -492,7 +492,7 @@ const Profile = () => {
                                     <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{identityValue}</span>
                                 </div>
                                 <div>
-                                    <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Địa chỉ Email</span>
+                                    <span data-ui-text="secondary" className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Địa chỉ Email</span>
                                     <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{profile?.email || ""}</span>
                                 </div>
                             </div>
@@ -522,7 +522,7 @@ const Profile = () => {
                                     </svg>
                                 </div>
                                 <div>
-                                    <span className="block text-[11px] font-bold text-slate-blue/85 uppercase tracking-wider">{managementOrgLabel}</span>
+                                    <span data-ui-text="label" className="block text-[11px] font-bold text-slate-blue/85 uppercase tracking-wider">{managementOrgLabel}</span>
                                     <span className="text-sm font-bold text-midnight-indigo mt-1 block">{orgValue}</span>
                                 </div>
                             </div>
@@ -533,7 +533,7 @@ const Profile = () => {
                                     </svg>
                                 </div>
                                 <div>
-                                    <span className="block text-[11px] font-bold text-slate-blue/85 uppercase tracking-wider">{managerLabel}</span>
+                                    <span data-ui-text="label" className="block text-[11px] font-bold text-slate-blue/85 uppercase tracking-wider">{managerLabel}</span>
                                     <span className="text-sm font-bold text-midnight-indigo mt-1 block">{managerValue}</span>
                                 </div>
                             </div>
@@ -547,15 +547,15 @@ const Profile = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
                             <div>
                                 <span className="block text-xs font-bold text-slate-blue uppercase">Trạng thái tài khoản</span>
-                                <span className={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold mt-1.5 " + (profile?.accountStatus === "active" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700")}>{profile?.accountStatus === "active" ? "Hoạt động" : "Bị khóa"}</span>
+                                <span data-ui-text="badge" className={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold mt-1.5 " + (profile?.accountStatus === "active" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700")}>{profile?.accountStatus === "active" ? "Hoạt động" : "Bị khóa"}</span>
                             </div>
                             <div>
                                 <span className="block text-xs font-bold text-slate-blue uppercase">Đăng nhập cuối cùng</span>
-                                <span className="text-xs font-semibold text-midnight-indigo mt-2.5 block">{profile?.lastLoginAt ? new Date(profile.lastLoginAt).toLocaleString("vi-VN") : "Chưa có thông tin"}</span>
+                                <span data-ui-text="secondary" className="text-xs font-semibold text-midnight-indigo mt-2.5 block">{profile?.lastLoginAt ? new Date(profile.lastLoginAt).toLocaleString("vi-VN") : "Chưa có thông tin"}</span>
                             </div>
                             <div>
                                 <span className="block text-xs font-bold text-slate-blue uppercase">Ngày tạo tài khoản</span>
-                                <span className="text-xs font-semibold text-midnight-indigo mt-2.5 block">{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString("vi-VN") : "Chưa rõ"}</span>
+                                <span data-ui-text="secondary" className="text-xs font-semibold text-midnight-indigo mt-2.5 block">{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString("vi-VN") : "Chưa rõ"}</span>
                             </div>
                         </div>
                     </div>
@@ -614,7 +614,7 @@ const Profile = () => {
                                             Chọn ảnh đại diện
                                             <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarFileSelect} />
                                         </label>
-                                        <span className="text-[10px] text-steel-gray">Hỗ trợ JPG, PNG, WEBP — tối đa 5MB</span>
+                                        <span data-ui-text="secondary" className="text-[10px] text-steel-gray">Hỗ trợ JPG, PNG, WEBP — tối đa 5MB</span>
                                     </div>
 
                                     {avatarUploadError && (

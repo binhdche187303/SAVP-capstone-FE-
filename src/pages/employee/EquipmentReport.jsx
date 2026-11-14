@@ -1,3 +1,5 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import RefreshButton from '../../components/common/RefreshButton';
 import {
     AlertTriangle, ArrowLeft, ChevronRight, Cpu, MapPin,
     Mic, Monitor, Package, RefreshCw, Speaker, Video, Wrench,
@@ -170,10 +172,10 @@ const EquipmentReport = () => {
     };
 
     return (
-        <div className="p-6 h-full flex flex-col bg-snow-white overflow-y-auto">
+        <div data-page-surface="wide" className="p-6 h-full flex flex-col bg-snow-white overflow-y-auto">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 animate-fade-in-up">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Wrench className="w-3.5 h-3.5" />
                         Báo hỏng thiết bị phòng họp
                     </span>
@@ -195,13 +197,14 @@ const EquipmentReport = () => {
                         Quay lại danh sách phòng
                     </button>
                 ) : (
-                    <button
+                    <RefreshButton
                         onClick={fetchRecentRooms}
-                        className="inline-flex items-center px-4 py-2.5 bg-white border border-platinum-tint text-slate-blue rounded-xl text-sm font-semibold hover:bg-cloud-mist transition-all"
+                        legacyClassName="inline-flex items-center px-4 py-2.5 bg-white border border-platinum-tint text-slate-blue rounded-xl text-sm font-semibold hover:bg-cloud-mist transition-all"
+                        busy={loadingRooms}
                     >
                         <RefreshCw className={`w-4 h-4 mr-2 ${loadingRooms ? 'animate-spin' : ''}`} />
                         Làm mới
-                    </button>
+                    </RefreshButton>
                 )}
             </div>
 
@@ -232,8 +235,10 @@ const EquipmentReport = () => {
                                 <p className="text-sm font-medium text-slate-blue">Bạn chưa có cuộc họp nào gắn với phòng gần đây.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {recentRooms.map((entry, idx) => (
+                            <PaginatedCollection items={recentRooms} itemLabel="phòng">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((entry, idx) => (
                                     <motion.button
                                         key={entry.room.id}
                                         variants={itemVariants}
@@ -249,7 +254,7 @@ const EquipmentReport = () => {
                                         <div className="flex items-center gap-2 mt-3">
                                             <p className="font-bold text-midnight-indigo">{entry.room.roomName}</p>
                                             {idx === 0 && (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-action-blue">
+                                                <span data-ui-text="badge" className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-action-blue">
                                                     Cuộc họp mới nhất
                                                 </span>
                                             )}
@@ -258,14 +263,16 @@ const EquipmentReport = () => {
                                             {entry.room.roomCode}{entry.room.location ? ` • ${entry.room.location}` : ''}
                                         </p>
                                     </motion.button>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (recentRooms)))}
                             </div>
+)}
+</PaginatedCollection>
                         )}
                     </motion.div>
                 ) : (
                     <motion.div key="detail" initial="hidden" animate="show" variants={containerVariants}>
                         {selectedEntry?.room?.location && (
-                            <p className="text-xs text-slate-blue mb-4 inline-flex items-center gap-1.5 bg-cloud-mist/60 px-3 py-1.5 rounded-lg">
+                            <p data-ui-text="badge" className="text-xs text-slate-blue mb-4 inline-flex items-center gap-1.5 bg-cloud-mist/60 px-3 py-1.5 rounded-lg">
                                 <MapPin className="w-3.5 h-3.5" />
                                 {selectedEntry.room.location}
                             </p>
@@ -290,8 +297,10 @@ const EquipmentReport = () => {
                                 <p className="text-sm font-medium text-slate-blue">Phòng này chưa được gán thiết bị nào.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {equipmentList.map((eq) => {
+                            <PaginatedCollection items={equipmentList} itemLabel="thiết bị">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((eq) => {
                                     const badge = getHealthBadge(eq.healthStatus);
                                     return (
                                         <motion.div
@@ -305,15 +314,15 @@ const EquipmentReport = () => {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="min-w-0">
-                                                        <p className="font-semibold text-sm text-midnight-indigo truncate">{eq.equipmentName}</p>
+                                                        <p data-ui-text="primary" className="font-semibold text-sm text-midnight-indigo truncate">{eq.equipmentName}</p>
                                                         <p className="text-xs text-slate-blue">{getTypeLabel(eq.equipmentType)} • {eq.equipmentCode}</p>
                                                     </div>
-                                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-semibold flex-shrink-0 ${badge.cls}`}>
+                                                    <span data-ui-text="badge" className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-semibold flex-shrink-0 ${badge.cls}`}>
                                                         {badge.label}
                                                     </span>
                                                 </div>
                                                 {eq.assetStatus === 'maintenance' && (
-                                                    <span className="inline-flex items-center px-2 py-0.5 mt-2 rounded-md text-[11px] font-semibold bg-gray-100 text-gray-700">
+                                                    <span data-ui-text="badge" className="inline-flex items-center px-2 py-0.5 mt-2 rounded-md text-[11px] font-semibold bg-gray-100 text-gray-700">
                                                         Đang bảo trì
                                                     </span>
                                                 )}
@@ -327,8 +336,10 @@ const EquipmentReport = () => {
                                             </div>
                                         </motion.div>
                                     );
-                                })}
+                                })(camaiRecord, camaiStartIndex + camaiIndex, (equipmentList)))}
                             </div>
+)}
+</PaginatedCollection>
                         )}
                     </motion.div>
                 )}
@@ -343,7 +354,7 @@ const EquipmentReport = () => {
                         </div>
                         <form onSubmit={handleFaultSubmit} className="p-6 space-y-4">
                             <div className="p-3 bg-cloud-mist/30 rounded-xl mb-4">
-                                <p className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
+                                <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{selectedEquipment.equipmentName}</p>
                                 <p className="text-xs text-slate-blue">Mã: {selectedEquipment.equipmentCode} • Phòng: {selectedEntry?.room?.roomName}</p>
                                 {selectedEntry?.room?.location && (
                                     <p className="text-xs text-slate-blue mt-0.5 flex items-center gap-1">

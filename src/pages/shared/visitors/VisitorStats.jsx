@@ -1,3 +1,4 @@
+import FilterBar from '../../../components/common/FilterBar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart3, FileBarChart } from 'lucide-react';
@@ -72,10 +73,10 @@ const VisitorStats = () => {
     const kpiItems = useMemo(() => (stats ? KPIS.map(([key, label, format]) => ({ key, label, value: formatCell(stats.kpis[key], format) })) : []), [stats]);
 
     return (
-        <div className={pageCls}>
+        <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <BarChart3 className="w-6 h-6 text-action-blue" />
                         Thống kê khách đến làm việc
                     </h2>
@@ -86,37 +87,37 @@ const VisitorStats = () => {
                 </Link>
             </div>
 
-            <div className={`${cardCls} p-4 flex flex-wrap gap-4 items-end`}>
+            <FilterBar variant="card" className={`${cardCls} p-4 flex flex-wrap gap-4 items-end`}>
                 <div className="space-y-1">
-                    <span className={labelCls}>Kỳ thống kê</span>
-                    <div className="flex rounded-xl border border-platinum-tint overflow-hidden">
+                    <span data-ui-text="label" data-filter-label className={labelCls}>Kỳ thống kê</span>
+                    <div data-filter-presets className="flex rounded-xl border border-platinum-tint overflow-hidden">
                         {PRESETS.map(([key, label]) => (
-                            <button key={key} type="button" onClick={() => choosePreset(key)} className={`px-3 py-2 text-xs font-semibold ${filters.preset === key ? 'bg-action-blue text-white' : 'bg-white text-slate-blue hover:bg-cloud-mist'}`}>{label}</button>
+                            <button data-filter-preset key={key} type="button" onClick={() => choosePreset(key)} className={`px-3 py-2 text-xs font-semibold ${filters.preset === key ? 'bg-action-blue text-white' : 'bg-white text-slate-blue hover:bg-cloud-mist'}`}>{label}</button>
                         ))}
                     </div>
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="vs-from">Từ ngày</label>
                     <input id="vs-from" type="date" className={`${inputCls} disabled:opacity-60`} disabled={!isCustom} value={filters.from} onChange={(e) => set({ from: e.target.value })} />
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="vs-to">Đến ngày</label>
                     <input id="vs-to" type="date" className={`${inputCls} disabled:opacity-60`} disabled={!isCustom} value={filters.to} onChange={(e) => set({ to: e.target.value })} />
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="vs-dep">Đơn vị tiếp</label>
                     <select id="vs-dep" className={inputCls} value={filters.departmentId} onChange={(e) => set({ departmentId: e.target.value })}>
                         <option value="">Tất cả</option>
                         {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="vs-group">Nhóm theo</label>
                     <select id="vs-group" className={inputCls} value={filters.groupBy} onChange={(e) => set({ groupBy: e.target.value })}>
                         {GROUPS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
                 </div>
-            </div>
+            </FilterBar>
 
             {error && <div className={errorBoxCls}>{error}</div>}
             {!error && !stats && <div className="flex items-center justify-center h-64"><div className={spinnerCls} /></div>}

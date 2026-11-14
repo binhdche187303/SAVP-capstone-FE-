@@ -90,7 +90,7 @@ const StrangerDismissModal = ({ stranger, onClose, onDone }) => {
                             <input type="radio" name="dismiss-reason" value={r.value} checked={reason === r.value} onChange={() => setReason(r.value)} className="mt-1" />
                             <span>
                                 <span className="block text-sm font-semibold text-midnight-indigo">{r.label}</span>
-                                <span className="block text-[11px] text-slate-blue">{r.hint}</span>
+                                <span data-ui-text="secondary" className="block text-[11px] text-slate-blue">{r.hint}</span>
                             </span>
                         </label>
                     ))}

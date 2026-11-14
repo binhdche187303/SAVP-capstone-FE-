@@ -1,0 +1,278 @@
+/* Scoped to explicit filter bars in the five administration/operations areas. */
+.camai-filter-bar[data-filter-bar] {
+    min-width: 0;
+    max-width: 100%;
+    gap: 1rem !important;
+    flex-wrap: wrap;
+    align-items: end;
+}
+
+.camai-filter-bar[data-filter-bar="inline"].p-4 {
+    padding: 1rem !important;
+}
+
+.camai-filter-bar[data-filter-bar="card"] {
+    padding: 1rem !important;
+    border: 1px solid #D4E0ED !important;
+    border-radius: 1rem !important;
+    background: #fff !important;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+}
+
+.camai-filter-bar[data-filter-bar] > *,
+.camai-filter-bar[data-filter-bar] [data-filter-fields] {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.camai-filter-bar[data-filter-bar] [data-filter-grid] {
+    align-items: end;
+}
+
+/* Column layouts must stretch their children; wrapping a constrained column
+   otherwise creates extra columns and shifts filters/content to the right. */
+.camai-filter-bar[data-filter-bar].flex-col {
+    align-items: stretch;
+    flex-wrap: nowrap;
+}
+
+.camai-filter-bar[data-filter-bar].flex-col > :is(.camai-filter-field, .camai-filter-range),
+.camai-filter-bar[data-filter-bar] .flex-col > :is(.camai-filter-field, .camai-filter-range) {
+    flex: 0 0 auto;
+    width: 100%;
+}
+
+@media (min-width: 640px) {
+    .camai-filter-bar[data-filter-bar].flex-col.sm\:flex-row > :is(.camai-filter-field, .camai-filter-range),
+    .camai-filter-bar[data-filter-bar] .flex-col.sm\:flex-row > :is(.camai-filter-field, .camai-filter-range) {
+        flex: 1 1 var(--filter-field-width, 16rem);
+        width: auto;
+    }
+
+    .camai-filter-bar[data-filter-bar].flex-col.sm\:flex-row {
+        align-items: end;
+        flex-wrap: wrap;
+    }
+}
+
+@media (min-width: 768px) {
+    .camai-filter-bar[data-filter-bar].flex-col.md\:flex-row > :is(.camai-filter-field, .camai-filter-range),
+    .camai-filter-bar[data-filter-bar] .flex-col.md\:flex-row > :is(.camai-filter-field, .camai-filter-range) {
+        flex: 1 1 var(--filter-field-width, 16rem);
+        width: auto;
+    }
+
+    .camai-filter-bar[data-filter-bar].flex-col.md\:flex-row {
+        align-items: end;
+        flex-wrap: wrap;
+    }
+}
+
+@media (min-width: 1024px) {
+    .camai-filter-bar[data-filter-bar].flex-col.lg\:flex-row > :is(.camai-filter-field, .camai-filter-range),
+    .camai-filter-bar[data-filter-bar] .flex-col.lg\:flex-row > :is(.camai-filter-field, .camai-filter-range) {
+        flex: 1 1 var(--filter-field-width, 16rem);
+        width: auto;
+    }
+
+    .camai-filter-bar[data-filter-bar].flex-col.lg\:flex-row {
+        align-items: end;
+        flex-wrap: wrap;
+    }
+}
+
+/* Size columns by available content width, including pages with a sidebar. */
+.camai-filter-bar[data-filter-bar] [data-filter-grid],
+.camai-filter-bar[data-filter-bar][data-filter-grid] {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--filter-column-min, 16rem)), 1fr)) !important;
+}
+
+.camai-filter-bar[data-filter-bar] > svg,
+.camai-filter-bar[data-filter-bar] div:has(> .camai-filter-field) > svg {
+    align-self: end;
+    margin-bottom: 11px;
+}
+
+.camai-filter-bar[data-filter-bar] [data-filter-separator] {
+    align-self: end;
+    height: 20px;
+    margin-bottom: 9px;
+    line-height: 20px;
+}
+
+.camai-filter-bar[data-filter-bar] [data-filter-fields] {
+    gap: 1rem !important;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.camai-filter-bar .camai-filter-field {
+    display: flex;
+    flex: 1 1 16rem;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.camai-filter-bar .camai-filter-field > div,
+.camai-filter-bar .camai-filter-field .react-datepicker-wrapper,
+.camai-filter-bar .camai-filter-field .react-datepicker__input-container {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* The field's gap owns vertical spacing, including older space-y/mb utilities. */
+.camai-filter-bar .camai-filter-field > label {
+    margin-bottom: 0 !important;
+}
+
+.camai-filter-bar .camai-filter-field:is(.space-y-1, .space-y-1\.5) > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.camai-filter-bar[data-filter-bar] .camai-filter-range {
+    --filter-field-width: 22rem;
+    display: grid;
+    flex: 1 1 22rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 1rem !important;
+}
+
+.camai-filter-bar[data-filter-bar] .camai-filter-range > :is(svg, span) {
+    display: none;
+}
+
+.camai-filter-bar[data-filter-bar] :is(label:not([data-filter-display]), [data-filter-label]) {
+    font-family: inherit;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    line-height: 1rem;
+    color: #476788 !important;
+    text-transform: uppercase;
+    letter-spacing: normal;
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+
+.camai-filter-bar[data-filter-bar] [data-filter-display] {
+    display: inline-flex;
+    box-sizing: border-box;
+    height: 38px;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid #D4E0ED;
+    border-radius: 12px;
+    background: #fff;
+    color: #0B3558;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.camai-filter-bar[data-filter-bar] label:has(input:is([type="checkbox"], [type="radio"])) {
+    text-transform: none;
+    font-weight: 500 !important;
+}
+
+/* Important declarations also cover the existing dashboard's inline styles. */
+.camai-filter-bar[data-filter-bar] :where(select, button[aria-haspopup="listbox"], input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="range"])):not(.opacity-0) {
+    box-sizing: border-box;
+    height: 38px !important;
+    min-height: 38px !important;
+    min-width: 0;
+    max-width: 100%;
+    padding: 8px 12px !important;
+    border: 1px solid #D4E0ED !important;
+    border-radius: 12px !important;
+    background-color: #fff !important;
+    color: #0B3558 !important;
+    font-family: inherit !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 20px !important;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.camai-filter-bar .camai-filter-field :is(input, select) {
+    width: 100%;
+}
+
+/* Keep enough space for existing search/calendar icons and custom arrows. */
+.camai-filter-bar[data-filter-bar] :is(input, select)[class~="pl-8"] { padding-left: 32px !important; }
+.camai-filter-bar[data-filter-bar] :is(input, select)[class~="pl-9"] { padding-left: 36px !important; }
+.camai-filter-bar[data-filter-bar] :is(input, select)[class~="pl-10"] { padding-left: 40px !important; }
+.camai-filter-bar[data-filter-bar] :is(input, select)[class~="pl-11"] { padding-left: 44px !important; }
+.camai-filter-bar[data-filter-bar] :is(input, select)[class~="pl-12"] { padding-left: 48px !important; }
+.camai-filter-bar[data-filter-bar] :is(input, select)[class~="pr-8"] { padding-right: 32px !important; }
+.camai-filter-bar[data-filter-bar] :is(input, select)[class~="pr-9"] { padding-right: 36px !important; }
+.camai-filter-bar[data-filter-bar] :is(input, select)[class~="pr-10"] { padding-right: 40px !important; }
+
+.camai-filter-bar[data-filter-bar] :is(input, select):focus {
+    outline: none;
+    border-color: #006BFF !important;
+    box-shadow: 0 0 0 2px rgb(0 107 255 / 0.1);
+}
+
+.camai-filter-bar[data-filter-bar] :is(input, select):disabled:not(.opacity-0) {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.camai-filter-bar[data-filter-bar] [role="listbox"] [role="option"] {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.camai-filter-bar[data-filter-bar] [data-filter-action] {
+    display: inline-flex;
+    box-sizing: border-box;
+    height: 38px;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 8px 16px !important;
+    border-radius: 12px !important;
+    font-family: inherit;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 20px;
+}
+
+.camai-filter-bar[data-filter-bar] [data-filter-presets] {
+    display: flex;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    overflow: visible;
+    border: 0;
+}
+
+.camai-filter-bar[data-filter-bar] [data-filter-preset] {
+    box-sizing: border-box;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid #D4E0ED;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+}
+
+@media (max-width: 639px) {
+    .camai-filter-bar[data-filter-bar="card"] > :is(input, select, label, .relative, .space-y-1, .space-y-1\.5, .camai-filter-field, [data-filter-fields]) {
+        width: 100%;
+    }
+}
+
+@media (max-width: 479px) {
+    .camai-filter-bar[data-filter-bar] .camai-filter-range {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

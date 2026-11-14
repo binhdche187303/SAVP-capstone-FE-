@@ -65,6 +65,11 @@
       "last 1 safari version"
     ]
   },
+  "jest": {
+    "moduleNameMapper": {
+      "^date-fns/locale/vi$": "<rootDir>/node_modules/date-fns/locale/vi.cjs"
+    }
+  },
   "devDependencies": {
     "autoprefixer": "^10.5.0",
     "playwright": "^1.64.0",

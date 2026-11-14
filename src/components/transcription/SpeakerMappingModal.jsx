@@ -154,7 +154,7 @@ const SpeakerMappingModal = ({ isOpen, onClose, transcriptId, meetingId, onMappi
                     <div className="flex justify-between items-center px-6 py-4 border-b border-platinum-tint bg-cloud-mist/50">
                         <div>
                             <h2 className="text-lg font-extrabold text-midnight-indigo">Gán danh tính người nói</h2>
-                            <p className="text-xs font-semibold text-slate-blue mt-0.5">Xác định ai là ai dựa vào mẫu âm thanh</p>
+                            <p data-ui-text="primary" className="text-xs font-semibold text-slate-blue mt-0.5">Xác định ai là ai dựa vào mẫu âm thanh</p>
                         </div>
                         <button
                             onClick={onClose}
@@ -198,13 +198,13 @@ const SpeakerMappingModal = ({ isOpen, onClose, transcriptId, meetingId, onMappi
                         ) : (
                             <div className="space-y-4">
                                 {errorMsg && (
-                                    <div className="bg-red-50 text-red-600 p-3 rounded-xl text-xs font-semibold border border-red-100 flex items-center gap-2">
+                                    <div data-ui-text="badge" className="bg-red-50 text-red-600 p-3 rounded-xl text-xs font-semibold border border-red-100 flex items-center gap-2">
                                         <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                         {errorMsg}
                                     </div>
                                 )}
 
-                                <div className="text-[11px] font-semibold text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-100 mb-4">
+                                <div data-ui-text="badge" className="text-[11px] font-semibold text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-100 mb-4">
                                     Mẹo: Nghe đoạn mẫu và đọc nội dung văn bản bên dưới để dễ dàng nhận diện xem "Người nói X" là ai.
                                 </div>
 
@@ -220,27 +220,27 @@ const SpeakerMappingModal = ({ isOpen, onClose, transcriptId, meetingId, onMappi
                                                     <div className="w-12 h-12 bg-cloud-mist rounded-full flex items-center justify-center mb-2">
                                                         <Headphones className="w-5 h-5 text-slate-blue" />
                                                     </div>
-                                                    <span className="text-xs font-extrabold text-midnight-indigo text-center">
+                                                    <span data-ui-text="primary" className="text-xs font-extrabold text-midnight-indigo text-center">
                                                         {spk.speakerLabel === 'unknown' ? 'Chưa xác định' : spk.speakerLabel.replace('Speaker_', 'Người nói ')}
                                                     </span>
                                                 </div>
                                                 
                                                 <div className="flex-1 flex flex-col justify-center border-l border-platinum-tint pl-4">
                                                     <div className="flex items-center gap-3 mb-2">
-                                                        <span className="text-[10px] font-mono font-bold text-action-blue bg-blue-50 px-2 py-0.5 rounded">
+                                                        <span data-ui-text="code" className="text-[10px] font-mono font-bold text-action-blue bg-blue-50 px-2 py-0.5 rounded">
                                                             {Math.floor((spk.totalSpeakingMs || 0) / 1000 / 60)} phút {Math.floor(((spk.totalSpeakingMs || 0) / 1000) % 60)} giây
                                                         </span>
-                                                        <span className="text-[10px] font-bold text-slate-blue">
+                                                        <span data-ui-text="primary" className="text-[10px] font-bold text-slate-blue">
                                                             {spk.segmentCount || 0} đoạn
                                                         </span>
                                                     </div>
-                                                    <div className="text-xs italic text-slate-blue line-clamp-2 bg-cloud-mist/50 p-2 rounded-lg border border-platinum-tint/50">
+                                                    <div data-ui-text="badge" className="text-xs italic text-slate-blue line-clamp-2 bg-cloud-mist/50 p-2 rounded-lg border border-platinum-tint/50">
                                                         "{spk.sampleText || 'Không có đoạn text mẫu'}"
                                                     </div>
                                                 </div>
 
                                                 <div className="w-56 shrink-0 flex flex-col justify-center gap-3 pl-4 border-l border-platinum-tint">
-                                                    <button 
+                                                    <button data-ui-text="action"
                                                         className="w-full py-1.5 bg-white border border-platinum-tint text-action-blue hover:bg-blue-50 rounded-lg text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                                                         disabled={!audioUrl}
                                                         onClick={() => {

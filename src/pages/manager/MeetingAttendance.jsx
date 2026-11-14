@@ -1,8 +1,11 @@
-import { Activity, AlertTriangle, ArrowLeft, Calendar, Clock, RefreshCw, Search, Users, MapPin, ArrowRight } from 'lucide-react';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { Activity, AlertTriangle, ArrowLeft, Calendar, Clock, Search, Users, MapPin, ArrowRight } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { getMeetings } from '../../service/businessAdminServices';
 import MeetingPresenceIVSS from '../../components/meeting/MeetingPresenceIVSS';
-import Pagination from '../../components/common/Pagination';
+
 
 const formatDateTime = (iso) => {
     if (!iso) return '—';
@@ -23,9 +26,11 @@ const toLocalDateStr = (date) => {
     return `${y}-${m}-${d}`;
 };
 
-const ITEMS_PER_PAGE = 10;
+
 
 const MeetingAttendance = () => {
+    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(10);
+    const [totalItems, setTotalItems] = useState(undefined);
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -60,6 +65,7 @@ const MeetingAttendance = () => {
             if (res?.success) {
                 setMeetings(res.data?.items || res.data || []);
                 const meta = res.data?.meta || res.meta;
+                setTotalItems(meta?.total ?? res.data?.total);
                 if (meta?.totalPages) setTotalPages(meta.totalPages);
                 else if (meta?.total && meta?.limit) setTotalPages(Math.ceil(meta.total / meta.limit));
                 else setTotalPages(1);
@@ -71,7 +77,7 @@ const MeetingAttendance = () => {
         } finally {
             setLoading(false);
         }
-    }, [fromDate, toDate, search, page]);
+    }, [fromDate, toDate, search, page, ITEMS_PER_PAGE]);
 
     useEffect(() => {
         fetchMeetings();
@@ -85,7 +91,7 @@ const MeetingAttendance = () => {
 
     if (selectedMeeting) {
         return (
-            <div className="p-6 space-y-5">
+            <div data-page-surface="wide" className="p-6 space-y-5">
                 <button
                     onClick={() => setSelectedMeeting(null)}
                     className="inline-flex items-center gap-2 text-sm font-bold text-slate-blue hover:text-midnight-indigo transition-colors"
@@ -97,7 +103,7 @@ const MeetingAttendance = () => {
                 <div className="bg-white rounded-2xl border border-platinum-tint p-5 shadow-sm-2">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
                         <h2 className="text-base font-bold text-midnight-indigo">{selectedMeeting.title || selectedMeeting.name || 'Cuộc họp'}</h2>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                        <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
                             Đã kết thúc
                         </span>
                     </div>
@@ -127,7 +133,7 @@ const MeetingAttendance = () => {
     }
 
     return (
-        <div className="p-6 space-y-5">
+        <div data-page-surface="wide" className="p-6 space-y-5">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -140,8 +146,8 @@ const MeetingAttendance = () => {
             </div>
 
             {/* Filters */}
-            <form onSubmit={handleSearch} className="bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm flex flex-wrap gap-3 items-end">
-                <div className="flex flex-col gap-1 min-w-[120px]">
+            <FilterBar as="form" variant="card" onSubmit={handleSearch} className="bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm flex flex-wrap gap-3 items-end">
+                <div className="camai-filter-field">
                     <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Từ ngày</label>
                     <input
                         type="date"
@@ -150,7 +156,7 @@ const MeetingAttendance = () => {
                         className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
                     />
                 </div>
-                <div className="flex flex-col gap-1 min-w-[120px]">
+                <div className="camai-filter-field">
                     <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Đến ngày</label>
                     <input
                         type="date"
@@ -159,7 +165,7 @@ const MeetingAttendance = () => {
                         className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
                     />
                 </div>
-                <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+                <div data-filter-search className="camai-filter-field">
                     <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Tìm kiếm</label>
                     <div className="relative">
                         <input
@@ -172,13 +178,13 @@ const MeetingAttendance = () => {
                         <Search className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
                     </div>
                 </div>
-                <button
+                <button data-filter-action
                     type="submit"
                     className="px-4 py-2 bg-action-blue hover:bg-action-blue/90 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95"
                 >
                     Áp dụng
                 </button>
-            </form>
+            </FilterBar>
 
             {/* Meeting list */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">
@@ -186,24 +192,22 @@ const MeetingAttendance = () => {
                     <h3 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">
                         Danh sách cuộc họp đã kết thúc
                     </h3>
-                    <button
+                    <RefreshButton
                         onClick={() => { setPage(1); fetchMeetings(); }}
-                        className="p-2 hover:bg-cloud-mist rounded-lg text-slate-blue hover:text-midnight-indigo transition-colors"
                         title="Làm mới"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                    </button>
+                        busy={loading}
+                    />
                 </div>
 
                 {loading ? (
                     <div className="p-8 flex flex-col items-center gap-3">
                         <div className="w-8 h-8 border-2 border-action-blue border-t-transparent rounded-full animate-spin"></div>
-                        <span className="text-xs text-slate-blue font-semibold">Đang tải danh sách cuộc họp...</span>
+                        <span data-ui-text="primary" className="text-xs text-slate-blue font-semibold">Đang tải danh sách cuộc họp...</span>
                     </div>
                 ) : error ? (
                     <div className="p-8 flex flex-col items-center gap-3 text-center">
                         <AlertTriangle className="w-8 h-8 text-red-500" />
-                        <p className="text-xs text-red-700 font-semibold">{error}</p>
+                        <p data-ui-text="primary" className="text-xs text-red-700 font-semibold">{error}</p>
                         <button onClick={fetchMeetings} className="text-xs font-bold text-action-blue hover:underline">Thử lại</button>
                     </div>
                 ) : meetings.length === 0 ? (
@@ -227,13 +231,13 @@ const MeetingAttendance = () => {
                                     <div className="flex-1 min-w-0 space-y-2">
                                         {/* Title row */}
                                         <div className="flex items-start justify-between gap-3">
-                                            <p className="text-sm font-bold text-midnight-indigo leading-snug">
+                                            <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo leading-snug">
                                                 {m.title || m.name || 'Cuộc họp không tên'}
                                             </p>
                                         </div>
 
                                         {/* Time */}
-                                        <div className="flex items-center gap-1.5 text-[11px] text-slate-blue font-medium">
+                                        <div data-ui-text="secondary" className="flex items-center gap-1.5 text-[11px] text-slate-blue font-medium">
                                             <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                                             <span>{formatDateTime(m.startTime || m.start_time)}</span>
                                             <span className="text-steel-gray">–</span>
@@ -243,13 +247,13 @@ const MeetingAttendance = () => {
                                         {/* Badges */}
                                         <div className="flex flex-wrap gap-2">
                                             {(m.room?.name || m.roomName) && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                                                <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
                                                     <MapPin className="w-3 h-3" />
                                                     {m.room?.name || m.roomName}
                                                 </span>
                                             )}
                                             {(m.participantCount != null || m.participants?.length != null) && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-600 border border-slate-100">
+                                                <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-600 border border-slate-100">
                                                     <Users className="w-3 h-3" />
                                                     {m.participantCount ?? m.participants?.length} người tham dự
                                                 </span>
@@ -259,10 +263,10 @@ const MeetingAttendance = () => {
 
                                     {/* CTA */}
                                     <div className="flex-shrink-0 self-center flex flex-col items-center gap-2">
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                        <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
                                             Đã kết thúc
                                         </span>
-                                        <button
+                                        <button data-ui-text="action"
                                             onClick={() => setSelectedMeeting(m)}
                                             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-action-blue/10 hover:bg-action-blue text-action-blue hover:text-white text-[11px] font-bold border border-action-blue/20 hover:border-action-blue transition-all active:scale-95"
                                         >
@@ -275,18 +279,20 @@ const MeetingAttendance = () => {
                         </div>
 
                         {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="px-5 py-3 border-t border-platinum-tint flex items-center justify-between">
-                                <span className="text-[11px] text-slate-blue">Trang {page} / {totalPages}</span>
-                                <Pagination
-                                    currentPage={page}
-                                    totalPages={totalPages}
-                                    onPageChange={(p) => setPage(p)}
-                                />
-                            </div>
-                        )}
+
                     </>
                 )}
+{<PaginationRegion legacyVisible={totalPages > 1}><PaginationFooter
+                                currentPage={page}
+                                totalItems={totalItems}
+                                visibleCount={meetings.length}
+                                pageSize={ITEMS_PER_PAGE}
+                                onPageSizeChange={size => { setItemsPerPage(size); setPage(1); }}
+                                totalPages={totalPages}
+                                onPageChange={setPage}
+                                itemLabel={"cuộc họp"}
+                                loading={loading}
+                            /></PaginationRegion>}
             </div>
         </div>
     );

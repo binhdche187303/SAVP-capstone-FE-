@@ -1,3 +1,9 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter from '../../components/common/PaginationFooter';
 import { Building2, Clock, Info, RefreshCw, TrendingUp, User, X } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -50,46 +56,19 @@ const UserAvatar = ({ avatarUrl, fullName, size = 32 }) => {
 };
 
 // ── Helper: Pagination bar ───────────────────────────────────────────────────
-const Pagination = ({ page, totalPages, total, onPageChange }) => {
-    if (totalPages <= 1) return null;
-
-    const visibleCount = Math.min(totalPages, 5);
-    const pages = Array.from({ length: visibleCount }, (_, i) => {
-        if (totalPages <= 5) return i + 1;
-        if (page <= 3) return i + 1;
-        if (page >= totalPages - 2) return totalPages - 4 + i;
-        return page - 2 + i;
-    });
+const Pagination = ({ page, totalPages, total, onPageChange, pageSize, onPageSizeChange, loading }) => {
 
     return (
-        <div className="flex items-center justify-between pt-3 border-t border-platinum-tint mt-2 px-1">
-            <span className="text-[10px] text-slate-blue font-semibold tabular-nums">
-                {total} nhân sự · Trang {page}/{totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-                <button
-                    disabled={page === 1}
-                    onClick={() => onPageChange(page - 1)}
-                    className="px-2 py-1 text-xs border border-platinum-tint rounded-lg disabled:opacity-40 hover:bg-cloud-mist text-slate-blue transition-colors"
-                >‹</button>
-                {pages.map(p => (
-                    <button
-                        key={p}
-                        onClick={() => onPageChange(p)}
-                        className={`px-2.5 py-1 text-xs rounded-lg border transition-colors font-semibold ${
-                            p === page
-                                ? 'bg-action-blue text-white border-action-blue'
-                                : 'border-platinum-tint hover:bg-cloud-mist text-slate-blue'
-                        }`}
-                    >{p}</button>
-                ))}
-                <button
-                    disabled={page === totalPages}
-                    onClick={() => onPageChange(page + 1)}
-                    className="px-2 py-1 text-xs border border-platinum-tint rounded-lg disabled:opacity-40 hover:bg-cloud-mist text-slate-blue transition-colors"
-                >›</button>
-            </div>
-        </div>
+        <PaginationFooter
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={total}
+            pageSize={pageSize}
+            loading={loading}
+            onPageSizeChange={onPageSizeChange}
+            onPageChange={onPageChange}
+            itemLabel={"nhân sự"}
+        />
     );
 };
 
@@ -139,6 +118,7 @@ const EmployeeOnTimeAnalytics = () => {
     // ── Manager: per-user table state ────────────────────────────────────────
     const [memberStats, setMemberStats] = useState([]);
     const [memberPage, setMemberPage] = useState(1);
+    const [memberPageSize, setMemberPageSize] = useState(10);
     const [memberTotalPages, setMemberTotalPages] = useState(1);
     const [memberTotal, setMemberTotal] = useState(0);
     const [memberLoading, setMemberLoading] = useState(false);
@@ -147,6 +127,7 @@ const EmployeeOnTimeAnalytics = () => {
     const [modalDept, setModalDept] = useState(null);
     const [modalMembers, setModalMembers] = useState([]);
     const [modalPage, setModalPage] = useState(1);
+    const [modalPageSize, setModalPageSize] = useState(10);
     const [modalTotalPages, setModalTotalPages] = useState(1);
     const [modalTotal, setModalTotal] = useState(0);
     const [modalLoading, setModalLoading] = useState(false);
@@ -218,7 +199,7 @@ const EmployeeOnTimeAnalytics = () => {
                 preset,
                 ...(preset === 'custom' && { from, to }),
                 page: memberPage,
-                limit: 10,
+                limit: memberPageSize,
             });
             if (res?.success && res.data) {
                 setMemberStats(res.data.items || []);
@@ -235,7 +216,7 @@ const EmployeeOnTimeAnalytics = () => {
             setMemberLoading(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [managerDeptId, preset, from, to, memberPage]);
+    }, [managerDeptId, preset, from, to, memberPage, memberPageSize]);
 
     useEffect(() => {
         if (isManager) fetchMemberStats();
@@ -254,7 +235,7 @@ const EmployeeOnTimeAnalytics = () => {
                 preset,
                 ...(preset === 'custom' && { from, to }),
                 page: modalPage,
-                limit: 10,
+                limit: modalPageSize,
             });
             if (res?.success && res.data) {
                 setModalMembers(res.data.items || []);
@@ -271,7 +252,7 @@ const EmployeeOnTimeAnalytics = () => {
             setModalLoading(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [modalDept, preset, from, to, modalPage]);
+    }, [modalDept, preset, from, to, modalPage, modalPageSize]);
 
     useEffect(() => { fetchModalMembers(); }, [fetchModalMembers]);
 
@@ -323,12 +304,12 @@ const EmployeeOnTimeAnalytics = () => {
 
     // ────────────────────────────────────────────────────────────────────────
     return (
-        <div className="space-y-6 p-6 max-w-7xl mx-auto">
+        <div data-page-surface="wide" className="space-y-6 p-6 max-w-7xl mx-auto">
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-platinum-tint pb-5">
                 <div>
-                    <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <Clock className="w-6 h-6 text-action-blue" />
                         Phân tích Tỷ lệ Đúng giờ
                     </h2>
@@ -341,8 +322,8 @@ const EmployeeOnTimeAnalytics = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-4 items-end">
-                <div className="space-y-1">
+            <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-4 items-end">
+                <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Bộ lọc nhanh</label>
                     <select
                         value={preset}
@@ -358,12 +339,12 @@ const EmployeeOnTimeAnalytics = () => {
 
                 {preset === 'custom' && (
                     <>
-                        <div className="space-y-1">
+                        <div className="camai-filter-field space-y-1">
                             <label className="block text-[10px] font-bold text-slate-blue uppercase">Từ ngày</label>
                             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
                                 className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo" />
                         </div>
-                        <div className="space-y-1">
+                        <div className="camai-filter-field space-y-1">
                             <label className="block text-[10px] font-bold text-slate-blue uppercase">Đến ngày</label>
                             <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
                                 className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo" />
@@ -393,7 +374,7 @@ const EmployeeOnTimeAnalytics = () => {
                 </div>
 
                 {/* Employee late history search */}
-                <div className="space-y-1 relative min-w-[240px] flex-1 suggestion-container">
+                <div data-filter-search className="camai-filter-field relative suggestion-container">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tra cứu nhân sự đi muộn</label>
                     <div className="relative">
                         <input
@@ -426,7 +407,7 @@ const EmployeeOnTimeAnalytics = () => {
                         </div>
                     )}
                 </div>
-            </div>
+            </FilterBar>
 
             {/* Error */}
             {error && (
@@ -444,19 +425,21 @@ const EmployeeOnTimeAnalytics = () => {
 
             {/* Summary Cards */}
             {data && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <StatisticGrid columns={4} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                     {[
                         { label: 'Tỷ lệ đúng giờ', value: `${data.onTimeRate ?? 0}%`, color: 'text-midnight-indigo' },
                         { label: 'Tổng lượt tham dự bắt buộc', value: data.totalRequiredParticipants ?? 0, color: 'text-midnight-indigo' },
                         { label: 'Lượt đi muộn', value: data.lateCount ?? 0, color: 'text-amber-500' },
                         { label: 'Lượt vắng mặt', value: data.absentCount ?? 0, color: 'text-red-500' },
                     ].map(({ label, value, color }) => (
+                        <StatisticCard key={label} label={label} value={value} tone={statisticTone(color)} legacy={(
                         <div key={label} className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-2">
                             <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">{label}</span>
                             <span className={`text-2xl font-black ${color} block`}>{value}</span>
                         </div>
+                        )} />
                     ))}
-                </div>
+                </StatisticGrid>
             )}
 
             {/* Dashboard Content */}
@@ -468,14 +451,21 @@ const EmployeeOnTimeAnalytics = () => {
                         <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex items-center justify-between">
                             <div>
                                 <h3 className="font-bold text-midnight-indigo text-sm">Chuyên cần theo thành viên</h3>
-                                <p className="text-[10px] text-slate-blue mt-0.5">Số lượt đúng giờ · đến muộn · vắng mặt trên tổng lịch bắt buộc</p>
+                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-0.5">Số lượt đúng giờ · đến muộn · vắng mặt trên tổng lịch bắt buộc</p>
                             </div>
                             {memberLoading && (
                                 <div className="w-4 h-4 border-2 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />
                             )}
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                            <ResponsiveTable className="w-full text-left border-collapse">
+<colgroup>
+<col style={{ width: '40%' }} />
+<col style={{ width: '15%' }} />
+<col style={{ width: '15%' }} />
+<col style={{ width: '15%' }} />
+<col style={{ width: '15%' }} />
+</colgroup>
                                 <thead>
                                     <tr className="border-b border-platinum-tint bg-slate-50/50 text-[10px] font-bold text-slate-blue uppercase tracking-wider">
                                         <th className="px-4 py-3">Thành viên</th>
@@ -523,24 +513,24 @@ const EmployeeOnTimeAnalytics = () => {
                                                             <div className="min-w-0">
                                                                 <p className="font-bold text-midnight-indigo truncate">{member.fullName}</p>
                                                                 {member.employeeCode && (
-                                                                    <p className="text-[10px] text-slate-blue font-mono">{member.employeeCode}</p>
+                                                                    <p data-ui-text="code" className="text-[10px] text-slate-blue font-mono">{member.employeeCode}</p>
                                                                 )}
-                                                                <p className="text-[10px] text-slate-blue font-mono truncate hidden sm:block">{member.email}</p>
+                                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue font-mono truncate hidden sm:block">{member.email}</p>
                                                             </div>
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
-                                                        <span className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${onTime > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                                                        <span data-ui-text="badge" className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${onTime > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
                                                             {onTime}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
-                                                        <span className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${late > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                        <span data-ui-text="badge" className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${late > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
                                                             {late}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
-                                                        <span className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${absent > 0 ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                        <span data-ui-text="badge" className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${absent > 0 ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-400'}`}>
                                                             {absent}
                                                         </span>
                                                     </td>
@@ -552,15 +542,18 @@ const EmployeeOnTimeAnalytics = () => {
                                         })
                                     )}
                                 </tbody>
-                            </table>
+                            </ResponsiveTable>
                         </div>
-                        {!memberLoading && memberStats.length > 0 && (
-                            <div className="px-4 pb-4">
+                        {(
+                            <div>
                                 <Pagination
+                                    loading={memberLoading}
                                     page={memberPage}
                                     totalPages={memberTotalPages}
                                     total={memberTotal}
                                     onPageChange={setMemberPage}
+                                    pageSize={memberPageSize}
+                                    onPageSizeChange={size => { setMemberPageSize(size); setMemberPage(1); }}
                                 />
                             </div>
                         )}
@@ -573,7 +566,16 @@ const EmployeeOnTimeAnalytics = () => {
                             <h3 className="font-bold text-midnight-indigo text-sm">Tỷ lệ đi muộn theo phòng ban</h3>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                            <PaginatedCollection items={data?.lateByDepartment} itemLabel="đơn vị">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-left border-collapse">
+<colgroup>
+<col style={{ width: '32%' }} />
+<col style={{ width: '20%' }} />
+<col style={{ width: '17%' }} />
+<col style={{ width: '19%' }} />
+<col style={{ width: '12%' }} />
+</colgroup>
                                 <thead>
                                     <tr className="border-b border-platinum-tint bg-slate-50/50 text-[10px] font-bold text-slate-blue uppercase tracking-wider">
                                         <th className="px-6 py-3">Phòng ban</th>
@@ -597,7 +599,7 @@ const EmployeeOnTimeAnalytics = () => {
                                             </td>
                                         </tr>
                                     ) : (
-                                        data.lateByDepartment.map(dept => (
+                                        camaiPageItems.map((camaiRecord, camaiIndex) => (dept => (
                                             <tr key={dept.departmentId} className="hover:bg-slate-50/60 transition-colors">
                                                 <td className="px-6 py-4 font-bold text-midnight-indigo">{dept.departmentName}</td>
                                                 <td className="px-6 py-4 text-right text-slate-blue font-semibold tabular-nums">{dept.totalRequiredParticipants}</td>
@@ -619,10 +621,12 @@ const EmployeeOnTimeAnalytics = () => {
                                                     </button>
                                                 </td>
                                             </tr>
-                                        ))
+                                        ))(camaiRecord, camaiStartIndex + camaiIndex, (data.lateByDepartment)))
                                     )}
                                 </tbody>
-                            </table>
+                            </ResponsiveTable>
+)}
+</PaginatedCollection>
                         </div>
                     </div>
                 )}
@@ -715,7 +719,7 @@ const EmployeeOnTimeAnalytics = () => {
                                 <Building2 className="w-4 h-4 text-action-blue shrink-0" />
                                 <div className="min-w-0">
                                     <h3 className="font-bold text-midnight-indigo text-sm truncate">{modalDept.departmentName}</h3>
-                                    <p className="text-[10px] text-slate-blue">
+                                    <p data-ui-text="secondary" className="text-[10px] text-slate-blue">
                                         Nhân sự đi muộn · {modalTotal} người · tỷ lệ chung {modalDept.lateRate}%
                                     </p>
                                 </div>
@@ -754,18 +758,18 @@ const EmployeeOnTimeAnalytics = () => {
                                         >
                                             <UserAvatar avatarUrl={member.avatarUrl} fullName={member.fullName} size={36} />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-bold text-midnight-indigo truncate">{member.fullName}</p>
-                                                <p className="text-[10px] text-slate-blue font-mono truncate">
+                                                <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo truncate">{member.fullName}</p>
+                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue font-mono truncate">
                                                     {member.email}{member.employeeCode ? ` · ${member.employeeCode}` : ''}
                                                 </p>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                <span data-ui-text="badge" className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                                     member.lateCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-700'
                                                 }`}>
                                                     {member.lateCount} lần muộn
                                                 </span>
-                                                <span className={`text-xs font-black tabular-nums min-w-[38px] text-right ${
+                                                <span data-ui-text="primary" className={`text-xs font-black tabular-nums min-w-[38px] text-right ${
                                                     member.lateRate > 15 ? 'text-red-500' : member.lateRate > 0 ? 'text-amber-500' : 'text-emerald-600'
                                                 }`}>
                                                     {member.lateRate}%
@@ -778,13 +782,16 @@ const EmployeeOnTimeAnalytics = () => {
                         </div>
 
                         {/* Modal footer: pagination */}
-                        {!modalLoading && modalTotalPages > 1 && (
-                            <div className="px-5 pb-4 pt-1 shrink-0 border-t border-platinum-tint">
+                        {(
+                            <div className="shrink-0">
                                 <Pagination
+                                    loading={modalLoading}
                                     page={modalPage}
                                     totalPages={modalTotalPages}
                                     total={modalTotal}
                                     onPageChange={setModalPage}
+                                    pageSize={modalPageSize}
+                                    onPageSizeChange={size => { setModalPageSize(size); setModalPage(1); }}
                                 />
                             </div>
                         )}
@@ -828,7 +835,15 @@ const EmployeeOnTimeAnalytics = () => {
                                 </div>
                             ) : (
                                 <div className="border border-platinum-tint rounded-xl overflow-hidden">
-                                    <table className="w-full text-left">
+                                    <PaginatedCollection items={lateHistory?.lateMeetings} itemLabel="cuộc họp">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-left">
+<colgroup>
+<col style={{ width: '40%' }} />
+<col style={{ width: '25%' }} />
+<col style={{ width: '20%' }} />
+<col style={{ width: '15%' }} />
+</colgroup>
                                         <thead>
                                             <tr className="bg-slate-50 border-b border-platinum-tint text-[10px] font-bold text-slate-blue uppercase">
                                                 <th className="px-4 py-2">Tiêu đề cuộc họp</th>
@@ -843,21 +858,23 @@ const EmployeeOnTimeAnalytics = () => {
                                                     <td colSpan={4} className="px-4 py-4 text-center text-slate-blue font-medium">Không có lịch sử đi muộn trong kỳ</td>
                                                 </tr>
                                             ) : (
-                                                lateHistory.lateMeetings.map(meeting => (
+                                                camaiPageItems.map((camaiRecord, camaiIndex) => (meeting => (
                                                     <tr key={meeting.meetingId}>
                                                         <td className="px-4 py-3 font-semibold">{meeting.meetingTitle}</td>
-                                                        <td className="px-4 py-3 text-slate-blue font-mono text-[10px]">
+                                                        <td data-ui-text="primary" className="px-4 py-3 text-slate-blue font-mono text-[10px]">
                                                             {meeting.scheduledStartTime ? new Date(meeting.scheduledStartTime).toLocaleString('vi-VN') : '—'}
                                                         </td>
-                                                        <td className="px-4 py-3 text-slate-blue font-mono text-[10px]">
+                                                        <td data-ui-text="primary" className="px-4 py-3 text-slate-blue font-mono text-[10px]">
                                                             {meeting.checkInTime ? new Date(meeting.checkInTime).toLocaleString('vi-VN') : '—'}
                                                         </td>
                                                         <td className="px-4 py-3 text-right text-red-500 font-bold tabular-nums">{meeting.lateMinutes}</td>
                                                     </tr>
-                                                ))
+                                                ))(camaiRecord, camaiStartIndex + camaiIndex, (lateHistory.lateMeetings)))
                                             )}
                                         </tbody>
-                                    </table>
+                                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                                 </div>
                             )}
                         </div>

@@ -15,7 +15,6 @@ import ScheduleFormModal from '../../../components/report/ScheduleFormModal';
 import { pageCls, cardCls, btnPrimary, btnGhost, errorBoxCls } from '../../../components/common/uiClasses';
 
 // S9 (2.13): một trang dùng chung cho 7 loại báo cáo, dựng từ config/reportDefinitions.
-const PAGE_SIZE = 20;
 
 // Bỏ `preset` (chỉ phục vụ giao diện) trước khi gửi cho service.
 const toParams = ({ preset, ...rest }) => rest;
@@ -24,6 +23,7 @@ const toParams = ({ preset, ...rest }) => rest;
 const ownFilters = ({ preset, from, to, q, ...rest }) => Object.fromEntries(Object.entries(rest).filter(([, v]) => v));
 
 const ReportViewer = () => {
+    const [PAGE_SIZE, setPageSize] = useState(20);
     const { type } = useParams();
     const base = useAreaBase();
     const definition = getReportDefinition(type);
@@ -69,7 +69,7 @@ const ReportViewer = () => {
             setError(res?.message || 'Không tải được báo cáo');
         }
         setLoading(false);
-    }, [definition, type, applied, page, sort]);
+    }, [definition, type, applied, page, sort, PAGE_SIZE]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -83,10 +83,10 @@ const ReportViewer = () => {
 
     if (!definition) {
         return (
-            <div className={pageCls}>
+            <div data-page-surface="wide" className={pageCls}>
                 <div className={`${cardCls} p-10 text-center space-y-4`}>
                     <FileBarChart className="w-10 h-10 text-steel-gray mx-auto" />
-                    <h2 className="text-lg font-bold text-midnight-indigo">Không tìm thấy báo cáo</h2>
+                    <h2 data-page-title className="text-lg font-bold text-midnight-indigo">Không tìm thấy báo cáo</h2>
                     <p className="text-xs text-slate-blue">Loại báo cáo "{type}" không tồn tại hoặc đã bị gỡ.</p>
                     <Link to={`${base}/reports`} className={btnPrimary}>Về Trung tâm báo cáo</Link>
                 </div>
@@ -100,38 +100,48 @@ const ReportViewer = () => {
         setPage(1);
         setSort((prev) => (prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
     };
-    const handleExport = async (format) => {
+    // `extra` rỗng = bản thường; bản quy chuẩn kèm { mode, templateId, signers… } từ hộp thoại.
+    const handleExport = async (format, extra = {}) => {
         setBusyFormat(format);
-        const res = await exportReport(type, { ...toParams(applied), format });
+        const res = await exportReport(type, { ...toParams(applied), format, ...extra }, { autoDownload: false });
         if (res?.success) toast.success(res.data?.fileName ? `Đã xuất ${res.data.fileName}` : 'Đã tạo yêu cầu xuất, file sẽ có trong mục File xuất gần đây');
         else toast.error(res?.message || 'Không xuất được báo cáo');
         setBusyFormat(null);
+        return res;
     };
 
+    const exportFilterSummary = definition.filters.filter(filter => applied[filter.key]).map(filter => {
+        const choices = filter.options || lookups[filter.lookup] || [];
+        const choice = choices.find(item => String(item.value ?? item.id) === String(applied[filter.key]));
+        return `${filter.label}: ${choice?.label || choice?.name || (filter.lookup ? 'Mục đã chọn' : applied[filter.key])}`;
+    });
+    if (applied.q) exportFilterSummary.push(`Tìm kiếm: ${applied.q}`);
+
     return (
-        <div className={pageCls}>
+        <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <Link to={`${base}/reports`} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-blue hover:text-action-blue mb-2">
                         <ArrowLeft className="w-3.5 h-3.5" /> Trung tâm báo cáo
                     </Link>
-                    <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <Icon className="w-6 h-6 text-action-blue" />
                         Báo cáo {definition.title.toLowerCase()}
                     </h2>
                     <p className="text-xs text-slate-blue mt-1">{definition.description}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="self-center flex flex-wrap items-center gap-2 max-w-full">
                     {canSchedule && (
                         <button type="button" className={btnGhost} onClick={() => setScheduleOpen(true)}>
                             <CalendarClock className="w-4 h-4" /> Đặt lịch gửi
                         </button>
                     )}
-                    <ExportMenu onExport={handleExport} disabled={loading || Boolean(error)} busyFormat={busyFormat} />
+                    <ExportMenu onExport={handleExport} reportType={type} initialRange={{ from: applied.from, to: applied.to }} filterSummary={exportFilterSummary} disabled={loading || Boolean(error)} busyFormat={busyFormat} />
                 </div>
             </div>
 
             <ReportFilterBar definition={definition} lookups={lookups} value={draft} onChange={setDraft} onApply={apply} loading={loading} />
+            {type === 'student-attendance' && Array.isArray(lookups.classSections) && !lookups.classSections.length && <p className="text-sm text-slate-blue">Chưa có lớp học phần đã đồng bộ từ UEL. Cần đồng bộ lớp học phần, đăng ký học phần và lịch học để có dữ liệu chuyên cần thực tế.</p>}
 
             {error && <div className={errorBoxCls}>{error}</div>}
 
@@ -155,6 +165,7 @@ const ReportViewer = () => {
                         total={data.total}
                         page={page}
                         limit={PAGE_SIZE}
+                        onPageSizeChange={size => { setPageSize(size); setPage(1); }}
                         sortKey={sort.key}
                         sortDir={sort.dir}
                         onSort={toggleSort}
@@ -163,6 +174,8 @@ const ReportViewer = () => {
                     />
                 </>
             )}
+
+
 
             {canSchedule && (
                 <ScheduleFormModal

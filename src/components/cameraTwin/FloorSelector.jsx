@@ -18,7 +18,7 @@ const FloorSelector = ({ floors, value, onChange, summarize }) => (
         >
           {f.label}
           {s && s.total > 0 && (
-            <span className={`rounded px-1 text-[10px] tabular-nums ${active ? "bg-white/20" : "bg-slate-100 text-slate-500"}`}>
+            <span data-ui-text="action" className={`rounded px-1 text-[10px] tabular-nums ${active ? "bg-white/20" : "bg-slate-100 text-slate-500"}`}>
               {s.total}
             </span>
           )}

@@ -1,3 +1,4 @@
+import PaginatedCollection from '../common/PaginatedCollection';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Clock, Download, FileText, PenLine, Repeat, RotateCcw, Upload, XCircle } from 'lucide-react';
 import toast from '../../utils/toast';
@@ -124,7 +125,7 @@ const MeetingPrepPanel = ({ meetingId, onSeries, onOpenMeeting }) => {
                             <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Báo cáo trước họp</span>
                         </div>
                         {prep.canManage && (
-                            <span className="text-xs font-semibold text-slate-blue">Đã nộp {report.submittedCount}/{report.totalCount}</span>
+                            <span data-ui-text="primary" className="text-xs font-semibold text-slate-blue">Đã nộp {report.submittedCount}/{report.totalCount}</span>
                         )}
                     </div>
                     <div className={`flex items-center gap-1.5 text-xs ${report.isOverdue ? 'text-rose-600' : 'text-slate-blue'}`}>
@@ -136,7 +137,7 @@ const MeetingPrepPanel = ({ meetingId, onSeries, onOpenMeeting }) => {
                         <div className="flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50/40 rounded-xl px-3 py-2.5">
                             <div className="min-w-0 text-sm">
                                 {report.mine.file ? (
-                                    <button type="button" onClick={() => download(report.mine.file.id)} className="text-action-blue hover:underline truncate block max-w-full text-left">
+                                    <button data-ui-text="primary" type="button" onClick={() => download(report.mine.file.id)} className="text-action-blue hover:underline truncate block max-w-full text-left">
                                         {report.mine.file.fileName}
                                     </button>
                                 ) : (
@@ -157,8 +158,10 @@ const MeetingPrepPanel = ({ meetingId, onSeries, onOpenMeeting }) => {
                     )}
 
                     {report.items && (
-                        <ul className="divide-y divide-cloud-mist border border-platinum-tint rounded-xl">
-                            {report.items.map((it) => (
+                        <PaginatedCollection items={report?.items} itemLabel="hạng mục">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="divide-y divide-cloud-mist border border-platinum-tint rounded-xl">
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((it) => (
                                 <li key={it.userId} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                                     <span className="flex items-center gap-2 min-w-0">
                                         {it.submittedAt
@@ -174,8 +177,10 @@ const MeetingPrepPanel = ({ meetingId, onSeries, onOpenMeeting }) => {
                                         <span className="text-xs text-slate-blue">Chưa nộp</span>
                                     )}
                                 </li>
-                            ))}
+                            ))(camaiRecord, camaiStartIndex + camaiIndex, (report.items)))}
                         </ul>
+)}
+</PaginatedCollection>
                     )}
                 </div>
             )}
@@ -188,8 +193,8 @@ const MeetingPrepPanel = ({ meetingId, onSeries, onOpenMeeting }) => {
                             <span className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Trình ký biên bản</span>
                         </div>
                         {signoff.status
-                            ? <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${SIGNOFF_BADGE[signoff.status].cls}`}>{SIGNOFF_BADGE[signoff.status].label}</span>
-                            : <span className="px-2 py-0.5 text-xs font-semibold rounded-full border bg-slate-50 text-slate-blue border-platinum-tint">Chưa trình</span>}
+                            ? <span data-ui-text="badge" className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${SIGNOFF_BADGE[signoff.status].cls}`}>{SIGNOFF_BADGE[signoff.status].label}</span>
+                            : <span data-ui-text="badge" className="px-2 py-0.5 text-xs font-semibold rounded-full border bg-slate-50 text-slate-blue border-platinum-tint">Chưa trình</span>}
                     </div>
                     <p className="text-sm text-slate-blue">Người ký duyệt: <span className="font-semibold text-midnight-indigo">{signoff.signer?.fullName || '—'}</span></p>
                     {signoff.status === 'returned' && signoff.note && (
@@ -197,9 +202,9 @@ const MeetingPrepPanel = ({ meetingId, onSeries, onOpenMeeting }) => {
                     )}
                     {signoff.minutes && signoff.canReview && (
                         <div className="border border-platinum-tint rounded-xl p-3 max-h-56 overflow-y-auto">
-                            <div className="text-sm font-semibold text-midnight-indigo mb-1">{signoff.minutes.title}</div>
+                            <div data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo mb-1">{signoff.minutes.title}</div>
                             {/<[a-z][\s\S]*>/i.test(signoff.minutes.content || '')
-                                ? <div className="prose prose-sm max-w-none text-midnight-indigo" dangerouslySetInnerHTML={{ __html: signoff.minutes.content }} />
+                                ? <div data-typography-preserve className="prose prose-sm max-w-none text-midnight-indigo" dangerouslySetInnerHTML={{ __html: signoff.minutes.content }} />
                                 : <div className="text-sm text-midnight-indigo whitespace-pre-wrap">{signoff.minutes.content}</div>}
                         </div>
                     )}
@@ -266,15 +271,19 @@ const MeetingPrepPanel = ({ meetingId, onSeries, onOpenMeeting }) => {
                     )}
 
                     {signoff.history?.length > 0 && (
-                        <ol className="border-l-2 border-cloud-mist pl-3 space-y-1.5">
-                            {signoff.history.map((h, i) => (
+                        <PaginatedCollection items={signoff?.history} itemLabel="lần xác nhận">
+{(camaiPageItems, camaiStartIndex) => (
+<ol className="border-l-2 border-cloud-mist pl-3 space-y-1.5">
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((h, i) => (
                                 <li key={i} className="text-xs text-slate-blue">
                                     <span className="font-semibold text-midnight-indigo">{ACTION_LABEL[h.action]}</span>
                                     {' · '}{h.actorName}{' · '}{fmt(h.at)}
                                     {h.note && <span className="block text-midnight-indigo"><RotateCcw className="inline w-3 h-3 mr-1" />{h.note}</span>}
                                 </li>
-                            ))}
+                            ))(camaiRecord, camaiStartIndex + camaiIndex, (signoff.history)))}
                         </ol>
+)}
+</PaginatedCollection>
                     )}
                 </div>
             )}

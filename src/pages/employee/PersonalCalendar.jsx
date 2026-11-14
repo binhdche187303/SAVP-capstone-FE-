@@ -1,6 +1,8 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import FilterBar from '../../components/common/FilterBar';
 import { AlertTriangle, Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight, Clock, Filter, Grid, Info, List, MapPin, User, XCircle } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import { getMySchedule } from '../../service/employeeServices';
 import { isForbiddenError } from '../../utils/permissionUtils';
@@ -26,6 +28,8 @@ const getEffectiveStatus = (meeting, nowTs = Date.now()) => {
 
 const PersonalCalendar = () => {
     const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const standardLayout = ['system-admin', 'business-admin', 'manager', 'employee', 'guard'].includes(pathname.split('/')[1]);
     const [tab, setTab] = useState('calendar'); // 'calendar' | 'attendance'
     const [viewMode, setViewMode] = useState('month'); // 'month' | 'week'
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -243,7 +247,7 @@ const PersonalCalendar = () => {
             {/* Header section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <CalendarIcon className="w-3.5 h-3.5" />
                         Lịch trình
                     </span>
@@ -279,7 +283,7 @@ const PersonalCalendar = () => {
                         <button onClick={handlePrev} className="p-2 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-l-xl border-r border-platinum-tint">
                             <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <span className="px-4 text-xs font-bold text-midnight-indigo min-w-[120px] text-center select-none">
+                        <span data-ui-text="primary" className="px-4 text-xs font-bold text-midnight-indigo min-w-[120px] text-center select-none">
                             {formatHeaderDate()}
                         </span>
                         <button onClick={handleNext} className="p-2 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-r-xl border-l border-platinum-tint">
@@ -288,7 +292,7 @@ const PersonalCalendar = () => {
                     </div>
 
                     {/* Status Filter */}
-                    <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-platinum-tint shadow-sm">
+                    <FilterBar variant="inline" className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-platinum-tint shadow-sm">
                         <Filter className="w-3.5 h-3.5 text-slate-blue" />
                         <select
                             value={statusFilter}
@@ -302,7 +306,7 @@ const PersonalCalendar = () => {
                             <option value="completed">Đã kết thúc</option>
                             {/* <option value="cancelled">Đã huỷ</option> */}
                         </select>
-                    </div>
+                    </FilterBar>
                 </div>
             </div>
 
@@ -328,13 +332,13 @@ const PersonalCalendar = () => {
                     {loading ? (
                         <div className="flex flex-col items-center justify-center p-20 min-h-[400px]">
                             <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
-                            <p className="mt-3 text-slate-blue text-xs font-semibold">Đang tải lịch trình...</p>
+                            <p data-ui-text="primary" className="mt-3 text-slate-blue text-xs font-semibold">Đang tải lịch trình...</p>
                         </div>
                     ) : viewMode === 'month' ? (
                         /* Month Grid View */
                         <div className="p-4 flex-1">
                             {/* Days of week titles */}
-                            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-blue uppercase mb-2">
+                            <div data-ui-text="label" className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-blue uppercase mb-2">
                                 <div>Th 2</div>
                                 <div>Th 3</div>
                                 <div>Th 4</div>
@@ -381,7 +385,7 @@ const PersonalCalendar = () => {
                                                     />
                                                 ))}
                                                 {dayMeetings.length > 3 && (
-                                                    <span className="text-[9px] font-bold text-slate-blue">+{dayMeetings.length - 3}</span>
+                                                    <span data-ui-text="primary" className="text-[9px] font-bold text-slate-blue">+{dayMeetings.length - 3}</span>
                                                 )}
                                             </div>
                                         </div>
@@ -391,11 +395,11 @@ const PersonalCalendar = () => {
                         </div>
                     ) : (
                         /* Week Grid View with Time Slots */
-                        <div className="overflow-x-auto flex-1">
-                            <div className="min-w-[700px] divide-y divide-platinum-tint/60">
+                        <div className={standardLayout ? 'min-w-0 flex-1' : 'overflow-x-auto flex-1'}>
+                            <div className={`${standardLayout ? 'w-full min-w-0' : 'min-w-[700px]'} divide-y divide-platinum-tint/60`}>
                                 {/* Week Days Header Row */}
                                 <div className="grid grid-cols-8 bg-cloud-mist/30 text-center py-3">
-                                    <div className="text-[10px] font-bold text-slate-blue uppercase flex items-center justify-center">Giờ</div>
+                                    <div data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase flex items-center justify-center">Giờ</div>
                                     {getDaysInWeek(currentDate).map((day, idx) => {
                                         const isSelected = isSameDay(day, selectedDate);
                                         const isToday = isSameDay(day, new Date());
@@ -406,7 +410,7 @@ const PersonalCalendar = () => {
                                                 className={`flex flex-col items-center justify-center gap-0.5 cursor-pointer rounded-lg py-1 ${isSelected ? 'bg-blue-50/50 border border-blue-150' : ''
                                                     }`}
                                             >
-                                                <span className="text-[9px] font-bold text-slate-blue uppercase">
+                                                <span data-ui-text="secondary" className="text-[9px] font-bold text-slate-blue uppercase">
                                                     {day.toLocaleDateString('vi-VN', { weekday: 'short' })}
                                                 </span>
                                                 <span className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center ${isToday ? 'bg-action-blue text-white' : 'text-midnight-indigo'
@@ -425,7 +429,7 @@ const PersonalCalendar = () => {
                                         return (
                                             <div key={hour} className="grid grid-cols-8 min-h-[52px]">
                                                 {/* Hour label */}
-                                                <div className="text-[11px] font-bold text-slate-blue flex items-center justify-center border-r border-platinum-tint/40 bg-cloud-mist/10">
+                                                <div data-ui-text="primary" className="text-[11px] font-bold text-slate-blue flex items-center justify-center border-r border-platinum-tint/40 bg-cloud-mist/10">
                                                     {hourStr}
                                                 </div>
 
@@ -445,7 +449,7 @@ const PersonalCalendar = () => {
                                                             className="p-1 border-r border-platinum-tint/30 relative hover:bg-cloud-mist/10 transition-colors flex flex-col justify-center cursor-pointer"
                                                         >
                                                             {slotMeeting && (
-                                                                <div
+                                                                <div data-ui-text="secondary"
                                                                     className={`rounded-lg p-1.5 text-[10px] font-semibold border leading-tight ${slotMeeting.status === 'cancelled'
                                                                         ? 'bg-red-50/80 text-red-700 border-red-200'
                                                                         : slotMeeting.status === 'in_progress'
@@ -454,7 +458,7 @@ const PersonalCalendar = () => {
                                                                         }`}
                                                                 >
                                                                     <div className="truncate font-bold">{slotMeeting.title}</div>
-                                                                    <div className="flex items-center gap-1 mt-0.5 text-[9px] opacity-80">
+                                                                    <div data-ui-text="secondary" className="flex items-center gap-1 mt-0.5 text-[9px] opacity-80">
                                                                         <MapPin className="w-2.5 h-2.5" />
                                                                         <span className="truncate">{slotMeeting.room?.roomName}</span>
                                                                     </div>
@@ -485,14 +489,16 @@ const PersonalCalendar = () => {
                             </p>
                         </div>
 
-                        <div className="mt-4 space-y-4 max-h-[450px] overflow-y-auto pr-1">
+                        <PaginatedCollection items={selectedDayMeetings} itemLabel="cuộc họp">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="mt-4 space-y-4 max-h-[450px] overflow-y-auto pr-1">
                             {selectedDayMeetings.length === 0 ? (
                                 <div className="text-center py-12 text-slate-blue">
                                     <Info className="w-8 h-8 mx-auto text-platinum-tint mb-2" />
-                                    <p className="text-xs font-medium italic">Không có cuộc họp nào được xếp lịch trong ngày này.</p>
+                                    <p data-ui-text="secondary" className="text-xs font-medium italic">Không có cuộc họp nào được xếp lịch trong ngày này.</p>
                                 </div>
                             ) : (
-                                selectedDayMeetings.map(meet => {
+                                camaiPageItems.map((camaiRecord, camaiIndex) => (meet => {
                                     const StatusIcon = STATUS_CONFIG[meet.status]?.icon || Clock;
                                     const statusStyle = STATUS_CONFIG[meet.status] || { label: 'Không xác định', bg: 'bg-slate-50 text-slate-500 border-platinum-tint' };
                                     const startTimeStr = new Date(meet.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -508,10 +514,10 @@ const PersonalCalendar = () => {
                                             className="p-4 rounded-xl border border-platinum-tint/60 bg-cloud-mist/5 hover:shadow-md transition-all space-y-3 cursor-pointer hover:border-action-blue/30"
                                         >
                                             <div className="flex items-start justify-between gap-3">
-                                                <h4 className="font-bold text-midnight-indigo text-sm sm:text-base leading-snug">
+                                                <h4 data-ui-text="primary" className="font-bold text-midnight-indigo text-sm sm:text-base leading-snug">
                                                     {meet.title}
                                                 </h4>
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 flex items-center gap-1 ${statusStyle.bg}`}>
+                                                <span data-ui-text="secondary" className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 flex items-center gap-1 ${statusStyle.bg}`}>
                                                     <StatusIcon className="w-3.5 h-3.5" />
                                                     {statusStyle.label}
                                                 </span>
@@ -543,12 +549,14 @@ const PersonalCalendar = () => {
                                             )}
                                         </div>
                                     );
-                                })
+                                })(camaiRecord, camaiStartIndex + camaiIndex, (selectedDayMeetings)))
                             )}
                         </div>
+)}
+</PaginatedCollection>
                     </div>
 
-                    <div className="pt-4 border-t border-platinum-tint mt-6 text-[10.5px] text-slate-blue font-medium leading-relaxed bg-cloud-mist/20 p-3 rounded-xl">
+                    <div data-ui-text="badge" className="pt-4 border-t border-platinum-tint mt-6 text-[10.5px] text-slate-blue font-medium leading-relaxed bg-cloud-mist/20 p-3 rounded-xl">
                         Mẹo: Bạn có thể chọn ngày trên lịch lưới bên cạnh để xem nhanh toàn bộ cuộc họp chi tiết và chương trình nghị sự của ngày hôm đó.
                     </div>
                 </div>

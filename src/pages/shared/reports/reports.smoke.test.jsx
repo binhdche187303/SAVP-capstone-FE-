@@ -175,10 +175,14 @@ describe('ReportRuns', () => {
 
     test('40 lần chạy, lọc thất bại còn 3 dòng có lý do, gửi lại được', async () => {
         renderAt('/business-admin/report-schedules/runs', route);
-        expect(await screen.findByText('40 lần chạy')).toBeInTheDocument();
+        expect(await screen.findByText('Hiển thị 1–10 / 40 lần chạy')).toBeInTheDocument();
         expect(rows()).toHaveLength(10);
+        const firstRow = rows()[0].textContent;
+        fireEvent.click(screen.getByRole('button', { name: '2', exact: true }));
+        expect(await screen.findByText('Hiển thị 11–20 / 40 lần chạy')).toBeInTheDocument();
+        expect(rows()[0]).not.toHaveTextContent(firstRow);
         fireEvent.change(screen.getByLabelText('Trạng thái'), { target: { value: 'failed' } });
-        expect(await screen.findByText('3 lần chạy')).toBeInTheDocument();
+        expect(await screen.findByText('Hiển thị 1–3 / 3 lần chạy')).toBeInTheDocument();
         expect(screen.getByText('Quá thời gian tạo file báo cáo')).toBeInTheDocument();
         fireEvent.click(screen.getAllByRole('button', { name: 'Gửi lại' })[0]);
         expect(await screen.findByText('Đã gửi lại')).toBeInTheDocument();

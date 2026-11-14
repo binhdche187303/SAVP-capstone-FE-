@@ -1,6 +1,11 @@
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import ReportActions from '../../components/common/ReportActions';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, ArrowUpDown, Camera, ChevronLeft, ChevronRight, DoorOpen, Layers, MapPin, RefreshCw, Route, Search, UserRound, Video } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Camera, DoorOpen, Layers, MapPin, Route, Search, UserRound, Video } from 'lucide-react';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import ExportMenu from '../../components/report/ExportMenu';
@@ -23,7 +28,7 @@ const MODES = [
 ];
 
 const KIND_LABEL = { gate: 'Cổng (xe)', meeting: 'Phòng họp', zone: 'Khu vực' };
-const PAGE_SIZE = 50;
+
 const EXPORT_PAGE_SIZE = 500;
 const EXPORT_MAX_PAGES = 6;
 
@@ -90,6 +95,7 @@ const SortHeader = ({ column, sort, onSort }) => {
 };
 
 const CameraTrace = () => {
+    const [PAGE_SIZE, setPageSize] = useState(50);
     const [searchParams] = useSearchParams();
     const initialMode = MODES.find((m) => searchParams.get(m.key))?.key || 'groupId';
 
@@ -181,7 +187,7 @@ const CameraTrace = () => {
         } finally {
             setLoading(false);
         }
-    }, [targetId, quick, from, to, buildParams]);
+    }, [targetId, quick, from, to, buildParams, PAGE_SIZE]);
 
     // Vào từ link có sẵn mục tiêu (vd. nút "Truy vết" ở trang Nhóm camera) thì chạy luôn.
     useEffect(() => {
@@ -198,7 +204,7 @@ const CameraTrace = () => {
     useEffect(() => {
         if (firstFilterRun.current) { firstFilterRun.current = false; return; }
         if (hasResult.current) runRef.current(1);
-    }, [sort, kindFilter, debouncedName]);
+    }, [sort, kindFilter, debouncedName, PAGE_SIZE]);
 
     const toggleSort = (key) => setSort((cur) => (cur.by === key
         ? { by: key, dir: cur.dir === 'asc' ? 'desc' : 'asc' }
@@ -206,11 +212,11 @@ const CameraTrace = () => {
 
     const events = result?.events || [];
     const total = result?.total ?? events.length;
-    const rangeStart = events.length ? (page - 1) * PAGE_SIZE + 1 : 0;
-    const rangeEnd = (page - 1) * PAGE_SIZE + events.length;
+
+
     const filtered = Boolean(kindFilter || debouncedName);
 
-    const handleExport = async (format) => {
+    const handleExport = async (format, extra = {}) => {
         if (!targetId) return;
         setBusyFormat(format);
         try {
@@ -288,6 +294,10 @@ const CameraTrace = () => {
             const redUnknown = (row, key) => (key === 'person' && row.person === 'Không nhận diện được' ? { fill: 'FEE2E2', color: 'B91C1C', bold: true } : undefined);
             await downloadReport({
                 format,
+                standard: extra,
+                period: { from: fromDate, to: toDateV },
+                docTitle: `Truy vết theo camera / khu vực (${targetLabel})`,
+                dataSource: 'Hệ thống VISMA — camera nhận diện khuôn mặt và biển số',
                 fileName: `Truy-vet-camera_${String(targetLabel).replace(/\s+/g, '-').slice(0, 40)}_${exportedAt.toISOString().slice(0, 10)}`,
                 title: 'BÁO CÁO TRUY VẾT THEO CAMERA / KHU VỰC',
                 subtitle: 'Các lượt camera ghi nhận người / xe trong phạm vi và khung giờ được chọn',
@@ -360,16 +370,16 @@ const CameraTrace = () => {
                             { header: 'Mã camera', key: 'camCode', width: 18 },
                             { header: 'Khu vực', key: 'zone', width: 20 },
                             { header: 'Nhóm camera', key: 'group', width: 26 },
-                            { header: 'Mã ảnh bằng chứng', key: 'evidence', width: 38 },
+                            { header: 'Mã ảnh bằng chứng', key: 'evidence', width: 38, standard: false },
                         ],
                         rows: detail,
                         cellStyle: redUnknown,
                     },
                 ],
             });
-            toast.success(format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${detail.length} lượt (${{ xlsx: 'Excel', docx: 'Word' }[format]}).`);
+            toast.success(extra.mode === 'standard' ? `Đã tải bản quy chuẩn (${format.toUpperCase()}).` : format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${detail.length} lượt (${{ xlsx: 'Excel', docx: 'Word' }[format]}).`);
         } catch (err) {
-            toast.error(err?.error?.message || err?.message || 'Không xuất được báo cáo.');
+            return { success: false, message: err?.error?.message || err?.message || 'Không xuất được báo cáo.' };
         } finally {
             setBusyFormat(null);
         }
@@ -378,9 +388,9 @@ const CameraTrace = () => {
     const currentMode = MODES.find((m) => m.key === mode);
 
     return (
-        <div className="space-y-6 p-6 max-w-7xl mx-auto">
+        <div data-page-surface="wide" className="space-y-6 p-6 max-w-7xl mx-auto">
             <div className="border-b border-platinum-tint pb-[1.25rem]">
-                <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                     <Route className="w-6 h-6 text-action-blue" />
                     Truy vết theo camera / khu vực
                 </h2>
@@ -390,7 +400,7 @@ const CameraTrace = () => {
                 </p>
             </div>
 
-            <div className="bg-white p-[1.25rem] rounded-2xl border border-platinum-tint shadow-sm space-y-4">
+            <FilterBar variant="card" className="bg-white p-[1.25rem] rounded-2xl border border-platinum-tint shadow-sm space-y-4">
                 <div className="inline-flex flex-wrap p-1 rounded-xl bg-cloud-mist/70 border border-platinum-tint gap-1" role="tablist" aria-label="Tra theo">
                     {MODES.map((m) => (
                         <button key={m.key} type="button" role="tab" aria-selected={mode === m.key}
@@ -401,16 +411,15 @@ const CameraTrace = () => {
                     ))}
                 </div>
 
-                <div className="grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] gap-[1rem] items-start">
-                    <div className="space-y-1.5">
+                <div data-filter-grid className="grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] gap-[1rem] items-start">
+                    <div className="camai-filter-field space-y-1.5">
                         <label htmlFor="trace-target" className={labelCls}>{currentMode.label} *</label>
                         <select id="trace-target" value={targetId} onChange={(e) => setTargetId(e.target.value)} className={`${inputCls} w-full`}>
                             <option value="">— Chọn —</option>
                             {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                         </select>
-                        <p className="text-[11px] text-slate-400">{currentMode.hint}</p>
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="camai-filter-field space-y-1.5">
                         <label htmlFor="trace-range" className={labelCls}>Khoảng thời gian</label>
                         <select id="trace-range" value={quick} onChange={(e) => applyQuick(e.target.value)} className={`${inputCls} w-full`}>
                             {QUICK_RANGES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
@@ -418,36 +427,33 @@ const CameraTrace = () => {
                         </select>
                     </div>
                     <div className="space-y-1.5">
-                        <span className={`${labelCls} invisible`} aria-hidden="true">Thao tác</span>
+                        <span data-ui-text="label" data-filter-label className={`${labelCls} invisible`} aria-hidden="true">Thao tác</span>
                         <div className="flex items-center gap-2">
                             <button type="button" onClick={() => run(1)} disabled={loading}
                                 className="inline-flex items-center justify-center gap-2 h-[38px] px-[1.25rem] rounded-xl bg-action-blue text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap">
                                 <Search className="w-4 h-4" />{loading ? 'Đang truy vết...' : 'Truy vết'}
                             </button>
-                            {result && (
-                                <button type="button" onClick={() => run(page)} disabled={loading} aria-label="Làm mới" title="Làm mới"
-                                    className="inline-flex items-center justify-center h-[38px] w-[38px] rounded-xl border border-platinum-tint text-midnight-indigo hover:bg-cloud-mist disabled:opacity-50">
-                                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                                </button>
-                            )}
+
                         </div>
                     </div>
                 </div>
 
+                <p data-ui-text="secondary" className="text-[11px] text-slate-400">{currentMode.hint}</p>
+
                 {quick === 'custom' && (
-                    <div className="grid sm:grid-cols-2 gap-[1rem] md:max-w-2xl">
-                        <div className="space-y-1.5">
+                    <div data-filter-grid className="grid sm:grid-cols-2 gap-[1rem] md:max-w-2xl">
+                        <div className="camai-filter-field space-y-1.5">
                             <label htmlFor="trace-from" className={labelCls}>Từ</label>
                             <input id="trace-from" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} className={`${inputCls} w-full`} />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="camai-filter-field space-y-1.5">
                             <label htmlFor="trace-to" className={labelCls}>Đến</label>
                             <input id="trace-to" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} className={`${inputCls} w-full`} />
                         </div>
                     </div>
                 )}
                 {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-            </div>
+            </FilterBar>
 
             {result && (
                 <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
@@ -456,21 +462,31 @@ const CameraTrace = () => {
                             <div className="min-w-0 flex-1">
                                 <h3 className="font-bold text-midnight-indigo text-sm">
                                     Kết quả truy vết
-                                    <span className="ml-2 text-xs font-semibold text-slate-blue">{total} lượt{filtered ? ' (đã lọc)' : ''}</span>
+                                    <span data-ui-text="primary" className="ml-2 text-xs font-semibold text-slate-blue">{total} lượt{filtered ? ' (đã lọc)' : ''}</span>
                                 </h3>
-                                <p className="text-[11px] text-slate-blue mt-0.5 truncate" title={result.devices.map((d) => d.deviceName).join(', ')}>
+                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-0.5 truncate" title={result.devices.map((d) => d.deviceName).join(', ')}>
                                     {result.devices.length} camera được tra
                                     {result.devices.length > 0 && <>: {result.devices.slice(0, 6).map((d) => d.deviceName).join(', ')}{result.devices.length > 6 ? '…' : ''}</>}
                                 </p>
                             </div>
-                            <ExportMenu compact onExport={handleExport} busyFormat={busyFormat} disabled={loading || total === 0} />
+                            <ReportActions>
+                                <ExportMenu compact askMode initialRange={{ from: from.slice(0, 10), to: to.slice(0, 10) }} filterSummary={[`Đối tượng: ${options.find(item => item.id === targetId)?.label || currentMode.label}`, kindFilter ? `Loại sự kiện: ${KIND_LABEL[kindFilter] || kindFilter}` : 'Tất cả loại sự kiện', nameFilter ? `Tìm kiếm: ${nameFilter}` : '']} onExport={handleExport} busyFormat={busyFormat} disabled={loading || total === 0} />
+                                <RefreshButton
+                                    type="button"
+                                    onClick={() => run(page)}
+                                    disabled={loading}
+                                    aria-label="Làm mới"
+                                    title="Làm mới"
+                                    busy={loading}
+                                />
+                            </ReportActions>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <FilterBar variant="inline" className="flex flex-wrap items-center gap-2">
                             <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} aria-label="Loại sự kiện" className={`${inputCls} !py-1.5 text-xs`}>
                                 <option value="">Mọi loại sự kiện</option>
                                 {Object.entries(KIND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                             </select>
-                            <div className="relative">
+                            <div data-filter-search className="relative">
                                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} placeholder="Lọc theo tên / mã / biển số"
                                     aria-label="Lọc theo tên, mã hoặc biển số" className={`${inputCls} !py-1.5 !pl-8 text-xs w-60`} />
@@ -478,7 +494,7 @@ const CameraTrace = () => {
                             {filtered && (
                                 <button type="button" onClick={() => { setKindFilter(''); setNameFilter(''); }} className="text-xs font-semibold text-action-blue hover:underline">Bỏ lọc</button>
                             )}
-                        </div>
+                        </FilterBar>
                     </div>
 
                     {result.devices.length === 0 ? (
@@ -487,7 +503,15 @@ const CameraTrace = () => {
                         <p className="py-14 text-center text-sm text-slate-400">{filtered ? 'Không có sự kiện nào khớp bộ lọc.' : 'Không có sự kiện nào trong khoảng thời gian này.'}</p>
                     ) : (
                         <div className={`overflow-x-auto transition-opacity ${loading ? 'opacity-60' : ''}`}>
-                            <table className="w-full min-w-[860px] table-fixed text-left">
+                            <ResponsiveTable className="w-full min-w-[1200px] table-fixed text-left">
+<colgroup>
+<col style={{ width: '16%' }} />
+<col style={{ width: '25%' }} />
+<col style={{ width: '16%' }} />
+<col style={{ width: '17%' }} />
+<col style={{ width: '18%' }} />
+<col style={{ width: '8%' }} />
+</colgroup>
                                 <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                                     <tr className="text-[11px] text-slate-blue">
                                         {COLUMNS.map((c) => <SortHeader key={c.key} column={c} sort={sort} onSort={toggleSort} />)}
@@ -496,14 +520,14 @@ const CameraTrace = () => {
                                 <tbody className="divide-y divide-platinum-tint">
                                     {events.map((e) => (
                                         <tr key={`${e.kind}-${e.id}`} className="hover:bg-cloud-mist/30 align-middle">
-                                            <td className="px-[1rem] py-[0.75rem] text-xs font-mono tabular-nums text-slate-blue">{fmtDateTime(e.time)}</td>
+                                            <td data-ui-text="primary" className="px-[1rem] py-[0.75rem] text-xs font-mono tabular-nums text-slate-blue">{fmtDateTime(e.time)}</td>
                                             <td className="px-[1rem] py-[0.75rem] text-sm min-w-0">
                                                 {e.userName ? (
                                                     <>
                                                         <span className="flex items-center gap-1.5 font-semibold text-midnight-indigo min-w-0">
                                                             <UserRound className="w-3.5 h-3.5 text-slate-400 shrink-0" /><span className="truncate" title={e.userName}>{e.userName}</span>
                                                         </span>
-                                                        {e.employeeCode && <span className="block text-[10px] text-slate-400 pl-[1.25rem]">{e.employeeCode}</span>}
+                                                        {e.employeeCode && <span data-ui-text="secondary" className="block text-[10px] text-slate-400 pl-[1.25rem]">{e.employeeCode}</span>}
                                                         {canOpenJourney && e.userId && (
                                                             <Link to={`${base}/user-journey?userId=${e.userId}`} className="block pl-[1.25rem] text-[10px] text-action-blue font-semibold">Xem hành trình người này →</Link>
                                                         )}
@@ -511,7 +535,7 @@ const CameraTrace = () => {
                                                 ) : e.plateNumber ? (
                                                     <span className="font-mono text-xs px-1.5 py-0.5 bg-slate-900 text-white rounded">{e.plateNumber}</span>
                                                 ) : (
-                                                    <span className="text-xs font-semibold text-red-600">Không nhận diện được</span>
+                                                    <span data-ui-text="primary" className="text-xs font-semibold text-red-600">Không nhận diện được</span>
                                                 )}
                                             </td>
                                             <td className="px-[1rem] py-[0.75rem] text-xs min-w-0">
@@ -519,17 +543,17 @@ const CameraTrace = () => {
                                                     {e.kind === 'meeting' ? <DoorOpen className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
                                                     <span className="truncate" title={describe(e)}>{describe(e)}</span>
                                                 </span>
-                                                <span className="block text-[10px] text-slate-400 pl-[1.25rem]">{KIND_LABEL[e.kind]}</span>
+                                                <span data-ui-text="secondary" className="block text-[10px] text-slate-400 pl-[1.25rem]">{KIND_LABEL[e.kind]}</span>
                                             </td>
                                             <td className="px-[1rem] py-[0.75rem] text-xs min-w-0">
                                                 <span className="flex items-center gap-1.5 font-semibold text-midnight-indigo min-w-0">
                                                     <Camera className="w-3 h-3 text-slate-400 shrink-0" /><span className="line-clamp-2 break-words" title={e.deviceName || ''}>{e.deviceName || '—'}</span>
                                                 </span>
-                                                {e.deviceCode && <span className="block text-[10px] text-slate-400 pl-[18px] truncate">{e.deviceCode}</span>}
+                                                {e.deviceCode && <span data-ui-text="secondary" className="block text-[10px] text-slate-400 pl-[18px] truncate">{e.deviceCode}</span>}
                                             </td>
                                             <td className="px-[1rem] py-[0.75rem] text-xs text-slate-blue min-w-0">
                                                 <span className="block line-clamp-2 break-words" title={e.zoneName || ''}>{e.zoneName || '—'}</span>
-                                                {e.groupNames?.length > 0 && <span className="block text-[10px] text-slate-400 line-clamp-2 break-words" title={e.groupNames.join(', ')}>{e.groupNames.join(', ')}</span>}
+                                                {e.groupNames?.length > 0 && <span data-ui-text="secondary" className="block text-[10px] text-slate-400 line-clamp-2 break-words" title={e.groupNames.join(', ')}>{e.groupNames.join(', ')}</span>}
                                             </td>
                                             <td className="px-[1rem] py-[0.75rem] text-center">
                                                 {e.snapshotEventId ? (
@@ -540,22 +564,21 @@ const CameraTrace = () => {
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                            </ResponsiveTable>
                         </div>
                     )}
 
-                    <div className="px-[1.25rem] py-[0.75rem] border-t border-platinum-tint flex flex-wrap items-center justify-between gap-2 text-xs text-slate-blue">
-                        <span>
-                            {total > 0 ? `Hiển thị ${rangeStart}–${rangeEnd} / ${total} lượt` : '0 lượt'} · camera bắn liên tục được gộp 1 dòng/phút
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <span className="tabular-nums">Trang {page}{total > 0 ? ` / ${Math.max(1, Math.ceil(total / PAGE_SIZE))}` : ''}</span>
-                            <button type="button" disabled={page <= 1 || loading} onClick={() => run(page - 1)}
-                                className="p-2 rounded-lg border border-platinum-tint disabled:opacity-40" aria-label="Trang trước"><ChevronLeft className="w-4 h-4" /></button>
-                            <button type="button" disabled={!result.hasMore || loading} onClick={() => run(page + 1)}
-                                className="p-2 rounded-lg border border-platinum-tint disabled:opacity-40" aria-label="Trang sau"><ChevronRight className="w-4 h-4" /></button>
-                        </div>
-                    </div>
+                    <PaginationFooter
+                        currentPage={page}
+                        totalItems={total}
+                        pageSize={PAGE_SIZE}
+                        onPageChange={run}
+                        itemLabel={"lượt"}
+                        loading={loading}
+                        hasNextPage={Boolean(result.hasMore)}
+                        visibleCount={events.length}
+                        note={"Camera ghi nhận liên tục được gộp 1 dòng/phút"}
+                     onPageSizeChange={size => { setPageSize(size); setPage(1); }} />
                 </div>
             )}
 

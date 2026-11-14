@@ -1,0 +1,165 @@
+/* Typography from the security-alert reference, limited to the five operational roles.
+   Small metadata, badges, chart labels, document content and monospace identifiers
+   keep their own sizes. Teacher/Student and public routes do not enable this scope. */
+body[data-standard-typography] {
+    --app-ui-font: 'Montserrat', 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) {
+    font-family: var(--app-ui-font);
+    font-size: 14px;
+    line-height: 20px;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) :is(h1, [data-page-title]):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    line-height: 32px !important;
+    letter-spacing: normal !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) :is([data-page-description], h1 + p, [data-page-title] + p):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 20px !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) h2:not([data-page-title]):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 24px !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) h3:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    line-height: 20px !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) :is(.font-black, .font-extrabold):not(.font-mono):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-weight: 700 !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) :is(input, select, textarea, button):not(.font-mono):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-family: inherit;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) :is(.font-gilroy, [class*="Montserrat-SemiBold"], [class*="Montserrat-Bold"]):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-family: inherit !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) thead th:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 18px !important;
+    letter-spacing: 0.025em !important;
+    text-transform: uppercase;
+    white-space: nowrap;
+    text-wrap: nowrap;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"]) thead th button:not(:where([data-typography-preserve] *, .rich-text *, .docx-wrapper *)) {
+    white-space: inherit;
+    text-wrap: inherit;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) tbody td:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 14px !important;
+    line-height: 20px;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) tbody td :is(p.font-bold:first-child, p.font-semibold:first-child):not([data-ui-text]):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 14px !important;
+    line-height: 20px;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) tbody td button:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 18px;
+}
+
+body[data-standard-typography] :is([role="dialog"], body > .fixed) :is(h2, h3):not([data-page-title]):not(:where([data-typography-preserve], [data-typography-preserve] *, .rich-text *, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 18px !important;
+    line-height: 26px !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) label:not(:has(input:is([type="checkbox"], [type="radio"]))):not(.sr-only):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 18px;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 20px;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) label > span.uppercase:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 18px;
+}
+
+/* Text roles distinguish data from action buttons in tables, lists and dialogs.
+   Opt-in markers preserve specialized document, chart and calendar rendering. */
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) [data-ui-text="primary"]:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-family: var(--app-ui-font) !important;
+    font-size: 14px !important;
+    line-height: 20px !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) :is([data-ui-text="secondary"], [data-ui-text="badge"], [data-ui-text="label"], [data-ui-text="action"]):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-family: var(--app-ui-font) !important;
+    font-size: 12px !important;
+    line-height: 18px !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) [data-ui-text="secondary"]:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) { font-weight: 400 !important; }
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) :is([data-ui-text="badge"], [data-ui-text="action"]):not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) { font-weight: 600 !important; }
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) [data-ui-text="label"]:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) { font-weight: 700 !important; }
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) [data-ui-text="code"]:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-size: 12px !important;
+    line-height: 18px !important;
+}
+
+/* Descriptive card content uses the same reading size as main page content. */
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) [data-ui-text="body"]:not(:where([data-typography-preserve], [data-typography-preserve] *, [contenteditable="true"], [contenteditable="true"] *, .rich-text, .rich-text *, .docx-wrapper, .docx-wrapper *, .react-datepicker, .react-datepicker *)) {
+    font-family: var(--app-ui-font) !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 20px !important;
+    letter-spacing: normal;
+}
+
+/* Names and primary links use one emphasis level; primary labels remain readable. */
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) [data-ui-text="primary"]:is(.font-bold, .font-semibold, .font-extrabold, .font-black):not(:where([data-typography-preserve] *, .rich-text *, .docx-wrapper *, .react-datepicker *)) {
+    font-weight: 600 !important;
+}
+
+body[data-standard-typography] :is(main, [role="dialog"], body > .fixed) [data-ui-text="primary"].truncate:not(:where([data-typography-preserve] *, .rich-text *, .docx-wrapper *, .react-datepicker *)) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+}
+
+/* Small chart legends need readable labels on narrow screens as well. */
+body[data-standard-typography] .camai-attachment-tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+}
+body[data-standard-typography] .camai-attachment-tabs > button {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: left;
+}
+
+body[data-standard-typography] [data-ui-legend-grid] {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 90px), 1fr));
+}
+body[data-standard-typography] [data-ui-legend-grid] > div {
+    padding: 8px !important;
+}

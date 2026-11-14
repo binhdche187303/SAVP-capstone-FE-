@@ -1,17 +1,23 @@
+import DateInput from '../../components/common/DateInput';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ReportExportAction from '../../components/common/ReportExportAction';
+import StatisticCard from '../../components/common/StatisticCard';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Download, Info, LogIn, LogOut, RefreshCw, Trash2, Users, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Download, Info, LogIn, LogOut, RefreshCw, Users, X } from 'lucide-react';
 import {
-    clearClassAttendanceRecords,
+    DEFAULT_CLASS_ATTENDANCE_SETTINGS,
     exportClassAttendanceCsv,
     fetchClassAttendanceClasses,
     fetchClassAttendanceRows,
     fetchClassAttendanceEvents,
     fetchClassAttendanceSettings,
-    getClassAttendanceSettings,
-    getClassSession,
-    scanClassAttendance,
+    fetchClassSessions,
+    scanClassAttendance
 } from '../../service/classAttendanceService';
 
 const statusClass = {
@@ -103,13 +109,15 @@ const captureFrame = (videoRef) => {
     }
 };
 
-const StatCard = ({ label, value, helper }) => (
+const LegacyStatCard = ({ label, value, helper }) => (
     <div className="bg-white border border-platinum-tint rounded-2xl p-4 shadow-sm">
         <p className="text-[10px] font-bold uppercase tracking-wide text-slate-blue">{label}</p>
         <p className="text-2xl font-bold text-midnight-indigo mt-1">{value}</p>
         <p className="text-xs text-steel-gray mt-1">{helper}</p>
     </div>
 );
+
+const StatCard = (props) => <StatisticCard label={props.label} value={props.value} helper={props.helper} legacy={<LegacyStatCard {...props} />} />;
 
 const getTodayKey = () => {
     const now = new Date();
@@ -119,17 +127,12 @@ const getTodayKey = () => {
     return `${year}-${month}-${day}`;
 };
 
+const formatDayLabel = (dateKey) => new Date(`${dateKey}T00:00:00`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 
-
-const getScheduleStartMinutes = (schedule = '') => {
-    const match = String(schedule).match(/(\d{1,2}):(\d{2})/);
-    return match ? Number(match[1]) * 60 + Number(match[2]) : Number.MAX_SAFE_INTEGER;
-};
-
-const getWeekdaySortValue = (weekday) => {
-    const value = Number(weekday);
-    return value === 0 ? 7 : value;
-};
+/** Buổi học thật của lớp trong ngày đang xem (từ /class-attendance/sessions). */
+const describeSession = (session, dateKey) => session
+    ? { schedule: `${formatDayLabel(dateKey)} ${session.startTime} - ${session.endTime}`, room: session.room || 'Chưa có phòng' }
+    : { schedule: `Không có buổi học ngày ${formatDayLabel(dateKey)}`, room: '—' };
 
 const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     const location = useLocation();
@@ -137,16 +140,18 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     const queryClassId = attendanceQuery.get('classId') || '';
     const queryAdministrativeClass = attendanceQuery.get('administrativeClass') || '';
     const [classrooms, setClassrooms] = useState([]);
+    const [daySessions, setDaySessions] = useState([]);
+    const [loadError, setLoadError] = useState('');
     const [selectedClassId, setSelectedClassId] = useState(queryClassId);
     const [selectedDate, setSelectedDate] = useState(getTodayKey);
-    const [selectedSemester, setSelectedSemester] = useState('');
+    const [selectedSemester, setSelectedSemester] = useState('all');
     const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState(queryAdministrativeClass);
     const [classPage, setClassPage] = useState(1);
     const [eventPage, setEventPage] = useState(1);
     const [rows, setRows] = useState([]);
     const [attendanceEvents, setAttendanceEvents] = useState([]);
-    const [settings, setSettings] = useState(getClassAttendanceSettings(queryClassId || undefined));
+    const [settings, setSettings] = useState(DEFAULT_CLASS_ATTENDANCE_SETTINGS);
     const [scanDirection, setScanDirection] = useState('in');
     const [autoScan, setAutoScan] = useState(false);
     const [scanNotice, setScanNotice] = useState(null);
@@ -159,15 +164,23 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         () => selectedClassId ? classrooms.find(item => item.id === selectedClassId) || null : null,
         [classrooms, selectedClassId]
     );
+    const sessionByClass = useMemo(() => {
+        const map = new Map();
+        daySessions.forEach(session => { if (!map.has(session.classId)) map.set(session.classId, session); });
+        return map;
+    }, [daySessions]);
     const selectedSession = useMemo(
-        () => getClassSession(selectedClass, selectedAdministrativeClass),
-        [selectedClass, selectedAdministrativeClass]
+        () => describeSession(sessionByClass.get(selectedClassId), selectedDate),
+        [sessionByClass, selectedClassId, selectedDate]
     );
 
-    const semesters = useMemo(() => [...new Set(classrooms.map(item => item.semester).filter(Boolean))].sort((a, b) => b.localeCompare(a, 'vi')), [classrooms]);
+    const semesters = useMemo(
+        () => [...new Set(classrooms.map(item => item.semester).filter(Boolean))].sort((a, b) => b.localeCompare(a, 'vi')),
+        [classrooms]
+    );
 
     const semesterClassrooms = useMemo(
-        () => classrooms.filter(item => !selectedSemester || item.semester === selectedSemester),
+        () => classrooms.filter(item => selectedSemester === 'all' || item.semester === selectedSemester),
         [classrooms, selectedSemester]
     );
 
@@ -187,45 +200,29 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         [selectedSubjectCode, semesterClassrooms]
     );
 
-    const classOptions = useMemo(() => {
-        const options = new Map();
-        subjectClassrooms.forEach(item => {
-            const subjectCode = item.subjectCode || item.code || item.id;
-            const classNames = item.classNames || item.administrativeClasses || ['Chưa cập nhật'];
-            classNames.forEach(className => {
-                if (selectedAdministrativeClass && className !== selectedAdministrativeClass) return;
-                const key = `${subjectCode}-${className}`;
-                if (!options.has(key)) {
-                    options.set(key, {
-                        id: item.id,
-                        className,
-                        subjectCode,
-                        subject: item.subject,
-                        ...getClassSession(item, className),
-                        label: `${subjectCode} - ${className}`
-                    });
-                }
-            });
-        });
-        return [...options.values()].sort((left, right) => {
-            const weekdayDiff = getWeekdaySortValue(left.scheduleWeekday) - getWeekdaySortValue(right.scheduleWeekday);
-            if (weekdayDiff !== 0) return weekdayDiff;
+    // Mỗi thẻ = 1 lớp học phần thật. Lớp có buổi học trong ngày đang xem lên trước (theo giờ bắt đầu).
+    const classOptions = useMemo(() => subjectClassrooms
+        .filter(item => !selectedAdministrativeClass || (item.administrativeClasses || []).includes(selectedAdministrativeClass))
+        .map(item => {
+            const session = sessionByClass.get(item.id);
+            return { ...item, session, ...describeSession(session, selectedDate) };
+        })
+        .sort((left, right) => {
+            if (Boolean(left.session) !== Boolean(right.session)) return left.session ? -1 : 1;
+            if (left.session && right.session && left.session.startTime !== right.session.startTime) {
+                return left.session.startTime.localeCompare(right.session.startTime);
+            }
+            return String(left.code).localeCompare(String(right.code), 'vi');
+        }), [selectedAdministrativeClass, selectedDate, sessionByClass, subjectClassrooms]);
 
-            const timeDiff = getScheduleStartMinutes(left.schedule) - getScheduleStartMinutes(right.schedule);
-            if (timeDiff !== 0) return timeDiff;
-
-            return left.label.localeCompare(right.label, 'vi');
-        });
-    }, [selectedAdministrativeClass, subjectClassrooms]);
-
-    const classesPerPage = 8;
+    const [classesPerPage, setClassesPerPage] = useState(8);
     const classPageCount = Math.max(1, Math.ceil(classOptions.length / classesPerPage));
     const visibleClassOptions = classOptions.slice((classPage - 1) * classesPerPage, classPage * classesPerPage);
 
     const administrativeClassOptions = useMemo(
-        () => [...new Set(subjectClassrooms.flatMap(item => item.classNames || item.administrativeClasses || []))]
+        () => [...new Set((selectedClass ? [selectedClass] : subjectClassrooms).flatMap(item => item.administrativeClasses || []))]
             .sort((a, b) => a.localeCompare(b, 'vi')),
-        [subjectClassrooms]
+        [selectedClass, subjectClassrooms]
     );
 
     const filteredRows = useMemo(
@@ -243,47 +240,48 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         missing: filteredRows.filter(row => !row.checkInAt).length
     }), [filteredRows]);
 
-    const eventsPerPage = 5;
+    const [eventsPerPage, setEventsPerPage] = useState(5);
     const eventPageCount = Math.max(1, Math.ceil(attendanceEvents.length / eventsPerPage));
     const visibleAttendanceEvents = useMemo(
         () => attendanceEvents.slice((eventPage - 1) * eventsPerPage, eventPage * eventsPerPage),
-        [attendanceEvents, eventPage]
+        [attendanceEvents, eventPage, eventsPerPage]
     );
 
     const refresh = useCallback(() => {
         let cancelled = false;
         const load = async () => {
             try {
-                const apiClasses = await fetchClassAttendanceClasses(selectedDate);
-                const nextClasses = apiClasses;
-                const resolvedClass = nextClasses.find(item => item.id === selectedClassId);
-                const nextClassId = resolvedClass
-                    ? resolvedClass.id
-                    : (mode === 'teacher' ? '' : nextClasses[0]?.id || '');
+                const [apiClasses, apiSessions] = await Promise.all([
+                    fetchClassAttendanceClasses(),
+                    fetchClassSessions(selectedDate, selectedDate).catch(() => [])
+                ]);
+                if (cancelled) return;
+                setClassrooms(apiClasses);
+                setDaySessions(apiSessions);
+                setLoadError('');
+                const exists = apiClasses.some(item => item.id === selectedClassId);
+                const nextClassId = exists ? selectedClassId : (mode === 'teacher' ? '' : apiClasses[0]?.id || '');
+                if (nextClassId !== selectedClassId) setSelectedClassId(nextClassId);
                 if (!nextClassId) {
-                    if (cancelled) return;
-                    setClassrooms(nextClasses);
                     setRows([]);
-                    setSettings(getClassAttendanceSettings());
+                    setAttendanceEvents([]);
+                    setSettings(DEFAULT_CLASS_ATTENDANCE_SETTINGS);
                     return;
                 }
                 const [apiRows, apiSettings, apiEvents] = await Promise.all([
                     fetchClassAttendanceRows(nextClassId, selectedDate),
-                    fetchClassAttendanceSettings(nextClassId, selectedAdministrativeClass).catch(() => getClassAttendanceSettings(nextClassId, selectedAdministrativeClass)),
+                    fetchClassAttendanceSettings(nextClassId, selectedAdministrativeClass).catch(() => DEFAULT_CLASS_ATTENDANCE_SETTINGS),
                     fetchClassAttendanceEvents(nextClassId, selectedDate).catch(() => [])
                 ]);
                 if (cancelled) return;
-                setClassrooms(nextClasses);
-                if (nextClassId !== selectedClassId) setSelectedClassId(nextClassId);
                 setRows(apiRows);
                 setAttendanceEvents(apiEvents);
-                setSettings({ ...getClassAttendanceSettings(nextClassId, selectedAdministrativeClass), ...apiSettings });
-            } catch {
+                setSettings({ ...DEFAULT_CLASS_ATTENDANCE_SETTINGS, ...apiSettings });
+            } catch (error) {
                 if (cancelled) return;
-                setClassrooms([]);
+                setLoadError(error?.message || 'Không tải được dữ liệu lớp học. Vui lòng thử lại.');
                 setRows([]);
                 setAttendanceEvents([]);
-                setScanNotice({ type: 'error', message: 'Không tải được dữ liệu điểm danh. Vui lòng kiểm tra kết nối và thử lại.' });
             }
         };
         load();
@@ -305,10 +303,10 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     }, [selectedClassId, selectedDate, selectedAdministrativeClass]);
 
     useEffect(() => {
-        if (classrooms.length > 0 && selectedAdministrativeClass && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
+        if (selectedAdministrativeClass && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
             setSelectedAdministrativeClass('');
         }
-    }, [classrooms.length, administrativeClassOptions, selectedAdministrativeClass]);
+    }, [administrativeClassOptions, selectedAdministrativeClass]);
 
     useEffect(() => {
         if (selectedSubjectCode !== 'all' && !subjectOptions.some(subject => subject.code === selectedSubjectCode)) {
@@ -317,13 +315,13 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     }, [selectedSubjectCode, subjectOptions]);
 
     useEffect(() => {
-        if (classrooms.length > 0 && selectedClassId && !subjectClassrooms.some(item => item.id === selectedClassId)) {
+        if (classrooms.length && selectedClassId && !subjectClassrooms.some(item => item.id === selectedClassId)) {
             setSelectedClassId(mode === 'teacher' ? '' : subjectClassrooms[0]?.id || '');
             setRows([]);
-            setAttendanceEvents([]);
+                    setAttendanceEvents([]);
             setSelectedAdministrativeClass('');
         }
-    }, [classrooms.length, mode, selectedClassId, semesterClassrooms, subjectClassrooms]);
+    }, [classrooms.length, mode, selectedClassId, subjectClassrooms]);
 
     useEffect(() => {
         setClassPage(1);
@@ -401,14 +399,19 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         } catch {
             setScanNotice({
                 type: 'warning',
-                message: 'Không mở được webcam. Hệ thống sẽ dùng cam ảo để test điểm danh.'
+                message: 'Không mở được webcam. Cần webcam/camera để quét điểm danh.'
             });
         }
     };
 
     const performScan = useCallback(async () => {
+        if (!webcamEnabled) {
+            setScanNotice({ type: 'warning', message: 'Bật webcam trước khi quét điểm danh.' });
+            setAutoScan(false);
+            return;
+        }
         const snapshotImageBase64 = captureFrame(videoRef) || lastWebcamFrameRef.current;
-        if (webcamEnabled && !snapshotImageBase64) {
+        if (!snapshotImageBase64) {
             const nextNotice = {
                 type: 'warning',
                 message: 'Chưa chụp được ảnh từ webcam. Vui lòng chờ camera hiển thị rõ rồi quét lại.'
@@ -420,17 +423,16 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         let result;
         try {
             result = await scanClassAttendance({ classId: selectedClassId, administrativeClass: selectedAdministrativeClass, direction: scanDirection, snapshotImageBase64 });
-        } catch {
-            setScanNotice({ type: 'error', message: 'Không gửi được lượt quét. Vui lòng thử lại.', detail: 'Không tạo bản ghi điểm danh mới.' });
+        } catch (error) {
+            setScanNotice({ type: 'error', message: error?.message || 'Không gửi được lượt quét lên máy chủ.', detail: 'Không tạo bản ghi điểm danh mới.' });
             return;
         }
         const nextMessage = result?.data?.message || result.message || 'Đã xử lý lượt quét.';
-        const succeeded = result.success && result?.data?.operationSuccess !== false;
         const nextNotice = {
-            type: succeeded ? 'success' : ((result.warning || result?.data?.warning) ? 'warning' : 'error'),
+            type: result.success ? 'success' : (result.warning ? 'warning' : 'error'),
             message: nextMessage,
-            detail: succeeded
-                ? `Đã lưu ảnh bằng chứng từ ${snapshotImageBase64 ? 'webcam' : 'cam ảo'} tại thời điểm quét.`
+            detail: result.success
+                ? 'Đã lưu ảnh bằng chứng từ webcam tại thời điểm quét.'
                 : 'Không tạo bản ghi điểm danh mới.'
         };
         setScanNotice(nextNotice);
@@ -470,7 +472,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <input
+                    <DateInput
                         type="date"
                         value={selectedDate}
                         onChange={(event) => setSelectedDate(event.target.value)}
@@ -483,7 +485,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         className="px-4 py-2.5 rounded-xl border border-platinum-tint bg-white text-xs font-semibold text-midnight-indigo"
                         aria-label="Lọc theo học kỳ"
                     >
-                        <option value="">Tất cả học kỳ</option>
+                        <option value="all">Tất cả học kỳ</option>
                         {semesters.map(semester => (
                             <option key={semester} value={semester}>{semester}</option>
                         ))}
@@ -523,6 +525,12 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                 </div>
             </div>
 
+            {loadError && (
+                <div role="alert" className="flex items-center gap-2 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">
+                    <AlertCircle className="w-4 h-4" /> {loadError}
+                </div>
+            )}
+
             {mode === 'teacher' && !selectedClassId ? (
                 <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
                     <div className="px-6 py-5 border-b border-platinum-tint bg-cloud-mist/20">
@@ -530,42 +538,34 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                             <Users className="w-7 h-7 text-action-blue" />
                             <div>
                                 <h2 className="text-base font-bold text-midnight-indigo">Các lớp được phân công</h2>
-                                <p className="mt-1 text-xs text-slate-blue">Chọn lớp để xem danh sách sinh viên và thực hiện điểm danh.</p>
+                                <p className="mt-1 text-xs text-slate-blue">Lớp học phần đồng bộ từ UEL; lịch và phòng theo buổi học của ngày đang chọn. Chọn lớp để xem danh sách sinh viên và điểm danh.</p>
                             </div>
                         </div>
                     </div>
                     <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                         {visibleClassOptions.length === 0 ? (
                             <p className="md:col-span-2 px-3 py-8 text-center text-sm text-slate-blue">Chưa có lớp được phân công.</p>
-                        ) : visibleClassOptions.map(item => {
-                            const classItem = classrooms.find(klass => klass.id === item.id);
-                            const session = getClassSession(classItem, item.className);
-                            return (
-                                <button
-                                    key={`${item.id}-${item.className}`}
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedClassId(item.id);
-                                        setSelectedAdministrativeClass(item.className);
-                                    }}
-                                    className="p-4 rounded-xl border border-platinum-tint bg-white text-left hover:border-action-blue hover:bg-blue-50/40 transition-colors"
-                                >
-                                    <p className="text-sm font-bold text-midnight-indigo">{item.subjectCode} - {item.className}</p>
-                                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-blue">
-                                        <span><strong className="text-midnight-indigo">Môn:</strong> {classItem?.subject || 'Chưa cập nhật'}</span>
-                                        <span><strong className="text-midnight-indigo">Lớp:</strong> {item.className}</span>
-                                        <span><strong className="text-midnight-indigo">Giảng viên:</strong> {classItem?.teacher || 'Chưa cập nhật'}</span>
-                                        <span><strong className="text-midnight-indigo">Lịch:</strong> {session.schedule}</span>
-                                        <span><strong className="text-midnight-indigo">Phòng:</strong> {session.room}</span>
-                                        <span><strong className="text-midnight-indigo">Học kỳ:</strong> {classItem?.semester || 'Chưa cập nhật'}</span>
-                                    </div>
-                                    <p className="mt-2 text-xs font-semibold text-action-blue">Sĩ số: {classItem?.studentCount ?? classItem?.students?.length ?? 0} sinh viên</p>
-                                </button>
-                            );
-                        })}
+                        ) : visibleClassOptions.map(item => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setSelectedClassId(item.id)}
+                                className={`p-4 rounded-xl border text-left hover:border-action-blue hover:bg-blue-50/40 transition-colors ${item.session ? 'border-blue-200 bg-blue-50/20' : 'border-platinum-tint bg-white'}`}
+                            >
+                                <p className="text-sm font-bold text-midnight-indigo">{item.subjectCode} - {item.code}</p>
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-blue">
+                                    <span><strong className="text-midnight-indigo">Môn:</strong> {item.subject || 'Chưa cập nhật'}</span>
+                                    <span><strong className="text-midnight-indigo">Lớp HP:</strong> {item.code}</span>
+                                    <span><strong className="text-midnight-indigo">Giảng viên:</strong> {item.teacher || 'Chưa cập nhật'}</span>
+                                    <span><strong className="text-midnight-indigo">Lịch:</strong> {item.schedule}</span>
+                                    <span><strong className="text-midnight-indigo">Phòng:</strong> {item.room}</span>
+                                    <span><strong className="text-midnight-indigo">Học kỳ:</strong> {item.semester || 'Chưa cập nhật'}</span>
+                                </div>
+                                <p className="mt-2 text-xs font-semibold text-action-blue">Sĩ số: {item.studentCount ?? 0} sinh viên</p>
+                            </button>
+                        ))}
                     </div>
-                    {classPageCount > 1 && (
-                        <div className="px-5 py-3 border-t border-platinum-tint flex items-center justify-start gap-3">
+                    {<PaginationRegion legacyVisible={classPageCount > 1}><PaginationFooter currentPage={classPage} totalPages={classPageCount} totalItems={classOptions.length} pageSize={classesPerPage} itemLabel="lớp học" onPageChange={setClassPage} onPageSizeChange={size => { setClassesPerPage(size); setClassPage(1); }} legacy={<div className="px-5 py-3 border-t border-platinum-tint flex items-center justify-start gap-3">
                             <span className="text-xs font-semibold text-slate-blue">Trang {classPage}/{classPageCount}</span>
                             <button
                                 type="button"
@@ -585,16 +585,15 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                             >
                                 <ChevronRight className="w-4 h-4" />
                             </button>
-                        </div>
-                    )}
+                        </div>} /></PaginationRegion>}
                 </div>
             ) : <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <StatCard label="Sĩ số" value={filteredSummary.total} helper={selectedAdministrativeClass || selectedSession.room || 'Chưa chọn lớp'} />
+            <StatisticGrid columns={4} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <StatCard label="Sĩ số" value={filteredSummary.total} helper={selectedAdministrativeClass || selectedClass?.code || 'Chưa chọn lớp'} />
                 <StatCard label="Đã vào lớp" value={filteredSummary.checkedIn} helper={`Bắt đầu ${settings.classStartTime}`} />
                 <StatCard label="Đi muộn" value={filteredSummary.late} helper={`Ngưỡng ${settings.lateThresholdMinutes} phút`} />
                 <StatCard label="Đã rời lớp" value={filteredSummary.left} helper={selectedClass?.semester || selectedSemester} />
-            </div>
+            </StatisticGrid>
 
             {canOperateCamera && (
                 <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
@@ -604,7 +603,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                 <Camera className="w-5 h-5 text-action-blue" />
                                 Camera FaceID lớp học
                             </h2>
-                            <p className="text-xs text-slate-blue mt-1">Bật tự động quét để test bằng webcam. Nếu không có webcam, hệ thống tự dùng cam ảo.</p>
+                            <p className="text-xs text-slate-blue mt-1">Bật webcam rồi quét; mỗi lượt quét gửi khung hình lên máy chủ để nhận diện.</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <button type="button" onClick={toggleWebcam} className="px-4 py-2 rounded-xl border border-platinum-tint bg-white text-xs font-bold text-midnight-indigo">
@@ -633,9 +632,9 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         </div>
                         <div className="rounded-xl border border-platinum-tint bg-cloud-mist/40 p-4">
                             <p className="text-sm font-bold text-midnight-indigo">
-                                {selectedClass?.subject} · {selectedAdministrativeClass || 'Chưa chọn lớp'}
+                                {selectedClass?.subject} · {selectedClass?.code}{selectedAdministrativeClass ? ` · ${selectedAdministrativeClass}` : ''}
                             </p>
-                            <p className="text-xs text-slate-blue mt-1">{selectedSession.schedule} · {selectedClass?.teacher}</p>
+                            <p className="text-xs text-slate-blue mt-1">{selectedSession.schedule} · {selectedSession.room} · {selectedClass?.teacher}</p>
                             <p className="mt-4 text-xs text-slate-blue">Camera sẽ tự nhận diện sinh viên, đối chiếu FaceID đã đăng ký, ghi nhận giờ vào/ra và lưu ảnh bằng chứng tại thời điểm quét.</p>
                         </div>
                     </div>
@@ -649,21 +648,18 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
             <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">
-                        Danh sách sinh viên lớp {selectedAdministrativeClass || 'đã chọn'}
+                        Danh sách sinh viên lớp {selectedClass?.code || 'đã chọn'}{selectedAdministrativeClass ? ` · ${selectedAdministrativeClass}` : ''}
                     </h2>
                     <div className="flex flex-wrap items-center gap-2">
-                        <button type="button" onClick={() => exportClassAttendanceCsv(selectedClassId, selectedDate, filteredRows, selectedClass)} className="px-3 py-2 rounded-xl bg-action-blue text-white text-xs font-bold flex items-center gap-2">
+                        <ReportExportAction format="csv" label="Xuất CSV" type="button" onClick={() => exportClassAttendanceCsv(filteredRows, selectedClass, selectedDate)} disabled={!filteredRows.length} legacyClassName="px-3 py-2 rounded-xl disabled:opacity-50 bg-action-blue text-white text-xs font-bold flex items-center gap-2">
                             <Download className="w-4 h-4" /> Xuất CSV
-                        </button>
-                        {canOperateCamera && (
-                            <button type="button" onClick={() => { clearClassAttendanceRecords(); refresh(); }} className="px-3 py-2 rounded-xl border border-red-200 text-red-600 bg-red-50 text-xs font-bold flex items-center gap-2">
-                                <Trash2 className="w-4 h-4" /> Xóa dữ liệu test
-                            </button>
-                        )}
+                        </ReportExportAction>
                     </div>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <PaginatedCollection items={filteredRows} itemLabel="sinh viên">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-sm">
                         <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
                             <tr>
                                 <th className="text-left px-5 py-4">Sinh viên</th>
@@ -674,7 +670,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredRows.map(row => (
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => (row => (
                                 <tr key={row.id} className="border-t border-platinum-tint/70">
                                     <td className="px-5 py-4">
                                         <p className="font-bold text-midnight-indigo">{row.name}</p>
@@ -695,14 +691,16 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                         )}
                                     </td>
                                 </tr>
-                            ))}
+                            ))(camaiRecord, camaiStartIndex + camaiIndex, (filteredRows)))}
                             {filteredRows.length === 0 && (
                                 <tr>
                                     <td colSpan="5" className="px-5 py-10 text-center text-sm text-slate-blue">Không có dữ liệu phù hợp với bộ lọc.</td>
                                 </tr>
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                 </div>
             </div>
             <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
@@ -713,7 +711,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                     <span className="text-xs font-semibold text-slate-blue">{attendanceEvents.length} lượt ghi nhận</span>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <ResponsiveTable className="w-full text-sm">
                         <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
                             <tr><th className="text-left px-5 py-3">Thời gian</th><th className="text-left px-5 py-3">Sinh viên</th><th className="text-left px-5 py-3">Sự kiện</th><th className="text-left px-5 py-3">Nguồn</th><th className="text-left px-5 py-3">Camera / zone</th><th className="text-left px-5 py-3">Ghi chú</th></tr>
                         </thead>
@@ -730,15 +728,14 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                             ))}
                             {!attendanceEvents.length && <tr><td colSpan="6" className="px-5 py-8 text-center text-sm text-slate-blue">Chưa có lượt vào/ra được ghi nhận trong ngày.</td></tr>}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
                 {attendanceEvents.length > 0 && (
                     <div className="flex items-center justify-between gap-3 border-t border-platinum-tint px-5 py-3">
                         <span className="text-xs text-slate-blue">
                             Hiển thị {(eventPage - 1) * eventsPerPage + 1}–{Math.min(eventPage * eventsPerPage, attendanceEvents.length)} trong {attendanceEvents.length} lượt ghi nhận
                         </span>
-                        {eventPageCount > 1 && (
-                            <div className="flex items-center gap-2">
+                        {<PaginationRegion legacyVisible={eventPageCount > 1}><PaginationFooter currentPage={eventPage} totalPages={eventPageCount} totalItems={attendanceEvents.length} pageSize={eventsPerPage} itemLabel="lượt ghi nhận" onPageChange={setEventPage} onPageSizeChange={size => { setEventsPerPage(size); setEventPage(1); }} legacy={<div className="flex items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => setEventPage(page => Math.max(1, page - 1))}
@@ -760,8 +757,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                     Sau
                                     <ChevronRight className="h-3.5 w-3.5" />
                                 </button>
-                            </div>
-                        )}
+                            </div>} /></PaginationRegion>}
                     </div>
                 )}
             </div>

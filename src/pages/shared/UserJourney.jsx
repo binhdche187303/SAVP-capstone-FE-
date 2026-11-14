@@ -1,3 +1,9 @@
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ReportActions from '../../components/common/ReportActions';
+import StatisticCard from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
 import {
     AlertCircle, ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck,
     Car, Check, Clock, Eye, Image as ImageIcon, Map, MapPin, RefreshCw,
@@ -68,6 +74,7 @@ const getPlace = (event) => {
 
 /* ─── component ───────────────────────────────────────────── */
 const UserJourney = () => {
+    const [eventsPerPage, setEventsPerPage] = useState(10);
     const [searchParams, setSearchParams] = useSearchParams();
 
     const localUser = React.useMemo(() => {
@@ -139,7 +146,7 @@ const UserJourney = () => {
     const [error, setError] = useState(null);
 
     const [page, setPage] = useState(1);
-    const eventsPerPage = 10;
+
 
     const [snapshotEventId, setSnapshotEventId] = useState(null);
     const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
@@ -262,7 +269,7 @@ const UserJourney = () => {
 
     useEffect(() => { setPage(1); }, [typeFilter, placeFilter]);
 
-    const handleExport = async (format) => {
+    const handleExport = async (format, extra = {}) => {
         if (sortedEvents.length === 0) return;
         setBusyFormat(format);
         try {
@@ -290,6 +297,10 @@ const UserJourney = () => {
             sortedEvents.forEach(e => { const t = TYPE_LABELS[(e.type || '').toLowerCase()] || e.type || 'Khác'; byType[t] = (byType[t] || 0) + 1; });
             await downloadReport({
                 format,
+                standard: extra,
+                period: { from: date, to: isRange ? dateTo : date },
+                docTitle: `Lịch sử di chuyển của ${selectedUser?.fullName || journeyData?.fullName || 'nhân sự'}`,
+                dataSource: 'Hệ thống VISMA — camera nhận diện tại cổng, phòng họp và khu vực',
                 fileName: `Hanh-trinh_${who}_${date}${isRange ? `_den_${dateTo}` : ''}`,
                 title: 'BÁO CÁO LỊCH SỬ DI CHUYỂN THEO NGƯỜI',
                 subtitle: 'Các lần camera ghi nhận một người (cổng, phòng họp, khu vực) trong khoảng thời gian đã chọn',
@@ -327,9 +338,9 @@ const UserJourney = () => {
                     rows,
                 }],
             });
-            toast.success(format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${rows.length} sự kiện (${{ xlsx: 'Excel', docx: 'Word' }[format]}).`);
+            toast.success(extra.mode === 'standard' ? `Đã tải bản quy chuẩn (${format.toUpperCase()}).` : format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${rows.length} sự kiện (${{ xlsx: 'Excel', docx: 'Word' }[format]}).`);
         } catch (err) {
-            toast.error(err?.message || 'Không xuất được báo cáo.');
+            return { success: false, message: err?.message || 'Không xuất được báo cáo.' };
         } finally {
             setBusyFormat(null);
         }
@@ -342,7 +353,7 @@ const UserJourney = () => {
     const currentEvents = React.useMemo(() => {
         const start = (page - 1) * eventsPerPage;
         return sortedEvents.slice(start, start + eventsPerPage);
-    }, [sortedEvents, page]);
+    }, [sortedEvents, page, eventsPerPage]);
 
     /* ── Icon node on timeline ── */
     const renderEventIcon = (event) => {
@@ -400,19 +411,19 @@ const UserJourney = () => {
                     <div className="flex flex-wrap items-center gap-2">
                         <div className="flex items-center gap-1.5 bg-white border border-platinum-tint rounded-lg px-2.5 py-1 shadow-sm" title={toVNFull(event.time)}>
                             <Clock className="w-3.5 h-3.5 text-slate-blue shrink-0" />
-                            <span className="text-sm font-black text-midnight-indigo font-mono tabular-nums">{timeStart}</span>
+                            <span data-ui-text="primary" className="text-sm font-black text-midnight-indigo font-mono tabular-nums">{timeStart}</span>
                             {timeEnd && (
                                 <>
                                     <span className="text-slate-blue text-xs">→</span>
-                                    <span className="text-sm font-black text-midnight-indigo font-mono tabular-nums" title={toVNFull(event.endTime)}>{timeEnd}</span>
+                                    <span data-ui-text="primary" className="text-sm font-black text-midnight-indigo font-mono tabular-nums" title={toVNFull(event.endTime)}>{timeEnd}</span>
                                 </>
                             )}
                         </div>
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${tagCls}`}>
+                        <span data-ui-text="badge" className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${tagCls}`}>
                             {tagLabel}
                         </span>
                         {duration && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-blue bg-cloud-mist border border-platinum-tint rounded-full px-2 py-0.5">
+                            <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-blue bg-cloud-mist border border-platinum-tint rounded-full px-2 py-0.5">
                                 <Timer className="w-3 h-3" />
                                 {duration}
                             </span>
@@ -426,7 +437,7 @@ const UserJourney = () => {
 
                     {/* row 3: eventCount (meeting only) */}
                     {type === 'meeting' && event.eventCount > 0 && (
-                        <p className="text-[11px] text-slate-blue flex items-center gap-1">
+                        <p data-ui-text="secondary" className="text-[11px] text-slate-blue flex items-center gap-1">
                             <Video className="w-3.5 h-3.5 text-action-blue shrink-0" />
                             Camera nhận diện <strong className="text-midnight-indigo mx-0.5">{event.eventCount}</strong> lần trong phiên
                         </p>
@@ -439,7 +450,7 @@ const UserJourney = () => {
                     {/* License plate */}
                     {type === 'gate' && event.plateNumber && (
                         <div className="inline-block border-2 border-midnight-indigo rounded bg-white shadow-sm overflow-hidden px-3 py-1.5 text-center min-w-[110px] font-mono select-all">
-                            <div className="text-[8px] text-slate-blue leading-none uppercase font-sans font-bold border-b border-platinum-tint pb-0.5 mb-0.5 tracking-widest">VIỆT NAM</div>
+                            <div data-ui-text="label" className="text-[8px] text-slate-blue leading-none uppercase font-sans font-bold border-b border-platinum-tint pb-0.5 mb-0.5 tracking-widest">VIỆT NAM</div>
                             <div className="text-base font-black text-midnight-indigo tracking-widest leading-none">{event.plateNumber}</div>
                         </div>
                     )}
@@ -454,16 +465,16 @@ const UserJourney = () => {
 
                     {/* Camera nguồn (họp 20/10: mọi log camera phải cho biết camera nào / nhóm nào) */}
                     {(event.deviceName || event.deviceCode) && (
-                        <div className="text-[11px] bg-slate-50 border border-platinum-tint rounded-xl px-3 py-1.5 font-semibold text-slate-blue flex flex-col shadow-sm whitespace-nowrap"
+                        <div data-ui-text="secondary" className="text-[11px] bg-slate-50 border border-platinum-tint rounded-xl px-3 py-1.5 font-semibold text-slate-blue flex flex-col shadow-sm whitespace-nowrap"
                             title={event.groupNames?.length ? `Nhóm: ${event.groupNames.join(', ')}` : undefined}>
                             <span>📷 {event.deviceName || event.deviceCode}</span>
-                            {event.groupNames?.length > 0 && <span className="text-[10px] font-normal text-slate-400">{event.groupNames.join(', ')}</span>}
+                            {event.groupNames?.length > 0 && <span data-ui-text="secondary" className="text-[10px] font-normal text-slate-400">{event.groupNames.join(', ')}</span>}
                         </div>
                     )}
 
                     {/* Zone badge */}
                     {type === 'zone' && event.zoneName && (
-                        <div className="text-xs bg-white border border-platinum-tint rounded-xl px-3 py-1.5 font-bold text-royal-amethyst flex items-center gap-1.5 shadow-sm whitespace-nowrap">
+                        <div data-ui-text="badge" className="text-xs bg-white border border-platinum-tint rounded-xl px-3 py-1.5 font-bold text-royal-amethyst flex items-center gap-1.5 shadow-sm whitespace-nowrap">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />
                             {event.zoneName}
                         </div>
@@ -482,7 +493,7 @@ const UserJourney = () => {
                     ) : (
                         <div className="inline-flex flex-col items-center justify-center gap-1 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex-shrink-0 w-28 md:w-36 aspect-video px-1">
                             <ImageIcon className="w-4 h-4 text-slate-400" />
-                            <span className="text-[9px] text-slate-400 font-medium uppercase tracking-wide leading-none text-center">Không có ảnh</span>
+                            <span data-ui-text="label" className="text-[9px] text-slate-400 font-medium uppercase tracking-wide leading-none text-center">Không có ảnh</span>
                         </div>
                     )}
                 </div>
@@ -492,7 +503,7 @@ const UserJourney = () => {
 
     /* ════════════════════════════════════════════════════════ */
     return (
-        <div className="space-y-6 max-w-5xl mx-auto pb-12 animate-fade-in-up">
+        <div data-page-surface="wide" className="space-y-6 max-w-5xl mx-auto pb-12 animate-fade-in-up">
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm-2">
@@ -501,7 +512,7 @@ const UserJourney = () => {
                         <Sparkles className="w-6 h-6" />
                     </div>
                     <div>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                        <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                             <Map className="w-3.5 h-3.5" />
                             Hành trình
                         </span>
@@ -514,20 +525,21 @@ const UserJourney = () => {
                     </div>
                 </div>
                 {selectedUser && (
-                    <button
-                        onClick={fetchJourney}
-                        disabled={loading}
-                        className="self-start md:self-auto p-2.5 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist disabled:opacity-50 rounded-xl transition-all shadow-sm"
-                        title="Tải lại dữ liệu hành trình"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
+                    <ReportActions>
+                        <ExportMenu compact askMode initialRange={{ from: date, to: isRange ? dateTo : date }} filterSummary={[`Người: ${selectedUser.fullName || selectedUser.full_name || ''}`, typeFilter ? `Loại sự kiện: ${TYPE_LABELS[typeFilter] || typeFilter}` : 'Tất cả loại sự kiện', placeFilter ? `Vị trí: ${placeFilter}` : 'Tất cả vị trí']} onExport={handleExport} busyFormat={busyFormat} disabled={loading || !journeyData || sortedEvents.length === 0} label={`Xuất báo cáo (${sortedEvents.length})`} />
+                        <RefreshButton
+                            onClick={fetchJourney}
+                            disabled={loading}
+                            title="Tải lại dữ liệu hành trình"
+                            busy={loading}
+                        />
+                    </ReportActions>
                 )}
             </div>
 
             {/* Filter controls */}
-            <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <FilterBar variant="card" className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-2">
+                <div data-filter-grid className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
                     {/* User search / Display own user profile */}
                     {isSelfOnly ? (
@@ -541,7 +553,7 @@ const UserJourney = () => {
                                     <div className="text-sm font-bold text-midnight-indigo flex items-center gap-1.5">
                                         {localUser?.fullName}
                                         {(localUser?.employeeCode || localUser?.employee_code) && (
-                                            <span className="text-[10px] font-mono font-bold text-slate-blue bg-white px-1.5 py-0.5 rounded border border-platinum-tint">
+                                            <span data-ui-text="code" className="text-[10px] font-mono font-bold text-slate-blue bg-white px-1.5 py-0.5 rounded border border-platinum-tint">
                                                 {localUser?.employeeCode || localUser?.employee_code}
                                             </span>
                                         )}
@@ -551,7 +563,7 @@ const UserJourney = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="space-y-1.5 relative" ref={dropdownRef}>
+                        <div className="camai-filter-field space-y-1.5 relative" ref={dropdownRef}>
                             <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Chọn Nhân viên *</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-blue">
@@ -559,7 +571,7 @@ const UserJourney = () => {
                                 </div>
                                 <input
                                     type="text"
-                                    placeholder="Nhập tên, email hoặc mã nhân viên..."
+                                    placeholder="Tên, email, mã nhân viên..." title="Nhập tên, email hoặc mã nhân viên"
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(e.target.value);
@@ -607,7 +619,7 @@ const UserJourney = () => {
                                                         <div className="text-sm font-bold text-midnight-indigo flex items-center gap-2">
                                                             {u.fullName}
                                                             {(u.employeeCode || u.employee_code) && (
-                                                                <span className="text-[10px] font-mono font-bold text-slate-blue bg-cloud-mist px-1.5 py-0.5 rounded border border-platinum-tint">
+                                                                <span data-ui-text="code" className="text-[10px] font-mono font-bold text-slate-blue bg-cloud-mist px-1.5 py-0.5 rounded border border-platinum-tint">
                                                                     {u.employeeCode || u.employee_code}
                                                                 </span>
                                                             )}
@@ -633,7 +645,7 @@ const UserJourney = () => {
                                 { value: dateTo, onChange: setDateTo, title: 'Đến ngày', min: date },
                             ].map((p, i) => (
                                 <React.Fragment key={p.title}>
-                                    {i === 1 && <span className="text-slate-blue text-sm">→</span>}
+                                    {i === 1 && <span data-filter-separator className="text-slate-blue text-sm">→</span>}
                                     <div className="relative flex-1">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-blue">
                                             <Calendar className="w-4 h-4" />
@@ -651,10 +663,10 @@ const UserJourney = () => {
                                 </React.Fragment>
                             ))}
                         </div>
-                        {rangeError && <p className="text-xs font-semibold text-red-600">{rangeError}</p>}
+                        {rangeError && <p data-ui-text="secondary" className="text-xs font-semibold text-red-600">{rangeError}</p>}
                     </div>
                 </div>
-            </div>
+            </FilterBar>
 
             {/* Main area */}
             {loading ? (
@@ -698,7 +710,7 @@ const UserJourney = () => {
                     </div>
                 </div>
             ) : !journeyData?.events?.length ? (
-                <div className="bg-white p-12 text-center rounded-2xl border border-platinum-tint shadow-sm-2">
+                <><div className="bg-white p-12 text-center rounded-2xl border border-platinum-tint shadow-sm-2">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-4">
                         <div className="w-16 h-16 bg-cloud-mist rounded-full flex items-center justify-center text-slate-blue border border-platinum-tint">
                             <Clock className="w-8 h-8" />
@@ -710,13 +722,21 @@ const UserJourney = () => {
                             </p>
                         </div>
                     </div>
-                </div>
+                </div><PaginationRegion legacyVisible={false}><PaginationFooter
+                                currentPage={page}
+                                totalPages={totalPages}
+                                totalItems={totalEvents}
+                                pageSize={eventsPerPage}
+                                onPageChange={setPage}
+                                itemLabel={"sự kiện"}
+                                loading={loading}
+                             onPageSizeChange={size => { setEventsPerPage(size); setPage(1); }} /></PaginationRegion></>
             ) : (
                 <div className="space-y-6">
 
                     {/* KPI cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
+                    <StatisticGrid columns={3} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <StatisticCard label="Cổng ANPR (Xe)" value={journeyData.gateCount || 0} icon={Car} legacy={(<div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
                             <div>
                                 <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Cổng ANPR (Xe)</p>
                                 <p className="text-2xl font-black text-midnight-indigo mt-1">{journeyData.gateCount || 0}</p>
@@ -724,8 +744,8 @@ const UserJourney = () => {
                             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                 <Car className="w-5 h-5" />
                             </div>
-                        </div>
-                        <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
+                        </div>)} />
+                        <StatisticCard label="Cuộc họp (FaceID)" value={journeyData.meetingCount || 0} icon={CalendarCheck} legacy={(<div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
                             <div>
                                 <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Cuộc họp (FaceID)</p>
                                 <p className="text-2xl font-black text-midnight-indigo mt-1">{journeyData.meetingCount || 0}</p>
@@ -733,8 +753,8 @@ const UserJourney = () => {
                             <div className="w-10 h-10 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center">
                                 <CalendarCheck className="w-5 h-5" />
                             </div>
-                        </div>
-                        <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
+                        </div>)} />
+                        <StatisticCard label="Khu vực Giám sát" value={journeyData.zoneCount || 0} icon={Eye} legacy={(<div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
                             <div>
                                 <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Khu vực Giám sát</p>
                                 <p className="text-2xl font-black text-midnight-indigo mt-1">{journeyData.zoneCount || 0}</p>
@@ -742,8 +762,8 @@ const UserJourney = () => {
                             <div className="w-10 h-10 rounded-xl bg-purple-50 text-royal-amethyst flex items-center justify-center">
                                 <Eye className="w-5 h-5" />
                             </div>
-                        </div>
-                    </div>
+                        </div>)} />
+                    </StatisticGrid>
 
                     {/* Timeline */}
                     <div className="bg-white p-6 md:p-8 rounded-2xl border border-platinum-tint shadow-sm-2">
@@ -752,13 +772,13 @@ const UserJourney = () => {
                                 <Clock className="w-4 h-4 text-action-blue" />
                                 Nhật ký Hành trình chi tiết
                             </h3>
-                            <span className="text-xs font-bold px-3 py-1 bg-cloud-mist border border-platinum-tint text-slate-blue rounded-full">
+                            <span data-ui-text="badge" className="text-xs font-bold px-3 py-1 bg-cloud-mist border border-platinum-tint text-slate-blue rounded-full">
                                 {selectedUser.fullName} &bull; {rangeLabel}
                             </span>
                         </div>
 
                         {/* bộ lọc loại + nơi + xuất Excel */}
-                        <div className="flex flex-wrap items-center gap-2 mb-6">
+                        <FilterBar variant="inline" className="flex flex-wrap items-center gap-2 mb-6">
                             <Filter className="w-4 h-4 text-slate-blue" />
                             <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPlaceFilter(''); }}
                                 className="pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none">
@@ -773,13 +793,11 @@ const UserJourney = () => {
                             {(typeFilter || placeFilter) && (
                                 <button onClick={() => { setTypeFilter(''); setPlaceFilter(''); }} className="text-xs font-semibold text-action-blue hover:underline">Bỏ lọc</button>
                             )}
-                            <div className="ml-auto">
-                                <ExportMenu compact onExport={handleExport} busyFormat={busyFormat} disabled={sortedEvents.length === 0} label={`Xuất báo cáo (${sortedEvents.length})`} />
-                            </div>
-                        </div>
+
+                        </FilterBar>
 
                         {/* legend */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-6 text-[11px] font-semibold text-slate-blue">
+                        <div data-ui-text="secondary" className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-6 text-[11px] font-semibold text-slate-blue">
                             <span className="inline-flex items-center gap-1.5">
                                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
                                 Vào cổng
@@ -831,23 +849,15 @@ const UserJourney = () => {
                         </div>
 
                         {/* pagination */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between mt-8 border-t border-platinum-tint/60 pt-6">
-                                <div className="text-sm text-slate-blue">
-                                    Hiển thị{' '}
-                                    <span className="font-bold text-midnight-indigo">{(page - 1) * eventsPerPage + 1}</span>
-                                    {' '}–{' '}
-                                    <span className="font-bold text-midnight-indigo">{Math.min(page * eventsPerPage, totalEvents)}</span>
-                                    {' '}trong{' '}
-                                    <span className="font-bold text-midnight-indigo">{totalEvents}</span> sự kiện
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 rounded-lg border border-platinum-tint text-sm font-semibold hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Trước</button>
-                                    <span className="text-sm font-bold px-3 py-1.5 bg-cloud-mist rounded-lg">{page} / {totalPages}</span>
-                                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 rounded-lg border border-platinum-tint text-sm font-semibold hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">Sau</button>
-                                </div>
-                            </div>
-                        )}
+                        {<PaginationRegion legacyVisible={totalPages > 1}><PaginationFooter
+                                currentPage={page}
+                                totalPages={totalPages}
+                                totalItems={totalEvents}
+                                pageSize={eventsPerPage}
+                                onPageChange={setPage}
+                                itemLabel={"sự kiện"}
+                                loading={loading}
+                             onPageSizeChange={size => { setEventsPerPage(size); setPage(1); }} /></PaginationRegion>}
                     </div>
                 </div>
             )}

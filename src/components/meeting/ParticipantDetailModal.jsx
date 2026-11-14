@@ -139,7 +139,7 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                             </div>
                             
                             {!loading && isInternal && (
-                                <div className={`px-3 py-1 rounded-lg border text-xs font-bold ${getStatusColor(detail?.employmentStatus)}`}>
+                                <div data-ui-text="badge" className={`px-3 py-1 rounded-lg border text-xs font-bold ${getStatusColor(detail?.employmentStatus)}`}>
                                     {getStatusLabel(detail?.employmentStatus)}
                                 </div>
                             )}
@@ -164,12 +164,12 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                         {loading ? (
                             <div className="flex-1 flex flex-col justify-center items-center py-8 space-y-4">
                                 <div className="w-8 h-8 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin"></div>
-                                <span className="text-xs font-bold text-slate-blue">Đang tải thông tin...</span>
+                                <span data-ui-text="primary" className="text-xs font-bold text-slate-blue">Đang tải thông tin...</span>
                             </div>
                         ) : (
                             <div className="space-y-4">
                                 {error && (
-                                    <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                                    <p data-ui-text="badge" className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-200">
                                         {error}
                                     </p>
                                 )}
@@ -181,7 +181,7 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                                             <Mail className="w-4 h-4" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Email</p>
+                                            <p data-ui-text="secondary" className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Email</p>
                                             <p className="text-midnight-indigo font-medium truncate">{detail?.email || 'Không có thông tin'}</p>
                                         </div>
                                     </div>
@@ -190,7 +190,7 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                                             <Phone className="w-4 h-4" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Số điện thoại</p>
+                                            <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Số điện thoại</p>
                                             <p className="text-midnight-indigo font-medium">{detail?.phoneNumber || 'Không có thông tin'}</p>
                                         </div>
                                     </div>
@@ -204,7 +204,7 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                                                 <Building2 className="w-4 h-4" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Phòng ban</p>
+                                                <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Phòng ban</p>
                                                 <p className="text-midnight-indigo font-medium">
                                                     {detail?.department?.departmentName || detail?.departmentName || 'Không xác định'}
                                                 </p>
@@ -215,7 +215,7 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                                                 <Briefcase className="w-4 h-4" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Mã nhân viên</p>
+                                                <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Mã nhân viên</p>
                                                 <p className="text-midnight-indigo font-medium">{detail?.employeeCode || 'Không có thông tin'}</p>
                                             </div>
                                         </div>

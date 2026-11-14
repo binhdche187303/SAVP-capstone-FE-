@@ -1,0 +1,121 @@
+.camai-table-container {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+}
+
+.camai-table-container > table.camai-responsive-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100%;
+    table-layout: fixed;
+}
+
+.camai-responsive-table.camai-responsive-table :is(th, td) {
+    min-width: 0 !important;
+    overflow-wrap: break-word;
+    white-space: normal !important;
+    text-wrap: wrap !important;
+}
+
+.camai-responsive-table.camai-responsive-table :is(th, td) > *,
+.camai-responsive-table.camai-responsive-table :is(th, td) :is(span, p, button, a) {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal !important;
+    text-wrap: wrap !important;
+    overflow-wrap: break-word;
+}
+
+/* Keep space for content rather than oversized cell gutters. */
+.camai-table-container[data-table-layout="table"] > .camai-responsive-table > :is(thead, tbody, tfoot) > tr > :is(th, td) {
+    padding-inline: 12px !important;
+}
+
+/* Show complete values even when an older screen supplied truncation classes. */
+.camai-responsive-table :is(th, td) .truncate,
+.camai-responsive-table :is(th, td).truncate {
+    overflow: visible;
+    text-overflow: clip;
+}
+
+/* Long descriptions may grow vertically instead of being clipped after one line. */
+.camai-responsive-table :is(th, td) [class*="line-clamp-"] {
+    -webkit-line-clamp: unset;
+    max-height: none;
+    overflow: visible;
+}
+
+.camai-responsive-table :is(img, video) { max-width: 100%; }
+
+.camai-table-container[data-table-layout="cards"] > .camai-responsive-table,
+.camai-table-container[data-table-layout="cards"] > .camai-responsive-table > :is(tbody, tfoot) {
+    display: block;
+    width: 100%;
+}
+
+/* Keep column headers in the accessibility tree while field labels are shown per record. */
+.camai-table-container[data-table-layout="cards"] > table > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.camai-table-container[data-table-layout="cards"] > table > colgroup { display: none; }
+
+.camai-table-container[data-table-layout="cards"] > table > :is(tbody, tfoot) > tr {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 16px;
+    padding: 16px;
+    width: 100%;
+    height: auto !important;
+    border-bottom: 1px solid #E7EDF6;
+}
+
+.camai-table-container[data-table-layout="cards"] > table > :is(tbody, tfoot) > tr > :is(td, th) {
+    display: block;
+    width: auto !important;
+    height: auto;
+    padding: 0 !important;
+    text-align: left;
+    position: static;
+}
+
+.camai-table-container[data-table-layout="cards"] [data-table-label]::before {
+    content: attr(data-table-label);
+    display: block;
+    margin-bottom: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 18px;
+    color: #476788;
+}
+.camai-table-container[data-table-layout="cards"] [data-table-span] { grid-column: 1 / -1; }
+
+@media print {
+    .camai-table-container[data-table-layout] > table.camai-responsive-table { display: table; }
+    .camai-table-container[data-table-layout] > table > thead {
+        display: table-header-group;
+        position: static;
+        width: auto;
+        height: auto;
+        clip-path: none;
+        overflow: visible;
+    }
+    .camai-table-container[data-table-layout] > table > :is(tbody, tfoot) { display: table-row-group; }
+    .camai-table-container[data-table-layout] > table > :is(tbody, tfoot) > tr { display: table-row; }
+    .camai-table-container[data-table-layout] > table > :is(tbody, tfoot) > tr > :is(td, th) { display: table-cell; padding: 8px !important; }
+    .camai-table-container [data-table-label]::before { display: none; }
+}
+
+/* Empty alignment cells have no content in the stacked totals. */
+.camai-table-container[data-table-layout="cards"] > table > tfoot [data-table-empty] { display: none !important; }
+@media print {
+    .camai-table-container[data-table-layout] > table > tfoot { display: table-footer-group; }
+    .camai-table-container[data-table-layout] > table > tfoot [data-table-empty] { display: table-cell !important; }
+}

@@ -1,4 +1,8 @@
-import { AlertTriangle, Car, CheckCircle, Edit3, Eye, Filter, Plus, RefreshCw, ShieldAlert, Trash2, X } from 'lucide-react';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { AlertTriangle, Car, CheckCircle, Edit3, Eye, Filter, Plus, ShieldAlert, Trash2, X } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -10,7 +14,7 @@ import {
     deleteVehicleControl
 } from '../../service/sysAdminServices';
 import { motion, AnimatePresence } from 'framer-motion';
-import Pagination from '../../components/common/Pagination';
+
 
 // Loại phương tiện (tùy chọn) — khớp CONTROL_LIST_VEHICLE_TYPES ở BE. Chỉ để mô tả/lọc,
 // KHÔNG dùng để kiểm tra định dạng biển số.
@@ -239,11 +243,11 @@ const VehicleControlList = () => {
     };
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto pb-10">
+        <div data-page-surface="wide" className="space-y-6 max-w-7xl mx-auto pb-10">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Car className="w-3.5 h-3.5" />
                         Phương tiện
                     </span>
@@ -259,13 +263,11 @@ const VehicleControlList = () => {
                         <Plus className="w-4 h-4 mr-1.5" />
                         Thêm biển số
                     </button>
-                    <button
+                    <RefreshButton
                         onClick={() => fetchVehicles()}
-                        className="p-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl hover:bg-cloud-mist transition-colors duration-200"
                         title="Tải lại dữ liệu"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                    </button>
+                        busy={loading}
+                    />
                 </div>
             </div>
 
@@ -286,13 +288,13 @@ const VehicleControlList = () => {
             </AnimatePresence>
 
             {/* Filters */}
-            <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1">
+            <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1">
                 <div className="flex items-center gap-2 mb-4 text-sm font-bold text-midnight-indigo">
                     <Filter className="w-4 h-4 text-slate-blue" />
                     Bộ lọc tìm kiếm
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-1.5">
+                <div data-filter-grid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Tìm biển số</label>
                         <input
                             type="text"
@@ -302,7 +304,7 @@ const VehicleControlList = () => {
                             className="w-full p-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
                         />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Phân loại</label>
                         <select
                             value={filters.list_type}
@@ -315,7 +317,7 @@ const VehicleControlList = () => {
                         </select>
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Loại xe</label>
                         <select
                             value={filters.vehicle_type}
@@ -329,7 +331,7 @@ const VehicleControlList = () => {
                         </select>
                     </div>
 
-                    <div className="space-y-1.5">
+                    <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Trạng thái</label>
                         <select
                             value={filters.active}
@@ -342,12 +344,21 @@ const VehicleControlList = () => {
                         </select>
                     </div>
                 </div>
-            </div>
+            </FilterBar>
 
             {/* Table */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <ResponsiveTable className="w-full text-left text-sm">
+<colgroup>
+<col style={{ width: '14%' }} />
+<col style={{ width: '15%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '21%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '13%' }} />
+</colgroup>
                         <thead className="bg-cloud-mist/50 border-b border-platinum-tint">
                             <tr>
                                 <th className="px-6 py-4 font-extrabold text-xs text-slate-blue uppercase tracking-wider text-center">Biển số (Gốc)</th>
@@ -394,10 +405,10 @@ const VehicleControlList = () => {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="font-extrabold font-mono tracking-wider text-midnight-indigo text-base">{vehicle.plate_number}</div>
-                                                <div className="text-[11px] text-slate-blue mt-0.5">Cập nhật: {formatDate(vehicle.updated_at)}</div>
+                                                <div data-ui-text="primary" className="text-[11px] text-slate-blue mt-0.5">Cập nhật: {formatDate(vehicle.updated_at)}</div>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${listType.color}`}>
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${listType.color}`}>
                                                     {listType.label}
                                                 </span>
                                             </td>
@@ -410,11 +421,11 @@ const VehicleControlList = () => {
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center">
                                                     {vehicle.active ? (
-                                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-green-700">
+                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[11px] font-bold text-green-700">
                                                             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Hoạt động
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-blue">
+                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-blue">
                                                             <div className="w-1.5 h-1.5 rounded-full bg-slate-blue"></div> Vô hiệu
                                                         </span>
                                                     )}
@@ -435,22 +446,19 @@ const VehicleControlList = () => {
                                 })
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
 
                 {/* Pagination */}
-                {meta && meta.total > 0 && (
-                    <div className="px-6 py-4 bg-cloud-mist/30 border-t border-platinum-tint flex items-center justify-between">
-                        <span className="text-xs font-medium text-slate-blue">
-                            Hiển thị trang {meta.page} / {meta.totalPages} (Tổng {meta.total} bản ghi)
-                        </span>
-                        <Pagination 
-                            currentPage={filters.page} 
-                            totalPages={meta.totalPages} 
-                            onPageChange={(p) => handleFilterChange('page', p)} 
-                        />
-                    </div>
-                )}
+                {meta && <PaginationRegion legacyVisible={meta && meta.total > 0}><PaginationFooter
+                        currentPage={meta.page}
+                        totalPages={meta.totalPages}
+                        totalItems={meta.total}
+                        pageSize={filters.limit}
+                        onPageChange={(p) => handleFilterChange('page', p)}
+                        itemLabel={"bản ghi"}
+                        loading={loading}
+                     onPageSizeChange={size => { setFilters(previous => ({ ...previous, limit: size, page: 1 })); }} /></PaginationRegion>}
             </div>
 
             {/* Modal Add/Edit */}
@@ -483,8 +491,8 @@ const VehicleControlList = () => {
                                         disabled={modal.type === 'edit'} // BE spec doesn't allow editing plate_raw in PATCH
                                         className={`w-full px-4 py-2.5 bg-slate-50 border font-mono rounded-xl text-sm focus:outline-none transition-colors disabled:opacity-60 disabled:bg-gray-100 ${formErrors.plate_raw ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue focus:bg-white'}`}
                                     />
-                                    {formErrors.plate_raw && <p className="text-xs text-red-500 font-medium mt-1.5">{formErrors.plate_raw}</p>}
-                                    {modal.type === 'edit' && <p className="text-[11px] text-slate-400 mt-1">Không thể thay đổi biển số xe sau khi tạo.</p>}
+                                    {formErrors.plate_raw && <p data-ui-text="secondary" className="text-xs text-red-500 font-medium mt-1.5">{formErrors.plate_raw}</p>}
+                                    {modal.type === 'edit' && <p data-ui-text="secondary" className="text-[11px] text-slate-400 mt-1">Không thể thay đổi biển số xe sau khi tạo.</p>}
                                 </div>
 
                                 <div>
@@ -523,7 +531,7 @@ const VehicleControlList = () => {
                                         onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                                         className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors resize-none ${formErrors.reason ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                     />
-                                    {formErrors.reason && <p className="text-xs text-red-500 font-medium mt-1.5">{formErrors.reason}</p>}
+                                    {formErrors.reason && <p data-ui-text="secondary" className="text-xs text-red-500 font-medium mt-1.5">{formErrors.reason}</p>}
                                 </div>
 
                                 <div className="flex items-center gap-3 p-4 bg-cloud-mist/50 border border-platinum-tint rounded-xl">

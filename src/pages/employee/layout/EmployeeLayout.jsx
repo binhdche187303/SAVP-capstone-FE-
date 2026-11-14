@@ -201,7 +201,7 @@ const EmployeeLayout = () => {
                         <nav
                             ref={navRef}
                             aria-label="Primary navigation"
-                            className="hidden md:flex items-center gap-1"
+                            className="hidden min-[1440px]:flex items-center gap-1"
                         >
                             {navigationItems.map((item) => (
                                 item.isDropdown ? (
@@ -393,7 +393,10 @@ const EmployeeLayout = () => {
                         <button
                             type="button"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="md:hidden flex items-center justify-center p-2 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist transition-colors"
+                            aria-label={isMobileMenuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
+                            aria-expanded={isMobileMenuOpen}
+                            aria-controls="employee-mobile-menu"
+                            className="min-[1440px]:hidden flex items-center justify-center p-2 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist transition-colors"
                         >
                             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
@@ -402,7 +405,7 @@ const EmployeeLayout = () => {
             </header>
 
             {/* ========== MOBILE MENU DRAWER ========== */}
-            <div className={`md:hidden fixed inset-0 z-40 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div id="employee-mobile-menu" className={`min-[1440px]:hidden fixed inset-0 z-40 overflow-hidden transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 {/* Overlay backdrop */}
                 <div 
                     className="absolute inset-0 bg-midnight-indigo/20 backdrop-blur-sm mobile-menu-overlay" 
@@ -459,7 +462,7 @@ const EmployeeLayout = () => {
             </div>
 
             {/* ========== MAIN CONTENT ========== */}
-            <main className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
+            <main data-page-frame="wide" className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
                 <Outlet />
                 <BiometricReminderModal />
                 <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />

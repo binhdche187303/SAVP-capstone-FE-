@@ -3,6 +3,22 @@
 Tài liệu gom mọi chỗ FE dùng dữ liệu giả (mock) hoặc dữ liệu chỉ có từ seed demo, kèm API/DB mà BE cần bổ sung.
 Trong code, chỗ còn mock có comment `// MOCK-BE:` (`grep -rn "MOCK-BE" src`).
 
+## 📝 CHANGELOG & REVISION HISTORY
+| Ngày cập nhật | Tóm tắt thay đổi | Các dòng thay đổi |
+| :--- | :--- | :--- |
+| 2026-11-11 | Bỏ hết `mockClassrooms` và mock điểm danh lớp: Home SV/GV, Dashboard điểm danh, Analytics, chuyên cần SV, Recordings và SystemSettings chỉ gọi API `/class-attendance/*`. Service không còn fallback cục bộ. Ghi chú fallback quét giả của BE. | Mục "Lịch học / lịch dạy", "Ghi hình & biên bản" |
+| 2026-11-11 | Thêm bảng changelog. Thêm mục "Lịch học / lịch dạy": `/student/schedule` và `/teacher/schedule` bỏ `mockClassrooms`, đọc `GET /class-attendance/sessions` (buổi học thật từ TKB UEL). | Đầu file, mục "Lịch học / lịch dạy (STUDENT/TEACHER)" |
+
+---
+
+## Lịch học / lịch dạy (STUDENT/TEACHER) — đã chuyển sang BE thật
+
+| Trước | Nay | Còn lại |
+|---|---|---|
+| `pages/classroom/StudentSchedule.jsx` và `TeacherSchedule.jsx` trộn `GET /class-attendance/classes` (giờ đọc từ `class_sections.note`) với `mockClassrooms`. | Cả hai dùng chung `WeeklySessionSchedule.jsx` và gọi `GET /class-attendance/sessions?from=&to=` (tối đa 62 ngày), đọc từ bảng `class_sessions`. Phạm vi xem giống `/classes`: GV thấy lớp mình phụ trách (`lecturer_user_id`), SV thấy lớp đã đăng ký, admin thấy tất cả. Không còn mock và không fallback: API lỗi thì hiện thông báo lỗi. | Buổi học chỉ có khi đã chạy bước 6 "Lịch học" của đồng bộ UEL. Hiện `tkb_lophp_1ngay` của UEL trả về 0 dòng, nên phải chạy theo mã GV/SV. Mỗi lớp HP chỉ lưu 1 giảng viên. Các trang khác (Home SV/GV, Dashboard điểm danh, Analytics, chuyên cần SV, Recordings, SystemSettings) cũng đã bỏ `mockClassrooms` và chỉ đọc API thật. UEL không có `note`, nên lịch và phòng trên thẻ lớp lấy từ buổi học trong ngày. |
+
+**BE cần sửa:** `POST /class-attendance/scan` hiện vẫn tự chọn sinh viên đầu tiên chưa điểm danh (chiều vào) hoặc người đầu tiên đang có lượt vào (chiều ra) khi HGVision không nhận diện được ai. Đây là điểm danh giả. Khi không nhận diện được, BE phải trả kết quả "không nhận diện được" và không ghi điểm danh.
+
 ---
 
 ## 2.2 Phân hệ Camera AI — đã chuyển sang BE thật
@@ -61,4 +77,18 @@ lại cho 2.3.6 và 2.3.7.
 
 | Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
 |---|---|---|
-| Ghi hình + biên bản AI cho **cuộc họp** (`recording_sessions.meeting_id` NOT NULL). | `/teacher/recordings` (`pages/classroom/TeacherRecordings.jsx`): danh sách buổi đã dạy suy từ `mockClassrooms`, mọi buổi "Chưa có ghi hình / Chưa có biên bản". | Liên kết buổi học với ghi hình: hoặc `class_sessions.meeting_id` (mỗi buổi 1 meeting ẩn → tái dùng ghi hình/biên bản), hoặc `recording_sessions.class_session_id` + `meeting_id` nullable. API `GET /teacher/class-sessions/:id/recordings` (chỉ giảng viên của lớp). FE thay mock bằng API + dùng lại player của `employee/Recordings.jsx`. |
+| Ghi hình + biên bản AI cho **cuộc họp** (`recording_sessions.meeting_id` NOT NULL). | `/teacher/recordings` (`pages/classroom/TeacherRecordings.jsx`): danh sách buổi đã dạy trong 60 ngày lấy từ `GET /class-attendance/sessions` (buổi thật), mọi buổi "Chưa có ghi hình / Chưa có biên bản". | Liên kết buổi học với ghi hình: hoặc `class_sessions.meeting_id` (mỗi buổi 1 meeting ẩn → tái dùng ghi hình/biên bản), hoặc `recording_sessions.class_session_id` + `meeting_id` nullable. API `GET /teacher/class-sessions/:id/recordings` (chỉ giảng viên của lớp). FE gắn API ghi hình vào từng buổi + dùng lại player của `employee/Recordings.jsx`. |
+
+---
+
+## Mẫu báo cáo quy chuẩn (NĐ 30/2020) — bản xuất "quy chuẩn"
+
+| Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
+|---|---|---|
+| Nhánh `feature/report-template` (capstone-be): bảng `report_templates`, API `/report-templates` (CRUD, `defaults`, `signers?q`, `assets`, `preview`), bộ dựng PDF/Word/Excel theo mẫu, export nhận `mode: 'standard'`, `templateId`, `signers`, `addressee`, `recipients`; `GET /reports/exports/recent` trả thêm `standard` để "Xuất lại". | Cờ `REACT_APP_REPORT_MOCK=true`: mẫu lưu localStorage khóa `savp.reportTemplateMock` (seed 1 mẫu "Mẫu chuẩn VISMA (NĐ 30)"), ảnh logo chỉ sống trong phiên, danh sách người ký là 5 tên giả. **Xem thử PDF/Word/Excel và xuất bản quy chuẩn báo lỗi ở chế độ mock** (bộ dựng nằm ở BE). | Chạy migration `20261112000001-CreateReportTemplates`. Quyền `report.template.manage` hiện gán SYSTEM_ADMIN + BUSINESS_ADMIN (văn thư đơn vị — làm sau). ~~Chưa có mẫu seed~~ → đã có migration `20261112000002-SeedDefaultReportTemplate` (mẫu "Mẫu chuẩn VISMA (NĐ 30)", mọi loại báo cáo, mặc định, 2 ô ký đều tùy chọn). Chưa test API sống / e2e DB (`RUN_DB_TESTS=1`). |
+
+**Bản quy chuẩn ở các trang tự tổng hợp dữ liệu (2026-11-12)**
+
+| Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
+|---|---|---|
+| `POST /report-templates/render-document` (quyền `report.center.export`): nhận `{ format, mode:'standard', templateId, signers, addressee?, recipients?, document }`, trả file ngay (không qua job). `document` = `{ title, period, filterLines, dataSource, kpis, notes, tables[] }`, tối đa 10 bảng / 20.000 dòng. Chỉ nhận mẫu "mọi loại báo cáo". Ghi audit `report_document_export`. | FE dựng `document` từ spec của `downloadReport` (`src/utils/standardDocument.js`). Trang dùng: Nhật ký ra/vào phòng, Truy vết camera, Hành trình theo người, Lưu lượng khu vực (`ExportMenu askMode`). `ExportReportModal` (Kiểm soát xe, Sự kiện an ninh, Hiệu suất phòng) chuyển sang `/reports/center/<loại>/exports` khi chọn bản quy chuẩn hoặc Word. **Chế độ mock không dựng được bản quy chuẩn.** | Các trang khác vẫn chỉ xuất bản thường (xem danh sách ở báo cáo bàn giao). |

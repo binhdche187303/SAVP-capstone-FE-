@@ -1,4 +1,5 @@
 import { post, get, patch, clearTokens } from '../utils/request';
+import { getApiBaseUrl } from '../utils/backendResolver';
 import { resetSocket } from '../utils/socket';
 
 /**
@@ -9,6 +10,26 @@ import { resetSocket } from '../utils/socket';
  */
 export const login = async (email, password) => {
     return await post('/auth/login', { email, password }, { isPublic: true });
+};
+
+/**
+ * Đăng nhập một lần UEL (PSC SSO) — BE có bật không (UEL_SSO_ENABLED + đủ cấu hình).
+ * @returns {Promise<object>} { success, data: { enabled } }
+ */
+export const getSsoConfig = async () => {
+    return await get('/auth/sso/config', { isPublic: true });
+};
+
+/** URL bắt đầu đăng nhập UEL — điều hướng cả trang tới đây (BE redirect sang UEL). */
+export const getSsoLoginUrl = () => `${getApiBaseUrl()}/auth/sso/login`;
+
+/**
+ * Đổi ticket dùng 1 lần (nhận ở /sso/callback) lấy access/refresh token.
+ * @param {string} ticket
+ * @returns {Promise<object>} cùng dạng response với login()
+ */
+export const exchangeSsoTicket = async (ticket) => {
+    return await post('/auth/sso/exchange', { ticket }, { isPublic: true });
 };
 
 /**

@@ -27,9 +27,9 @@ const CameraDetailPanel = ({ device, state, where, angle, onClose, onHistory }) 
       <div className="flex items-start gap-2">
         <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: KIND[kind].color }} />
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase" style={{ color: KIND[kind].color }}>{KIND[kind].label}</p>
+          <p data-ui-text="label" className="text-[10px] font-bold uppercase" style={{ color: KIND[kind].color }}>{KIND[kind].label}</p>
           <h3 className="truncate text-sm font-bold text-slate-900">{device.device_name || device.device_code}</h3>
-          <p className="font-mono text-[11px] text-slate-500">{device.device_code}</p>
+          <p data-ui-text="code" className="font-mono text-[11px] text-slate-500">{device.device_code}</p>
         </div>
         <button onClick={onClose} aria-label="Đóng chi tiết camera" className="rounded p-1 text-slate-400 hover:bg-slate-100">
           <X className="h-4 w-4" />
@@ -48,13 +48,13 @@ const CameraDetailPanel = ({ device, state, where, angle, onClose, onHistory }) 
         <Row label="IP">{device.ip_address || "—"}</Row>
       </div>
 
-      <div className="mt-3 flex aspect-video flex-col items-center justify-center gap-1 rounded-lg bg-slate-100 text-center text-[11px] text-slate-500">
+      <div data-ui-text="badge" className="mt-3 flex aspect-video flex-col items-center justify-center gap-1 rounded-lg bg-slate-100 text-center text-[11px] text-slate-500">
         <VideoOff className="h-5 w-5" />
         Hệ thống chưa có API xem trực tiếp / ảnh chụp theo camera.
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-1.5">
-        <button
+        <button data-ui-text="action"
           onClick={onHistory}
           className="inline-flex items-center justify-center gap-1 rounded-lg border border-[#1e3a5f]/30 px-2 py-1.5 text-[11px] font-semibold text-[#1e3a5f] hover:bg-slate-50"
         >

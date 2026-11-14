@@ -1,4 +1,9 @@
-import { AlertTriangle, Box, Camera, ChevronLeft, Cpu, RefreshCw, Search, WifiOff } from "lucide-react";
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import RefreshButton from '../../components/common/RefreshButton';
+import { AlertTriangle, Box, Camera, ChevronLeft, Cpu, Search, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DeviceConnectionHistoryPanel from "../../components/devices/DeviceConnectionHistoryPanel";
 import BuildingInfoPanel from "../../components/cameraTwin/BuildingInfoPanel";
@@ -20,18 +25,12 @@ import { buildPlan, placeCameras, savedLayout } from "../../utils/floorPlan";
 const REFRESH_MS = 60000;
 const list = (res) => (Array.isArray(res?.data) ? res.data : res?.data?.items || []);
 
-const StatCard = ({ icon: Icon, label, value, tone }) => (
-  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-    <div className={`rounded-lg p-2 ${tone}`}><Icon className="h-4 w-4" /></div>
-    <div>
-      <p className="text-xl font-bold tabular-nums text-slate-900">{value}</p>
-      <p className="text-[11px] text-slate-500">{label}</p>
-    </div>
-  </div>
+const StatCard = ({ icon, label, value, tone }) => (
+    <StatisticCard icon={icon} label={label} value={value} tone={statisticTone(tone)} />
 );
 
 const Toggle = ({ on, onClick, color, children }) => (
-  <button
+  <button data-ui-text="action"
     type="button"
     aria-pressed={on}
     onClick={onClick}
@@ -225,9 +224,9 @@ const CameraTwin = () => {
   return (
     <div className="space-y-4 animate-fade-in-up">
       {/* Tiêu đề + đường dẫn */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#1e3a5f]/10 px-3 py-1 text-[11px] font-bold text-[#1e3a5f]">
+          <span data-ui-text="badge" className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#1e3a5f]/10 px-3 py-1 text-[11px] font-bold text-[#1e3a5f]">
             <Box className="h-3.5 w-3.5" /> Campus Digital Twin
           </span>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Sơ đồ camera 3D</h1>
@@ -244,7 +243,7 @@ const CameraTwin = () => {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <FilterBar variant="inline" className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
             <input
               value={query}
@@ -273,14 +272,12 @@ const CameraTwin = () => {
                 ))}
               </ul>
             )}
-          </div>
-          <button
-            onClick={() => load()}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Làm mới
-          </button>
+          </FilterBar>
+          <RefreshButton
+              onClick={() => load()}
+              disabled={loading}
+              busy={loading}
+          />
         </div>
       </div>
 
@@ -292,12 +289,12 @@ const CameraTwin = () => {
       )}
 
       {stats && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="twin-stats">
+        <StatisticGrid columns={4} className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="twin-stats">
           <StatCard icon={Camera} label={view === "floor" ? "Camera trên tầng" : "Tổng camera"} value={stats.total} tone="bg-[#1e3a5f]/10 text-[#1e3a5f]" />
           <StatCard icon={Cpu} label="Camera AI" value={stats.ai} tone="bg-red-50 text-red-600" />
           <StatCard icon={WifiOff} label="Mất tín hiệu" value={stats.offline} tone="bg-slate-100 text-slate-600" />
           <StatCard icon={AlertTriangle} label="Đang có cảnh báo" value={stats.alert} tone="bg-orange-50 text-orange-600" />
-        </div>
+        </StatisticGrid>
       )}
 
       {loading && !twin ? (
@@ -377,7 +374,7 @@ const CameraTwin = () => {
             <MapControls apiRef={apiRef} />
 
             {/* Chú giải */}
-            <div className="absolute bottom-4 left-4 z-10 max-w-[360px] rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-[11px] text-slate-600 shadow-sm">
+            <div data-ui-text="secondary" className="absolute bottom-4 left-4 z-10 max-w-[360px] rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-[11px] text-slate-600 shadow-sm">
               <div className="flex flex-wrap gap-x-3 gap-y-1">
                 {Object.entries(KIND).map(([k, v]) => (
                   <span key={k} className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: v.color }} />{v.label}</span>
@@ -386,7 +383,7 @@ const CameraTwin = () => {
                   <span key={k} className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: v.color }} />{v.label}</span>
                 ))}
               </div>
-              <p className="mt-1 text-[10px] text-slate-400">
+              <p data-ui-text="secondary" className="mt-1 text-[10px] text-slate-400">
                 {view === "campus"
                   ? "Mô hình minh hoạ: vị trí theo bản vẽ khuôn viên, số tầng theo quy hoạch; mặt tiền, chiều cao tầng là ước lượng. Bấm tòa để chọn, bấm đúp để xem tầng."
                   : "Hình học phòng dựng tự động từ zone/phòng (giống sơ đồ 2D), chưa phải mặt bằng kiến trúc. Nội thất là minh hoạ."}
@@ -420,11 +417,11 @@ const CameraTwin = () => {
               <>
                 {block && (
                   <section className="rounded-xl border border-[#1e3a5f]/20 bg-[#1e3a5f]/[0.04] p-3">
-                    <p className="text-[10px] font-bold uppercase text-slate-500">{block.kind === "room" ? "Phòng" : "Khu vực"}</p>
+                    <p data-ui-text="label" className="text-[10px] font-bold uppercase text-slate-500">{block.kind === "room" ? "Phòng" : "Khu vực"}</p>
                     <h3 className="text-sm font-bold text-slate-900">{block.label}</h3>
-                    <p className="font-mono text-[11px] text-slate-500">{block.sub}{block.capacity ? ` · ${block.capacity} chỗ` : ""}</p>
-                    <p className="mt-2 text-[11px] font-semibold text-slate-600">Camera liên quan ({blockCameras.length})</p>
-                    {blockCameras.length === 0 && <p className="text-[11px] text-slate-400">Chưa có camera.</p>}
+                    <p data-ui-text="code" className="font-mono text-[11px] text-slate-500">{block.sub}{block.capacity ? ` · ${block.capacity} chỗ` : ""}</p>
+                    <p data-ui-text="primary" className="mt-2 text-[11px] font-semibold text-slate-600">Camera liên quan ({blockCameras.length})</p>
+                    {blockCameras.length === 0 && <p data-ui-text="secondary" className="text-[11px] text-slate-400">Chưa có camera.</p>}
                   </section>
                 )}
                 <section>
@@ -434,8 +431,10 @@ const CameraTwin = () => {
                   {placed.length === 0 && (
                     <p className="text-xs text-slate-500">Chưa có camera gán vào zone/phòng của tầng này.</p>
                   )}
-                  <ul className="space-y-0.5">
-                    {(block ? blockCameras : placed).map((p) => {
+                  <PaginatedCollection items={block ? blockCameras : placed} itemLabel="camera">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-0.5">
+                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((p) => {
                       const st = twin.stateById[p.device.id];
                       return (
                         <li key={p.device.id}>
@@ -449,8 +448,10 @@ const CameraTwin = () => {
                           </button>
                         </li>
                       );
-                    })}
+                    })(camaiRecord, camaiStartIndex + camaiIndex, (block ? blockCameras : placed)))}
                   </ul>
+)}
+</PaginatedCollection>
                 </section>
               </>
             )}
@@ -462,14 +463,18 @@ const CameraTwin = () => {
                   {twin.unplacedCameras.length} camera · {twin.unmatchedZones.length} zone · {twin.unmatchedRooms.length} phòng chưa khớp tòa nhà
                   trên sơ đồ (A1, A2, B1, B2…). Khai báo "Tòa nhà" của zone / "Khu" của phòng theo tên tòa để hiển thị.
                 </p>
-                <ul className="mt-1 space-y-0.5">
-                  {twin.unplacedCameras.slice(0, 8).map((c) => (
+                <PaginatedCollection items={twin?.unplacedCameras} itemLabel="camera" initialPageSize={8}>
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="mt-1 space-y-0.5">
+                  {camaiPageItems.map((camaiRecord, camaiIndex) => ((c) => (
                     <li key={c.id}>
                       <button onClick={() => setCameraId(c.id)} className="font-mono hover:underline">{c.device_code}</button>
                       <span className="text-amber-700"> · {STATE[twin.stateById[c.id]].label}</span>
                     </li>
-                  ))}
+                  ))(camaiRecord, camaiStartIndex + camaiIndex, (twin.unplacedCameras)))}
                 </ul>
+)}
+</PaginatedCollection>
               </section>
             )}
           </aside>

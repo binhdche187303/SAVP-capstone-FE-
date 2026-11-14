@@ -1,3 +1,5 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import RefreshButton from '../../components/common/RefreshButton';
 import {
     AlertTriangle, Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
     ClipboardList, Clock, Cpu, Download, ExternalLink, Eye, FileText, Film, Loader, Mail, Mic, MicOff,
@@ -198,7 +200,7 @@ const RecordingTimer = ({ meetingId, sessionId, initialStatus, onStatusChange })
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-0.5">
                     <span>Ghi hình đã dừng do lỗi</span>
-                    <span className="text-[10px] font-normal opacity-80">Vui lòng kiểm tra camera và bắt đầu lại nếu cần.</span>
+                    <span data-ui-text="secondary" className="text-[10px] font-normal opacity-80">Vui lòng kiểm tra camera và bắt đầu lại nếu cần.</span>
                 </div>
             </div>
         );
@@ -218,7 +220,7 @@ const RecordingTimer = ({ meetingId, sessionId, initialStatus, onStatusChange })
                 </span>
             </div>
             {localStatus === 'paused' && (
-                <div className="text-[10px] font-normal opacity-70">Khoảng dừng sẽ không có trong file ghi hình</div>
+                <div data-ui-text="secondary" className="text-[10px] font-normal opacity-70">Khoảng dừng sẽ không có trong file ghi hình</div>
             )}
         </div>
     );
@@ -1935,7 +1937,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                             <h1 className="text-[17px] font-extrabold text-midnight-indigo leading-tight tracking-tight">
                                 {meetingState.title}
                             </h1>
-                            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{meetingState.roomName}</span>
+                            <span data-ui-text="label" className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">{meetingState.roomName}</span>
                         </div>
                     </div>
                 </div>
@@ -1943,17 +1945,17 @@ const InMeetingRoom = ({ isPublic = false }) => {
                     {meetingState.status === 'in_progress' && (
                         <>
                             {admittedGuestCount > 0 && (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold">
+                                <span data-ui-text="secondary" className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold">
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                                     {admittedGuestCount} khách ngoài đang xem
                                 </span>
                             )}
                             {pendingExtensions.length > 0 && isHost && (
-                                <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold">
+                                <span data-ui-text="badge" className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-bold">
                                     {pendingExtensions.length} yêu cầu gia hạn
                                 </span>
                             )}
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-600 font-bold text-[11px] rounded-full border border-red-100">
+                            <span data-ui-text="secondary" className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-600 font-bold text-[11px] rounded-full border border-red-100">
                                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                                 Đang diễn ra
                             </span>
@@ -1997,13 +1999,13 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                         className="w-full px-4 py-3 bg-cloud-mist border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue transition-colors text-midnight-indigo font-semibold"
                                     />
                                     {isPublic && (
-                                        <p className="text-[10px] text-emerald-600 mt-1 font-medium">Tham gia với tư cách Khách ngoài hệ thống.</p>
+                                        <p data-ui-text="secondary" className="text-[10px] text-emerald-600 mt-1 font-medium">Tham gia với tư cách Khách ngoài hệ thống.</p>
                                     )}
                                 </div>
                             )}
 
                             <div className="flex items-center justify-between p-3 bg-cloud-mist rounded-xl border border-platinum-tint">
-                                <div className="flex items-center gap-2 text-xs font-semibold text-midnight-indigo">
+                                <div data-ui-text="primary" className="flex items-center gap-2 text-xs font-semibold text-midnight-indigo">
                                     {isMicOn ? <Mic className="w-4 h-4 text-action-blue" /> : <MicOff className="w-4 h-4 text-red-500" />}
                                     Microphone
                                 </div>
@@ -2039,7 +2041,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                         </div>
 
                         <div className="bg-cloud-mist rounded-2xl p-4 border border-platinum-tint space-y-2">
-                            <span className="text-[10px] font-bold text-action-blue uppercase tracking-wider block">
+                            <span data-ui-text="label" className="text-[10px] font-bold text-action-blue uppercase tracking-wider block">
                                 Trong phòng chờ ({meetingState.participants?.length || 0})
                             </span>
                             <div className="max-h-40 overflow-y-auto space-y-1.5">
@@ -2049,7 +2051,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                             <UserAvatar user={p} className="w-6 h-6 rounded-full shrink-0 text-[10px] font-bold" />
                                             <span className="font-semibold text-midnight-indigo">{p.fullName}</span>
                                         </div>
-                                        <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${p.role === 'Chủ tọa' ? 'bg-red-50 text-red-600' :
+                                        <span data-ui-text="badge" className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${p.role === 'Chủ tọa' ? 'bg-red-50 text-red-600' :
                                             p.role === 'Khách' ? 'bg-emerald-50 text-emerald-600' :
                                                 'bg-blue-50 text-action-blue'
                                             }`}>{p.role}</span>
@@ -2109,20 +2111,20 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                         <MonitorUp className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-action-blue uppercase tracking-wider">Đang trình chiếu</div>
+                                        <div data-ui-text="label" className="text-[10px] font-bold text-action-blue uppercase tracking-wider">Đang trình chiếu</div>
                                         <div className="text-sm font-bold text-white truncate max-w-[220px]">{presentedFile.fileName || 'Tài liệu'}</div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {isHost && (
-                                        <button
+                                        <button data-ui-text="action"
                                             onClick={() => getSocket().emit('agenda:present_stop', { meetingId: id })}
                                             className="px-2.5 py-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg text-[10px] font-bold"
                                         >
                                             Dừng chiếu
                                         </button>
                                     )}
-                                    <button
+                                    <button data-ui-text="action"
                                         onClick={async () => {
                                             try {
                                                 const res = await request(`/media-files/${presentedFile.fileId}`, { method: 'GET' });
@@ -2154,7 +2156,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
                                         <div className="flex items-center gap-2">
                                             <FileText className="w-4 h-4 text-action-blue" />
-                                            <span className="text-sm font-bold text-white truncate max-w-[280px]">
+                                            <span data-ui-text="primary" className="text-sm font-bold text-white truncate max-w-[280px]">
                                                 {agendaDocView.agendaItem.title}
                                             </span>
                                         </div>
@@ -2168,9 +2170,9 @@ const InMeetingRoom = ({ isPublic = false }) => {
 
                                     {/* Attachment tabs */}
                                     {agendaDocView.agendaItem.attachments?.length > 1 && (
-                                        <div className="flex gap-1 px-4 py-2 border-b border-white/10 overflow-x-auto shrink-0">
+                                        <div className="camai-attachment-tabs flex gap-1 px-4 py-2 border-b border-white/10 overflow-x-auto shrink-0">
                                             {agendaDocView.agendaItem.attachments.map((att, idx) => (
-                                                <button
+                                                <button data-ui-text="primary"
                                                     key={att.id}
                                                     onClick={() => setAgendaDocView(v => ({ ...v, selectedAttachmentIdx: idx }))}
                                                     className={`px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors ${agendaDocView.selectedAttachmentIdx === idx
@@ -2187,7 +2189,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     {/* Description */}
                                     {agendaDocView.agendaItem.description && (
                                         <div className="px-4 py-2 bg-white/5 border-b border-white/10 shrink-0">
-                                            <p className="text-[11px] text-white/70 leading-relaxed">{agendaDocView.agendaItem.description}</p>
+                                            <p data-ui-text="secondary" className="text-[11px] text-white/70 leading-relaxed">{agendaDocView.agendaItem.description}</p>
                                         </div>
                                     )}
 
@@ -2293,7 +2295,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                         >
                                                                             <ChevronLeft className="w-4 h-4" />
                                                                         </button>
-                                                                        <span className="text-[11px] text-white/60 font-medium">
+                                                                        <span data-ui-text="secondary" className="text-[11px] text-white/60 font-medium">
                                                                             Slide {agendaPptxSlides.current}/{agendaPptxSlides.total}
                                                                         </span>
                                                                         <button
@@ -2334,7 +2336,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                 )}
                                                 {/* Download bar */}
                                                 <div className="shrink-0 px-4 py-2.5 border-t border-white/10 flex items-center justify-between bg-slate-900">
-                                                    <span className="text-[11px] text-white/60 truncate max-w-[200px]">{att.fileName}</span>
+                                                    <span data-ui-text="secondary" className="text-[11px] text-white/60 truncate max-w-[200px]">{att.fileName}</span>
                                                     {agendaDocUrl && (
                                                         <a
                                                             href={agendaDocUrl}
@@ -2383,7 +2385,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                 title={isMicOn ? 'Tắt mic' : 'Bật mic'}
                             >
                                 {isMicOn ? <IoMic className="w-5 h-5" /> : <IoMicOff className="w-5 h-5" />}
-                                <span className="text-[9px] font-extrabold uppercase tracking-widest">{isMicOn ? 'Mic bật' : 'Mic tắt'}</span>
+                                <span data-ui-text="action" className="text-[9px] font-extrabold uppercase tracking-widest">{isMicOn ? 'Mic bật' : 'Mic tắt'}</span>
                             </button>
 
                             {/* Webcam */}
@@ -2393,7 +2395,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                 title={isCamOn ? 'Tắt webcam' : 'Bật webcam'}
                             >
                                 {isCamOn ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-                                <span className="text-[9px] font-extrabold uppercase tracking-widest">{isCamOn ? 'Cam bật' : 'Cam tắt'}</span>
+                                <span data-ui-text="action" className="text-[9px] font-extrabold uppercase tracking-widest">{isCamOn ? 'Cam bật' : 'Cam tắt'}</span>
                             </button>
 
                             <div className="w-px h-10 bg-white/10 mx-1" />
@@ -2445,7 +2447,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                             </div>
 
                             {/* Leave */}
-                            <button
+                            <button data-ui-text="action"
                                 onClick={handleLeaveRoom}
                                 className="ml-auto px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded-2xl text-[11px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-2.5 shadow-lg shadow-red-900/30"
                             >
@@ -2493,12 +2495,12 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     >
                                         <tab.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-action-blue' : 'text-slate-400'
                                             }`} />
-                                        <span className={`text-[8px] font-bold tracking-wide whitespace-nowrap leading-none ${isActive ? 'text-action-blue' : 'text-slate-400'
+                                        <span data-ui-text="action" className={`text-[8px] font-bold tracking-wide whitespace-nowrap leading-none ${isActive ? 'text-action-blue' : 'text-slate-400'
                                             }`}>
                                             {tab.label}
                                         </span>
                                         {tab.id === 'attendance' && (
-                                            <span className="text-[7px] font-extrabold text-emerald-600 leading-none">
+                                            <span data-ui-text="action" className="text-[7px] font-extrabold text-emerald-600 leading-none">
                                                 {checkedInCount}/{meetingState.participants?.length}
                                             </span>
                                         )}
@@ -2523,24 +2525,26 @@ const InMeetingRoom = ({ isPublic = false }) => {
 
                                 {/* Pending Extension Requests */}
                                 {pendingExtensions.length > 0 && (
-                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
-                                        <h4 className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+                                    <PaginatedCollection items={pendingExtensions} itemLabel="yêu cầu gia hạn">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                                        <h4 data-ui-text="label" className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
                                             <Timer className="w-3.5 h-3.5" /> Yêu cầu gia hạn ({pendingExtensions.length})
                                         </h4>
-                                        {pendingExtensions.map(req => (
+                                        {camaiPageItems.map((camaiRecord, camaiIndex) => (req => (
                                             <div key={req.id} className="bg-white border border-amber-100 rounded-lg p-2.5 space-y-1.5">
                                                 <p className="text-xs font-semibold text-midnight-indigo">
                                                     <span className="font-bold">{req.requesterName || 'Thành viên'}</span> yêu cầu gia hạn <span className="text-action-blue font-extrabold">+{req.requestedExtensionMinutes} phút</span>
                                                 </p>
-                                                {req.reason && <p className="text-[10px] text-slate-blue italic">"{req.reason}"</p>}
+                                                {req.reason && <p data-ui-text="secondary" className="text-[10px] text-slate-blue italic">"{req.reason}"</p>}
                                                 <div className="flex gap-2">
-                                                    <button
+                                                    <button data-ui-text="action"
                                                         onClick={() => handleDecideExtension(req.id, 'approved')}
                                                         className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold flex items-center justify-center gap-1"
                                                     >
                                                         <Check className="w-3 h-3" /> Duyệt
                                                     </button>
-                                                    <button
+                                                    <button data-ui-text="action"
                                                         onClick={() => handleDecideExtension(req.id, 'rejected')}
                                                         className="flex-1 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1"
                                                     >
@@ -2548,30 +2552,32 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                     </button>
                                                 </div>
                                             </div>
-                                        ))}
+                                        ))(camaiRecord, camaiStartIndex + camaiIndex, (pendingExtensions)))}
                                     </div>
+)}
+</PaginatedCollection>
                                 )}
 
                                 {/* Điểm danh camera AI */}
 	                                <div className="bg-white border border-platinum-tint rounded-xl overflow-hidden">
 	                                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-platinum-tint bg-cloud-mist">
-	                                        <h4 className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
+	                                        <h4 data-ui-text="label" className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
 	                                            <VideoIcon className="w-3.5 h-3.5 text-action-blue" /> Camera AI ra/vào
 	                                        </h4>
-	                                        <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${hasAutoFaceScanTargets ? 'bg-blue-50 text-action-blue' : 'bg-emerald-50 text-emerald-700'}`}>
+	                                        <span data-ui-text="badge" className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${hasAutoFaceScanTargets ? 'bg-blue-50 text-action-blue' : 'bg-emerald-50 text-emerald-700'}`}>
 	                                            Vào {checkedInCount}/{meetingState.participants?.length || 0} · Ra {pendingExitParticipants.length}
 	                                        </span>
 	                                    </div>
 	                                    <div className="p-3 space-y-3">
                                             <div className="grid grid-cols-2 gap-1 rounded-lg border border-platinum-tint bg-cloud-mist p-1">
-                                                <button
+                                                <button data-ui-text="action"
                                                     type="button"
                                                     onClick={() => { setAutoFaceScanDirection('in'); setLastAutoFaceScan(null); }}
                                                     className={`py-1.5 rounded-md text-[10px] font-extrabold transition-colors ${autoFaceScanDirection === 'in' ? 'bg-white text-action-blue shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
                                                 >
                                                     Quét vào phòng
                                                 </button>
-                                                <button
+                                                <button data-ui-text="action"
                                                     type="button"
                                                     onClick={() => { setAutoFaceScanDirection('out'); setLastAutoFaceScan(null); }}
                                                     className={`py-1.5 rounded-md text-[10px] font-extrabold transition-colors ${autoFaceScanDirection === 'out' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
@@ -2589,7 +2595,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                     playsInline
                                                     className="w-full h-full object-cover scale-x-[-1]"
                                                 />
-	                                                <span className={`absolute left-2 top-2 px-2 py-0.5 rounded-full text-[9px] font-extrabold ${autoFaceGuidance.state === 'perfect' ? 'bg-emerald-500 text-white' : 'bg-black/60 text-white'}`}>
+	                                                <span data-ui-text="badge" className={`absolute left-2 top-2 px-2 py-0.5 rounded-full text-[9px] font-extrabold ${autoFaceGuidance.state === 'perfect' ? 'bg-emerald-500 text-white' : 'bg-black/60 text-white'}`}>
 	                                                    {autoFaceScanLoading ? 'Đang xử lý' : autoFaceGuidance.state === 'perfect' ? 'Đã thấy mặt' : autoFaceScanDirection === 'out' ? 'Đang quét ra' : 'Đang quét vào'}
 	                                                </span>
 	                                            </div>
@@ -2597,14 +2603,14 @@ const InMeetingRoom = ({ isPublic = false }) => {
 
                                         <div className="flex gap-2">
                                             {autoFaceCameraStream ? (
-                                                <button
+                                                <button data-ui-text="action"
                                                     onClick={stopAutoFaceCamera}
                                                     className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all"
                                                 >
                                                     <VideoOff className="w-3.5 h-3.5" /> Tắt camera
                                                 </button>
                                             ) : (
-	                                                <button
+	                                                <button data-ui-text="action"
 	                                                    onClick={startAutoFaceCamera}
 	                                                    disabled={!hasAutoFaceScanTargets}
 	                                                    className="flex-1 py-2 bg-blue-50 hover:bg-blue-100 text-action-blue border border-blue-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
@@ -2612,16 +2618,16 @@ const InMeetingRoom = ({ isPublic = false }) => {
 	                                                    <VideoIcon className="w-3.5 h-3.5" /> Bật tự quét
                                                 </button>
                                             )}
-                                            <button
+                                            <RefreshButton
                                                 onClick={loadAttendance}
-                                                className="px-3 py-2 bg-white hover:bg-cloud-mist text-slate-blue border border-platinum-tint rounded-lg text-[10px] font-bold flex items-center justify-center transition-all"
+                                                legacyClassName="px-3 py-2 bg-white hover:bg-cloud-mist text-slate-blue border border-platinum-tint rounded-lg text-[10px] font-bold flex items-center justify-center transition-all"
                                                 title="Làm mới điểm danh"
                                             >
                                                 <RefreshCw className="w-3.5 h-3.5" />
-                                            </button>
+                                            </RefreshButton>
                                         </div>
 
-                                        <p className={`text-[10px] font-semibold leading-relaxed ${autoFaceCameraError || autoFaceModelError ? 'text-red-600' : hasUncheckedAttendanceParticipants ? 'text-slate-blue' : 'text-emerald-700'}`}>
+                                        <p data-ui-text="primary" className={`text-[10px] font-semibold leading-relaxed ${autoFaceCameraError || autoFaceModelError ? 'text-red-600' : hasUncheckedAttendanceParticipants ? 'text-slate-blue' : 'text-emerald-700'}`}>
 	                                            {autoFaceCameraError
 	                                                || autoFaceModelError
 	                                                || (lastAutoFaceScan?.skipped
@@ -2642,13 +2648,13 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                 {/* Điểm danh thủ công */}
                                 <div className="bg-white border border-platinum-tint rounded-xl overflow-hidden">
                                     <div className="flex items-center justify-between px-3 py-2.5 border-b border-platinum-tint bg-cloud-mist">
-                                        <h4 className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
+                                        <h4 data-ui-text="label" className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
                                             <UserCheck className="w-3.5 h-3.5 text-action-blue" /> Điểm danh thủ công
                                         </h4>
                                         <div className="flex items-center gap-1">
-                                            <button onClick={loadAttendance} className="p-1 text-slate-blue hover:text-action-blue transition-colors">
+                                            <RefreshButton onClick={loadAttendance} legacyClassName="p-1 text-slate-blue hover:text-action-blue transition-colors">
                                                 <RefreshCw className="w-3 h-3" />
-                                            </button>
+                                            </RefreshButton>
                                             <button onClick={() => setIsManualAttendanceExpanded(!isManualAttendanceExpanded)} className="p-1 text-slate-blue hover:text-action-blue transition-colors">
                                                 {isManualAttendanceExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                             </button>
@@ -2657,7 +2663,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     {isManualAttendanceExpanded && (
                                         <div className="divide-y divide-platinum-tint max-h-44 overflow-y-auto">
                                             {(meetingState.participants || []).length === 0 ? (
-                                                <p className="text-[11px] text-slate-blue italic text-center py-3">Không có người tham gia.</p>
+                                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue italic text-center py-3">Không có người tham gia.</p>
                                             ) : (
                                                 (meetingState.participants || []).map(p => {
                                                     const checked = isCheckedIn(p);
@@ -2672,7 +2678,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                <span className="text-xs font-semibold text-midnight-indigo truncate">{p.fullName}</span>
+                                                                <span data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo truncate">{p.fullName}</span>
                                                             </div>
                                                             {checked ? (
                                                                 <span
@@ -2682,7 +2688,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                     <Check className="w-3 h-3 text-emerald-600" />
                                                                 </span>
                                                             ) : (
-                                                                <button
+                                                                <button data-ui-text="action"
                                                                     onClick={() => handleManualCheckIn(p)}
                                                                     disabled={manualCheckInLoading === p.id}
                                                                     className="ml-2 shrink-0 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-[9px] font-extrabold flex items-center gap-1 transition-all"
@@ -2705,7 +2711,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                 {/* Gia hạn cuộc họp */}
                                 <div className="bg-white border border-platinum-tint rounded-xl overflow-hidden">
                                     <div className="px-3 py-2.5 border-b border-platinum-tint bg-cloud-mist">
-                                        <h4 className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
+                                        <h4 data-ui-text="label" className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
                                             <Timer className="w-3.5 h-3.5 text-action-blue" /> Gia hạn cuộc họp
                                         </h4>
                                     </div>
@@ -2723,7 +2729,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                 {meetingState.status === 'in_progress' && (
                                     <div className="bg-white border border-platinum-tint rounded-xl overflow-hidden">
                                         <div className="px-3 py-2.5 border-b border-platinum-tint bg-cloud-mist">
-                                            <h4 className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider">Ghi âm phiên họp</h4>
+                                            <h4 data-ui-text="label" className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider">Ghi âm phiên họp</h4>
                                         </div>
                                         <div className="p-3">
                                             <StationRecorder
@@ -2743,14 +2749,14 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                 {/* Ghi hình */}
                                 <div className="bg-white border border-platinum-tint rounded-xl overflow-hidden">
                                     <div className="px-3 py-2.5 border-b border-platinum-tint bg-cloud-mist">
-                                        <h4 className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
+                                        <h4 data-ui-text="label" className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
                                             <VideoIcon className="w-3.5 h-3.5" /> Ghi hình camera phòng họp
                                         </h4>
                                     </div>
                                     <div className="p-3 space-y-3">
                                         <div className="flex items-center justify-between">
                                             <div className="flex flex-col gap-0.5">
-                                                <span className={`text-xs font-semibold ${recordingStatus === 'failed' ? 'text-red-600' : 'text-midnight-indigo'}`}>
+                                                <span data-ui-text="primary" className={`text-xs font-semibold ${recordingStatus === 'failed' ? 'text-red-600' : 'text-midnight-indigo'}`}>
                                                     {recordingStatus === 'inactive' ? 'Chưa ghi hình' :
                                                         recordingStatus === 'recording' ? 'Đang ghi hình' :
                                                             recordingStatus === 'paused' ? 'Đã tạm dừng' :
@@ -2779,10 +2785,10 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                         {['recording', 'paused'].includes(recordingStatus) && (
                                             <div className="flex gap-2">
                                                 {recordingStatus === 'recording' && (
-                                                    <button onClick={handlePauseRecording} className="flex-1 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-bold">Tạm dừng</button>
+                                                    <button data-ui-text="action" onClick={handlePauseRecording} className="flex-1 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-bold">Tạm dừng</button>
                                                 )}
                                                 {recordingStatus === 'paused' && (
-                                                    <button onClick={handleResumeRecording} className="flex-1 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-bold">Tiếp tục</button>
+                                                    <button data-ui-text="action" onClick={handleResumeRecording} className="flex-1 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-bold">Tiếp tục</button>
                                                 )}
                                             </div>
                                         )}
@@ -2792,7 +2798,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                             chỉ không render. Gán người nói SAU cuộc họp không bị ảnh hưởng. */}
                                         {LIVE_SPEAKER_TAGGING_ENABLED && isHost && ['recording', 'paused'].includes(recordingStatus) && (
                                             <div className="flex flex-col gap-2 border-t border-platinum-tint/60 pt-3 mt-1">
-                                                <div className="text-[10px] font-bold text-slate-blue uppercase tracking-wider flex items-center gap-1">
+                                                <div data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider flex items-center gap-1">
                                                     <Mic className="w-3 h-3 text-action-blue" />
                                                     Người đang nói
                                                 </div>
@@ -2806,7 +2812,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                         <option key={p.id} value={p.id}>{p.fullName}{p.isExternal ? ' (Khách)' : ''}</option>
                                                     ))}
                                                 </select>
-                                                <button
+                                                <button data-ui-text="action"
                                                     onClick={handleLiveSpeakerTag}
                                                     disabled={!liveTagSelected || liveTagSubmitting}
                                                     className="w-full py-1.5 bg-action-blue text-white rounded-lg text-[10px] font-extrabold hover:bg-glacier-blue disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
@@ -2829,28 +2835,32 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                             onClick={() => setIsRoomDevicesExpanded(!isRoomDevicesExpanded)}
                                             className="w-full px-3 py-2.5 bg-cloud-mist hover:bg-slate-50 flex items-center justify-between transition-colors border-b border-platinum-tint"
                                         >
-                                            <h4 className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
+                                            <h4 data-ui-text="action" className="text-[10px] font-extrabold text-midnight-indigo uppercase tracking-wider flex items-center gap-1.5">
                                                 <Cpu className="w-3.5 h-3.5 text-action-blue" /> Thiết bị phòng ({roomDevices.length})
                                             </h4>
                                             {isRoomDevicesExpanded ? <ChevronUp className="w-4 h-4 text-slate-blue" /> : <ChevronDown className="w-4 h-4 text-slate-blue" />}
                                         </button>
                                         {isRoomDevicesExpanded && (
-                                            <div className="divide-y divide-platinum-tint max-h-[200px] overflow-y-auto">
-                                                {roomDevices.map((device, idx) => (
+                                            <PaginatedCollection items={roomDevices} itemLabel="thiết bị">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="divide-y divide-platinum-tint max-h-[200px] overflow-y-auto">
+                                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((device, idx) => (
                                                     <div key={device.id || idx} className="flex items-center justify-between px-3 py-2 hover:bg-cloud-mist/30 transition-colors">
-                                                        <span className="text-xs text-midnight-indigo font-semibold truncate pr-2">
+                                                        <span data-ui-text="primary" className="text-xs text-midnight-indigo font-semibold truncate pr-2">
                                                             {device.device_name || device.name || device.deviceName || `Thiết bị ${idx + 1}`}
-                                                            {isRecordingCamera(device) && <span className="ml-1 text-[9px] text-action-blue">(camera)</span>}
+                                                            {isRecordingCamera(device) && <span data-ui-text="secondary" className="ml-1 text-[9px] text-action-blue">(camera)</span>}
                                                         </span>
-                                                        <span className={`text-[9px] px-2 py-0.5 rounded font-bold border shrink-0 ${device.status === 'online' || device.isOnline
+                                                        <span data-ui-text="badge" className={`text-[9px] px-2 py-0.5 rounded font-bold border shrink-0 ${device.status === 'online' || device.isOnline
                                                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                             : 'bg-red-50 text-red-600 border-red-200'
                                                             }`}>
                                                             {device.status === 'online' || device.isOnline ? 'Online' : 'Offline'}
                                                         </span>
                                                     </div>
-                                                ))}
+                                                ))(camaiRecord, camaiStartIndex + camaiIndex, (roomDevices)))}
                                             </div>
+)}
+</PaginatedCollection>
                                         )}
                                     </div>
                                 )}
@@ -2858,16 +2868,16 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                 {/* Chuyển chương trình tiếp theo */}
                                 {meetingState.agenda?.length > 0 && (
                                     <div className="bg-action-blue rounded-xl p-4 text-white">
-                                        <span className="text-[10px] font-extrabold uppercase tracking-wider opacity-70">Đang thảo luận</span>
-                                        <h4 className="text-sm font-extrabold mt-0.5 leading-snug">
+                                        <span data-ui-text="label" className="text-[10px] font-extrabold uppercase tracking-wider opacity-70">Đang thảo luận</span>
+                                        <h4 data-ui-text="primary" className="text-sm font-extrabold mt-0.5 leading-snug">
                                             {meetingState.agenda[meetingState.currentAgendaIndex]?.title}
                                         </h4>
-                                        <div className="flex items-center gap-1.5 mt-1 text-[11px] opacity-80">
+                                        <div data-ui-text="secondary" className="flex items-center gap-1.5 mt-1 text-[11px] opacity-80">
                                             <Clock className="w-3 h-3" />
                                             Còn lại: {Math.floor(meetingState.agendaTimeLeft / 60)}:{(meetingState.agendaTimeLeft % 60).toString().padStart(2, '0')}
                                         </div>
                                         {meetingState.currentAgendaIndex + 1 < meetingState.agenda.length && (
-                                            <button
+                                            <button data-ui-text="action"
                                                 onClick={handleNextAgenda}
                                                 className="w-full mt-3 py-1.5 bg-white/15 hover:bg-white/25 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all"
                                             >
@@ -2880,17 +2890,19 @@ const InMeetingRoom = ({ isPublic = false }) => {
 
                             {/* ── TAB: Chương trình ── */}
                             {activeChatTab === 'agenda' && (
-                                <div className="p-4 space-y-3">
+                                <PaginatedCollection items={meetingState?.agenda} itemLabel="nội dung" resetKey="live-agenda" activeIndex={meetingState.currentAgendaIndex}>
+{(camaiPageItems, camaiStartIndex) => (
+<div className="p-4 space-y-3">
                                     {meetingState.agenda?.length > 0 ? (
                                         <>
                                             <div className="flex items-center justify-between">
                                                 <h3 className="text-xs font-extrabold text-midnight-indigo uppercase tracking-wider">Chương trình họp</h3>
-                                                <span className="text-[10px] text-slate-blue font-medium">
+                                                <span data-ui-text="secondary" className="text-[10px] text-slate-blue font-medium">
                                                     {meetingState.currentAgendaIndex + 1}/{meetingState.agenda.length} mục
                                                 </span>
                                             </div>
 
-                                            {meetingState.agenda.map((item, idx) => {
+                                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((item, idx) => {
                                                 const isCurrent = idx === meetingState.currentAgendaIndex;
                                                 const isPast = idx < meetingState.currentAgendaIndex;
                                                 const isExpanded = expandedAgendaIdx === idx;
@@ -2917,21 +2929,21 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-start justify-between gap-2">
-                                                                    <p className={`text-xs font-bold leading-snug ${isCurrent ? 'text-action-blue' : 'text-midnight-indigo'}`}>
+                                                                    <p data-ui-text="primary" className={`text-xs font-bold leading-snug ${isCurrent ? 'text-action-blue' : 'text-midnight-indigo'}`}>
                                                                         {item.title}
                                                                     </p>
-                                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0 ${isCurrent ? 'bg-action-blue/10 text-action-blue' : 'bg-cloud-mist text-slate-blue'}`}>
+                                                                    <span data-ui-text="action" className={`text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0 ${isCurrent ? 'bg-action-blue/10 text-action-blue' : 'bg-cloud-mist text-slate-blue'}`}>
                                                                         {item.durationMin || item.plannedDurationMinutes}ph
                                                                     </span>
                                                                 </div>
                                                                 {isCurrent && (
-                                                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-action-blue font-semibold">
+                                                                    <div data-ui-text="action" className="flex items-center gap-1 mt-1 text-[10px] text-action-blue font-semibold">
                                                                         <Clock className="w-3 h-3" />
                                                                         Còn {Math.floor(meetingState.agendaTimeLeft / 60)}:{(meetingState.agendaTimeLeft % 60).toString().padStart(2, '0')}
                                                                     </div>
                                                                 )}
                                                                 {(item.description || item.attachments?.length > 0) && (
-                                                                    <div className={`flex items-center gap-1 mt-0.5 text-[9px] ${isCurrent ? 'text-action-blue/70' : 'text-slate-blue'}`}>
+                                                                    <div data-ui-text="action" className={`flex items-center gap-1 mt-0.5 text-[9px] ${isCurrent ? 'text-action-blue/70' : 'text-slate-blue'}`}>
                                                                         {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                                                                         {isExpanded ? 'Thu gọn' : 'Xem chi tiết'}
                                                                     </div>
@@ -2943,18 +2955,18 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                         {isExpanded && (
                                                             <div className="px-3 pb-3 pt-0 bg-white border-t border-platinum-tint space-y-2">
                                                                 {item.description && (
-                                                                    <p className="text-[11px] text-slate-blue leading-relaxed pt-2">{item.description}</p>
+                                                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue leading-relaxed pt-2">{item.description}</p>
                                                                 )}
                                                                 {item.attachments?.length > 0 && (
                                                                     <div className="space-y-1.5 mt-2">
                                                                         <div className="flex items-center justify-between mb-1">
-                                                                            <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tài liệu đính kèm</span>
+                                                                            <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tài liệu đính kèm</span>
                                                                         </div>
                                                                         {item.attachments.map((att, attIdx) => (
                                                                             <div key={att.id} className="flex items-center justify-between bg-cloud-mist p-2 rounded-lg border border-platinum-tint gap-2">
                                                                                 <div className="flex items-center gap-1.5 min-w-0">
                                                                                     <FileText className="w-4 h-4 text-slate-blue shrink-0" />
-                                                                                    <span className="text-[11px] font-medium text-midnight-indigo truncate">{att.fileName}</span>
+                                                                                    <span data-ui-text="secondary" className="text-[11px] font-medium text-midnight-indigo truncate">{att.fileName}</span>
                                                                                 </div>
                                                                                 <div className="flex items-center gap-1.5 shrink-0">
                                                                                     <button
@@ -2986,7 +2998,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                                         <Download className="w-4 h-4" />
                                                                                     </button>
                                                                                     {isHost && isCurrent && (
-                                                                                        <button
+                                                                                        <button data-ui-text="action"
                                                                                             onClick={() => {
                                                                                                 if (presentedFile?.fileId === att.id) {
                                                                                                     getSocket().emit('agenda:present_stop', { meetingId: id });
@@ -3014,7 +3026,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                     </div>
                                                                 )}
                                                                 {isHost && isCurrent && meetingState.currentAgendaIndex + 1 < meetingState.agenda.length && (
-                                                                    <button
+                                                                    <button data-ui-text="action"
                                                                         onClick={handleNextAgenda}
                                                                         className="w-full py-2 mt-1 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 whitespace-nowrap shadow-sm"
                                                                     >
@@ -3025,16 +3037,18 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                         )}
                                                     </div>
                                                 );
-                                            })}
+                                            })(camaiRecord, camaiStartIndex + camaiIndex, (meetingState.agenda)))}
 
                                             {/* Media files */}
                                             {/* Media files — chỉ hiển sau khi cuộc họ p kết thúc */}
                                             {mediaFiles.length > 0 && meetingState?.status === 'completed' && (
-                                                <div className="space-y-1.5">
-                                                    <h4 className="text-[10px] font-bold text-slate-blue uppercase tracking-wider flex items-center gap-1.5">
+                                                <PaginatedCollection items={mediaFiles} itemLabel="tệp">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="space-y-1.5">
+                                                    <h4 data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider flex items-center gap-1.5">
                                                         <FileText className="w-3 h-3" /> Bản ghi cuộc họp ({mediaFiles.length})
                                                     </h4>
-                                                    {mediaFiles.map((file, idx) => (
+                                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((file, idx) => (
                                                         <div key={file.id || idx} className="p-2.5 bg-cloud-mist border border-platinum-tint rounded-xl flex items-center justify-between group">
                                                             <div className="flex-1 min-w-0 pr-2">
                                                                 {editingMediaId === file.id ? (
@@ -3056,7 +3070,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                     </div>
                                                                 ) : (
                                                                     <div className="flex items-center gap-2">
-                                                                        <p className="text-xs font-semibold text-midnight-indigo truncate" title={file.title || `Bản_ghi_${idx + 1}`}>
+                                                                        <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo truncate" title={file.title || `Bản_ghi_${idx + 1}`}>
                                                                             {file.title || `Bản_ghi_${idx + 1}`}
                                                                         </p>
                                                                         {isHost && (
@@ -3070,14 +3084,16 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                         )}
                                                                     </div>
                                                                 )}
-                                                                <p className="text-[9px] text-slate-blue mt-0.5">{file.duration ? formatDuration(file.duration) : 'Đã lưu'}</p>
+                                                                <p data-ui-text="secondary" className="text-[9px] text-slate-blue mt-0.5">{file.duration ? formatDuration(file.duration) : 'Đã lưu'}</p>
                                                             </div>
                                                             <a href={file.downloadUrl || '#'} target="_blank" rel="noreferrer" className="p-1.5 bg-white border border-platinum-tint rounded-lg text-action-blue hover:text-glacier-blue transition-colors shrink-0">
                                                                 <Play className="w-3 h-3" />
                                                             </a>
                                                         </div>
-                                                    ))}
+                                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (mediaFiles)))}
                                                 </div>
+)}
+</PaginatedCollection>
                                             )}
                                         </>
                                     ) : (
@@ -3087,6 +3103,8 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                         </div>
                                     )}
                                 </div>
+)}
+</PaginatedCollection>
                             )}
 
                             {/* ── TAB: Ghi chú ── */}
@@ -3123,29 +3141,33 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     </form>
 
                                     {/* Notes list */}
-                                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                                    <PaginatedCollection items={notes} itemLabel="ghi chú">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="flex-1 overflow-y-auto p-3 space-y-2">
                                         {notes.length === 0 ? (
                                             <div className="text-center py-10">
                                                 <StickyNote className="w-8 h-8 text-pale-gray mx-auto mb-2" />
                                                 <p className="text-xs text-slate-blue italic">Chưa có ghi chú nào.</p>
                                             </div>
                                         ) : (
-                                            notes.map((note, idx) => {
+                                            camaiPageItems.map((camaiRecord, camaiIndex) => ((note, idx) => {
                                                 const authorName = note.author?.fullName || note.authorName || 'Người dùng';
                                                 const createdAt = note.createdAt || note.created_at;
                                                 const timeStr = createdAt ? new Date(createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
                                                 return (
                                                     <div key={note.id || idx} className="bg-white border border-platinum-tint rounded-xl p-3 space-y-1.5">
                                                         <div className="flex items-center justify-between">
-                                                            <span className="text-[10px] font-extrabold text-action-blue">{authorName}</span>
-                                                            {timeStr && <span className="text-[9px] text-slate-blue">{timeStr}</span>}
+                                                            <span data-ui-text="primary" className="text-[10px] font-extrabold text-action-blue">{authorName}</span>
+                                                            {timeStr && <span data-ui-text="secondary" className="text-[9px] text-slate-blue">{timeStr}</span>}
                                                         </div>
                                                         <p className="text-xs text-midnight-indigo leading-relaxed">{note.content}</p>
                                                     </div>
                                                 );
-                                            })
+                                            })(camaiRecord, camaiStartIndex + camaiIndex, (notes)))
                                         )}
                                     </div>
+)}
+</PaginatedCollection>
                                 </div>
                             )}
 
@@ -3169,15 +3191,15 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                     <div className="grid grid-cols-3 gap-2">
                                         <div className="bg-cloud-mist border border-platinum-tint rounded-xl p-2.5 text-center">
                                             <div className="text-lg font-extrabold text-midnight-indigo">{meetingState.participants?.length || 0}</div>
-                                            <div className="text-[9px] text-slate-blue font-medium uppercase tracking-wide mt-0.5">Tổng</div>
+                                            <div data-ui-text="label" className="text-[9px] text-slate-blue font-medium uppercase tracking-wide mt-0.5">Tổng</div>
                                         </div>
                                         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-center">
                                             <div className="text-lg font-extrabold text-emerald-700">{checkedInCount}</div>
-                                            <div className="text-[9px] text-emerald-700 font-medium uppercase tracking-wide mt-0.5">Có mặt</div>
+                                            <div data-ui-text="label" className="text-[9px] text-emerald-700 font-medium uppercase tracking-wide mt-0.5">Có mặt</div>
                                         </div>
                                         <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-center">
                                             <div className="text-lg font-extrabold text-red-600">{(meetingState.participants?.length || 0) - checkedInCount}</div>
-                                            <div className="text-[9px] text-red-600 font-medium uppercase tracking-wide mt-0.5">Chưa điểm</div>
+                                            <div data-ui-text="label" className="text-[9px] text-red-600 font-medium uppercase tracking-wide mt-0.5">Chưa điểm</div>
                                         </div>
                                     </div>
 
@@ -3202,24 +3224,24 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-xs font-bold text-midnight-indigo truncate">{p.fullName}</span>
+                                                            <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo truncate">{p.fullName}</span>
                                                             {p.role === 'Chủ tọa' && (
-                                                                <span className="text-[8px] px-1.5 py-0.5 bg-red-50 text-red-600 rounded font-extrabold shrink-0">CT</span>
+                                                                <span data-ui-text="badge" className="text-[8px] px-1.5 py-0.5 bg-red-50 text-red-600 rounded font-extrabold shrink-0">CT</span>
                                                             )}
                                                             {getActualUserId(p) === (meetingState?.secretary?.id || meetingState?.secretaryId) && (
-                                                                <span className="text-[8px] px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded font-extrabold shrink-0">TK</span>
+                                                                <span data-ui-text="badge" className="text-[8px] px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded font-extrabold shrink-0">TK</span>
                                                             )}
                                                             {p.isExternal && (
-                                                                <span className="text-[8px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded font-extrabold shrink-0">KHÁCH</span>
+                                                                <span data-ui-text="badge" className="text-[8px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded font-extrabold shrink-0">KHÁCH</span>
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <span className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${presenceInfo.color}`}>
+                                                            <span data-ui-text="badge" className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${presenceInfo.color}`}>
                                                                 {presenceInfo.label}
                                                             </span>
-                                                            {timeStr && <span className="text-[9px] text-slate-blue">{timeStr}</span>}
+                                                            {timeStr && <span data-ui-text="secondary" className="text-[9px] text-slate-blue">{timeStr}</span>}
                                                             {record?.excuseStatus && (
-                                                                <span
+                                                                <span data-ui-text="badge"
                                                                     className={`text-[9px] px-1.5 py-0.5 rounded border font-bold ${EXCUSE_STATUS_MAP[record.excuseStatus]?.color || ''}`}
                                                                     title={[record.excuseReason, record.excuseReviewNote && `Từ chối: ${record.excuseReviewNote}`].filter(Boolean).join(' — ')}
                                                                 >
@@ -3231,9 +3253,9 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                         {record && !record.excuseStatus && getActualUserId(p) === myParticipantId
                                                             && (record.isLate || ['late', 'left_early', 'absent'].includes(record.attendanceStatus)) && (
                                                             meetingState?.status === 'completed' ? (
-                                                                <p className="mt-1.5 text-[9px] italic text-slate-400">Đã khóa vì cuộc họp đã kết thúc</p>
+                                                                <p data-ui-text="secondary" className="mt-1.5 text-[9px] italic text-slate-400">Đã khóa vì cuộc họp đã kết thúc</p>
                                                             ) : (
-                                                            <button
+                                                            <button data-ui-text="action"
                                                                 onClick={() => setExcuseModal({ mode: 'submit', participant: p, record, text: '' })}
                                                                 className="mt-1.5 inline-flex items-center gap-1 whitespace-nowrap px-2 py-1 text-[9px] font-bold rounded-lg border border-action-blue text-action-blue hover:bg-blue-50"
                                                             >
@@ -3243,13 +3265,13 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                         )}
                                                         {canReviewExcuse && record?.excuseStatus === 'pending' && getActualUserId(p) !== myParticipantId && (
                                                             <div className="mt-1.5 flex gap-1.5">
-                                                                <button
+                                                                <button data-ui-text="action"
                                                                     onClick={() => setExcuseModal({ mode: 'review', participant: p, record, approve: true, text: '' })}
                                                                     className="px-2 py-0.5 text-[9px] font-bold rounded bg-emerald-600 text-white hover:bg-emerald-700"
                                                                 >
                                                                     Duyệt
                                                                 </button>
-                                                                <button
+                                                                <button data-ui-text="action"
                                                                     onClick={() => setExcuseModal({ mode: 'review', participant: p, record, approve: false, text: '' })}
                                                                     className="px-2 py-0.5 text-[9px] font-bold rounded bg-rose-600 text-white hover:bg-rose-700"
                                                                 >
@@ -3274,7 +3296,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                     }
                                                                 </button>
                                                             ) : (
-                                                                <button
+                                                                <button data-ui-text="action"
                                                                     onClick={() => handleManualCheckIn(p)}
                                                                     disabled={manualCheckInLoading === p.id}
                                                                     className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-[9px] font-bold flex items-center gap-1 transition-all"
@@ -3345,12 +3367,12 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                         document.body
                                     )}
 
-                                    <button
+                                    <RefreshButton
                                         onClick={loadAttendance}
-                                        className="w-full py-2 bg-cloud-mist hover:bg-pale-gray text-slate-blue border border-platinum-tint rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+                                        legacyClassName="w-full py-2 bg-cloud-mist hover:bg-pale-gray text-slate-blue border border-platinum-tint rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
                                     >
                                         <RefreshCw className="w-3.5 h-3.5" /> Làm mới
-                                    </button>
+                                    </RefreshButton>
                                 </div>
                             )}
 
@@ -3519,7 +3541,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                         {extensionRejectedInfo.nextMeeting && (
                             <div className="bg-cloud-mist border border-platinum-tint rounded-xl p-3 space-y-1">
                                 <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Cuộc họp kế tiếp</p>
-                                <p className="text-sm font-semibold text-midnight-indigo">{extensionRejectedInfo.nextMeeting.title}</p>
+                                <p data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{extensionRejectedInfo.nextMeeting.title}</p>
                                 <p className="text-xs text-slate-blue">
                                     Bắt đầu lúc {new Date(extensionRejectedInfo.nextMeeting.startTime).toLocaleString('vi-VN')}
                                     {extensionRejectedInfo.nextMeeting.roomName ? ` • ${extensionRejectedInfo.nextMeeting.roomName}` : ''}
@@ -3529,7 +3551,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                         {extensionRejectedInfo.nextMeetingHost && (
                             <div className="border border-platinum-tint rounded-xl p-3 space-y-2">
                                 <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Liên hệ Host cuộc họp sau</p>
-                                <p className="text-sm font-semibold text-midnight-indigo">{extensionRejectedInfo.nextMeetingHost.fullName}</p>
+                                <p data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{extensionRejectedInfo.nextMeetingHost.fullName}</p>
                                 <div className="flex flex-col gap-1.5">
                                     {extensionRejectedInfo.nextMeetingHost.email && (
                                         <a href={`mailto:${extensionRejectedInfo.nextMeetingHost.email}`} className="flex items-center gap-2 text-xs text-action-blue hover:underline">

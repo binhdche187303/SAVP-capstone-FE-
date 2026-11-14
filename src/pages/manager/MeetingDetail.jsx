@@ -1,10 +1,11 @@
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import { AlertTriangle, Calendar, Check, Clock, Download, Edit3, FileText, GripVertical, List, Loader2, MapPin, Pause, Play, Search, Sparkles, Trash2, Upload, Users, UserPlus, Video, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { RichTextView } from '../../components/common/RichTextEditor';
 import { useState, useEffect, useCallback } from 'react';
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import DatePicker from "react-datepicker";
+import DatePicker from '../../components/common/AppDatePicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { vi } from 'date-fns/locale/vi';
 import TimePicker from '../../components/common/TimePicker';
@@ -159,12 +160,12 @@ const ManagerMeetingDetail = () => {
     const [refreshTranscriptKey, setRefreshTranscriptKey] = useState(0);
     const [runningSttSessionIds, setRunningSttSessionIds] = useState(() => new Set());
     const [audioPage, setAudioPage] = useState(1);
-    const audioItemsPerPage = 5;
+    const [audioItemsPerPage, setAudioItemsPerPage] = useState(5);
 
     // Pagination for long lists
     const [agendaPage, setAgendaPage] = useState(1);
     const [participantsPage, setParticipantsPage] = useState(1);
-    const ITEMS_PER_PAGE = 5;
+    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(5);
 
     /**
      * Chuẩn hoá DTO lồng nhau từ API GET /meetings/:id
@@ -909,7 +910,7 @@ const ManagerMeetingDetail = () => {
                 onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
                 onCancel={() => setConfirm(null)}
             />
-            <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up">
+            <div data-page-surface="wide" className="max-w-5xl mx-auto space-y-6 animate-fade-in-up">
                 {/* Header / Actions */}
                 <div className="flex justify-end gap-2 w-full">
                     {isHost && effectiveStatus !== 'cancelled' && effectiveStatus !== 'completed' && !isEnded && (
@@ -1143,8 +1144,7 @@ const ManagerMeetingDetail = () => {
                                             </div>
                                         )})}
                                     </div>
-                                    {meeting.agenda.length > ITEMS_PER_PAGE && (
-                                        <div className="flex justify-between items-center mt-4 pt-3 border-t border-platinum-tint">
+                                    {<PaginationRegion legacyVisible={meeting.agenda.length > ITEMS_PER_PAGE}><PaginationFooter currentPage={agendaPage} totalPages={Math.ceil(meeting.agenda.length / ITEMS_PER_PAGE)} totalItems={meeting.agenda.length} pageSize={ITEMS_PER_PAGE} itemLabel="nội dung" onPageChange={setAgendaPage} onPageSizeChange={size => { setItemsPerPage(size); setAgendaPage(1); setParticipantsPage(1); }} legacy={<div className="flex justify-between items-center mt-4 pt-3 border-t border-platinum-tint">
                                             <button 
                                                 disabled={agendaPage === 1} 
                                                 onClick={() => setAgendaPage(p => p - 1)} 
@@ -1162,8 +1162,7 @@ const ManagerMeetingDetail = () => {
                                             >
                                                 Sau
                                             </button>
-                                        </div>
-                                    )}
+                                        </div>} /></PaginationRegion>}
                                 </div>
                             ) : (
                                 <p className="text-xs text-slate-blue italic text-center py-4">Chưa có Agenda nào được cấu hình cho cuộc họp này.</p>
@@ -1261,8 +1260,7 @@ const ManagerMeetingDetail = () => {
                                                             )}
                                                         </div>
                                                     ))}
-                                                    {filtered.length > ITEMS_PER_PAGE && (
-                                                        <div className="flex justify-between items-center mt-2 pt-3 border-t border-platinum-tint">
+                                                    {<PaginationRegion legacyVisible={filtered.length > ITEMS_PER_PAGE}><PaginationFooter currentPage={participantsPage} totalPages={Math.ceil(filtered.length / ITEMS_PER_PAGE)} totalItems={filtered.length} pageSize={ITEMS_PER_PAGE} itemLabel="người tham gia" onPageChange={setParticipantsPage} onPageSizeChange={size => { setItemsPerPage(size); setAgendaPage(1); setParticipantsPage(1); }} legacy={<div className="flex justify-between items-center mt-2 pt-3 border-t border-platinum-tint">
                                                             <button 
                                                                 disabled={participantsPage === 1} 
                                                                 onClick={() => setParticipantsPage(p => p - 1)} 
@@ -1280,8 +1278,7 @@ const ManagerMeetingDetail = () => {
                                                             >
                                                                 Sau
                                                             </button>
-                                                        </div>
-                                                    )}
+                                                        </div>} /></PaginationRegion>}
                                                 </>
                                             );
                                         })()}
@@ -1367,8 +1364,7 @@ const ManagerMeetingDetail = () => {
                                                     <Play className="w-4 h-4 text-action-blue" />
                                                     Bản ghi âm cuộc họp
                                                 </h3>
-                                                {totalAudioPages > 1 && (
-                                                    <div className="flex items-center gap-1.5 bg-cloud-mist rounded-lg p-1 border border-platinum-tint">
+                                                {<PaginationRegion legacyVisible={totalAudioPages > 1}><PaginationFooter currentPage={audioPage} totalPages={totalAudioPages} totalItems={audioFiles.length} pageSize={audioItemsPerPage} itemLabel="tệp âm thanh" onPageChange={setAudioPage} onPageSizeChange={size => { setAudioItemsPerPage(size); setAudioPage(1); }} legacy={<div className="flex items-center gap-1.5 bg-cloud-mist rounded-lg p-1 border border-platinum-tint">
                                                         <button 
                                                             onClick={() => setAudioPage(p => Math.max(1, p - 1))}
                                                             disabled={audioPage === 1}
@@ -1386,8 +1382,7 @@ const ManagerMeetingDetail = () => {
                                                         >
                                                             <ChevronRight className="w-3.5 h-3.5" />
                                                         </button>
-                                                    </div>
-                                                )}
+                                                    </div>} /></PaginationRegion>}
                                             </div>
                                             <div className="space-y-4">
                                                 {currentAudioFiles.map((audioFile, idx) => (

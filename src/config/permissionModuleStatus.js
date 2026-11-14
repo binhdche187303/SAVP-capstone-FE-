@@ -28,10 +28,6 @@ export const PERMISSION_MODULE_STATUS = {
         status: 'partial',
         note: 'Chỉ xem được trong chi tiết cuộc họp, chưa có màn riêng.',
     },
-    reports: {
-        status: 'partial',
-        note: 'Chỉ có nút xuất báo cáo trong trang phân tích, chưa có trang report riêng.',
-    },
     campus_dashboard: {
         status: 'partial',
         note: 'Cần xác nhận thêm phạm vi màn hình đang phủ.',

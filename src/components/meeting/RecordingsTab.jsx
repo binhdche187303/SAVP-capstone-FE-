@@ -1,3 +1,4 @@
+import RefreshButton from '../common/RefreshButton';
 import React, { useEffect, useCallback } from 'react';
 import {
     Film, RefreshCw, Play, Download, Clock, FileAudio,
@@ -105,15 +106,19 @@ const RecordingsTab = ({
                         <Film className="w-3.5 h-3.5 text-white" />
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-midnight-indigo">Quản lý ghi âm</p>
-                        <p className="text-[9px] text-slate-blue">{recordingSessions.length} phiên ghi âm</p>
+                        <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">Quản lý ghi âm</p>
+                        <p data-ui-text="secondary" className="text-[9px] text-slate-blue">{recordingSessions.length} phiên ghi âm</p>
                     </div>
                 </div>
-                <button onClick={loadAll} disabled={recordingsLoading}
-                    className="p-1.5 rounded-lg text-slate-blue hover:text-action-blue hover:bg-blue-50 transition-colors disabled:opacity-50"
-                    title="Làm mới">
+                <RefreshButton
+                    onClick={loadAll}
+                    disabled={recordingsLoading}
+                    legacyClassName="p-1.5 rounded-lg text-slate-blue hover:text-action-blue hover:bg-blue-50 transition-colors disabled:opacity-50"
+                    title="Làm mới"
+                    busy={recordingsLoading}
+                >
                     <RefreshCw className={`w-3.5 h-3.5 ${recordingsLoading ? 'animate-spin' : ''}`} />
-                </button>
+                </RefreshButton>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-4">
@@ -129,8 +134,8 @@ const RecordingsTab = ({
                         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
                             <FileAudio className="w-7 h-7 text-pale-gray" />
                         </div>
-                        <p className="text-xs font-bold text-midnight-indigo">Chưa có bản ghi âm</p>
-                        <p className="text-[9px] text-slate-blue max-w-[180px] leading-relaxed">
+                        <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">Chưa có bản ghi âm</p>
+                        <p data-ui-text="secondary" className="text-[9px] text-slate-blue max-w-[180px] leading-relaxed">
                             Bắt đầu ghi âm từ tab Quản lý. Các tệp sẽ xuất hiện ở đây sau khi hoàn thành.
                         </p>
                     </div>
@@ -139,7 +144,7 @@ const RecordingsTab = ({
                 {/* ── Phiên ghi âm ── */}
                 {!recordingsLoading && hasSessions && (
                     <section>
-                        <h4 className="text-[9px] font-bold text-slate-blue uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <h4 data-ui-text="label" className="text-[9px] font-bold text-slate-blue uppercase tracking-widest mb-2 flex items-center gap-1.5">
                             <Mic className="w-3 h-3 text-violet-500" /> Phiên ghi âm ({recordingSessions.length})
                         </h4>
                         <div className="space-y-2">
@@ -157,23 +162,23 @@ const RecordingsTab = ({
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <p className="text-xs font-bold text-midnight-indigo">Phiên #{idx + 1}</p>
-                                                    <span className={`inline-flex items-center gap-0.5 text-[8px] px-1.5 py-0.5 border rounded font-bold ${info.cls}`}>
+                                                    <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">Phiên #{idx + 1}</p>
+                                                    <span data-ui-text="badge" className={`inline-flex items-center gap-0.5 text-[8px] px-1.5 py-0.5 border rounded font-bold ${info.cls}`}>
                                                         {Icon && <Icon className="w-2.5 h-2.5" />}
                                                         {session.status === 'recording' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
                                                         {info.label}
                                                     </span>
                                                 </div>
                                                 <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
-                                                    {session.startedAt && <span className="text-[9px] text-slate-blue">BĐ: {formatDate(session.startedAt)}</span>}
-                                                    {session.endedAt && <span className="text-[9px] text-slate-blue">KT: {formatDate(session.endedAt)}</span>}
+                                                    {session.startedAt && <span data-ui-text="secondary" className="text-[9px] text-slate-blue">BĐ: {formatDate(session.startedAt)}</span>}
+                                                    {session.endedAt && <span data-ui-text="secondary" className="text-[9px] text-slate-blue">KT: {formatDate(session.endedAt)}</span>}
                                                     {session.durationSeconds && (
-                                                        <span className="flex items-center gap-0.5 text-[9px] text-slate-blue">
+                                                        <span data-ui-text="secondary" className="flex items-center gap-0.5 text-[9px] text-slate-blue">
                                                             <Clock className="w-2.5 h-2.5" />{formatDuration(session.durationSeconds)}
                                                         </span>
                                                     )}
                                                     {session.fileSizeBytes && (
-                                                        <span className="flex items-center gap-0.5 text-[9px] text-slate-blue">
+                                                        <span data-ui-text="secondary" className="flex items-center gap-0.5 text-[9px] text-slate-blue">
                                                             <HardDrive className="w-2.5 h-2.5" />{formatBytes(session.fileSizeBytes)}
                                                         </span>
                                                     )}
@@ -187,7 +192,7 @@ const RecordingsTab = ({
                                                     <button key={mf.id || mfIdx} onClick={() => handleGetPlayback(mf.id)}
                                                         className="w-full flex items-center gap-2 p-2 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
                                                         <Play className="w-3 h-3 text-action-blue shrink-0" />
-                                                        <span className="text-[9px] font-semibold text-action-blue truncate flex-1">
+                                                        <span data-ui-text="primary" className="text-[9px] font-semibold text-action-blue truncate flex-1">
                                                             {mf.title || mf.fileName || `Tệp ghi âm ${mfIdx + 1}`}
                                                         </span>
                                                         <ExternalLink className="w-2.5 h-2.5 text-action-blue shrink-0" />
@@ -203,7 +208,7 @@ const RecordingsTab = ({
                 )}
 
                 {!recordingsLoading && !isEmpty && (
-                    <p className="text-[9px] text-slate-400 text-center pb-2 leading-relaxed">
+                    <p data-ui-text="secondary" className="text-[9px] text-slate-400 text-center pb-2 leading-relaxed">
                         Sau khi phiên kết thúc, vào tab "Bản ghi (STT)" để chạy Speech to Text theo yêu cầu.<br />
                         Dữ liệu lưu trữ trong vòng 90 ngày.
                     </p>

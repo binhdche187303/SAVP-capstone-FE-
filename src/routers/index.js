@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom';
 import React, { Suspense } from 'react';
 import Login from '../pages/auth/login/login';
 import ForgotPassword from '../pages/auth/forgotpassword/forgotpassword';
+import SsoCallback from '../pages/auth/sso/SsoCallback';
 import VerifyOTP from '../pages/auth/forgotpassword/vertifyOTP';
 import { ChangePass } from '../pages/auth/forgotpassword/changePass';
 import Error403 from '../pages/Error/403';
@@ -97,6 +98,8 @@ import VisitorManagement from '../pages/shared/visitors/VisitorManagement';
 import VisitorRegister from '../pages/public/VisitorRegister';
 import ReportCenter from '../pages/shared/reports/ReportCenter';
 import ReportViewer from '../pages/shared/reports/ReportViewer';
+import ReportTemplates from '../pages/shared/reports/ReportTemplates';
+import ReportTemplateEditor from '../pages/shared/reports/ReportTemplateEditor';
 
 // Lazy-loaded to break circular dependency with minutesServices import chain
 const DocumentArchive = React.lazy(() => import('../pages/bussinessAdmin/DocumentArchive'));
@@ -114,6 +117,11 @@ export const router = [
     {
         path: '/forgot-password',
         element: <ForgotPassword />
+    },
+    {
+        // Đăng nhập một lần UEL — BE chuyển về đây kèm ?ticket= hoặc ?error=
+        path: '/sso/callback',
+        element: <SsoCallback />
     },
     {
         path: '/verify-otp',
@@ -289,6 +297,14 @@ export const router = [
                 element: <ReportRuns />
             },
             {
+                path: 'report-templates',
+                element: <ReportTemplates />
+            },
+            {
+                path: 'report-templates/:id',
+                element: <ReportTemplateEditor />
+            },
+            {
                 path: 'visitors/history',
                 element: <VisitorHistory />
             },
@@ -420,6 +436,14 @@ export const router = [
             {
                 path: 'report-schedules/runs',
                 element: <ReportRuns />
+            },
+            {
+                path: 'report-templates',
+                element: <ReportTemplates />
+            },
+            {
+                path: 'report-templates/:id',
+                element: <ReportTemplateEditor />
             },
             {
                 path: 'visitors/history',

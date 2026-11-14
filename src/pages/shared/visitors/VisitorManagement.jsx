@@ -1,7 +1,12 @@
+import ResponsiveTable from '../../../components/common/ResponsiveTable';
+import StatisticGrid from '../../../components/common/StatisticGrid';
+import StatisticCard from '../../../components/common/StatisticCard';
+import FilterBar from '../../../components/common/FilterBar';
+import PaginationFooter from '../../../components/common/PaginationFooter';
 import { useCallback, useEffect, useState } from 'react';
-import { ClipboardList, Search } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Clock, LogIn, LogOut, Search, XCircle } from 'lucide-react';
 import { listVisits, getVisitorLookups } from '../../../service/visitorService';
-import Pagination from '../../../components/common/Pagination';
+
 import VisitDetailDrawer from '../../../components/visitor/VisitDetailDrawer';
 import VisitorAvatar from '../../../components/visitor/VisitorAvatar';
 import VisitStatusBadge from '../../../components/visitor/VisitStatusBadge';
@@ -17,9 +22,17 @@ const TABS = [
     ['checked_out', 'Hoàn tất'],
     ['closed', 'Từ chối / Hết hạn / Khác'],
 ];
-const PAGE_SIZE = 10;
+const STATUS_CARDS = {
+    pending_approval: { icon: Clock, tone: 'warning' },
+    approved: { icon: CheckCircle2, tone: 'success' },
+    checked_in: { icon: LogIn, tone: 'default' },
+    checked_out: { icon: LogOut, tone: 'success' },
+    closed: { icon: XCircle, tone: 'danger' },
+};
+
 
 const VisitorManagement = () => {
+    const [PAGE_SIZE, setPageSize] = useState(10);
     const [lookups, setLookups] = useState({ departments: [], zones: [] });
     const [tab, setTab] = useState('pending_approval');
     const [filters, setFilters] = useState({ q: '', departmentId: '', from: '', to: '' });
@@ -36,9 +49,10 @@ const VisitorManagement = () => {
 
     // Ô tìm kiếm: chờ 300 ms sau lần gõ cuối rồi mới lọc.
     useEffect(() => {
+        if (query === filters.q) return undefined;
         const timer = setTimeout(() => { setPage(1); setFilters((f) => ({ ...f, q: query })); }, 300);
         return () => clearTimeout(timer);
-    }, [query]);
+    }, [query, filters.q]);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -50,7 +64,7 @@ const VisitorManagement = () => {
             setError(res?.message || 'Không tải được danh sách khách');
         }
         setLoading(false);
-    }, [filters, tab, page]);
+    }, [filters, tab, page, PAGE_SIZE]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -82,61 +96,68 @@ const VisitorManagement = () => {
     const items = data?.items || [];
 
     return (
-        <div className={pageCls}>
+        <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5">
-                <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                     <ClipboardList className="w-6 h-6 text-action-blue" />
                     Quản lý khách đến làm việc
                 </h2>
                 <p className="text-xs text-slate-blue mt-1">Theo dõi đăng ký (người được gặp tự duyệt), quyền ra vào theo thời gian và theo dõi trạng thái từng lượt khách.</p>
             </div>
 
-            <div className="flex flex-wrap gap-2" role="tablist">
+            <StatisticGrid columns={5} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4" data-stat-grid role="group" aria-label="Thống kê trạng thái khách">
                 {TABS.map(([key, label]) => (
-                    <button
+                    <StatisticCard
                         key={key}
-                        type="button"
-                        role="tab"
-                        aria-selected={tab === key}
+                        label={label}
+                        value={counts[key] ?? 0}
+                        icon={STATUS_CARDS[key].icon}
+                        tone={STATUS_CARDS[key].tone}
+                        selected={tab === key}
                         onClick={() => changeTab(key)}
-                        className={`px-4 py-2 rounded-xl text-xs font-semibold border ${tab === key ? 'bg-action-blue text-white border-action-blue' : 'bg-white text-slate-blue border-platinum-tint hover:bg-cloud-mist'}`}
-                    >
-                        {label}
-                        <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] ${tab === key ? 'bg-white/20' : 'bg-pale-gray'}`}>{counts[key] ?? 0}</span>
-                    </button>
+                    />
                 ))}
-            </div>
+            </StatisticGrid>
 
-            <div className={`${cardCls} p-4 flex flex-wrap gap-4 items-end`}>
-                <div className="space-y-1">
+            <FilterBar variant="card" className={`${cardCls} p-4 flex flex-wrap gap-4 items-end`}>
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="vm-q">Tìm kiếm</label>
                     <div className="relative">
                         <Search className="w-3.5 h-3.5 text-steel-gray absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input id="vm-q" className={`${searchInputCls} w-64`} placeholder="Tên, số giấy tờ, điện thoại, mã lượt…" value={query} onChange={(e) => setQuery(e.target.value)} />
+                        <input id="vm-q" className={`${searchInputCls} w-64`} placeholder="Tên, SĐT hoặc mã lượt" title="Tìm theo tên, số giấy tờ, điện thoại hoặc mã lượt" value={query} onChange={(e) => setQuery(e.target.value)} />
                     </div>
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="vm-dep">Đơn vị tiếp</label>
                     <select id="vm-dep" className={inputCls} value={filters.departmentId} onChange={(e) => changeFilter({ departmentId: e.target.value })}>
                         <option value="">Tất cả</option>
                         {lookups.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="vm-from">Từ ngày</label>
                     <input id="vm-from" type="date" className={inputCls} value={filters.from} onChange={(e) => changeFilter({ from: e.target.value })} />
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="vm-to">Đến ngày</label>
                     <input id="vm-to" type="date" className={inputCls} value={filters.to} onChange={(e) => changeFilter({ to: e.target.value })} />
                 </div>
-            </div>
+            </FilterBar>
 
             {error && <div className={errorBoxCls}>{error}</div>}
 
             <div className={`${cardCls} overflow-hidden`}>
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <ResponsiveTable className="w-full">
+<colgroup>
+<col style={{ width: '21%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '25%' }} />
+<col style={{ width: '16%' }} />
+<col style={{ width: '7%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '7%' }} />
+</colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
                                 {['Khách', 'Mã lượt', 'Người gặp / Đơn vị tiếp', 'Giờ hẹn', 'Kênh', 'Trạng thái', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
@@ -152,21 +173,21 @@ const VisitorManagement = () => {
                                             <VisitorAvatar visitor={visit.visitor} size={36} />
                                             <div>
                                                 <p className="font-semibold">{visit.visitor.fullName}</p>
-                                                <p className="text-[11px] text-slate-blue">{visit.visitor.organization || '—'}{visit.visitor.hasPhoto ? '' : ' · Chưa có ảnh'}</p>
+                                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{visit.visitor.organization || '—'}{visit.visitor.hasPhoto ? '' : ' · Chưa có ảnh'}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className={`${tdCls} font-mono`}>{visit.code}</td>
                                     <td className={tdCls}>
                                         <p className="font-semibold">{visit.hostName}</p>
-                                        <p className="text-[11px] text-slate-blue">{visit.departmentName}</p>
+                                        <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{visit.departmentName}</p>
                                     </td>
                                     <td className={tdCls}>{fmtTimeRange(visit.scheduledFrom, visit.scheduledTo)}</td>
                                     <td className={tdCls}>{VISIT_CHANNEL_LABELS[visit.channel]}</td>
                                     <td className={tdCls}><VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} /></td>
                                     <td className={`${tdCls} text-right`}>
                                         {visit.status === 'pending_approval' && (
-                                            <button
+                                            <button data-ui-text="action"
                                                 type="button"
                                                 className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-semibold hover:bg-glacier-blue"
                                                 onClick={(event) => { event.stopPropagation(); setSelectedId(visit.id); }}
@@ -178,12 +199,17 @@ const VisitorManagement = () => {
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
-                <div className="px-4 py-3 border-t border-platinum-tint flex items-center justify-between">
-                    <span className="text-xs text-slate-blue">{data ? `${data.total} lượt khách` : ''}</span>
-                    <Pagination currentPage={page} totalPages={Math.ceil((data?.total || 0) / PAGE_SIZE)} onPageChange={setPage} />
-                </div>
+                <PaginationFooter
+                    loading={loading}
+                    currentPage={page}
+                    totalPages={Math.ceil((data?.total || 0) / PAGE_SIZE)}
+                    totalItems={data?.total || 0}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setPage}
+                    itemLabel={"lượt khách"}
+                 onPageSizeChange={size => { setPageSize(size); setPage(1); }} />
             </div>
 
             {selectedId && (
