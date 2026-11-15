@@ -1,3 +1,4 @@
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import ReportActions from '../../components/common/ReportActions';
@@ -17,6 +18,7 @@ import {
     GUARD_GATE_EVENTS_STORAGE_KEY,
     getGuardGateEvents
 } from '../../service/guardAccessService';
+import SharedStatCard, { STAT_VALUE_CLS } from '../../components/common/StatCard';
 
 const statusClass = {
     present: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -36,8 +38,6 @@ const formatDate = (date) => date.toLocaleDateString('vi-VN', {
     year: 'numeric'
 });
 
-
-
 const formatMinutes = (minutes) => {
     const safeMinutes = Math.max(0, Math.round(minutes || 0));
     const hours = Math.floor(safeMinutes / 60);
@@ -55,7 +55,7 @@ const GatePresenceManagement = () => {
     const [loading, setLoading] = useState(false);
     const [loadError, setLoadError] = useState('');
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(5);
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         let active = true;
@@ -147,24 +147,30 @@ const GatePresenceManagement = () => {
             </div>
 
             <FilterBar variant="card" data-filter-grid className="grid gap-4">
-                <FilterField label="Từ ngày">
-                    <input
-                        type="date"
-                        value={fromDate}
-                        max={toDate}
-                        onChange={(event) => { if (event.target.value) { setFromDate(event.target.value); setPage(1); } }}
-                        className="w-full"
-                    />
-                </FilterField>
-                <FilterField label="Đến ngày">
-                    <input
-                        type="date"
-                        value={toDate}
-                        min={fromDate}
-                        onChange={(event) => { if (event.target.value) { setToDate(event.target.value); setPage(1); } }}
-                        className="w-full"
-                    />
-                </FilterField>
+
+                <div className="camai-filter-period-row">
+                    <CalendarRangePresets from={fromDate} to={toDate} onChange={range => { setFromDate(range.from); setToDate(range.to); setPage(1); }} />
+                    <div className="camai-filter-period-dates">
+                        <FilterField label="Từ ngày">
+                            <input
+                                type="date"
+                                value={fromDate}
+                                max={toDate}
+                                onChange={(event) => { if (event.target.value) { setFromDate(event.target.value); setPage(1); } }}
+                                className="w-full"
+                            />
+                        </FilterField>
+                        <FilterField label="Đến ngày">
+                            <input
+                                type="date"
+                                value={toDate}
+                                min={fromDate}
+                                onChange={(event) => { if (event.target.value) { setToDate(event.target.value); setPage(1); } }}
+                                className="w-full"
+                            />
+                        </FilterField>
+                    </div>
+                </div>
             </FilterBar>
 
             {loadError && <p role="alert" className="text-sm text-red-600">{loadError}</p>}

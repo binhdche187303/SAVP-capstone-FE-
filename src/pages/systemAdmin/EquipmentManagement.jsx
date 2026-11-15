@@ -406,7 +406,7 @@ const EquipmentManagement = () => {
                         <Monitor className="w-3.5 h-3.5" />
                         Thiết bị
                     </span>
-                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Quản lý Trang thiết bị</h1>
+                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Quản lý trang thiết bị</h1>
                     <p className="text-sm text-slate-blue mt-1">Quản lý danh sách, điều phối phòng và theo dõi tình trạng thiết bị.</p>
                 </div>
                 <div className="flex items-center gap-3">

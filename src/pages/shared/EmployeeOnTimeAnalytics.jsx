@@ -1,3 +1,5 @@
+import { reportPresetRange } from '../../components/common/ExportReportModal';
+import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -15,6 +17,7 @@ import {
 import { getAttendanceAnalytics, getAttendanceUserStats, getUsers, getDepartments } from '../../service/sysAdminServices';
 import { get } from '../../utils/request';
 import { isSchoolLeader } from '../../utils/calendarRoleLabel';
+import SharedStatCard from '../../components/common/StatCard';
 
 const COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#64748b'];
 
@@ -104,8 +107,21 @@ const EmployeeOnTimeAnalytics = () => {
 
     // ── Filters ──────────────────────────────────────────────────────────────
     const [preset, setPreset] = useState('month');
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
+    const [from, setFrom] = useState(() => reportPresetRange('month').from);
+    const [to, setTo] = useState(() => reportPresetRange('month').to);
+    const rangeError = preset === 'custom'
+        ? (!from || !to ? 'Vui lòng chọn đủ từ ngày và đến ngày.'
+            : from > to ? 'Từ ngày phải trước hoặc bằng đến ngày.' : '')
+        : '';
+    const changePreset = (nextPreset) => {
+        if (nextPreset !== 'custom' || !from || !to || from > to) {
+            const currentRange = reportPresetRange(nextPreset === 'custom' ? preset : nextPreset);
+            setFrom(currentRange.from);
+            setTo(currentRange.to);
+        }
+        setPreset(nextPreset);
+    };
+
     const [departmentId, setDepartmentId] = useState(managerDeptId);
     const [departments, setDepartments] = useState([]);
 
@@ -163,13 +179,13 @@ const EmployeeOnTimeAnalytics = () => {
 
     // ── Summary analytics fetch ──────────────────────────────────────────────
     const fetchAttendanceDashboard = useCallback(async () => {
-        if (preset === 'custom' && (!from || !to)) return;
+        if (rangeError) return;
         setLoading(true);
         setError(null);
         try {
             const params = {
-                preset,
-                ...(preset === 'custom' && { from, to }),
+                preset: preset === 'year' ? 'custom' : preset,
+                ...(preset === 'year' ? reportPresetRange('year') : preset === 'custom' ? { from, to } : {}),
                 ...(departmentId && { departmentId }),
             };
             const res = await getAttendanceAnalytics(params);
@@ -185,19 +201,19 @@ const EmployeeOnTimeAnalytics = () => {
             setLoading(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [preset, from, to, departmentId]);
+    }, [preset, from, to, departmentId, rangeError]);
 
     useEffect(() => { fetchAttendanceDashboard(); }, [fetchAttendanceDashboard]);
 
     // ── Manager: fetch per-user stats ────────────────────────────────────────
     const fetchMemberStats = useCallback(async () => {
-        if (!managerDeptId) return;
+        if (!managerDeptId || rangeError) return;
         setMemberLoading(true);
         try {
             const res = await getAttendanceUserStats({
                 departmentId: managerDeptId,
-                preset,
-                ...(preset === 'custom' && { from, to }),
+                preset: preset === 'year' ? 'custom' : preset,
+                ...(preset === 'year' ? reportPresetRange('year') : preset === 'custom' ? { from, to } : {}),
                 page: memberPage,
                 limit: memberPageSize,
             });
@@ -216,7 +232,7 @@ const EmployeeOnTimeAnalytics = () => {
             setMemberLoading(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [managerDeptId, preset, from, to, memberPage, memberPageSize]);
+    }, [managerDeptId, preset, from, to, memberPage, memberPageSize, rangeError]);
 
     useEffect(() => {
         if (isManager) fetchMemberStats();
@@ -227,13 +243,13 @@ const EmployeeOnTimeAnalytics = () => {
 
     // ── Business Admin: modal fetch ──────────────────────────────────────────
     const fetchModalMembers = useCallback(async () => {
-        if (!modalDept) return;
+        if (!modalDept || rangeError) return;
         setModalLoading(true);
         try {
             const res = await getAttendanceUserStats({
                 departmentId: modalDept.departmentId,
-                preset,
-                ...(preset === 'custom' && { from, to }),
+                preset: preset === 'year' ? 'custom' : preset,
+                ...(preset === 'year' ? reportPresetRange('year') : preset === 'custom' ? { from, to } : {}),
                 page: modalPage,
                 limit: modalPageSize,
             });
@@ -252,7 +268,7 @@ const EmployeeOnTimeAnalytics = () => {
             setModalLoading(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [modalDept, preset, from, to, modalPage, modalPageSize]);
+    }, [modalDept, preset, from, to, modalPage, modalPageSize, rangeError]);
 
     useEffect(() => { fetchModalMembers(); }, [fetchModalMembers]);
 
@@ -274,13 +290,15 @@ const EmployeeOnTimeAnalytics = () => {
 
     // ── Late history drilldown ───────────────────────────────────────────────
     const handleUserClick = async (user) => {
+        if (rangeError) return;
         setSelectedUserId(user.userId);
         setSelectedUserName(user.fullName);
         setLoadingHistory(true);
         setHistoryError(false);
         setLateHistory(null);
         try {
-            const q = `?preset=${preset}${preset === 'custom' ? `&from=${from}&to=${to}` : ''}`;
+            const exportRange = preset === 'year' ? reportPresetRange('year') : { from, to };
+            const q = `?preset=${preset === 'year' ? 'custom' : preset}${['custom', 'year'].includes(preset) ? `&from=${exportRange.from}&to=${exportRange.to}` : ''}`;
             const res = await get(`/analytics/attendance/on-time-rate/users/${user.userId}/late-history${q}`);
             if (res?.success) {
                 setLateHistory(res.data);
@@ -311,7 +329,7 @@ const EmployeeOnTimeAnalytics = () => {
                 <div>
                     <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <Clock className="w-6 h-6 text-action-blue" />
-                        Phân tích Tỷ lệ Đúng giờ
+                        Tỷ lệ đúng giờ
                     </h2>
                     <p className="text-xs text-slate-blue mt-1">
                         {isManager
@@ -323,34 +341,6 @@ const EmployeeOnTimeAnalytics = () => {
 
             {/* Filter Bar */}
             <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-4 items-end">
-                <div className="camai-filter-field space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-blue uppercase">Bộ lọc nhanh</label>
-                    <select
-                        value={preset}
-                        onChange={(e) => setPreset(e.target.value)}
-                        className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-semibold"
-                    >
-                        <option value="day">Hôm nay</option>
-                        <option value="week">Tuần này</option>
-                        <option value="month">Tháng này</option>
-                        <option value="custom">Tùy chọn khoảng</option>
-                    </select>
-                </div>
-
-                {preset === 'custom' && (
-                    <>
-                        <div className="camai-filter-field space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-blue uppercase">Từ ngày</label>
-                            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-                                className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo" />
-                        </div>
-                        <div className="camai-filter-field space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-blue uppercase">Đến ngày</label>
-                            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-                                className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo" />
-                        </div>
-                    </>
-                )}
 
                 <div className="space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Phòng ban</label>
@@ -407,7 +397,27 @@ const EmployeeOnTimeAnalytics = () => {
                         </div>
                     )}
                 </div>
+
+                <div className="camai-filter-period-row">
+                    <TimeRangeButtons label="Bộ lọc nhanh" value={preset} onChange={changePreset}
+                    options={[["day", "Hôm nay"], ["week", "Tuần này"], ["month", "Tháng"], ["year", "Năm"], ["custom", "Tùy chọn khoảng"]]} />
+                    <div className="camai-filter-period-dates">
+                        <div className="camai-filter-field space-y-1">
+                            <label htmlFor="on-time-from" className="block text-[10px] font-bold text-slate-blue uppercase">Từ ngày</label>
+                            <input id="on-time-from" type="date" value={from} max={to || undefined}
+                                onChange={(e) => { setFrom(e.target.value); setPreset('custom'); }}
+                                className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo" />
+                        </div>
+                        <div className="camai-filter-field space-y-1">
+                            <label htmlFor="on-time-to" className="block text-[10px] font-bold text-slate-blue uppercase">Đến ngày</label>
+                            <input id="on-time-to" type="date" value={to} min={from || undefined}
+                                onChange={(e) => { setTo(e.target.value); setPreset('custom'); }}
+                                className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo" />
+                        </div>
+                    </div>
+                </div>
             </FilterBar>
+            {rangeError && <p role="status" className="text-sm text-amber-700">{rangeError}</p>}
 
             {/* Error */}
             {error && (

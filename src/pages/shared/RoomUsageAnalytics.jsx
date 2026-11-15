@@ -1,16 +1,18 @@
+import './RoomUsageAnalytics.css';
+import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import ReportExportButton from '../../components/common/ReportExportButton';
 import StatisticCard from '../../components/common/StatisticCard';
 import FilterBar from '../../components/common/FilterBar';
-import { AlertTriangle, BarChart3, Building2, ChevronRight, FileText, Info, TrendingUp, X } from 'lucide-react';
+import { AlertTriangle, BarChart3, Building2, ChevronRight, FileText, Info, TrendingUp, X, CheckCircle2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, BarChart, Bar, Cell,
-    PieChart, Pie, Legend
+    PieChart, Pie, Legend, LabelList
 } from 'recharts';
 import { getRoomAnalytics, getNoShowStats, getRoomUtilizationRate, getRooms } from '../../service/businessAdminServices';
 import { get } from '../../utils/request';
@@ -50,8 +52,21 @@ const RoomUsageAnalytics = () => {
     const [isExportOpen, setIsExportOpen] = useState(false);
 
     const [preset, setPreset] = useState('month');
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
+    const [from, setFrom] = useState(() => reportPresetRange('month').from);
+    const [to, setTo] = useState(() => reportPresetRange('month').to);
+    const rangeError = preset === 'custom'
+        ? (!from || !to ? 'Vui lòng chọn đủ từ ngày và đến ngày.'
+            : from > to ? 'Từ ngày phải trước hoặc bằng đến ngày.' : '')
+        : '';
+    const changePreset = (nextPreset) => {
+        if (nextPreset !== 'custom' || !from || !to || from > to) {
+            const currentRange = reportPresetRange(nextPreset === 'custom' ? preset : nextPreset);
+            setFrom(currentRange.from);
+            setTo(currentRange.to);
+        }
+        setPreset(nextPreset);
+    };
+
     const [siteName, setSiteName] = useState('');
     const [siteOptions, setSiteOptions] = useState([]);
 
@@ -67,12 +82,12 @@ const RoomUsageAnalytics = () => {
     }, []);
 
     const fetchAll = useCallback(async () => {
-        if (preset === 'custom' && (!from || !to)) return;
+        if (rangeError) return;
         setLoading(true);
         setError(null);
         const params = {
-            preset,
-            ...(preset === 'custom' && { from, to }),
+            preset: preset === 'year' ? 'custom' : preset,
+            ...(preset === 'year' ? reportPresetRange('year') : preset === 'custom' ? { from, to } : {}),
             ...(siteName && { siteName })
         };
         try {
@@ -97,16 +112,18 @@ const RoomUsageAnalytics = () => {
         } finally {
             setLoading(false);
         }
-    }, [preset, from, to, siteName]);
+    }, [preset, from, to, siteName, rangeError]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
     const handleRoomClick = async (roomId) => {
+        if (rangeError) return;
         setSelectedRoomId(roomId);
         setRoomDetail(null);
         setLoadingDetail(true);
         try {
-            const q = `?preset=${preset}${preset === 'custom' ? `&from=${from}&to=${to}` : ''}`;
+            const exportRange = preset === 'year' ? reportPresetRange('year') : { from, to };
+            const q = `?preset=${preset === 'year' ? 'custom' : preset}${['custom', 'year'].includes(preset) ? `&from=${exportRange.from}&to=${exportRange.to}` : ''}`;
             const res = await get(`/analytics/rooms/${roomId}/detail${q}`);
             if (res?.success) setRoomDetail(res.data);
         } catch {
@@ -131,6 +148,11 @@ const RoomUsageAnalytics = () => {
     const summaryUtil = data?.summary;
     const utilizationRate = summaryUtil?.reservationUtilizationRate ?? summaryUtil?.utilizationRate ?? utilizationData?.utilizationRate;
     const occupancyRate = summaryUtil?.roomOccupancyRate ?? null;
+    const hoursComparison = [
+        { label: 'Giờ đặt', hours: summaryUtil?.totalBookedHours, color: '#0066ff' },
+        { label: 'Giờ thực tế', hours: summaryUtil?.actualUsedHours, color: '#10b981' },
+    ].filter(item => item.hours != null && Number.isFinite(Number(item.hours)))
+        .map(item => ({ ...item, hours: Number(item.hours) }));
 
     return (
         <div data-page-surface="wide" className="space-y-6 p-6 max-w-7xl mx-auto">
@@ -139,7 +161,7 @@ const RoomUsageAnalytics = () => {
                 <div>
                     <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <BarChart3 className="w-6 h-6 text-action-blue" />
-                        Phân tích Hiệu suất Sử dụng Phòng họp
+                        Hiệu suất sử dụng phòng họp
                     </h2>
                     <p className="text-xs text-slate-blue mt-1">
                         Theo dõi tần suất đặt phòng, tỷ lệ lấp đầy thực tế, tỷ lệ vắng mặt và phân tích chi tiết hiệu năng phòng họp.
@@ -156,41 +178,7 @@ const RoomUsageAnalytics = () => {
 
             {/* Filter Bar */}
             <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-4 items-end">
-                <div className="camai-filter-field space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-blue uppercase">Bộ lọc nhanh</label>
-                    <select
-                        value={preset}
-                        onChange={(e) => setPreset(e.target.value)}
-                        className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-semibold"
-                    >
-                        <option value="day">Hôm nay</option>
-                        <option value="week">Tuần này</option>
-                        <option value="month">Tháng này</option>
-                        <option value="custom">Tùy chọn khoảng</option>
-                    </select>
-                </div>
-                {preset === 'custom' && (
-                    <>
-                        <div className="camai-filter-field space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-blue uppercase">Từ ngày</label>
-                            <input
-                                type="date"
-                                value={from}
-                                onChange={(e) => setFrom(e.target.value)}
-                                className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo"
-                            />
-                        </div>
-                        <div className="camai-filter-field space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-blue uppercase">Đến ngày</label>
-                            <input
-                                type="date"
-                                value={to}
-                                onChange={(e) => setTo(e.target.value)}
-                                className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo"
-                            />
-                        </div>
-                    </>
-                )}
+
                 <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tòa nhà</label>
                     <select
@@ -204,7 +192,27 @@ const RoomUsageAnalytics = () => {
                         ))}
                     </select>
                 </div>
+
+                <div className="camai-filter-period-row">
+                    <TimeRangeButtons label="Bộ lọc nhanh" value={preset} onChange={changePreset}
+                    options={[["day", "Hôm nay"], ["week", "Tuần này"], ["month", "Tháng"], ["year", "Năm"], ["custom", "Tùy chọn khoảng"]]} />
+                    <div className="camai-filter-period-dates">
+                        <div className="camai-filter-field space-y-1">
+                            <label htmlFor="room-usage-from" className="block text-[10px] font-bold text-slate-blue uppercase">Từ ngày</label>
+                            <input id="room-usage-from" type="date" value={from} max={to || undefined}
+                                onChange={(e) => { setFrom(e.target.value); setPreset('custom'); }}
+                                className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo" />
+                        </div>
+                        <div className="camai-filter-field space-y-1">
+                            <label htmlFor="room-usage-to" className="block text-[10px] font-bold text-slate-blue uppercase">Đến ngày</label>
+                            <input id="room-usage-to" type="date" value={to} min={from || undefined}
+                                onChange={(e) => { setTo(e.target.value); setPreset('custom'); }}
+                                className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo" />
+                        </div>
+                    </div>
+                </div>
             </FilterBar>
+            {rangeError && <p role="status" className="text-sm text-amber-700">{rangeError}</p>}
 
             {error && (
                 <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-start text-sm">
@@ -252,7 +260,7 @@ const RoomUsageAnalytics = () => {
             </StatisticGrid>
 
             {/* Main grid: room table + trend chart */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="room-usage-main-grid grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Rooms table */}
                 <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden lg:col-span-2">
                     <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30">
@@ -339,34 +347,58 @@ const RoomUsageAnalytics = () => {
                     </div>
                 </div>
 
-                {/* Trend chart */}
-                <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
-                    <h3 className="font-bold text-midnight-indigo text-sm">Xu hướng đặt phòng</h3>
-                    <div className="h-64">
-                        {loading ? (
-                            <div className="w-full h-full bg-slate-50 animate-pulse rounded-xl" />
-                        ) : data?.trend?.length ? (
-                            <ResponsiveContainer width="100%" height={256}>
-                                <AreaChart data={data.trend}>
-                                    <defs>
-                                        <linearGradient id="colorMeetings" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#1e90ff" stopOpacity={0.2} />
-                                            <stop offset="95%" stopColor="#1e90ff" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis dataKey="date" tickLine={false} axisLine={false} style={{ fontSize: 9, fill: '#64748b' }} />
-                                    <YAxis tickLine={false} axisLine={false} style={{ fontSize: 9, fill: '#64748b' }} />
-                                    <Tooltip />
-                                    <Area type="monotone" dataKey="meetingCount" stroke="#1e90ff" strokeWidth={2} fillOpacity={1} fill="url(#colorMeetings)" name="Số cuộc họp" />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-400">
-                                <BarChart3 className="w-8 h-8 opacity-30" />
-                                <p className="text-xs text-center">Chưa có dữ liệu xu hướng<br /><span data-ui-text="secondary" className="text-[10px] opacity-70">BE cần bổ sung dữ liệu trend[]</span></p>
-                            </div>
-                        )}
+                <div className="room-usage-chart-column">
+                    <div className="room-usage-chart-card bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
+                        <h3 className="font-bold text-midnight-indigo text-sm">Xu hướng đặt phòng</h3>
+                        <div className="room-usage-chart-body">
+                            {loading ? (
+                                <div className="w-full h-full bg-slate-50 animate-pulse rounded-xl" />
+                            ) : data?.trend?.length ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={data.trend}>
+                                        <defs>
+                                            <linearGradient id="colorMeetings" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#1e90ff" stopOpacity={0.2} />
+                                                <stop offset="95%" stopColor="#1e90ff" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis dataKey="date" tickFormatter={value => String(value).slice(5).split('-').reverse().join('/')} minTickGap={24} tickLine={false} axisLine={false} style={{ fontSize: 12, fill: '#64748b' }} />
+                                        <YAxis tickLine={false} axisLine={false} style={{ fontSize: 12, fill: '#64748b' }} />
+                                        <Tooltip labelFormatter={value => String(value).split('-').reverse().join('/')} />
+                                        <Area type="monotone" dataKey="meetingCount" stroke="#1e90ff" strokeWidth={2} fillOpacity={1} fill="url(#colorMeetings)" name="Số cuộc họp" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-400">
+                                    <BarChart3 className="w-8 h-8 opacity-30" />
+                                    <p className="text-xs text-center">Chưa có dữ liệu xu hướng trong khoảng đã chọn</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="room-usage-chart-card bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
+                        <h3 className="font-bold text-midnight-indigo text-sm">Giờ đặt và sử dụng thực tế</h3>
+                        <p className="text-xs text-slate-blue">Tổng số giờ trong khoảng thời gian đang lọc</p>
+                        <div className="room-usage-chart-body">
+                            {loading ? <div className="w-full h-full bg-slate-50 animate-pulse rounded-xl" />
+                                : hoursComparison.length ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={hoursComparison} margin={{ top: 28, right: 16, bottom: 8, left: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#476788' }} />
+                                            <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#476788' }} unit="h" />
+                                            <Tooltip formatter={value => [`${value} giờ`, 'Thời lượng']} />
+                                            <Bar dataKey="hours" name="Số giờ" maxBarSize={72} radius={[6, 6, 0, 0]}>
+                                                {hoursComparison.map(item => <Cell key={item.label} fill={item.color} />)}
+                                                <LabelList dataKey="hours" position="top" fill="#0b3558" fontSize={13} formatter={value => `${value}h`} />
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : <div className="h-full flex items-center justify-center text-sm text-slate-blue">Chưa có dữ liệu giờ sử dụng trong khoảng đã chọn</div>}
+                        </div>
+                        {!loading && summaryUtil?.actualUsedHours == null && <p className="text-xs text-slate-blue">Chưa có số liệu giờ sử dụng thực tế.</p>}
                     </div>
                 </div>
             </div>
@@ -464,10 +496,18 @@ const RoomUsageAnalytics = () => {
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
+                    ) : noShowData?.totalBookings > 0 && noShowData.noShowCount === 0 ? (
+                        <div className="h-52 flex flex-col items-center justify-center gap-3 text-center">
+                            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                            <p className="text-sm font-semibold text-midnight-indigo">Không ghi nhận lượt vắng mặt</p>
+                            <p className="text-xs text-slate-blue">
+                                {noShowData.totalBookings.toLocaleString('vi-VN')} lượt đặt trong khoảng đã chọn · Tỷ lệ vắng mặt 0%
+                            </p>
+                        </div>
                     ) : (
                         <div className="h-52 flex flex-col items-center justify-center gap-2 text-slate-400">
                             <BarChart3 className="w-8 h-8 opacity-30" />
-                            <p className="text-xs">Không có dữ liệu xếp hạng</p>
+                            <p className="text-xs">{noShowData?.totalBookings === 0 ? 'Chưa có lượt đặt phòng trong khoảng đã chọn' : 'Chưa có dữ liệu xếp hạng phù hợp với bộ lọc'}</p>
                         </div>
                     )}
                     {noShowRanking.length > 0 && (

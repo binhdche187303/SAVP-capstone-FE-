@@ -2,7 +2,7 @@ import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
-import { CalendarClock, Film, HardDrive } from "lucide-react";
+import { Archive, CalendarClock, Film, Gauge, HardDrive, Video } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import RecordingScheduleModal from "../../components/devices/RecordingScheduleModal";
@@ -17,6 +17,7 @@ import {
   getDevices,
   getRecordingStorage,
 } from "../../service/sysAdminServices";
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 // 2.2.7 Lịch ghi hình & lưu trữ theo từng camera.
 // Lịch ghi đọc metadata_json.recording (chưa cấu hình → mặc định theo loại camera);
@@ -174,17 +175,20 @@ const CameraRecording = () => {
           </div>
         </StatisticCard>
         <StatCard
+          icon={Video}
           label="Camera đang ghi"
           value={`${recording.length} / ${rows.length}`}
           sub="Online và không tắt ghi"
           tone="text-green-600"
         />
         <StatCard
+          icon={Archive}
           label="Lưu trữ trung bình"
           value={`${avgRetention} ngày`}
           sub={`Ghi thêm ${formatGB(totalPerDay)}/ngày`}
         />
         <StatCard
+          icon={Gauge}
           label="Dự báo ổ lưu trữ"
           value={
             fits

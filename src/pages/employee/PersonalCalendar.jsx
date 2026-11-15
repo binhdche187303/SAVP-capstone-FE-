@@ -1,11 +1,18 @@
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import TimeRangeButtons from '../../components/common/TimeRangeButtons';
+import './PersonalCalendarFilters.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
-import FilterBar from '../../components/common/FilterBar';
-import { AlertTriangle, Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight, Clock, Filter, Grid, Info, List, MapPin, User, XCircle } from 'lucide-react';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import { AlertTriangle, Award, Calendar as CalendarIcon, CheckCircle, Clock, Filter, Info, MapPin, PlusCircle, Radio, User, UserCheck, XCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { MEETING_BOOKING_ENABLED, MEETING_CALENDAR_MOCK_ENABLED } from '../../config/featureFlags';
+import StatCard from '../../components/common/StatCard';
+import { ATTENDANCE_STATUS, CALENDAR_TYPES, getMockMySchedule } from '../../mocks/meetingCalendarMock';
 import { getMySchedule } from '../../service/employeeServices';
 import { isForbiddenError } from '../../utils/permissionUtils';
+import MockMyMeetingAttendance from './MockMyMeetingAttendance';
 import MyMeetingAttendance from './MyMeetingAttendance';
 
 const STATUS_CONFIG = {
@@ -26,19 +33,52 @@ const getEffectiveStatus = (meeting, nowTs = Date.now()) => {
     return status || 'scheduled';
 };
 
+// Chưa có API lịch VPĐT → dùng dữ liệu giả; tắt cờ là gọi GET /me/schedule thật, không sửa gì khác.
+const fetchMySchedule = MEETING_CALENDAR_MOCK_ENABLED ? getMockMySchedule : getMySchedule;
+
+const ROLE_LABEL = { host: 'Chủ trì', secretary: 'Thư ký', organizer: 'Người tổ chức' };
+const typeOf = (m) => CALENDAR_TYPES[m.calendarType];
+
+const dateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+export const calendarViewRange = (date, view) => {
+    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const end = new Date(start);
+    if (view === 'month') {
+        start.setDate(1);
+        end.setMonth(end.getMonth() + 1, 0);
+    } else if (view === 'week') {
+        start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+        end.setTime(start.getTime());
+        end.setDate(end.getDate() + 6);
+    }
+    return { from: `${dateKey(start)}T00:00:00+07:00`, to: `${dateKey(end)}T23:59:59+07:00` };
+};
+
 const PersonalCalendar = () => {
     const navigate = useNavigate();
-    const { pathname } = useLocation();
-    const standardLayout = ['system-admin', 'business-admin', 'manager', 'employee', 'guard'].includes(pathname.split('/')[1]);
-    const [tab, setTab] = useState('calendar'); // 'calendar' | 'attendance'
+    const location = useLocation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tab = searchParams.get('tab') === 'attendance' ? 'attendance' : 'calendar';
+    const setTab = (key) => setSearchParams(key === 'attendance' ? { tab: key } : {}, { replace: true });
     const [viewMode, setViewMode] = useState('month'); // 'month' | 'week'
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    // Quay lại từ trang chi tiết: mở đúng ngày đang xem trước đó.
+    const [currentDate, setCurrentDate] = useState(() => (location.state?.date ? new Date(location.state.date) : new Date()));
+    const [selectedDate, setSelectedDate] = useState(() => (location.state?.date ? new Date(location.state.date) : new Date()));
     const [meetings, setMeetings] = useState([]);
     const [nowTs, setNowTs] = useState(Date.now());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [statusFilter, setStatusFilter] = useState(''); // all, scheduled, in_progress, cancelled
+    const scheduleVersion = useRef(0);
+    const [typeFilter, setTypeFilter] = useState(''); // '' | leadership | other | unit
+
+    const openMeeting = (id, date = selectedDate) => {
+        const basePath = location.pathname.split('/')[1];
+        navigate(`/${basePath}/meeting/${id}`, {
+            state: { from: `${location.pathname}${location.search}`, date: new Date(date).toISOString() },
+        });
+    };
 
     const mapEventToMeeting = (dto) => ({
         id: dto.meetingId || dto.id,
@@ -48,30 +88,29 @@ const PersonalCalendar = () => {
         endTime: dto.endTime || dto.end_time,
         myRole: dto.userRole || dto.user_role,
         status: (dto.status || (dto.isCurrent ? 'in_progress' : dto.isPast ? 'completed' : 'scheduled')).toLowerCase(),
+        calendarType: dto.calendarType || dto.calendar_type,
+        hostName: dto.hostName || dto.host?.fullName,
+        attendanceEnabled: dto.attendanceEnabled,
+        myAttendance: dto.myAttendance || null,
     });
 
     const fetchSchedule = useCallback(async () => {
+        const version = ++scheduleVersion.current;
         setLoading(true);
         try {
-            // Fetch meetings for the current month context
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            // Calculate last day of month
-            const lastDay = new Date(year, currentDate.getMonth() + 1, 0).getDate();
-
-            const fromStr = `${year}-${month}-01T00:00:00+07:00`;
-            const toStr = `${year}-${month}-${lastDay}T23:59:59+07:00`;
+            const range = calendarViewRange(currentDate, viewMode);
 
             let dataList = [];
             let isSuccess = false;
 
-            const res = await getMySchedule({
-                from: fromStr,
-                to: toStr,
-                view: 'month',
-                status: statusFilter ? [statusFilter, statusFilter] : ['scheduled', 'in_progress', 'completed', 'pending_approval']
+            const res = await fetchMySchedule({
+                from: range.from,
+                to: range.to,
+                view: viewMode,
+                status: statusFilter ? [statusFilter, statusFilter] : ['scheduled', 'in_progress', 'completed', 'pending_approval', ...(MEETING_CALENDAR_MOCK_ENABLED ? ['cancelled'] : [])]
             });
 
+            if (version !== scheduleVersion.current) return;
             if (res?.success) {
                 isSuccess = true;
                 dataList = res.data?.items || res.data || [];
@@ -85,6 +124,7 @@ const PersonalCalendar = () => {
                 setError(null);
             }
         } catch (err) {
+            if (version !== scheduleVersion.current) return;
             setMeetings([]);
             // A permission-denial (e.g. role lost `schedule.read.self` mid-session while this
             // screen was already open) should land the user on the real 403 page, not an inline
@@ -96,12 +136,13 @@ const PersonalCalendar = () => {
             const errorMsg = err?.error?.message || err?.message || 'Lỗi kết nối máy chủ';
             setError(errorMsg);
         } finally {
-            setLoading(false);
+            if (version === scheduleVersion.current) setLoading(false);
         }
-    }, [currentDate, statusFilter, navigate]);
+    }, [currentDate, viewMode, statusFilter, navigate]);
 
     useEffect(() => {
         fetchSchedule();
+        return () => { scheduleVersion.current += 1; };
     }, [fetchSchedule]);
 
     useEffect(() => {
@@ -110,13 +151,30 @@ const PersonalCalendar = () => {
     }, []);
 
     const effectiveMeetings = useMemo(
-        () => meetings.map((meeting) => ({
-            ...meeting,
-            rawStatus: meeting.rawStatus || meeting.status,
-            status: getEffectiveStatus(meeting, nowTs),
-        })),
-        [meetings, nowTs],
+        () => meetings
+            .filter((meeting) => !typeFilter || meeting.calendarType === typeFilter)
+            .map((meeting) => ({
+                ...meeting,
+                rawStatus: meeting.rawStatus || meeting.status,
+                status: getEffectiveStatus(meeting, nowTs),
+            })),
+        [meetings, nowTs, typeFilter],
     );
+
+    // Số liệu tháng đang xem (điểm danh lấy từ myAttendance nếu API trả về).
+    const monthStats = useMemo(() => {
+        const active = effectiveMeetings.filter((m) => m.status !== 'cancelled');
+        const done = active.filter((m) => m.status === 'completed' && m.myAttendance && m.myAttendance.status !== 'not_required');
+        return {
+            total: active.length,
+            live: active.filter((m) => m.status === 'in_progress').length,
+            upcoming: active.filter((m) => ['scheduled', 'pending_approval'].includes(m.status) && new Date(m.startTime).getTime() > nowTs).length,
+            attended: done.filter((m) => m.myAttendance.status !== 'absent').length,
+            checked: done.length,
+            violations: done.filter((m) => m.myAttendance.points < 0).length,
+            points: done.reduce((sum, m) => sum + (m.myAttendance.points || 0), 0),
+        };
+    }, [effectiveMeetings, nowTs]);
 
     // Calendar generation helpers
     const getDaysInMonth = (date) => {
@@ -181,51 +239,18 @@ const PersonalCalendar = () => {
         return effectiveMeetings.filter(m => isSameDay(new Date(m.startTime), day));
     };
 
-    const handlePrev = () => {
-        if (viewMode === 'month') {
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-        } else {
-            const nextWeek = new Date(currentDate);
-            nextWeek.setDate(currentDate.getDate() - 7);
-            setCurrentDate(nextWeek);
-        }
-    };
-
-    const handleNext = () => {
-        if (viewMode === 'month') {
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-        } else {
-            const nextWeek = new Date(currentDate);
-            nextWeek.setDate(currentDate.getDate() + 7);
-            setCurrentDate(nextWeek);
-        }
-    };
-
-    const formatHeaderDate = () => {
-        if (viewMode === 'month') {
-            return currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
-        } else {
-            const weekDays = getDaysInWeek(currentDate);
-            const startStr = weekDays[0].toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-            const endStr = weekDays[6].toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            return `Tuần: ${startStr} - ${endStr}`;
-        }
-    };
-
     const selectedDayMeetings = getMeetingsForDay(selectedDate);
 
-    // Week time slots hours definition (08:00 to 18:00)
-    const hours = Array.from({ length: 11 }, (_, i) => 8 + i);
+    // Week time slots hours definition (07:00 to 18:00) — UEL có giao ban 7h30
+    const hours = Array.from({ length: 12 }, (_, i) => 7 + i);
 
+    const visibleDays = viewMode === 'day' ? [currentDate] : getDaysInWeek(currentDate);
+    const periodName = viewMode === 'day' ? 'ngày' : viewMode === 'week' ? 'tuần' : 'tháng';
     const tabBar = (
         <div className="flex items-center bg-white p-1 rounded-xl border border-platinum-tint shadow-sm w-fit">
             {[['calendar', 'Lịch'], ['attendance', 'Lịch sử tham dự']].map(([key, label]) => (
-                <button
-                    key={key}
-                    type="button"
-                    onClick={() => setTab(key)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === key ? 'bg-action-blue text-white shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
-                >
+                <button key={key} type="button" aria-pressed={tab === key} onClick={() => setTab(key)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === key ? 'bg-action-blue text-white shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}>
                     {label}
                 </button>
             ))}
@@ -236,7 +261,7 @@ const PersonalCalendar = () => {
         return (
             <div className="space-y-6">
                 {tabBar}
-                <MyMeetingAttendance />
+                {MEETING_CALENDAR_MOCK_ENABLED ? <MockMyMeetingAttendance onOpen={openMeeting} /> : <MyMeetingAttendance />}
             </div>
         );
     }
@@ -244,70 +269,87 @@ const PersonalCalendar = () => {
     return (
         <div className="space-y-6">
             {tabBar}
-            {/* Header section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-                        <CalendarIcon className="w-3.5 h-3.5" />
-                        Lịch trình
-                    </span>
-                    <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Lịch cá nhân</h1>
-                    <p className="text-slate-blue text-sm">Theo dõi lịch trình các phiên thảo luận và các cuộc họp cá nhân.</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* View Switcher */}
-                    <div className="flex items-center bg-white p-1 rounded-xl border border-platinum-tint shadow-sm">
-                        <button
-                            onClick={() => setViewMode('month')}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'month'
-                                ? 'bg-action-blue text-white shadow-sm'
-                                : 'text-slate-blue hover:text-midnight-indigo'
-                                }`}
-                        >
-                            <Grid className="w-3.5 h-3.5" /> Tháng
-                        </button>
-                        <button
-                            onClick={() => setViewMode('week')}
-                            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'week'
-                                ? 'bg-action-blue text-white shadow-sm'
-                                : 'text-slate-blue hover:text-midnight-indigo'
-                                }`}
-                        >
-                            <List className="w-3.5 h-3.5" /> Tuần
-                        </button>
-                    </div>
-
-                    {/* Navigation controllers */}
-                    <div className="flex items-center bg-white rounded-xl border border-platinum-tint shadow-sm">
-                        <button onClick={handlePrev} className="p-2 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-l-xl border-r border-platinum-tint">
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span data-ui-text="primary" className="px-4 text-xs font-bold text-midnight-indigo min-w-[120px] text-center select-none">
-                            {formatHeaderDate()}
+            {/* Header: tiêu đề bên trái, nút Đăng ký họp bên phải; thanh công cụ riêng 1 hàng bên dưới */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue">
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                            Lịch trình
                         </span>
-                        <button onClick={handleNext} className="p-2 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-r-xl border-l border-platinum-tint">
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
+                        {MEETING_CALENDAR_MOCK_ENABLED && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                                Dữ liệu minh họa – chưa tích hợp API VPĐT
+                            </span>
+                        )}
                     </div>
+                    <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Lịch cá nhân</h1>
+                    <p className="text-slate-blue text-sm mt-0.5">Lịch họp đồng bộ từ Văn phòng điện tử (VPĐT) — xem lịch, điểm danh và theo dõi ra vào phòng họp.</p>
+                </div>
+                {MEETING_BOOKING_ENABLED && (
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/${location.pathname.split('/')[1]}/book`)}
+                        className="h-10 shrink-0 inline-flex items-center gap-2 px-4 rounded-xl bg-action-blue text-white text-sm font-bold shadow-sm hover:bg-blue-700"
+                    >
+                        <PlusCircle className="w-4 h-4" /> Đăng ký họp
+                    </button>
+                )}
+            </div>
 
-                    {/* Status Filter */}
-                    <FilterBar variant="inline" className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-platinum-tint shadow-sm">
-                        <Filter className="w-3.5 h-3.5 text-slate-blue" />
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="bg-transparent border-0 text-xs font-bold text-midnight-indigo focus:outline-none cursor-pointer"
-                        >
+            <FilterBar variant="card" className="personal-calendar-filters">
+                <div className="personal-calendar-filter-main">
+                    <FilterField label="Trạng thái cuộc họp">
+                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                             <option value="">Tất cả trạng thái</option>
                             <option value="pending_approval">Chờ duyệt</option>
                             <option value="scheduled">Đã lên lịch</option>
-                            {/* <option value="in_progress">Đang diễn ra</option> */}
                             <option value="completed">Đã kết thúc</option>
-                            {/* <option value="cancelled">Đã huỷ</option> */}
+                            {MEETING_CALENDAR_MOCK_ENABLED && <option value="cancelled">Đã huỷ</option>}
                         </select>
-                    </FilterBar>
+                    </FilterField>
+                    <FilterField label="Loại lịch">
+                        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                            <option value="">Tất cả loại lịch</option>
+                            {Object.entries(CALENDAR_TYPES).map(([key, type]) => <option key={key} value={key}>{type.label}</option>)}
+                        </select>
+                    </FilterField>
                 </div>
+                <div className="personal-calendar-filter-time">
+                    <TimeRangeButtons label="Khoảng thời gian"
+                        value={viewMode === 'day' ? (isSameDay(currentDate, new Date()) ? 'today' : '') : viewMode}
+                        onChange={mode => {
+                            if (mode === 'today') { const today = new Date(); setViewMode('day'); setCurrentDate(today); setSelectedDate(today); }
+                            else setViewMode(mode);
+                        }} options={[["today", "Hôm nay"], ["week", "Tuần"], ["month", "Tháng"]]} />
+                    <FilterField label="Ngày xem lịch">
+                        <input type="date" value={dateKey(currentDate)} onChange={event => {
+                            if (!event.target.value) return;
+                            const date = new Date(`${event.target.value}T00:00:00`);
+                            setCurrentDate(date); setSelectedDate(date);
+                        }} />
+                    </FilterField>
+                    <button type="button" data-filter-action className="personal-calendar-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                        onClick={() => { const today = new Date(); setStatusFilter(''); setTypeFilter(''); setViewMode('month'); setCurrentDate(today); setSelectedDate(today); }}>
+                        <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                    </button>
+                </div>
+            </FilterBar>
+
+            {/* Số liệu tháng */}
+            <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard label={`Cuộc họp trong ${periodName}`} value={loading ? undefined : monthStats.total} loading={loading} icon={CalendarIcon} hint={`${monthStats.upcoming} cuộc sắp diễn ra`} />
+                <StatCard label="Đang diễn ra" value={loading ? undefined : monthStats.live} loading={loading} icon={Radio} tone={monthStats.live ? 'violet' : 'neutral'} hint={monthStats.live ? 'Bấm cuộc họp để xem ra vào real-time' : 'Không có cuộc họp nào'} />
+                <StatCard label="Đã tham dự" value={loading ? undefined : `${monthStats.attended}/${monthStats.checked}`} loading={loading} icon={UserCheck} tone="green" hint="Cuộc họp có điểm danh đã kết thúc" />
+                <StatCard label={`Điểm trừ trong ${periodName}`} value={loading ? undefined : monthStats.points} loading={loading} icon={Award} tone={monthStats.points < 0 ? 'red' : 'neutral'} hint={`${monthStats.violations} lần vi phạm (trễ / về sớm / vắng)`} />
+            </StatisticGrid>
+
+            {/* Chú thích loại lịch */}
+            <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold text-slate-blue">
+                {Object.values(CALENDAR_TYPES).map((t) => (
+                    <span key={t.label} className="inline-flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-full ${t.dot}`} />{t.label}</span>
+                ))}
+                <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" />Đã hủy</span>
             </div>
 
             {/* Layout Grid */}
@@ -332,13 +374,13 @@ const PersonalCalendar = () => {
                     {loading ? (
                         <div className="flex flex-col items-center justify-center p-20 min-h-[400px]">
                             <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
-                            <p data-ui-text="primary" className="mt-3 text-slate-blue text-xs font-semibold">Đang tải lịch trình...</p>
+                            <p className="mt-3 text-slate-blue text-xs font-semibold">Đang tải lịch trình...</p>
                         </div>
                     ) : viewMode === 'month' ? (
                         /* Month Grid View */
                         <div className="p-4 flex-1">
                             {/* Days of week titles */}
-                            <div data-ui-text="label" className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-blue uppercase mb-2">
+                            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-blue uppercase mb-2">
                                 <div>Th 2</div>
                                 <div>Th 3</div>
                                 <div>Th 4</div>
@@ -380,12 +422,12 @@ const PersonalCalendar = () => {
                                                 {dayMeetings.slice(0, 3).map(m => (
                                                     <span
                                                         key={m.id}
-                                                        className={`w-2 h-2 rounded-full ${STATUS_CONFIG[m.status]?.dot || 'bg-slate-400'}`}
+                                                        className={`w-2 h-2 rounded-full ${m.status === 'cancelled' ? 'bg-red-500' : typeOf(m)?.dot || STATUS_CONFIG[m.status]?.dot || 'bg-slate-400'} ${m.status === 'in_progress' ? 'ring-2 ring-purple-300 animate-pulse' : ''}`}
                                                         title={m.title}
                                                     />
                                                 ))}
                                                 {dayMeetings.length > 3 && (
-                                                    <span data-ui-text="primary" className="text-[9px] font-bold text-slate-blue">+{dayMeetings.length - 3}</span>
+                                                    <span className="text-[9px] font-bold text-slate-blue">+{dayMeetings.length - 3}</span>
                                                 )}
                                             </div>
                                         </div>
@@ -395,12 +437,12 @@ const PersonalCalendar = () => {
                         </div>
                     ) : (
                         /* Week Grid View with Time Slots */
-                        <div className={standardLayout ? 'min-w-0 flex-1' : 'overflow-x-auto flex-1'}>
-                            <div className={`${standardLayout ? 'w-full min-w-0' : 'min-w-[700px]'} divide-y divide-platinum-tint/60`}>
+                        <div className="overflow-x-auto flex-1">
+                            <div className={`${viewMode === 'week' ? 'min-w-[700px]' : 'min-w-0'} divide-y divide-platinum-tint/60`}>
                                 {/* Week Days Header Row */}
-                                <div className="grid grid-cols-8 bg-cloud-mist/30 text-center py-3">
-                                    <div data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase flex items-center justify-center">Giờ</div>
-                                    {getDaysInWeek(currentDate).map((day, idx) => {
+                                <div className={`grid ${viewMode === 'day' ? 'grid-cols-[64px_1fr]' : 'grid-cols-8'} bg-cloud-mist/30 text-center py-3`}>
+                                    <div className="text-[10px] font-bold text-slate-blue uppercase flex items-center justify-center">Giờ</div>
+                                    {visibleDays.map((day, idx) => {
                                         const isSelected = isSameDay(day, selectedDate);
                                         const isToday = isSameDay(day, new Date());
                                         return (
@@ -410,7 +452,7 @@ const PersonalCalendar = () => {
                                                 className={`flex flex-col items-center justify-center gap-0.5 cursor-pointer rounded-lg py-1 ${isSelected ? 'bg-blue-50/50 border border-blue-150' : ''
                                                     }`}
                                             >
-                                                <span data-ui-text="secondary" className="text-[9px] font-bold text-slate-blue uppercase">
+                                                <span className="text-[9px] font-bold text-slate-blue uppercase">
                                                     {day.toLocaleDateString('vi-VN', { weekday: 'short' })}
                                                 </span>
                                                 <span className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center ${isToday ? 'bg-action-blue text-white' : 'text-midnight-indigo'
@@ -427,14 +469,14 @@ const PersonalCalendar = () => {
                                     {hours.map(hour => {
                                         const hourStr = `${String(hour).padStart(2, '0')}:00`;
                                         return (
-                                            <div key={hour} className="grid grid-cols-8 min-h-[52px]">
+                                            <div key={hour} className={`grid ${viewMode === 'day' ? 'grid-cols-[64px_1fr]' : 'grid-cols-8'} min-h-[52px]`}>
                                                 {/* Hour label */}
-                                                <div data-ui-text="primary" className="text-[11px] font-bold text-slate-blue flex items-center justify-center border-r border-platinum-tint/40 bg-cloud-mist/10">
+                                                <div className="text-[11px] font-bold text-slate-blue flex items-center justify-center border-r border-platinum-tint/40 bg-cloud-mist/10">
                                                     {hourStr}
                                                 </div>
 
                                                 {/* Week days columns */}
-                                                {getDaysInWeek(currentDate).map((day, idx) => {
+                                                {visibleDays.map((day, idx) => {
                                                     const dayMeetings = getMeetingsForDay(day);
                                                     // Find if there is a meeting that starts in this hour slot
                                                     const slotMeeting = dayMeetings.find(m => {
@@ -449,16 +491,18 @@ const PersonalCalendar = () => {
                                                             className="p-1 border-r border-platinum-tint/30 relative hover:bg-cloud-mist/10 transition-colors flex flex-col justify-center cursor-pointer"
                                                         >
                                                             {slotMeeting && (
-                                                                <div data-ui-text="secondary"
+                                                                <div
+                                                                    onClick={(e) => { e.stopPropagation(); setSelectedDate(day); openMeeting(slotMeeting.id, day); }}
                                                                     className={`rounded-lg p-1.5 text-[10px] font-semibold border leading-tight ${slotMeeting.status === 'cancelled'
-                                                                        ? 'bg-red-50/80 text-red-700 border-red-200'
-                                                                        : slotMeeting.status === 'in_progress'
-                                                                            ? 'bg-purple-50/80 text-purple-800 border-purple-200'
-                                                                            : 'bg-blue-50/80 text-action-blue border-blue-200'
-                                                                        }`}
+                                                                        ? 'bg-red-50/80 text-red-700 border-red-200 line-through'
+                                                                        : typeOf(slotMeeting)?.block
+                                                                            || (slotMeeting.status === 'in_progress'
+                                                                                ? 'bg-purple-50/80 text-purple-800 border-purple-200'
+                                                                                : 'bg-blue-50/80 text-action-blue border-blue-200')
+                                                                        } ${slotMeeting.status === 'in_progress' ? 'ring-2 ring-purple-300' : ''}`}
                                                                 >
                                                                     <div className="truncate font-bold">{slotMeeting.title}</div>
-                                                                    <div data-ui-text="secondary" className="flex items-center gap-1 mt-0.5 text-[9px] opacity-80">
+                                                                    <div className="flex items-center gap-1 mt-0.5 text-[9px] opacity-80">
                                                                         <MapPin className="w-2.5 h-2.5" />
                                                                         <span className="truncate">{slotMeeting.room?.roomName}</span>
                                                                     </div>
@@ -495,7 +539,7 @@ const PersonalCalendar = () => {
                             {selectedDayMeetings.length === 0 ? (
                                 <div className="text-center py-12 text-slate-blue">
                                     <Info className="w-8 h-8 mx-auto text-platinum-tint mb-2" />
-                                    <p data-ui-text="secondary" className="text-xs font-medium italic">Không có cuộc họp nào được xếp lịch trong ngày này.</p>
+                                    <p className="text-xs font-medium italic">Không có cuộc họp nào được xếp lịch trong ngày này.</p>
                                 </div>
                             ) : (
                                 camaiPageItems.map((camaiRecord, camaiIndex) => (meet => {
@@ -507,17 +551,18 @@ const PersonalCalendar = () => {
                                     return (
                                         <div
                                             key={meet.id}
-                                            onClick={() => {
-                                                const basePath = window.location.pathname.split('/')[1];
-                                                navigate(`/${basePath}/meeting/${meet.id}`);
-                                            }}
+                                            onClick={() => openMeeting(meet.id)}
                                             className="p-4 rounded-xl border border-platinum-tint/60 bg-cloud-mist/5 hover:shadow-md transition-all space-y-3 cursor-pointer hover:border-action-blue/30"
+                                            style={typeOf(meet) ? { borderLeft: `4px solid ${typeOf(meet).color}` } : undefined}
                                         >
+                                            {typeOf(meet) && (
+                                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${typeOf(meet).chip}`}>{typeOf(meet).label}</span>
+                                            )}
                                             <div className="flex items-start justify-between gap-3">
-                                                <h4 data-ui-text="primary" className="font-bold text-midnight-indigo text-sm sm:text-base leading-snug">
+                                                <h4 className="font-bold text-midnight-indigo text-sm sm:text-base leading-snug">
                                                     {meet.title}
                                                 </h4>
-                                                <span data-ui-text="secondary" className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 flex items-center gap-1 ${statusStyle.bg}`}>
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 flex items-center gap-1 ${statusStyle.bg}`}>
                                                     <StatusIcon className="w-3.5 h-3.5" />
                                                     {statusStyle.label}
                                                 </span>
@@ -534,12 +579,26 @@ const PersonalCalendar = () => {
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
                                                     <User className="w-3.5 h-3.5 text-slate-blue" />
-                                                    <span className="truncate">Vai trò: {
-                                                        meet.myRole === 'host' ? 'Chủ trì' :
-                                                            meet.myRole === 'organizer' ? 'Người tổ chức' : 'Người tham dự'
-                                                    }</span>
+                                                    <span className="truncate">Vai trò: {ROLE_LABEL[meet.myRole] || 'Người tham dự'}</span>
                                                 </div>
+                                                {meet.hostName && (
+                                                    <div className="flex items-center gap-1.5 col-span-2">
+                                                        <User className="w-3.5 h-3.5 text-slate-blue" />
+                                                        <span className="truncate">Chủ trì: {meet.hostName}</span>
+                                                    </div>
+                                                )}
                                             </div>
+
+                                            {meet.myAttendance && meet.myAttendance.status !== 'upcoming' && (
+                                                <div className="flex items-center gap-2 text-[11px]">
+                                                    <UserCheck className="w-3.5 h-3.5 text-slate-blue" />
+                                                    <span className={`px-2 py-0.5 rounded-full font-bold border ${ATTENDANCE_STATUS[meet.myAttendance.status]?.cls || ''}`}>
+                                                        {ATTENDANCE_STATUS[meet.myAttendance.status]?.label}{meet.myAttendance.excused ? ' (có lý do)' : ''}
+                                                    </span>
+                                                    {meet.myAttendance.checkInAt && <span className="text-slate-blue">vào {new Date(meet.myAttendance.checkInAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>}
+                                                    {meet.myAttendance.points < 0 && <span className="font-bold text-red-600">{meet.myAttendance.points} điểm</span>}
+                                                </div>
+                                            )}
 
                                             {meet.room?.location && (
                                                 <p className="text-xs text-slate-blue italic leading-relaxed pt-2 border-t border-platinum-tint/40 flex items-start gap-1">
@@ -556,8 +615,8 @@ const PersonalCalendar = () => {
 </PaginatedCollection>
                     </div>
 
-                    <div data-ui-text="badge" className="pt-4 border-t border-platinum-tint mt-6 text-[10.5px] text-slate-blue font-medium leading-relaxed bg-cloud-mist/20 p-3 rounded-xl">
-                        Mẹo: Bạn có thể chọn ngày trên lịch lưới bên cạnh để xem nhanh toàn bộ cuộc họp chi tiết và chương trình nghị sự của ngày hôm đó.
+                    <div className="pt-4 border-t border-platinum-tint mt-6 text-[10.5px] text-slate-blue font-medium leading-relaxed bg-cloud-mist/20 p-3 rounded-xl">
+                        Mẹo: Chọn ngày trên lịch để xem các cuộc họp; bấm vào cuộc họp để xem chi tiết, điểm danh, log ra vào và báo cáo.
                     </div>
                 </div>
             </div>

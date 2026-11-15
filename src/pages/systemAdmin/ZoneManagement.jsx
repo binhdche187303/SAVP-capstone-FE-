@@ -53,7 +53,7 @@ const ZoneStatusBadge = ({ isStranger }) => {
 
 
 const ZoneAccessLogCard = ({ zoneId }) => {
-    const [ZONE_LOG_LIMIT, setZoneLogLimit] = useState(20);
+    const [ZONE_LOG_LIMIT, setZoneLogLimit] = useState(10);
     const [date, setDate] = useState(getTodayVN);
     const [page, setPage] = useState(1);
     const [events, setEvents] = useState([]);

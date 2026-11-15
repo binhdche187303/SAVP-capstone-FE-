@@ -1,3 +1,6 @@
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
+import { buildSecurityAlertQuery } from '../../utils/securityAlertFilters';
+import '../../components/security/AlertFilters.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -188,6 +191,9 @@ const SecurityAlerts = () => {
         limit: PAGE_SIZE,
         status: searchParams.get('status') || '',
         alert_type: '',
+        severity: searchParams.get('severity') || '',
+        from: '',
+        to: '',
         // Bản đồ khuôn viên mở trang này kèm ?zone_id=… để lọc sẵn theo khu vực.
         zone_id: searchParams.get('zone_id') || ''
     });
@@ -244,9 +250,10 @@ const SecurityAlerts = () => {
         if (!silent) setLoading(true);
         setError(null);
         try {
-            const res = await getSecurityAlerts(currentFilters);
+            const requestFilters = buildSecurityAlertQuery(currentFilters);
+            const res = await getSecurityAlerts(requestFilters);
             // Ô thống kê: đếm theo trạng thái (giữ lọc Loại/Khu vực) — limit 1, chỉ lấy meta.total.
-            const base = { page: 1, limit: 1, alert_type: currentFilters.alert_type, zone_id: currentFilters.zone_id };
+            const base = { ...requestFilters, page: 1, limit: 1 };
             Promise.all(STATUS_CARDS.map(c => getSecurityAlerts({ ...base, status: c.value })))
                 .then(rs => setCounts(Object.fromEntries(STATUS_CARDS.map((c, i) => [c.value, rs[i]?.meta?.total ?? 0]))))
                 .catch(() => {});
@@ -558,7 +565,7 @@ const SecurityAlerts = () => {
             </StatisticGrid>
 
             {/* FILTERS */}
-            <FilterBar data-filter-grid variant="card" className="bg-white p-4 rounded-2xl shadow-sm border border-platinum-tint grid grid-cols-1 md:grid-cols-4 gap-4">
+            <FilterBar data-filter-grid variant="card" className="security-alert-filters bg-white p-4 rounded-2xl shadow-sm border border-platinum-tint grid gap-4">
                 <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Trạng thái</label>
                     <select
@@ -593,25 +600,50 @@ const SecurityAlerts = () => {
                     </select>
                 </div>
                 <div className="camai-filter-field relative">
-                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Khu vực</label>
+                    <label htmlFor="security-alert-severity" className="block text-xs font-bold text-slate-blue uppercase mb-1">Mức độ</label>
+                    <select id="security-alert-severity" value={filters.severity} onChange={e => handleFilterChange('severity', e.target.value)} className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue">
+                        <option value="">Tất cả mức độ</option>
+                        <option value="critical">Nghiêm trọng</option>
+                        <option value="urgent">Khẩn cấp</option>
+                        <option value="high">Cao</option>
+                        <option value="medium">Trung bình</option>
+                        <option value="low">Thấp</option>
+                    </select>
+                </div>
+                <div className="camai-filter-field relative">
+                    <label htmlFor="security-alert-location" className="block text-xs font-bold text-slate-blue uppercase mb-1">Vị trí</label>
                     <select
+                        id="security-alert-location"
                         value={filters.zone_id}
                         onChange={(e) => handleFilterChange('zone_id', e.target.value)}
                         className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                     >
                         <option value="">Toàn hệ thống</option>
                         {zones.map(z => (
-                            <option key={z.id} value={z.id}>{z.zone_name}</option>
+                            <option key={z.id} value={z.id}>{[z.zone_name, z.building, z.floor ? (/^(tầng|tang)/i.test(String(z.floor)) ? z.floor : `Tầng ${z.floor}`) : ''].filter(Boolean).join(' · ')}</option>
                         ))}
                     </select>
                 </div>
-                <div className="relative flex items-end">
-                    <button data-filter-action
-                        onClick={() => setFilters({ page: 1, limit: PAGE_SIZE, status: '', alert_type: '', zone_id: '' })}
-                        className="w-full px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
-                    >
-                        <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
-                    </button>
+                <div className="security-alert-time-filters">
+                    <CalendarRangePresets from={filters.from} to={filters.to} onChange={range => { setFilters(previous => ({ ...previous, ...range, page: 1 })); setSelectedIds([]); }} />
+                    <div className="security-alert-date-pair">
+                        <div className="camai-filter-field">
+                            <label htmlFor="security-alert-from">Từ ngày</label>
+                            <input id="security-alert-from" type="date" value={filters.from} max={filters.to || undefined} onChange={event => handleFilterChange('from', event.target.value)} />
+                        </div>
+                        <div className="camai-filter-field">
+                            <label htmlFor="security-alert-to">Đến ngày</label>
+                            <input id="security-alert-to" type="date" value={filters.to} min={filters.from || undefined} onChange={event => handleFilterChange('to', event.target.value)} />
+                        </div>
+                    </div>
+                    <div className="security-alert-reset relative flex items-end">
+                        <button data-filter-action
+                            onClick={() => setFilters({ page: 1, limit: PAGE_SIZE, status: '', alert_type: '', zone_id: '', severity: '', from: '', to: '' })}
+                            className="w-full px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                        >
+                            <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                        </button>
+                    </div>
                 </div>
             </FilterBar>
 
@@ -1229,8 +1261,9 @@ const SecurityAlerts = () => {
                 isOpen={isExportOpen}
                 onClose={() => setIsExportOpen(false)}
                 endpoint="/reports/security-alert/exports"
-                filters={{ status: filters.status, alertType: filters.alert_type, zoneId: filters.zone_id }}
-                filterSummary={[filters.status ? `Trạng thái: ${{ new: 'Mới', acknowledged: 'Đã tiếp nhận', resolved: 'Đã xử lý' }[filters.status] || 'Đã chọn'}` : 'Tất cả trạng thái', filters.alert_type ? `Loại cảnh báo: ${getAlertTypeLabel(filters.alert_type)}` : 'Tất cả loại cảnh báo']}
+                range={{ from: filters.from, to: filters.to }}
+                filters={{ status: filters.status, alertType: filters.alert_type, zoneId: filters.zone_id, severity: filters.severity }}
+                filterSummary={[filters.status ? `Trạng thái: ${{ new: 'Mới', acknowledged: 'Đã tiếp nhận', resolved: 'Đã xử lý' }[filters.status] || 'Đã chọn'}` : 'Tất cả trạng thái', filters.alert_type ? `Loại cảnh báo: ${getAlertTypeLabel(filters.alert_type)}` : 'Tất cả loại cảnh báo', filters.severity ? `Mức độ: ${getSeverityMeta(filters.severity).label}` : 'Tất cả mức độ', filters.zone_id ? `Vị trí: ${zones.find(zone => zone.id === filters.zone_id)?.zone_name || 'Đã chọn'}` : 'Toàn hệ thống']}
                 formats={['xlsx', 'pdf']}
                 title="Xuất báo cáo sự kiện an ninh"
             />

@@ -71,6 +71,49 @@ describe('VisitorDesk', () => {
         fireEvent.click(within(item).getByRole('button', { name: 'Chi tiết' }));
     };
 
+    test('bốn card lọc đúng số lượt khách, bỏ lọc và đặt lại phân trang', async () => {
+        renderAt('/business-admin/visitors/desk', route);
+        await screen.findByText(/Khách ngày .+ \(\d+\)/);
+        const listRegion = within(screen.getByRole('region', { name: 'Danh sách khách theo bộ lọc' }));
+        for (const [key, name] of [['expected', /^Dự kiến /], ['arrived', 'Đã đến'], ['onSite', 'Đang trong khuôn viên'], ['overstay', 'Quá giờ']]) {
+            const card = screen.getByRole('button', { name });
+            const total = kpi(key);
+            fireEvent.click(card);
+            expect(card).toHaveAttribute('aria-pressed', 'true');
+            expect(listRegion.getByRole('heading', { level: 3 })).toHaveTextContent(`(${total})`);
+            if (total) expect(within(queue()).getAllByRole('listitem')).toHaveLength(Math.min(10, total));
+            else expect(listRegion.getByText('Không có lượt khách phù hợp với bộ lọc.')).toBeInTheDocument();
+            fireEvent.click(card);
+            expect(card).toHaveAttribute('aria-pressed', 'false');
+        }
+        const expected = screen.getByRole('button', { name: /^Dự kiến / });
+        fireEvent.click(expected);
+        fireEvent.click(listRegion.getByRole('button', { name: 'Sau', exact: true }));
+        expect(listRegion.getByText(new RegExp(`Hiển thị 11–.* / ${kpi('expected')} lượt khách`))).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Đang trong khuôn viên', exact: true }));
+        if (kpi('onSite')) expect(listRegion.getByText(new RegExp(`Hiển thị 1–.* / ${kpi('onSite')} lượt khách`))).toBeInTheDocument();
+    });
+
+    test('lọc theo tháng, nhập khoảng tùy chọn và kiểm tra ngày không hợp lệ', async () => {
+        renderAt('/business-admin/visitors/desk', route);
+        await screen.findByText(/Khách ngày .+ \(\d+\)/);
+        const daily = kpi('expected');
+        fireEvent.click(screen.getByRole('button', { name: 'Tháng', exact: true }));
+        expect(screen.getByLabelText('Từ ngày').value).toMatch(/^01\//);
+        await screen.findByText(/Khách từ .+ đến .+ \(\d+\)/);
+        await waitFor(() => expect(kpi('expected')).toBeGreaterThanOrEqual(daily));
+        fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2020-01-01' } });
+        fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2020-01-02' } });
+        expect(screen.getByRole('button', { name: 'Tùy chọn', exact: true })).toHaveAttribute('aria-pressed', 'true');
+        await waitFor(() => expect(kpi('expected')).toBe(0));
+        fireEvent.click(screen.getByRole('button', { name: /^Dự kiến / }));
+        expect(screen.getByText('Không có lượt khách phù hợp với bộ lọc.')).toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2021-01-01' } });
+        expect(await screen.findByText(/ngày bắt đầu không được sau ngày kết thúc/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Hôm nay', exact: true }));
+        await waitFor(() => expect(kpi('expected')).toBe(daily));
+    });
+
     test('hiện danh sách khách theo ngày và lối mở màn hình cổng', async () => {
         renderAt('/business-admin/visitors/desk', route);
         expect(await screen.findByText(/Khách ngày .+ \(\d+\)/)).toBeInTheDocument();
@@ -201,18 +244,17 @@ describe('MyVisitors', () => {
 describe('VisitorHistory', () => {
     const route = <Route path="/business-admin/visitors/history" element={<VisitorHistory />} />;
 
-    test.each(['system-admin', 'business-admin'])('%s đổi số dòng, chuyển trang và quay về trang đầu', async (area) => {
+    test.each(['system-admin', 'business-admin'])('%s dùng 10 dòng cố định và chuyển trang', async (area) => {
         const path = `/${area}/visitors/history`;
         renderAt(path, <Route path={path} element={<VisitorHistory />} />);
         await screen.findByText(/^Hiển thị \d+–\d+ \/ \d+ lượt khách$/);
-        fireEvent.change(screen.getByRole('combobox', { name: 'Số dòng/trang' }), { target: { value: '5' } });
-        await screen.findByText(/^Hiển thị 1–5 \/ \d+ lượt khách$/);
+        expect(screen.queryByRole('combobox', { name: 'Số dòng/trang' })).not.toBeInTheDocument();
+        await screen.findByText(/^Hiển thị 1–10 \/ \d+ lượt khách$/);
         fireEvent.click(screen.getByRole('button', { name: 'Sau', exact: true }));
-        await screen.findByText(/^Hiển thị 6–\d+ \/ \d+ lượt khách$/);
-        fireEvent.change(screen.getByRole('combobox', { name: 'Số dòng/trang' }), { target: { value: '20' } });
-        await screen.findByText(/^Hiển thị 1–\d+ \/ \d+ lượt khách$/);
+        await screen.findByText(/^Hiển thị 11–\d+ \/ \d+ lượt khách$/);
+        fireEvent.click(screen.getByRole('button', { name: 'Trước', exact: true }));
+        await screen.findByText(/^Hiển thị 1–10 \/ \d+ lượt khách$/);
         expect(screen.getByRole('button', { name: 'Trước', exact: true })).toBeDisabled();
-        expect(screen.getByRole('combobox', { name: 'Số dòng/trang' })).toHaveValue('20');
     });
 
     test.each(['system-admin', 'business-admin'])('%s dùng cùng bộ lọc và hộp xuất báo cáo', async (area) => {

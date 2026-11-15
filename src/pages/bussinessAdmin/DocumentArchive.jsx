@@ -1,3 +1,5 @@
+import './DocumentArchiveFilters.css';
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import TableColumns from '../../components/common/TableColumns';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
@@ -6,7 +8,7 @@ import PaginationFooter, { PaginationRegion } from '../../components/common/Pagi
 import RefreshButton from '../../components/common/RefreshButton';
 import {
     Archive, Calendar, ChevronLeft, ChevronRight, Clock,
-    Download, FileText, Film, HardDrive,
+    Download, FileText, Filter, Film, HardDrive,
     Mic, Play, RefreshCw, Search, Video, X, XCircle, AlertTriangle,
     CheckCircle, Users, Building2, Briefcase, ClipboardList, ListChecks,
     MapPin, User,
@@ -90,7 +92,7 @@ const canExportMinutesItem = (item, currentUser, isAdmin) => {
 };
 
 const DocumentArchive = ({ scope = 'all' }) => {
-    const [MINUTES_LIMIT, setMinutesLimit] = useState(15);
+    const [MINUTES_LIMIT, setMinutesLimit] = useState(10);
     const [MEDIA_LIMIT, setMediaLimit] = useState(10);
     const isSelfScope = scope === 'self';
     const [activeTab, setActiveTab] = useState('minutes');
@@ -392,56 +394,39 @@ const DocumentArchive = ({ scope = 'all' }) => {
                         className="space-y-4"
                     >
                         {/* Filters */}
-                        <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-col md:flex-row gap-3">
-                            {/* Search */}
-                            <FilterField label="Tìm biên bản"><div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue/60" />
-                                <input
-                                    type="text"
-                                    placeholder="Tìm tiêu đề biên bản, tên cuộc họp..."
-                                    value={mSearch}
-                                    onChange={e => setMSearch(e.target.value)}
-                                    className="w-full pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo"
-                                />
-                            </div></FilterField>
-
-                            {/* Status */}
-                            <FilterField label="Trạng thái biên bản"><select
-                                value={mStatus}
-                                onChange={e => setMStatus(e.target.value)}
-                                className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
-                            >
-                                <option value="">Tất cả trạng thái</option>
-                                <option value="published">Đã ban hành</option>
-                                <option value="draft">Bản nháp</option>
-                                <option value="archived">Lưu trữ</option>
-                            </select></FilterField>
-
-                            {/* Date range */}
-                            <div data-filter-fields className="camai-filter-range flex items-center gap-2">
-                                <FilterField label="Từ ngày"><input
-                                    type="date"
-                                    value={mFrom}
-                                    onChange={e => setMFrom(e.target.value)}
-                                    className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
-                                /></FilterField>
-                                <span data-filter-separator className="text-slate-blue text-xs">→</span>
-                                <FilterField label="Đến ngày"><input
-                                    type="date"
-                                    value={mTo}
-                                    onChange={e => setMTo(e.target.value)}
-                                    className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
-                                /></FilterField>
+                        <FilterBar variant="card" className="minutes-archive-filters">
+                            <div className="minutes-archive-filter-main">
+                                <FilterField label="Tìm biên bản"><div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue/60" />
+                                    <input type="text" placeholder="Tìm tiêu đề biên bản, tên cuộc họp..." value={mSearch}
+                                        onChange={e => setMSearch(e.target.value)}
+                                        className="w-full pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo" />
+                                </div></FilterField>
+                                <FilterField label="Trạng thái biên bản">
+                                    <select value={mStatus} onChange={e => setMStatus(e.target.value)}>
+                                        <option value="">Tất cả trạng thái</option>
+                                        <option value="published">Đã ban hành</option>
+                                        <option value="draft">Bản nháp</option>
+                                        <option value="archived">Lưu trữ</option>
+                                    </select>
+                                </FilterField>
+                                <RefreshButton onClick={() => fetchMinutes(minutesPage)} busy={minutesLoading} title="Tải lại"
+                                    legacyClassName="p-2 border border-platinum-tint rounded-xl text-slate-blue hover:bg-cloud-mist transition-colors" />
                             </div>
-
-                            <RefreshButton
-                                onClick={() => fetchMinutes(minutesPage)}
-                                busy={minutesLoading}
-                                title="Tải lại"
-                                legacyClassName="p-2 border border-platinum-tint rounded-xl text-slate-blue hover:bg-cloud-mist transition-colors"
-                            >
-                                <RefreshCw className="w-4 h-4" />
-                            </RefreshButton>
+                            <div className="minutes-archive-filter-time">
+                                <CalendarRangePresets from={mFrom} to={mTo} onChange={range => { setMFrom(range.from); setMTo(range.to); setMinutesPage(1); }} />
+                                <div className="minutes-archive-filter-dates">
+                                    <FilterField label="Từ ngày"><input type="date" value={mFrom} onChange={e => setMFrom(e.target.value)} /></FilterField>
+                                    <FilterField label="Đến ngày"><input type="date" value={mTo} onChange={e => setMTo(e.target.value)} /></FilterField>
+                                </div>
+                                <button type="button" data-filter-action className="minutes-archive-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                                    onClick={() => {
+                                        if (!mSearch && !mStatus && !mFrom && !mTo) fetchMinutes(1);
+                                        setMSearch(''); setMStatus(''); setMFrom(''); setMTo(''); setMinutesPage(1);
+                                    }}>
+                                    <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                                </button>
+                            </div>
                         </FilterBar>
 
                         {/* Minutes table */}

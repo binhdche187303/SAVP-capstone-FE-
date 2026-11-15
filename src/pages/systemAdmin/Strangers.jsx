@@ -1,10 +1,12 @@
+import './StrangersFilters.css';
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard from '../../components/common/StatisticCard';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Calendar, Camera, Clock, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X } from 'lucide-react';
+import { Filter, Clock, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -210,20 +212,23 @@ const Strangers = () => {
                 ))}
             </StatisticGrid>
 
-            <FilterBar variant="card" className="bg-white rounded-2xl border border-platinum-tint p-4 flex flex-wrap items-center gap-x-6 gap-y-3">
-
-                <div data-filter-fields className="camai-filter-range flex flex-wrap items-center gap-2">
-                    <Calendar className="w-4 h-4 text-slate-blue" />
+            <FilterBar variant="card" className="strangers-filters">
+                <div className="strangers-filter-grid">
+                <CalendarRangePresets from={from} to={to} onChange={range => { setFrom(range.from); setTo(range.to); setPage(1); }} />
+                <div className="strangers-filter-dates">
                     <FilterField label="Từ ngày"><input type="date" value={from} max={to} onChange={e => e.target.value && changeFilter(setFrom)(e.target.value)} className={inputCls} /></FilterField>
-                    <span data-filter-separator className="text-slate-blue">→</span>
                     <FilterField label="Đến ngày"><input type="date" value={to} min={from} max={vnToday()} onChange={e => e.target.value && changeFilter(setTo)(e.target.value)} className={inputCls} /></FilterField>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Camera className="w-4 h-4 text-slate-blue" />
-                    <FilterField label="Camera"><select value={deviceId} onChange={e => changeFilter(setDeviceId)(e.target.value)} className={`${inputCls} max-w-[16rem]`}>
+                <FilterField label="Camera" className="strangers-filter-camera">
+                    <select value={deviceId} onChange={e => changeFilter(setDeviceId)(e.target.value)} className={inputCls}>
                         <option value="">Tất cả camera</option>
-                        {devices.map(d => <option key={d.id} value={d.id}>{d.device_code}{d.device_name ? ` — ${d.device_name}` : ''}</option>)}
-                    </select></FilterField>
+                        {devices.map(device => <option key={device.id} value={device.id}>{device.device_code}{device.device_name ? ` — ${device.device_name}` : ''}</option>)}
+                    </select>
+                </FilterField>
+                <button type="button" data-filter-action className="strangers-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                    onClick={() => { setFrom(daysAgo(6)); setTo(vnToday()); setDeviceId(''); setTab('pending'); setPage(1); }}>
+                    <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                </button>
                 </div>
             </FilterBar>
 

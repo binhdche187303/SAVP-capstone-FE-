@@ -1,3 +1,5 @@
+import { presetRange } from '../../components/report/ReportFilterBar';
+import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -17,6 +19,7 @@ import {
     getPenaltyMeetingSummary,
     getPenaltyMeetingDetail,
 } from '../../service/managerServices';
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 const CATEGORY_MAP = {
     present:    { label: 'Có mặt',       cls: 'bg-emerald-50 text-emerald-700' },
@@ -62,19 +65,21 @@ const ExportButton = ({ onClick, disabled }) => (
 const fmtPoints = (p) => (p > 0 ? `+${p}` : `${p}`);
 const pointsCls = (p) => (p < 0 ? 'text-rose-600' : 'text-emerald-600');
 
-const SummaryCards = ({ s, label = 'Số buổi họp' }) => {
+const SummaryCards = ({ s, label = 'Số buổi họp', selected, onSelect }) => {
     const cards = [
-        { label, value: s.totalMeetings, icon: Users, cls: 'text-action-blue bg-blue-50' },
-        { label: 'Đi trễ', value: s.late, icon: Clock, cls: 'text-amber-600 bg-amber-50' },
-        { label: 'Về sớm', value: s.leftEarly, icon: LogOut, cls: 'text-orange-600 bg-orange-50' },
-        { label: 'Vắng mặt', value: s.absent, icon: XCircle, cls: 'text-rose-600 bg-rose-50' },
-        { label: 'Có lý do', value: s.excused, icon: CheckCircle, cls: 'text-sky-600 bg-sky-50' },
-        { label: 'Tổng điểm trừ', value: fmtPoints(s.totalPoints), icon: AlertTriangle, cls: 'text-rose-600 bg-rose-50' },
+        { filter: 'all', label, value: s.totalMeetings, icon: Users, cls: 'text-action-blue bg-blue-50' },
+        { filter: 'late', label: 'Đi trễ', value: s.late, icon: Clock, cls: 'text-amber-600 bg-amber-50' },
+        { filter: 'left_early', label: 'Về sớm', value: s.leftEarly, icon: LogOut, cls: 'text-orange-600 bg-orange-50' },
+        { filter: 'absent', label: 'Vắng mặt', value: s.absent, icon: XCircle, cls: 'text-rose-600 bg-rose-50' },
+        { filter: 'excused', label: 'Có lý do', value: s.excused, icon: CheckCircle, cls: 'text-sky-600 bg-sky-50' },
+        { filter: 'deducted', label: 'Tổng điểm trừ', value: fmtPoints(s.totalPoints), icon: AlertTriangle, cls: 'text-rose-600 bg-rose-50' },
     ];
     return (
         <StatisticGrid columns={6} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {cards.map((c) => (
-                <StatisticCard key={c.label} label={c.label} value={c.value} icon={c.icon} tone={statisticTone(c.cls)} legacy={(
+                <StatisticCard key={c.label} label={c.label} value={c.value} icon={c.icon} tone={statisticTone(c.cls)}
+                    {...(onSelect ? { onClick: () => onSelect(c.filter), selected: selected === c.filter, 'aria-label': c.label } : {})}
+                    legacy={(
                 <div key={c.label} className="bg-white rounded-2xl border border-platinum-tint p-4 flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.cls}`}>
                         <c.icon className="w-5 h-5" />
@@ -90,30 +95,27 @@ const SummaryCards = ({ s, label = 'Số buổi họp' }) => {
     );
 };
 
-const MeetingRows = ({ items, basePath }) => (
+export const MeetingRows = ({ items, basePath, title, showReason = true, categoryLabel = 'Hình thức', emptyMessage = 'Không có cuộc họp nào có điểm danh trong khoảng thời gian này.' }) => (
     <div className="bg-white rounded-2xl border border-platinum-tint overflow-x-auto">
+        {title && <div className="px-6 py-4 border-b border-platinum-tint"><h3 className="text-midnight-indigo">{title}</h3></div>}
         <PaginatedCollection items={items} itemLabel="cuộc họp">
 {(camaiPageItems, camaiStartIndex) => (
 <ResponsiveTable className="w-full text-sm">
 <colgroup>
-<col style={{ width: '13%' }} />
-<col style={{ width: '30%' }} />
-<col style={{ width: '18%' }} />
-<col style={{ width: '30%' }} />
-<col style={{ width: '9%' }} />
+{(showReason ? ['13%', '30%', '18%', '30%', '9%'] : ['16%', '49%', '23%', '12%']).map((width, index) => <col key={index} style={{ width }} />)}
 </colgroup>
             <thead className="bg-cloud-mist/50 text-[10px] uppercase text-slate-blue font-bold">
                 <tr>
                     <th className="px-4 py-3 text-left">Ngày</th>
                     <th className="px-4 py-3 text-left">Cuộc họp</th>
-                    <th className="px-4 py-3 text-left">Hình thức</th>
-                    <th className="px-4 py-3 text-left">Lý do</th>
+                    <th className="px-4 py-3 text-left">{categoryLabel}</th>
+                    {showReason && <th className="px-4 py-3 text-left">Lý do</th>}
                     <th className="px-4 py-3 text-right">Điểm</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-platinum-tint">
                 {items.length === 0 ? (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-blue text-sm">Không có cuộc họp nào có điểm danh trong khoảng thời gian này.</td></tr>
+                    <tr><td colSpan={showReason ? 5 : 4} className="px-4 py-8 text-center text-slate-blue text-sm">{emptyMessage}</td></tr>
                 ) : camaiPageItems.map((camaiRecord, camaiIndex) => ((i) => (
                     <tr key={i.meetingId} className="hover:bg-cloud-mist/20">
                         <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{fmtDate(i.startTime)}</td>
@@ -127,7 +129,7 @@ const MeetingRows = ({ items, basePath }) => (
                                 {i.category === 'late' && i.lateMinutes ? ` (${i.lateMinutes}p)` : ''}
                             </span>
                         </td>
-                        <td className="px-4 py-3 text-[11px] text-slate-600 max-w-[260px]">
+                        {showReason && <td className="px-4 py-3 text-[11px] text-slate-600 max-w-[260px]">
                             {i.excuseStatus ? (
                                 <>
                                     <span className="font-bold">{EXCUSE_MAP[i.excuseStatus]}</span>
@@ -137,7 +139,7 @@ const MeetingRows = ({ items, basePath }) => (
                                     )}
                                 </>
                             ) : '--'}
-                        </td>
+                        </td>}
                         <td className={`px-4 py-3 text-right font-black ${pointsCls(i.points)}`}>{fmtPoints(i.points)}</td>
                     </tr>
                 ))(camaiRecord, camaiStartIndex + camaiIndex, (items)))}
@@ -214,10 +216,14 @@ const AttendancePenaltyReport = () => {
     const isAdminArea = basePath === '/business-admin';
 
     const [range, setRange] = useState(monthRange(0));
-    const [rangePreset, setRangePreset] = useState('this-month');
+    const [rangePreset, setRangePreset] = useState('month');
     const [scope, setScope] = useState(null);
     const [tab, setTab] = useState(isAdminArea ? 'summary' : 'me');
     const [mine, setMine] = useState(null);
+    const [personalFilter, setPersonalFilter] = useState('all');
+    useEffect(() => setPersonalFilter('all'), [range.from, range.to]);
+    const personalItems = useMemo(() => (mine?.items || []).filter(item =>
+        personalFilter === 'all' || (personalFilter === 'deducted' ? Number(item.points) < 0 : item.category === personalFilter)), [mine?.items, personalFilter]);
     const [summary, setSummary] = useState(null);
     const [meetingSummary, setMeetingSummary] = useState(null);
     const [meetingDetail, setMeetingDetail] = useState(null);
@@ -370,8 +376,8 @@ const AttendancePenaltyReport = () => {
 
     return (
         <div data-page-surface="wide" className="max-w-7xl mx-auto px-4 py-6 space-y-5">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
                     <h1 className="text-xl font-black text-midnight-indigo flex items-center gap-2">
                         <Award className="w-6 h-6 text-action-blue" /> Điểm chuyên cần cuộc họp
                     </h1>
@@ -379,34 +385,40 @@ const AttendancePenaltyReport = () => {
                         Tính các cuộc họp đã kết thúc có điểm danh. Lý do được duyệt = 0 điểm; chờ duyệt hoặc bị từ chối vẫn giữ điểm trừ.
                     </p>
                 </div>
+                {scope && (tab === 'summary' || tab === 'meetings') && (
+                    <div className="shrink-0">
+                        <ExportButton
+                            onClick={tab === 'summary' ? exportExcel : exportMeetings}
+                            disabled={tab === 'summary' ? !summary?.rows?.length : !meetingSummary?.rows?.length}
+                        />
+                    </div>
+                )}
             </div>
 
             <FilterBar variant="card" className="flex flex-wrap items-end gap-4">
-                <FilterField label="Lọc nhanh">
-                    <select value={rangePreset} onChange={event => {
-                        const preset = event.target.value;
+
+                <div className="camai-filter-period-row">
+                    <TimeRangeButtons label="Lọc nhanh" value={rangePreset} onChange={preset => {
                         setRangePreset(preset);
-                        if (preset !== 'custom') setRange(monthRange(preset === 'this-month' ? 0 : -1));
-                    }}>
-                        <option value="this-month">Tháng này</option>
-                        <option value="last-month">Tháng trước</option>
-                        <option value="custom">Tùy chọn khoảng ngày</option>
-                    </select>
-                </FilterField>
-                <FilterField label="Từ ngày">
-                    <input type="date" value={range.from} max={range.to} onChange={event => {
-                        if (!event.target.value) return;
-                        setRangePreset('custom');
-                        setRange({ ...range, from: event.target.value });
-                    }} />
-                </FilterField>
-                <FilterField label="Đến ngày">
-                    <input type="date" value={range.to} min={range.from} onChange={event => {
-                        if (!event.target.value) return;
-                        setRangePreset('custom');
-                        setRange({ ...range, to: event.target.value });
-                    }} />
-                </FilterField>
+                        if (preset !== 'custom') setRange(presetRange(preset));
+                    }} options={[["day", "Ngày"], ["week", "Tuần"], ["month", "Tháng"], ["year", "Năm"], ["custom", "Tùy chọn"]]} />
+                    <div className="camai-filter-period-dates">
+                        <FilterField label="Từ ngày">
+                            <input type="date" value={range.from} max={range.to} onChange={event => {
+                                if (!event.target.value) return;
+                                setRangePreset('custom');
+                                setRange({ ...range, from: event.target.value });
+                            }} />
+                        </FilterField>
+                        <FilterField label="Đến ngày">
+                            <input type="date" value={range.to} min={range.from} onChange={event => {
+                                if (!event.target.value) return;
+                                setRangePreset('custom');
+                                setRange({ ...range, to: event.target.value });
+                            }} />
+                        </FilterField>
+                    </div>
+                </div>
             </FilterBar>
 
             {tabs.length > 1 && (
@@ -434,8 +446,9 @@ const AttendancePenaltyReport = () => {
 
             {tab === 'me' && mine && (
                 <>
-                    <SummaryCards s={mine.summary} />
-                    <MeetingRows items={mine.items} basePath={basePath} />
+                    <SummaryCards s={mine.summary} selected={personalFilter} onSelect={setPersonalFilter} />
+                    <MeetingRows key={`${range.from}:${range.to}:${personalFilter}`} items={personalItems} basePath={basePath}
+                        emptyMessage={personalFilter === 'all' ? undefined : 'Không có cuộc họp phù hợp với bộ lọc đang chọn.'} />
                 </>
             )}
 
@@ -454,13 +467,6 @@ const AttendancePenaltyReport = () => {
                             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tên, email" className="pl-8 pr-3 py-2 text-xs rounded-xl border border-platinum-tint w-56" />
                         </div></FilterField>
-                        <ReportExportAction format="xlsx" label="Xuất Excel" alignEnd
-                            onClick={exportExcel}
-                            disabled={!summary?.rows?.length}
-                            legacyClassName="ml-auto inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                        >
-                            <Download className="w-3.5 h-3.5" /> Xuất Excel
-                        </ReportExportAction>
                     </FilterBar>
 
                     {summary && (
@@ -549,9 +555,6 @@ const AttendancePenaltyReport = () => {
                             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tên, mã cuộc họp" className="pl-8 pr-3 py-2 text-xs rounded-xl border border-platinum-tint w-56" />
                         </div></FilterField>
-                        <div className="ml-auto">
-                            <ExportButton onClick={exportMeetings} disabled={!meetingSummary?.rows?.length} />
-                        </div>
                     </FilterBar>
                     {scope === 'unit' && (
                         <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Số liệu chỉ tính thành viên thuộc đơn vị của bạn.</p>

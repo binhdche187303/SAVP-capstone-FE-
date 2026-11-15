@@ -20,6 +20,7 @@ import { getSecurityAlerts } from '../../service/securityAlertService';
 import { getBusinessAdminSummary } from '../../service/campusService';
 import { getAlertTypeLabel } from '../../constants/alertType';
 import ZonePresenceTable from '../../components/campus/ZonePresenceTable';
+import SharedStatCard from '../../components/common/StatCard';
 
 // ─── Design tokens (DESIGN.md — Sky Blueprint / Light Theme) ─────────────────
 

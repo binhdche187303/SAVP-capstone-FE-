@@ -219,6 +219,8 @@ export const getBackgroundJobStatus = async (jobId) => {
 // ROOM MANAGEMENT APIs (UC-57 ~ UC-60)
 // ============================================================
 
+export const getRoomFilterOptions = async () => get('/rooms/filter-options');
+
 export const getRooms = async (params = {}) => {
     const query = buildQuery(params);
     // BE không có route /rooms/available — endpoint thật là /rooms/search

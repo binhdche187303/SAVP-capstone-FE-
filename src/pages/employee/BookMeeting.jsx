@@ -2014,8 +2014,8 @@ const BookMeeting = () => {
                                                                 </span>
                                                                 <div className="h-px bg-platinum-tint/70 flex-1"></div>
                                                             </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                                {<PaginatedCollection items={deptUsers} itemLabel="người tham gia">{(camaiInnerItems, camaiInnerStart) => camaiInnerItems.map((camaiInnerRecord, camaiInnerIndex) => (user => {
+                                                            <div className="min-w-0">
+                                                                {<PaginatedCollection items={deptUsers} itemLabel="người tham gia">{(camaiInnerItems, camaiInnerStart) => <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{camaiInnerItems.map((camaiInnerRecord, camaiInnerIndex) => (user => {
                                                                     const userDeptCode = getUserDeptCode(user);
                                                                     return (
                                                                         <div
@@ -2080,7 +2080,7 @@ const BookMeeting = () => {
                                                                             </div>
                                                                         </div>
                                                                     );
-                                                                })(camaiInnerRecord, camaiInnerStart + camaiInnerIndex, deptUsers))}</PaginatedCollection>}
+                                                                })(camaiInnerRecord, camaiInnerStart + camaiInnerIndex, deptUsers))}</div>}</PaginatedCollection>}
                                                             </div>
                                                         </div>
                                                     ));
@@ -2331,17 +2331,13 @@ const BookMeeting = () => {
                                         {!isManagerAutoApprove && approvers.length > 0 && (
                                             <div className="text-sm">
                                                 <span className="text-slate-blue">Người duyệt:</span>
-                                                <PaginatedCollection items={approvers} itemLabel="người duyệt">
-{(camaiPageItems, camaiStartIndex) => (
-<ul className="mt-1 space-y-0.5">
-                                                    {camaiPageItems.map((camaiRecord, camaiIndex) => (a => (
-                                                        <li key={a.id} className="text-xs font-semibold text-midnight-indigo">
-                                                            {a.fullName} <span className="font-normal text-slate-blue">({a.isUnitClerk ? 'Văn thư' : 'Trưởng phòng'})</span>
+                                                <ul className="mt-1 space-y-0.5">
+                                                    {approvers.map(approver => (
+                                                        <li key={approver.id} className="text-xs font-semibold text-midnight-indigo">
+                                                            {approver.fullName} <span className="font-normal text-slate-blue">({approver.isUnitClerk ? 'Văn thư' : 'Trưởng phòng'})</span>
                                                         </li>
-                                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (approvers)))}
+                                                    ))}
                                                 </ul>
-)}
-</PaginatedCollection>
                                             </div>
                                         )}
 

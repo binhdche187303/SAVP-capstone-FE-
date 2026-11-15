@@ -174,7 +174,7 @@ export const REPORT_DEFINITIONS = {
                 ['visitor_overstay', 'Khách quá giờ'], ['visitor_must_leave', 'Khách phải rời'],
                 ['visitor_zone_violation', 'Khách vào sai khu vực'],
             ]),
-            options('severity', 'Mức độ', [['low', 'Thấp'], ['medium', 'Trung bình'], ['high', 'Cao'], ['critical', 'Nghiêm trọng']]),
+            options('severity', 'Mức độ', [['low', 'Thấp'], ['medium', 'Trung bình'], ['high', 'Cao'], ['urgent', 'Khẩn cấp'], ['critical', 'Nghiêm trọng']]),
             lookup('zoneId', 'Khu vực', 'zones'),
             options('status', 'Trạng thái', [['open', 'Chưa xử lý'], ['acknowledged', 'Đã tiếp nhận'], ['resolved', 'Đã xử lý']]),
         ],

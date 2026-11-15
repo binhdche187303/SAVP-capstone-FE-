@@ -1,0 +1,37 @@
+.camai-filter-bar.personal-stats-filters[data-filter-bar] {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 16px;
+    padding: 16px;
+}
+.personal-stats-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.personal-stats-chart { min-width: 0; padding: 24px; border: 1px solid #d4e0ed; border-radius: 16px; background: #fff; box-shadow: 0 2px 4px rgb(11 53 88 / 8%); }
+.personal-stats-chart h3 { margin: 0 0 8px; }
+.personal-stats-chart svg text { font-family: var(--app-ui-font, inherit); }
+.personal-stats-legend { display: grid; gap: 8px; color: #476788; font-size: 14px; line-height: 20px; }
+.personal-stats-legend > div { display: flex; justify-content: space-between; gap: 12px; }
+.personal-stats-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.personal-stats-legend i { width: 10px; height: 10px; border-radius: 50%; }
+.personal-stats-legend strong { font-weight: 600; color: #0b3558; }
+@media (max-width: 1000px) {
+    .camai-filter-bar.personal-stats-filters[data-filter-bar] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .personal-stats-filters > :first-child { grid-column: 1 / -1; }
+    .personal-stats-charts { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 550px) { .personal-stats-chart { padding: 16px; } }
+.personal-stats-chart h3 { color: #0b3558; }
+.personal-stats-chart > p { color: #476788; }
+.personal-stats-header { padding: 24px; background: #fff; border: 1px solid #dce3ed; border-radius: 16px; box-shadow: 0 2px 4px rgb(11 53 88 / 8%); }
+.personal-stats-header > p { margin-top: 4px; }
+.personal-stats-section-heading h2, .personal-points-section h2 { margin: 0; color: #0b3558; }
+.personal-stats-section-heading > p { margin-top: 4px; color: #476788; }
+.personal-stats-method { color: #476788; margin-top: 12px !important; }
+.personal-stats-charts .personal-stats-chart { padding: 20px 24px; }
+.personal-points-section { padding-top: 8px; }
+.personal-points-method { color: #476788; font-size: 12px; line-height: 18px; }
+.personal-points-method summary { cursor: pointer; width: fit-content; font-weight: 600; }
+.personal-points-method p { margin-top: 8px; }
+@media (max-width: 550px) { .personal-stats-header, .personal-stats-charts .personal-stats-chart { padding: 16px; } }
+.personal-points-chart-empty { padding: 32px 0; color: #476788; }
+.personal-points-line-chart { width: 100%; min-width: 0; margin-top: 16px; }

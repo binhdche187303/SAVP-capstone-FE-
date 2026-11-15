@@ -17,7 +17,8 @@ const Table = ({ standard, children, className = '', ...props }) => {
                     (cell.querySelector('input[type="checkbox"]') ? 'Chọn' : cell.querySelector('[aria-label]')?.getAttribute('aria-label') || ''))
             );
             const columns = headers.length || Math.max(1, ...[...table.tBodies].flatMap(body => [...body.rows].map(row => row.cells.length)));
-            container.dataset.tableLayout = container.clientWidth < Math.max(560, columns * 132) ? 'cards' : 'table';
+            const layout = container.clientWidth < Math.max(560, columns * 132) ? 'cards' : 'table';
+            if (container.dataset.tableLayout !== layout) container.dataset.tableLayout = layout;
             table.setAttribute('role', props.role || 'table');
             [...table.tBodies, ...(table.tFoot ? [table.tFoot] : [])].forEach(body => {
                 body.setAttribute('role', 'rowgroup');
@@ -42,13 +43,20 @@ const Table = ({ standard, children, className = '', ...props }) => {
             });
         };
         update();
-        const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+        let resizeFrame;
+        // Changing table/card layout inside an observer delivery can resize the
+        // observed container again. Apply it in the next frame instead.
+        const onResize = () => {
+            cancelAnimationFrame(resizeFrame);
+            resizeFrame = requestAnimationFrame(update);
+        };
+        const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onResize);
         resize?.observe(container);
         if (!resize) window.addEventListener('resize', update);
         // Descendant components can fetch rows or change columns independently.
         const mutations = new MutationObserver(update);
         mutations.observe(table, { childList: true, subtree: true, characterData: true });
-        return () => { resize?.disconnect(); window.removeEventListener('resize', update); mutations.disconnect(); };
+        return () => { cancelAnimationFrame(resizeFrame); resize?.disconnect(); window.removeEventListener('resize', update); mutations.disconnect(); };
     }, [standard, children, props.role]);
 
     const table = <table {...props} ref={ref} className={`${className}${standard ? ' camai-responsive-table' : ''}`}>{children}</table>;

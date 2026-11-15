@@ -17,6 +17,7 @@ import {
     reviewAttendanceExcuse
 } from '../../service/managerServices';
 import { getSocket, subscribeToMeeting } from '../../utils/socket';
+import SharedStatCard from '../../components/common/StatCard';
 
 const CHECK_IN_METHOD_MAP = {
     door_camera: 'Nhận diện khuôn mặt',

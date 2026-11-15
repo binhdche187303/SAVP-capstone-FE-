@@ -1,3 +1,4 @@
+import './ZoneTrafficAnalytics.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import ReportActions from '../../components/common/ReportActions';
@@ -8,7 +9,7 @@ import { Activity, Flame, Info, MapPin, Users } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
-    Tooltip, ResponsiveContainer, Legend
+    Tooltip, ResponsiveContainer
 } from 'recharts';
 import { getZoneTraffic } from '../../service/campusService';
 import { getZones } from '../../service/zoneServices';
@@ -16,6 +17,7 @@ import { getCameraGroups } from '../../service/cameraGroupServices';
 import { downloadReport, currentUserName, fmtVN, toDate } from '../../utils/exportExcel';
 import ExportMenu from '../../components/report/ExportMenu';
 import toast from '../../utils/toast';
+import SharedStatCard from '../../components/common/StatCard';
 
 // UC-120 (2.6): lưu lượng người + heatmap khu vực công cộng.
 // Heatmap dạng ma trận khu × giờ trong ngày; vị trí GPS của khu vực xem ở trang Bản đồ khuôn viên.
@@ -82,6 +84,9 @@ const ZoneTrafficAnalytics = () => {
     const [autoRefresh, setAutoRefresh] = useState(true);
     const [busyFormat, setBusyFormat] = useState(null);
     const [lastUpdated, setLastUpdated] = useState(null);
+    // Chú thích biểu đồ đường: bấm 1 lần để chọn thêm khu (chọn được nhiều khu), bấm lại để bỏ chọn.
+    const [focusedZoneIds, setFocusedZoneIds] = useState([]);
+    const toggleFocusZone = (zoneId) => setFocusedZoneIds((prev) => (prev.includes(zoneId) ? prev.filter((id) => id !== zoneId) : [...prev, zoneId]));
     const heatmapRef = useRef(null);
     const [heatmapColumns, setHeatmapColumns] = useState(8);
     const [heatmapPage, setHeatmapPage] = useState(0);
@@ -201,6 +206,12 @@ const ZoneTrafficAnalytics = () => {
         () => Object.fromEntries(data.heatmap.map((z) => [z.zoneId, z.zoneName])),
         [data.heatmap]
     );
+    // Các khu đang được chọn ở biểu đồ đường; bỏ qua khu không còn trong dữ liệu (đổi bộ lọc / làm mới).
+    const activeFocusZoneIds = useMemo(
+        () => focusedZoneIds.filter((id) => zones.some((z) => z.zoneId === id)),
+        [focusedZoneIds, zones]
+    );
+    const hasFocus = activeFocusZoneIds.length > 0;
 
     // Biểu đồ đường: mỗi khu 1 đường, trục X = giờ (bucket theo giờ)
     const lineData = useMemo(() => {
@@ -428,21 +439,31 @@ const ZoneTrafficAnalytics = () => {
     return (
         <div data-page-surface="wide" className="space-y-6 p-6 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="border-b border-platinum-tint pb-[1.25rem]">
-                <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                    <Activity className="w-6 h-6 text-action-blue" />
-                    Lưu lượng & Bản đồ nhiệt khu vực công cộng
-                </h2>
-                <p className="text-xs text-slate-blue mt-1">
-                    Theo dõi số người tại hành lang, sảnh và khu học tập theo giờ; phát hiện khu vực và khung giờ đông nhất.
-                </p>
+            <div className="zone-traffic-header border-b border-platinum-tint pb-[1.25rem]">
+                <div className="zone-traffic-heading min-w-0 flex-1">
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                        <Activity className="w-6 h-6 text-action-blue" />
+                        Lưu lượng & Bản đồ nhiệt khu vực công cộng
+                    </h2>
+                    <p className="text-xs text-slate-blue mt-1">
+                        Theo dõi số người tại hành lang, sảnh và khu học tập theo giờ; phát hiện khu vực và khung giờ đông nhất.
+                    </p>
+                </div>
+                <ReportActions>
+                    <ExportMenu compact askMode initialRange={short ? undefined : { from, to }} filterSummary={[short ? `${SHORT_PRESETS[preset]} phút gần nhất` : `Từ ${from} đến ${to}`, building ? `Tòa nhà: ${building}` : 'Tất cả tòa nhà', floor ? `Tầng: ${floor}` : 'Tất cả tầng', groupId ? `Nhóm camera: ${groups.find(group => group.id === groupId)?.group_name || groupId}` : 'Tất cả nhóm camera']} onExport={handleExport} busyFormat={busyFormat} disabled={loading || !zones.length} />
+                    <RefreshButton
+                        type="button"
+                        onClick={() => fetchData(false)}
+                        busy={loading}
+                    />
+                </ReportActions>
             </div>
 
             {/* Filter Bar */}
-            <FilterBar variant="card" className="bg-white p-[1rem] rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-[1rem] items-end">
+            <FilterBar variant="card" className="zone-traffic-filters bg-white p-[1rem] rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-[1rem]">
                 <div className="camai-filter-field space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-blue uppercase">Bộ lọc nhanh</label>
-                    <select value={preset} onChange={(e) => handlePreset(e.target.value)} className={`${inputCls} font-semibold`}>
+                    <label htmlFor="zone-traffic-preset" className="block text-[10px] font-bold text-slate-blue uppercase">Bộ lọc nhanh</label>
+                    <select id="zone-traffic-preset" value={preset} onChange={event => handlePreset(event.target.value)} className={`${inputCls} font-semibold`}>
                         <option value="5m">5 phút gần nhất</option>
                         <option value="10m">10 phút gần nhất</option>
                         <option value="30m">30 phút gần nhất</option>
@@ -452,14 +473,14 @@ const ZoneTrafficAnalytics = () => {
                         <option value="month">30 ngày gần nhất</option>
                         <option value="custom">Tùy chọn khoảng</option>
                     </select>
+                    {short && (
+                        <label className="zone-traffic-auto-refresh flex flex-wrap items-center gap-2 text-xs font-semibold text-midnight-indigo">
+                            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+                            Tự làm mới {AUTO_REFRESH_MS / 1000}s
+                            {lastUpdated && <span className="font-normal text-slate-400">· cập nhật {lastUpdated.toLocaleTimeString('vi-VN')}</span>}
+                        </label>
+                    )}
                 </div>
-                {short && (
-                    <label className="flex items-center gap-2 text-xs font-semibold text-midnight-indigo pb-2">
-                        <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-                        Tự làm mới {AUTO_REFRESH_MS / 1000}s
-                        {lastUpdated && <span className="font-normal text-slate-400">· cập nhật {lastUpdated.toLocaleTimeString('vi-VN')}</span>}
-                    </label>
-                )}
                 {preset === 'custom' && (
                     <>
                         <div className="camai-filter-field space-y-1">
@@ -493,16 +514,7 @@ const ZoneTrafficAnalytics = () => {
                         {groups.map((g) => <option key={g.id} value={g.id}>{g.group_name}</option>)}
                     </select>
                 </div>
-                <div className="ml-auto flex items-center gap-2">
-                    <ReportActions>
-                        <ExportMenu compact askMode initialRange={short ? undefined : { from, to }} filterSummary={[short ? `${SHORT_PRESETS[preset]} phút gần nhất` : `Từ ${from} đến ${to}`, building ? `Tòa nhà: ${building}` : 'Tất cả tòa nhà', floor ? `Tầng: ${floor}` : 'Tất cả tầng', groupId ? `Nhóm camera: ${groups.find(group => group.id === groupId)?.group_name || groupId}` : 'Tất cả nhóm camera']} onExport={handleExport} busyFormat={busyFormat} disabled={loading || !zones.length} />
-                        <RefreshButton
-                            type="button"
-                            onClick={() => fetchData(false)}
-                            busy={loading}
-                        />
-                    </ReportActions>
-                </div>
+
             </FilterBar>
 
             {error && (
@@ -599,13 +611,24 @@ const ZoneTrafficAnalytics = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Line chart */}
                 <div className="bg-white p-[1.25rem] rounded-2xl border border-platinum-tint shadow-sm space-y-4 lg:col-span-2">
-                    <h3 className="font-bold text-midnight-indigo text-sm">Lưu lượng người theo thời gian (TB mỗi {short ? 'phút' : 'giờ'})</h3>
+                    <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-bold text-midnight-indigo text-sm">Lưu lượng người theo thời gian (TB mỗi {short ? 'phút' : 'giờ'})</h3>
+                        {hasFocus && (
+                            <button
+                                type="button"
+                                onClick={() => setFocusedZoneIds([])}
+                                className="shrink-0 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-action-blue text-[11px] font-bold"
+                            >
+                                Hiện tất cả khu vực
+                            </button>
+                        )}
+                    </div>
                     <div className="h-72">
                         {loading ? (
                             <div className="w-full h-full bg-slate-50 animate-pulse rounded-xl" />
                         ) : lineData.length ? (
                             <ResponsiveContainer width="100%" height={288}>
-                                <LineChart data={lineData}>
+                                <LineChart data={lineData} accessibilityLayer={false}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                     <XAxis
                                         dataKey="hourBucket"
@@ -615,7 +638,6 @@ const ZoneTrafficAnalytics = () => {
                                     />
                                     <YAxis tickLine={false} axisLine={false} style={{ fontSize: 9, fill: '#64748b' }} />
                                     <Tooltip labelFormatter={(v) => fmtDateTime(v)} />
-                                    <Legend wrapperStyle={{ fontSize: 11 }} />
                                     {zones.map((z, i) => (
                                         <Line
                                             key={z.zoneId}
@@ -626,6 +648,7 @@ const ZoneTrafficAnalytics = () => {
                                             strokeWidth={2}
                                             dot={false}
                                             connectNulls
+                                            hide={hasFocus && !activeFocusZoneIds.includes(z.zoneId)}
                                         />
                                     ))}
                                 </LineChart>
@@ -634,6 +657,29 @@ const ZoneTrafficAnalytics = () => {
                             <div className="h-full flex items-center justify-center text-xs text-slate-400">Không có dữ liệu</div>
                         )}
                     </div>
+                    {!loading && lineData.length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-2">
+                            {zones.map((z, i) => {
+                                const color = LINE_COLORS[i % LINE_COLORS.length];
+                                const selected = activeFocusZoneIds.includes(z.zoneId);
+                                const dimmed = hasFocus && !selected;
+                                return (
+                                    <button
+                                        key={z.zoneId}
+                                        type="button"
+                                        onClick={() => toggleFocusZone(z.zoneId)}
+                                        aria-pressed={selected}
+                                        title={selected ? 'Bấm để bỏ chọn khu vực này' : 'Bấm để chọn thêm khu vực này'}
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-all ${selected ? 'border-current bg-white shadow-sm' : 'border-transparent hover:bg-slate-50'} ${dimmed ? 'opacity-40' : ''}`}
+                                        style={{ color }}
+                                    >
+                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                        {zoneName[z.zoneId]}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Zone ranking */}

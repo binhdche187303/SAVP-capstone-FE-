@@ -1,3 +1,4 @@
+import TimeRangeButtons from '../common/TimeRangeButtons';
 import { changeReportFilters, reportFilterChoices } from './reportFilterChoices';
 import FilterBar from '../common/FilterBar';
 import { Search } from 'lucide-react';
@@ -13,13 +14,14 @@ export const presetRange = (preset) => {
         const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
         return { from: toYmd(monday), to: toYmd(today) };
     }
+    if (preset === 'year') return { from: toYmd(new Date(today.getFullYear(), 0, 1)), to: toYmd(today) };
     if (preset === 'month') return { from: toYmd(new Date(today.getFullYear(), today.getMonth(), 1)), to: toYmd(today) };
     return { from: toYmd(today), to: toYmd(today) };
 };
 
 export const defaultFilterValue = () => ({ preset: 'month', ...presetRange('month'), q: '' });
 
-const PRESETS = [['today', 'Hôm nay'], ['week', 'Tuần này'], ['month', 'Tháng này'], ['custom', 'Tùy chọn']];
+const PRESETS = [['today', 'Hôm nay'], ['week', 'Tuần này'], ['month', 'Tháng'], ['year', 'Năm'], ['custom', 'Tùy chọn']];
 
 const ReportFilterBar = ({ definition, lookups = {}, value, onChange, onApply, loading }) => {
     const set = patch => onChange(changeReportFilters(definition, value, patch));
@@ -31,21 +33,7 @@ const ReportFilterBar = ({ definition, lookups = {}, value, onChange, onApply, l
             className={`${cardCls} p-4 flex flex-wrap gap-4 items-end`}
             onSubmit={(e) => { e.preventDefault(); onApply(); }}
         >
-            <div className="space-y-1">
-                <span data-ui-text="label" data-filter-label className={labelCls}>Kỳ báo cáo</span>
-                <div data-filter-presets className="flex rounded-xl border border-platinum-tint overflow-hidden">
-                    {PRESETS.map(([key, label]) => (
-                        <button data-filter-preset
-                            key={key}
-                            type="button"
-                            onClick={() => choosePreset(key)}
-                            className={`px-3 py-2 text-xs font-semibold ${value.preset === key ? 'bg-action-blue text-white' : 'bg-white text-slate-blue hover:bg-cloud-mist'}`}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
-            </div>
+            <TimeRangeButtons label="Kỳ báo cáo" value={value.preset} onChange={choosePreset} options={PRESETS} />
             <div className="camai-filter-field space-y-1">
                 <label className={labelCls} htmlFor="report-from">Từ ngày</label>
                 <input id="report-from" type="date" value={value.from} disabled={!isCustom} onChange={(e) => set({ from: e.target.value })} className={`${inputCls} disabled:opacity-60`} />

@@ -1,4 +1,43 @@
 /* Scoped to explicit filter bars in the five administration/operations areas. */
+.camai-filter-bar[data-filter-bar]:has(.camai-filter-period-row) {
+    container-type: inline-size;
+}
+
+/* Opt-in grouping keeps both date fields together when the content narrows. */
+.camai-filter-bar[data-filter-bar] .camai-filter-period-row {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 28rem) minmax(0, 1fr);
+    align-items: end;
+    gap: 16px;
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 0;
+}
+
+.camai-filter-bar[data-filter-bar] .camai-filter-period-dates {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    min-width: 0;
+}
+
+.camai-filter-period-dates > .camai-filter-field {
+    width: 100%;
+    min-width: 0;
+}
+
+.camai-filter-bar[data-filter-bar] .camai-filter-period-row:has(> [data-filter-action]) {
+    grid-template-columns: minmax(0, 28rem) minmax(0, 1fr) auto;
+}
+
+@container (max-width: 1050px) {
+    .camai-filter-bar[data-filter-bar] .camai-filter-period-row,
+    .camai-filter-bar[data-filter-bar] .camai-filter-period-row:has(> [data-filter-action]) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .camai-filter-bar[data-filter-bar] {
     min-width: 0;
     max-width: 100%;

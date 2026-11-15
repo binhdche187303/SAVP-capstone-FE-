@@ -1,10 +1,12 @@
+import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
+import './VisitorListFilters.css';
 import ResponsiveTable from '../../../components/common/ResponsiveTable';
 import StatisticGrid from '../../../components/common/StatisticGrid';
 import StatisticCard from '../../../components/common/StatisticCard';
 import FilterBar from '../../../components/common/FilterBar';
 import PaginationFooter from '../../../components/common/PaginationFooter';
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, ClipboardList, Clock, LogIn, LogOut, Search, XCircle } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Clock, Filter, LogIn, LogOut, Search, XCircle } from 'lucide-react';
 import { listVisits, getVisitorLookups } from '../../../service/visitorService';
 
 import VisitDetailDrawer from '../../../components/visitor/VisitDetailDrawer';
@@ -119,28 +121,45 @@ const VisitorManagement = () => {
                 ))}
             </StatisticGrid>
 
-            <FilterBar variant="card" className={`${cardCls} p-4 flex flex-wrap gap-4 items-end`}>
-                <div className="camai-filter-field space-y-1">
-                    <label className={labelCls} htmlFor="vm-q">Tìm kiếm</label>
-                    <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-steel-gray absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input id="vm-q" className={`${searchInputCls} w-64`} placeholder="Tên, SĐT hoặc mã lượt" title="Tìm theo tên, số giấy tờ, điện thoại hoặc mã lượt" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <FilterBar variant="card" className="visitor-list-filters">
+                <div className="visitor-list-filter-main">
+                    <div className="camai-filter-field space-y-1">
+                        <label className={labelCls} htmlFor="vm-q">Tìm kiếm</label>
+                        <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-steel-gray absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input id="vm-q" className={searchInputCls} placeholder="Tên, SĐT hoặc mã lượt" title="Tìm theo tên, số giấy tờ, điện thoại hoặc mã lượt" value={query} onChange={(e) => setQuery(e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="camai-filter-field space-y-1">
+                        <label className={labelCls} htmlFor="vm-dep">Đơn vị tiếp</label>
+                        <select id="vm-dep" className={inputCls} value={filters.departmentId} onChange={(e) => changeFilter({ departmentId: e.target.value })}>
+                            <option value="">Tất cả</option>
+                            {lookups.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
                     </div>
                 </div>
-                <div className="camai-filter-field space-y-1">
-                    <label className={labelCls} htmlFor="vm-dep">Đơn vị tiếp</label>
-                    <select id="vm-dep" className={inputCls} value={filters.departmentId} onChange={(e) => changeFilter({ departmentId: e.target.value })}>
-                        <option value="">Tất cả</option>
-                        {lookups.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                </div>
-                <div className="camai-filter-field space-y-1">
-                    <label className={labelCls} htmlFor="vm-from">Từ ngày</label>
-                    <input id="vm-from" type="date" className={inputCls} value={filters.from} onChange={(e) => changeFilter({ from: e.target.value })} />
-                </div>
-                <div className="camai-filter-field space-y-1">
-                    <label className={labelCls} htmlFor="vm-to">Đến ngày</label>
-                    <input id="vm-to" type="date" className={inputCls} value={filters.to} onChange={(e) => changeFilter({ to: e.target.value })} />
+                <div className="visitor-list-filter-time">
+                    <CalendarRangePresets from={filters.from} to={filters.to} onChange={range => { changeFilter(range); }} />
+                    <div className="visitor-list-filter-dates">
+                        <div className="camai-filter-field space-y-1">
+                            <label className={labelCls} htmlFor="vm-from">Từ ngày</label>
+                            <input id="vm-from" type="date" className={inputCls} value={filters.from} onChange={(e) => changeFilter({ from: e.target.value })} />
+                        </div>
+                        <div className="camai-filter-field space-y-1">
+                            <label className={labelCls} htmlFor="vm-to">Đến ngày</label>
+                            <input id="vm-to" type="date" className={inputCls} value={filters.to} onChange={(e) => changeFilter({ to: e.target.value })} />
+                        </div>
+                    </div>
+                    <button type="button" data-filter-action
+                        className="visitor-list-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                        onClick={() => {
+                            setQuery('');
+                            setFilters({ q: '', departmentId: '', from: '', to: '' });
+                            setTab('pending_approval');
+                            setPage(1);
+                        }}>
+                        <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                    </button>
                 </div>
             </FilterBar>
 

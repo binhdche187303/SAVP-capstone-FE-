@@ -1,13 +1,14 @@
 import StatisticGrid from '../../components/common/StatisticGrid';
-import ReportActions from '../../components/common/ReportActions';
 import StatisticCard from '../../components/common/StatisticCard';
-import FilterBar from '../../components/common/FilterBar';
+import ReportActions from '../../components/common/ReportActions';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
 import {
     AlertCircle, ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck,
-    Car, Check, Clock, Eye, Image as ImageIcon, Map, MapPin, RefreshCw,
-    Filter, Search, Sparkles, Timer, User, Video,
+    Car, Check, Clock, Eye, Image as ImageIcon, Map, RefreshCw,
+    Filter, Search, Sparkles, Timer, User,
 } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -19,6 +20,7 @@ import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import { getUsers } from '../../service/businessAdminServices';
 import { getUserJourney, getMyUserJourney } from '../../service/campusService';
+import './UserJourney.css';
 
 /* ─── helpers ─────────────────────────────────────────────── */
 const getVNTodayString = () => {
@@ -55,9 +57,6 @@ const MAX_RANGE_DAYS = 31;
 
 const toVNDateKey = (utcStr) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(utcStr));
-
-const formatDayHeader = (dateKey) =>
-    new Date(dateKey + 'T00:00:00').toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 
 const formatDateVN = (dateKey) => new Date(dateKey + 'T00:00:00').toLocaleDateString('vi-VN');
 
@@ -260,13 +259,6 @@ const UserJourney = () => {
             .sort((a, b) => new Date(b.time) - new Date(a.time));
     }, [journeyData?.events, typeFilter, placeFilter]);
 
-    /* số sự kiện mỗi ngày (sau lọc) — hiện trên nhãn phân cách ngày */
-    const dayCounts = React.useMemo(() => {
-        const m = {};
-        sortedEvents.forEach(e => { const k = toVNDateKey(e.time); m[k] = (m[k] || 0) + 1; });
-        return m;
-    }, [sortedEvents]);
-
     useEffect(() => { setPage(1); }, [typeFilter, placeFilter]);
 
     const handleExport = async (format, extra = {}) => {
@@ -401,99 +393,44 @@ const UserJourney = () => {
             type === 'gate' ? (dir === 'enter' ? 'Vào cổng' : 'Ra cổng') :
             type === 'meeting' ? 'Phòng họp' : 'Khu vực';
 
+        const description = type === 'gate'
+            ? (dir === 'enter' ? 'Ghi nhận lượt xe vào cổng' : 'Ghi nhận lượt xe ra cổng')
+            : type === 'zone' ? (dir === 'disappear' ? 'Ghi nhận rời khỏi khu vực' : 'Ghi nhận hiện diện tại khu vực')
+                : event.detail || 'Ghi nhận tham dự cuộc họp';
+        const location = type === 'meeting' ? event.roomName : event.zoneName;
+
         return (
-            <div className="flex flex-col sm:flex-row gap-4">
-
-                {/* ── Left: time + detail ── */}
-                <div className="flex-1 space-y-2 min-w-0">
-
-                    {/* row 1: timestamps + tag */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-1.5 bg-white border border-platinum-tint rounded-lg px-2.5 py-1 shadow-sm" title={toVNFull(event.time)}>
-                            <Clock className="w-3.5 h-3.5 text-slate-blue shrink-0" />
-                            <span data-ui-text="primary" className="text-sm font-black text-midnight-indigo font-mono tabular-nums">{timeStart}</span>
-                            {timeEnd && (
-                                <>
-                                    <span className="text-slate-blue text-xs">→</span>
-                                    <span data-ui-text="primary" className="text-sm font-black text-midnight-indigo font-mono tabular-nums" title={toVNFull(event.endTime)}>{timeEnd}</span>
-                                </>
-                            )}
-                        </div>
-                        <span data-ui-text="badge" className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${tagCls}`}>
-                            {tagLabel}
+            <div className="journey-event">
+                <div className="journey-event-content">
+                    <div className="journey-event-heading">
+                        <span data-ui-text="primary" className="journey-event-time font-semibold" title={toVNFull(event.time)}>
+                            <Clock size={14} aria-hidden="true" />
+                            {isRange && <span>{formatDateVN(toVNDateKey(event.time))} ·</span>}
+                            {timeStart}
+                            {timeEnd && <span title={toVNFull(event.endTime)}>– {timeEnd}</span>}
                         </span>
-                        {duration && (
-                            <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-blue bg-cloud-mist border border-platinum-tint rounded-full px-2 py-0.5">
-                                <Timer className="w-3 h-3" />
-                                {duration}
-                            </span>
-                        )}
+                        <span data-ui-text="badge" className={`journey-event-badge ${tagCls}`}>{tagLabel}</span>
+                        {duration && <span data-ui-text="secondary" className="journey-event-duration"><Timer size={14} aria-hidden="true" />{duration}</span>}
                     </div>
-
-                    {/* row 2: main detail */}
-                    <p className="text-sm font-bold text-midnight-indigo leading-relaxed">
-                        {event.detail || 'Ghi nhận sự kiện'}
-                    </p>
-
-                    {/* row 3: eventCount (meeting only) */}
+                    <p data-ui-text="primary" className="journey-event-description font-semibold">{description}</p>
+                    <dl className="journey-event-details">
+                        {location && <div><dt data-ui-text="label">{type === 'meeting' ? 'Phòng họp' : 'Vị trí'}</dt><dd data-ui-text="body">{location}</dd></div>}
+                        {type === 'gate' && event.plateNumber && <div><dt data-ui-text="label">Biển số</dt><dd data-ui-text="body"><span data-ui-text="primary" className="journey-event-plate font-semibold">{event.plateNumber}</span></dd></div>}
+                        {(event.deviceName || event.deviceCode) && <div><dt data-ui-text="label">Camera</dt><dd data-ui-text="body">{event.deviceName || event.deviceCode}</dd></div>}
+                        {event.groupNames?.length > 0 && <div><dt data-ui-text="label">Nhóm camera</dt><dd data-ui-text="body">{event.groupNames.join(', ')}</dd></div>}
+                    </dl>
                     {type === 'meeting' && event.eventCount > 0 && (
-                        <p data-ui-text="secondary" className="text-[11px] text-slate-blue flex items-center gap-1">
-                            <Video className="w-3.5 h-3.5 text-action-blue shrink-0" />
-                            Camera nhận diện <strong className="text-midnight-indigo mx-0.5">{event.eventCount}</strong> lần trong phiên
-                        </p>
+                        <p data-ui-text="secondary" className="journey-event-note">Được camera ghi nhận {event.eventCount} lần trong buổi họp.</p>
                     )}
                 </div>
-
-                {/* ── Right: widgets + thumbnail ── */}
-                <div className="flex flex-row sm:flex-col items-center sm:items-end justify-start sm:justify-center gap-2 shrink-0">
-
-                    {/* License plate */}
-                    {type === 'gate' && event.plateNumber && (
-                        <div className="inline-block border-2 border-midnight-indigo rounded bg-white shadow-sm overflow-hidden px-3 py-1.5 text-center min-w-[110px] font-mono select-all">
-                            <div data-ui-text="label" className="text-[8px] text-slate-blue leading-none uppercase font-sans font-bold border-b border-platinum-tint pb-0.5 mb-0.5 tracking-widest">VIỆT NAM</div>
-                            <div className="text-base font-black text-midnight-indigo tracking-widest leading-none">{event.plateNumber}</div>
-                        </div>
-                    )}
-
-                    {/* Room badge */}
-                    {type === 'meeting' && event.roomName && (
-                        <div className="text-xs bg-white border border-platinum-tint rounded-xl px-3 py-1.5 font-bold text-midnight-indigo flex items-center gap-1.5 shadow-sm whitespace-nowrap">
-                            <span className="w-2 h-2 rounded-full bg-action-blue shrink-0" />
-                            {event.roomName}
-                        </div>
-                    )}
-
-                    {/* Camera nguồn (họp 20/10: mọi log camera phải cho biết camera nào / nhóm nào) */}
-                    {(event.deviceName || event.deviceCode) && (
-                        <div data-ui-text="secondary" className="text-[11px] bg-slate-50 border border-platinum-tint rounded-xl px-3 py-1.5 font-semibold text-slate-blue flex flex-col shadow-sm whitespace-nowrap"
-                            title={event.groupNames?.length ? `Nhóm: ${event.groupNames.join(', ')}` : undefined}>
-                            <span>📷 {event.deviceName || event.deviceCode}</span>
-                            {event.groupNames?.length > 0 && <span data-ui-text="secondary" className="text-[10px] font-normal text-slate-400">{event.groupNames.join(', ')}</span>}
-                        </div>
-                    )}
-
-                    {/* Zone badge */}
-                    {type === 'zone' && event.zoneName && (
-                        <div data-ui-text="badge" className="text-xs bg-white border border-platinum-tint rounded-xl px-3 py-1.5 font-bold text-royal-amethyst flex items-center gap-1.5 shadow-sm whitespace-nowrap">
-                            <MapPin className="w-3.5 h-3.5 shrink-0" />
-                            {event.zoneName}
-                        </div>
-                    )}
-
-                    {/* Snapshot thumbnail (gate / meeting) — placeholder cùng kích thước khi BE không trả sourceEventId, để timeline thẳng hàng */}
+                <div className="journey-event-image">
                     {event.sourceEventId ? (
-                        <ThumbnailImage
-                            eventId={event.sourceEventId}
-                            className="w-28 md:w-36 aspect-video"
-                            onClick={() => {
-                                setSnapshotEventId(event.sourceEventId);
-                                setIsSnapshotOpen(true);
-                            }}
-                        />
+                        <ThumbnailImage eventId={event.sourceEventId} className="w-28 md:w-36 aspect-video"
+                            onClick={() => { setSnapshotEventId(event.sourceEventId); setIsSnapshotOpen(true); }} />
                     ) : (
-                        <div className="inline-flex flex-col items-center justify-center gap-1 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex-shrink-0 w-28 md:w-36 aspect-video px-1">
-                            <ImageIcon className="w-4 h-4 text-slate-400" />
-                            <span data-ui-text="label" className="text-[9px] text-slate-400 font-medium uppercase tracking-wide leading-none text-center">Không có ảnh</span>
+                        <div className="journey-event-no-image">
+                            <ImageIcon size={18} aria-hidden="true" />
+                            <span data-ui-text="secondary">Chưa có ảnh</span>
                         </div>
                     )}
                 </div>
@@ -539,29 +476,16 @@ const UserJourney = () => {
 
             {/* Filter controls */}
             <FilterBar variant="card" className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-2">
-                <div data-filter-grid className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div data-filter-grid={isSelfOnly ? undefined : true} className={isSelfOnly ? "grid grid-cols-1 xl:grid-cols-3 gap-4 items-end" : "grid grid-cols-1 md:grid-cols-2 gap-5"}>
 
                     {/* User search / Display own user profile */}
                     {isSelfOnly ? (
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Nhân sự</label>
-                            <div className="flex items-center gap-3 bg-cloud-mist border border-platinum-tint rounded-xl px-4 py-2 flex-1 min-h-[46px]">
-                                <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-action-blue flex items-center justify-center font-bold text-xs shrink-0">
-                                    {(localUser?.fullName || 'N').charAt(0).toUpperCase()}
-                                </div>
-                                <div className="min-w-0">
-                                    <div className="text-sm font-bold text-midnight-indigo flex items-center gap-1.5">
-                                        {localUser?.fullName}
-                                        {(localUser?.employeeCode || localUser?.employee_code) && (
-                                            <span data-ui-text="code" className="text-[10px] font-mono font-bold text-slate-blue bg-white px-1.5 py-0.5 rounded border border-platinum-tint">
-                                                {localUser?.employeeCode || localUser?.employee_code}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="text-[11px] text-slate-blue truncate">{localUser?.email}</div>
-                                </div>
-                            </div>
-                        </div>
+                        <CalendarRangePresets
+                            from={date}
+                            to={dateTo}
+                            options={[["day", "Ngày"], ["week", "Tuần"], ["month", "Tháng"], ["custom", "Tùy chọn khoảng"]]}
+                            onChange={({ from, to }) => { setDate(from); setDateTo(to); }}
+                        />
                     ) : (
                         <div className="camai-filter-field space-y-1.5 relative" ref={dropdownRef}>
                             <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Chọn Nhân viên *</label>
@@ -637,6 +561,21 @@ const UserJourney = () => {
                     )}
 
                     {/* Date picker */}
+                    {isSelfOnly ? (
+                        <div className="xl:col-span-2 min-w-0">
+                            <div className="grid grid-cols-2 gap-4">
+                                <FilterField label="Từ ngày">
+                                    <input type="date" value={date} max={dateTo || getVNTodayString()}
+                                        onChange={e => e.target.value && setDate(e.target.value)} />
+                                </FilterField>
+                                <FilterField label="Đến ngày">
+                                    <input type="date" value={dateTo} min={date} max={getVNTodayString()}
+                                        onChange={e => e.target.value && setDateTo(e.target.value)} />
+                                </FilterField>
+                            </div>
+                            {rangeError && <p className="text-xs font-semibold text-red-600 mt-2">{rangeError}</p>}
+                        </div>
+                    ) : (
                     <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Khoảng ngày * <span className="normal-case font-semibold text-slate-400">(tối đa {MAX_RANGE_DAYS} ngày)</span></label>
                         <div className="flex items-center gap-2">
@@ -665,15 +604,14 @@ const UserJourney = () => {
                         </div>
                         {rangeError && <p data-ui-text="secondary" className="text-xs font-semibold text-red-600">{rangeError}</p>}
                     </div>
+                    )}
                 </div>
             </FilterBar>
 
             {/* Main area */}
             {loading ? (
                 <div className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm-2 space-y-6">
-                    <div className="grid grid-cols-3 gap-4 animate-pulse">
-                        {[0, 1, 2].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl" />)}
-                    </div>
+                    <div className="h-10 w-full max-w-md bg-gray-100 rounded-lg animate-pulse" />
                     <div className="border-t border-platinum-tint pt-6 space-y-6 animate-pulse">
                         {[0, 1, 2].map(i => (
                             <div key={i} className="flex gap-4">
@@ -734,35 +672,19 @@ const UserJourney = () => {
             ) : (
                 <div className="space-y-6">
 
-                    {/* KPI cards */}
-                    <StatisticGrid columns={3} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <StatisticCard label="Cổng ANPR (Xe)" value={journeyData.gateCount || 0} icon={Car} legacy={(<div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
-                            <div>
-                                <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Cổng ANPR (Xe)</p>
-                                <p className="text-2xl font-black text-midnight-indigo mt-1">{journeyData.gateCount || 0}</p>
-                            </div>
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                <Car className="w-5 h-5" />
-                            </div>
-                        </div>)} />
-                        <StatisticCard label="Cuộc họp (FaceID)" value={journeyData.meetingCount || 0} icon={CalendarCheck} legacy={(<div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
-                            <div>
-                                <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Cuộc họp (FaceID)</p>
-                                <p className="text-2xl font-black text-midnight-indigo mt-1">{journeyData.meetingCount || 0}</p>
-                            </div>
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center">
-                                <CalendarCheck className="w-5 h-5" />
-                            </div>
-                        </div>)} />
-                        <StatisticCard label="Khu vực Giám sát" value={journeyData.zoneCount || 0} icon={Eye} legacy={(<div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between hover-lift">
-                            <div>
-                                <p className="text-xs font-bold text-slate-blue uppercase tracking-wider">Khu vực Giám sát</p>
-                                <p className="text-2xl font-black text-midnight-indigo mt-1">{journeyData.zoneCount || 0}</p>
-                            </div>
-                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-royal-amethyst flex items-center justify-center">
-                                <Eye className="w-5 h-5" />
-                            </div>
-                        </div>)} />
+                    <StatisticGrid columns={4}>
+                        {[
+                            ['', 'Tất cả sự kiện', Clock, 'default'],
+                            ['gate', 'Cổng', Car, 'success'],
+                            ['meeting', 'Phòng họp', CalendarCheck, 'default'],
+                            ['zone', 'Khu vực', Eye, 'default'],
+                        ].map(([value, label, icon, tone]) => (
+                            <StatisticCard key={value} label={label} icon={icon} tone={tone}
+                                value={(journeyData.events || []).filter(event => !value || (event.type || '').toLowerCase() === value).length}
+                                selected={typeFilter === value}
+                                onClick={() => { setTypeFilter(value); setPlaceFilter(''); }}
+                            />
+                        ))}
                     </StatisticGrid>
 
                     {/* Timeline */}
@@ -777,23 +699,18 @@ const UserJourney = () => {
                             </span>
                         </div>
 
-                        {/* bộ lọc loại + nơi + xuất Excel */}
-                        <FilterBar variant="inline" className="flex flex-wrap items-center gap-2 mb-6">
-                            <Filter className="w-4 h-4 text-slate-blue" />
-                            <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPlaceFilter(''); }}
-                                className="pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none">
-                                <option value="">Tất cả loại</option>
-                                {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                            </select>
-                            <select value={placeFilter} onChange={(e) => setPlaceFilter(e.target.value)} disabled={placeOptions.length === 0}
-                                className="pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none disabled:opacity-50">
-                                <option value="">Tất cả nơi</option>
-                                {placeOptions.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                            {(typeFilter || placeFilter) && (
-                                <button onClick={() => { setTypeFilter(''); setPlaceFilter(''); }} className="text-xs font-semibold text-action-blue hover:underline">Bỏ lọc</button>
-                            )}
-
+                        <FilterBar variant="card" className="journey-place-filters mb-6">
+                            <FilterField label="Vị trí">
+                                <select value={placeFilter} onChange={e => setPlaceFilter(e.target.value)} disabled={placeOptions.length === 0}>
+                                    <option value="">Tất cả vị trí</option>
+                                    {placeOptions.map(place => <option key={place} value={place}>{place}</option>)}
+                                </select>
+                            </FilterField>
+                            <button data-filter-action type="button"
+                                onClick={() => { setTypeFilter(''); setPlaceFilter(''); setPage(1); }}
+                                className="px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors">
+                                <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                            </button>
                         </FilterBar>
 
                         {/* legend */}
@@ -823,15 +740,6 @@ const UserJourney = () => {
                             )}
                             {currentEvents.map((event, idx) => (
                                 <React.Fragment key={idx}>
-                                {isRange && (idx === 0 || toVNDateKey(currentEvents[idx - 1].time) !== toVNDateKey(event.time)) && (
-                                    <div className="relative -ml-6 sm:-ml-8 pl-2 pt-2">
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-action-blue text-white text-xs font-bold shadow-sm">
-                                            <Calendar className="w-3.5 h-3.5" />
-                                            <span className="capitalize">{formatDayHeader(toVNDateKey(event.time))}</span>
-                                            <span className="font-semibold opacity-80">· {dayCounts[toVNDateKey(event.time)]} sự kiện</span>
-                                        </span>
-                                    </div>
-                                )}
                                 <div className="relative group animate-fade-in-up" style={{ animationDelay: `${idx * 60}ms` }}>
 
                                     {/* node */}
@@ -840,7 +748,7 @@ const UserJourney = () => {
                                     </div>
 
                                     {/* card */}
-                                    <div className="bg-cloud-mist/40 group-hover:bg-cloud-mist/80 p-5 rounded-2xl border border-platinum-tint/60 hover:border-platinum-tint transition-all duration-300">
+                                    <div className="journey-event-card">
                                         {renderEventCard(event)}
                                     </div>
                                 </div>

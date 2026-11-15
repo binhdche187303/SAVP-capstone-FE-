@@ -1,3 +1,4 @@
+import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import ReportActions from '../../components/common/ReportActions';
 import FilterBar from '../../components/common/FilterBar';
@@ -95,7 +96,7 @@ const SortHeader = ({ column, sort, onSort }) => {
 };
 
 const CameraTrace = () => {
-    const [PAGE_SIZE, setPageSize] = useState(50);
+    const [PAGE_SIZE, setPageSize] = useState(10);
     const [searchParams] = useSearchParams();
     const initialMode = MODES.find((m) => searchParams.get(m.key))?.key || 'groupId';
 
@@ -419,13 +420,8 @@ const CameraTrace = () => {
                             {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                         </select>
                     </div>
-                    <div className="camai-filter-field space-y-1.5">
-                        <label htmlFor="trace-range" className={labelCls}>Khoảng thời gian</label>
-                        <select id="trace-range" value={quick} onChange={(e) => applyQuick(e.target.value)} className={`${inputCls} w-full`}>
-                            {QUICK_RANGES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
-                            <option value="custom">Tùy chọn giờ cụ thể</option>
-                        </select>
-                    </div>
+                    <TimeRangeButtons id="trace-range" label="Khoảng thời gian" value={quick} onChange={applyQuick}
+                        options={[...QUICK_RANGES.map(r => [r.key, r.label]), ['custom', 'Tùy chọn giờ cụ thể']]} />
                     <div className="space-y-1.5">
                         <span data-ui-text="label" data-filter-label className={`${labelCls} invisible`} aria-hidden="true">Thao tác</span>
                         <div className="flex items-center gap-2">

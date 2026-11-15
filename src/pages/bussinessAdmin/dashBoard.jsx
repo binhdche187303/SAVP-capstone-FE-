@@ -1,3 +1,4 @@
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import ExportModeDialog from '../../components/report/ExportModeDialog';
@@ -36,6 +37,7 @@ import { getBusinessAdminSummary } from '../../service/campusService';
 import DashboardBanner from '../../components/common/DashboardBanner';
 import ZonePresenceTable from '../../components/campus/ZonePresenceTable';
 import { getAlertTypeLabel } from '../../constants/alertType';
+import SharedStatCard from '../../components/common/StatCard';
 
 // ─── Design tokens (Sky Blueprint — mirrored from sysadmin) ──────────────────
 
@@ -791,16 +793,7 @@ const DashBoard = () => {
                     {/* Filter bar */}
                     <ScrollReveal delay={0} fromBelow={false}>
                         <FilterBar variant="card" style={{ background: '#fff', border: `1px solid ${D.border}`, borderRadius: 16, padding: '20px 24px', boxShadow: D.shadow, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
-                            {[
-                                { label: 'Từ ngày', value: fromDate, set: setFromDate, type: 'date' },
-                                { label: 'Đến ngày', value: toDate,  set: setToDate,   type: 'date' },
-                            ].map(f => (
-                                <div className="camai-filter-field" key={f.label} style={{ flex: 1, minWidth: 140 }}>
-                                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: D.muted, textTransform: 'uppercase', marginBottom: 6 }}>{f.label}</label>
-                                    <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)}
-                                        style={{ width: '100%', padding: '8px 12px', border: `1px solid ${D.border}`, borderRadius: 10, fontSize: 13, color: D.text, background: '#fff', outline: 'none' }} />
-                                </div>
-                            ))}
+
                             <div className="camai-filter-field" style={{ flex: 1, minWidth: 160 }}>
                                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: D.muted, textTransform: 'uppercase', marginBottom: 6 }}>Phòng ban</label>
                                 <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)}
@@ -813,6 +806,22 @@ const DashBoard = () => {
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: D.blue, color: '#fff', border: 'none', cursor: 'pointer', boxShadow: `0 2px 8px ${D.blue}40`, flexShrink: 0 }}>
                                 <RefreshCw style={{ width: 15, height: 15 }} className={meetLoading ? 'animate-spin' : ''} /> Lọc
                             </button>
+
+                            <div className="camai-filter-period-row">
+                                <CalendarRangePresets from={fromDate} to={toDate} onChange={range => { setFromDate(range.from); setToDate(range.to); }} />
+                                <div className="camai-filter-period-dates">
+                                    {[
+                                        { label: 'Từ ngày', value: fromDate, set: setFromDate, type: 'date' },
+                                        { label: 'Đến ngày', value: toDate,  set: setToDate,   type: 'date' },
+                                    ].map(f => (
+                                        <div className="camai-filter-field" key={f.label} style={{ flex: 1, minWidth: 140 }}>
+                                            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: D.muted, textTransform: 'uppercase', marginBottom: 6 }}>{f.label}</label>
+                                            <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)}
+                                                style={{ width: '100%', padding: '8px 12px', border: `1px solid ${D.border}`, borderRadius: 10, fontSize: 13, color: D.text, background: '#fff', outline: 'none' }} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </FilterBar>
                     </ScrollReveal>
 

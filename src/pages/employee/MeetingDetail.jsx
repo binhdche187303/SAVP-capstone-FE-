@@ -65,8 +65,8 @@ const handleDateChangeRaw = (e) => {
 };
 
 const EmployeeMeetingDetail = () => {
-    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(2);
-    const [logItemsPerPage, setLogItemsPerPage] = useState(5);
+    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(10);
+    const [logItemsPerPage, setLogItemsPerPage] = useState(10);
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -172,7 +172,7 @@ const EmployeeMeetingDetail = () => {
     const [refreshTranscriptKey, setRefreshTranscriptKey] = useState(0);
     const [runningSttSessionIds, setRunningSttSessionIds] = useState(() => new Set());
     const [audioPage, setAudioPage] = useState(1);
-    const [audioItemsPerPage, setAudioItemsPerPage] = useState(5);
+    const [audioItemsPerPage, setAudioItemsPerPage] = useState(10);
     const [searchParams] = useSearchParams();
     const initialTab = searchParams.get('tab') || 'transcript';
     const [activeRightTab, setActiveRightTab] = useState(initialTab);

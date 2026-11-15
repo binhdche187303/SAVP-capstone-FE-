@@ -1,3 +1,4 @@
+import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
 import PaginatedCollection from '../../../components/common/PaginatedCollection';
 import FilterBar from '../../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../../components/common/PaginationFooter';
@@ -9,6 +10,7 @@ import {
 import toast from '../../../utils/toast';
 import { VISITOR_MOCK_ENABLED } from '../../../config/featureFlags';
 import SimpleModal from '../../../components/common/SimpleModal';
+import Pagination from '../../../components/common/Pagination';
 import VisitForm from '../../../components/visitor/VisitForm';
 import VisitDetailDrawer from '../../../components/visitor/VisitDetailDrawer';
 import VisitorAvatar from '../../../components/visitor/VisitorAvatar';
@@ -146,6 +148,7 @@ const MyVisitors = () => {
     const [submitting, setSubmitting] = useState(false);
     const [invited, setInvited] = useState(null);
     const [pages, setPages] = useState({ pending: 1, upcoming: 1, past: 1 });
+    const [notePage, setNotePage] = useState(1);
     const [inviteLink, setInviteLink] = useState(null);
     const [filter, setFilter] = useState({ q: '', status: '', from: '', to: '' });
     const lastUnread = useRef(null);
@@ -216,6 +219,7 @@ const MyVisitors = () => {
     };
 
     const unreadCount = notifications.filter((n) => !n.read).length;
+    // Danh sách tự làm mới 20s/lần: nếu số thông báo giảm thì kẹp lại trang hiện tại.
     const filteredVisits = useMemo(() => {
         if (!visits) return null;
         const q = filter.q.trim().toLocaleLowerCase('vi-VN');
@@ -248,7 +252,11 @@ const MyVisitors = () => {
 
     const visibleVisits = useMemo(() => {
         if (!filteredVisits) return null;
-        const slice = (items, page) => items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+        // Duyệt/từ chối xong danh sách ngắn lại → kẹp trang về trang cuối còn dữ liệu.
+        const slice = (items, page) => {
+            const p = Math.min(page, Math.max(1, Math.ceil(items.length / PAGE_SIZE)));
+            return items.slice((p - 1) * PAGE_SIZE, p * PAGE_SIZE);
+        };
         return {
             pending: slice(filteredVisits.pending, pages.pending),
             upcoming: slice(filteredVisits.upcoming, pages.upcoming),
@@ -309,15 +317,21 @@ const MyVisitors = () => {
                     <label htmlFor="my-visitors-status" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Trạng thái</label>
                     <StatusFilter value={filter.status} onChange={(status) => updateFilter({ status })} />
                 </div>
-                <div className="camai-filter-field">
-                    <label htmlFor="my-visitors-from" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Từ ngày</label>
-                    <input id="my-visitors-from" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.from} onChange={(e) => updateFilter({ from: e.target.value })} />
+
+                <div className="camai-filter-period-row">
+                    <CalendarRangePresets from={filter.from} to={filter.to} onChange={range => { updateFilter(range); }} />
+                    <div className="camai-filter-period-dates">
+                        <div className="camai-filter-field">
+                            <label htmlFor="my-visitors-from" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Từ ngày</label>
+                            <input id="my-visitors-from" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.from} onChange={(e) => updateFilter({ from: e.target.value })} />
+                        </div>
+                        <div className="camai-filter-field">
+                            <label htmlFor="my-visitors-to" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Đến ngày</label>
+                            <input id="my-visitors-to" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.to} onChange={(e) => updateFilter({ to: e.target.value })} />
+                        </div>
+                    </div>
+                    <button data-filter-action type="button" className={btnGhost} onClick={clearFilter} disabled={!filter.q && !filter.status && !filter.from && !filter.to}>Xóa lọc</button>
                 </div>
-                <div className="camai-filter-field">
-                    <label htmlFor="my-visitors-to" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Đến ngày</label>
-                    <input id="my-visitors-to" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.to} onChange={(e) => updateFilter({ to: e.target.value })} />
-                </div>
-                <button data-filter-action type="button" className={btnGhost} onClick={clearFilter} disabled={!filter.q && !filter.status && !filter.from && !filter.to}>Xóa lọc</button>
             </FilterBar>
             {error && <div className={errorBoxCls}>{error}</div>}
             {!error && !visits && <div className="flex items-center justify-center h-64"><div className={spinnerCls} /></div>}

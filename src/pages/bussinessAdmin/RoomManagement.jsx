@@ -1,3 +1,4 @@
+import './RoomManagement.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
@@ -5,11 +6,12 @@ import PaginationFooter, { PaginationRegion } from '../../components/common/Pagi
 import RefreshButton from '../../components/common/RefreshButton';
 import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Clock, DoorOpen, Edit2, Eye, Home, MapPin, Mic, Monitor, Plus, Trash2, Users, Video, Wrench, X } from 'lucide-react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
     getRooms,
+    getRoomFilterOptions,
     createRoom,
     updateRoom,
     deleteRoom,
@@ -120,7 +122,7 @@ const sanitizeRoomCode = (raw) => {
 };
 
 const RoomManagement = ({ readOnly = false }) => {
-    const [LIMIT, setPageLimit] = useState(12);
+    const [LIMIT, setPageLimit] = useState(10);
     const [roomsList, setRoomsList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -131,6 +133,27 @@ const RoomManagement = ({ readOnly = false }) => {
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [locationFilter, setLocationFilter] = useState('');
+    const [filterCatalog, setFilterCatalog] = useState([]);
+    const requestId = useRef(0);
+    const fetchFilterOptions = useCallback(async () => {
+        try {
+            const response = await getRoomFilterOptions();
+            if (response?.success) setFilterCatalog(response.data || []);
+        } catch { /* Room list remains available if lookup loading fails. */ }
+    }, []);
+    useEffect(() => { fetchFilterOptions(); }, [fetchFilterOptions]);
+    const locationOptions = useMemo(() => {
+        const options = new Map();
+        for (const room of filterCatalog) {
+            if (room.siteName) options.set(JSON.stringify({ siteName: room.siteName }), room.siteName);
+            if (room.areaName) {
+                const filter = { ...(room.siteName && { siteName: room.siteName }), areaName: room.areaName };
+                options.set(JSON.stringify(filter), [room.siteName, room.areaName].filter(Boolean).join(' · '));
+            }
+        }
+        return [...options].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'vi', { numeric: true }));
+    }, [filterCatalog]);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
@@ -176,6 +199,7 @@ const RoomManagement = ({ readOnly = false }) => {
                 setDetailRoom(prev => ({ ...prev, administrativeStatus: res.data?.administrativeStatus ?? status }));
                 setSuccessMessage('Đã cập nhật trạng thái phòng họp!');
                 fetchRoomsList();
+                fetchFilterOptions();
             } else {
                 setError(res?.error?.message || 'Không thể cập nhật trạng thái phòng.');
             }
@@ -187,6 +211,7 @@ const RoomManagement = ({ readOnly = false }) => {
     };
 
     const fetchRoomsList = useCallback(async () => {
+        const currentRequest = ++requestId.current;
         setLoading(true);
         setError(null);
         try {
@@ -194,9 +219,11 @@ const RoomManagement = ({ readOnly = false }) => {
                 page,
                 limit: LIMIT,
                 ...(search.trim() && { q: search.trim() }),
-                ...(statusFilter && { status: statusFilter })
+                ...(statusFilter && { status: statusFilter }),
+                ...(locationFilter && JSON.parse(locationFilter))
             };
             const res = await getRooms(params);
+            if (currentRequest !== requestId.current) return;
             if (res?.success) {
                 setRoomsList(res.data || []);
                 setTotalPages(res.meta?.totalPages || 1);
@@ -205,14 +232,13 @@ const RoomManagement = ({ readOnly = false }) => {
                 throw new Error(res?.error?.message || 'Không thể tải danh sách phòng.');
             }
         } catch (err) {
-            setError(err?.message || 'Không thể tải danh sách phòng họp.');
-            setRoomsList([]);
+            if (currentRequest === requestId.current) { setError(err?.message || 'Không thể tải danh sách phòng họp.'); setRoomsList([]); }
         } finally {
-            setLoading(false);
+            if (currentRequest === requestId.current) setLoading(false);
         }
-    }, [page, search, statusFilter, LIMIT]);
+    }, [page, search, statusFilter, locationFilter, LIMIT]);
 
-    useEffect(() => { fetchRoomsList(); }, [fetchRoomsList]);
+    useEffect(() => { fetchRoomsList(); return () => { requestId.current += 1; }; }, [fetchRoomsList]);
 
     useEffect(() => {
         if (successMessage) {
@@ -221,8 +247,7 @@ const RoomManagement = ({ readOnly = false }) => {
         }
     }, [successMessage]);
 
-    // Reset page on filter change
-    useEffect(() => { setPage(1); }, [search, statusFilter]);
+
 
     const handleOpenModal = (mode, room = null) => {
         setModalMode(mode);
@@ -279,6 +304,7 @@ const RoomManagement = ({ readOnly = false }) => {
                 setSuccessMessage(modalMode === 'create' ? 'Thêm phòng họp thành công!' : 'Cập nhật phòng họp thành công!');
                 setIsModalOpen(false);
                 fetchRoomsList();
+                fetchFilterOptions();
             } else {
                 setError(res?.error?.message || res?.message || 'Có lỗi xảy ra.');
             }
@@ -322,6 +348,7 @@ const RoomManagement = ({ readOnly = false }) => {
                         if (res?.success) {
                             setSuccessMessage('Đã xoá phòng họp thành công!');
                             fetchRoomsList();
+                fetchFilterOptions();
                         } else {
                             setError(res?.error?.message || 'Không thể xoá phòng họp.');
                         }
@@ -426,17 +453,21 @@ const RoomManagement = ({ readOnly = false }) => {
 
                 <>
                     {/* Filters */}
-                    <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1 flex flex-col sm:flex-row gap-3">
+                    <FilterBar variant="card" data-filter-grid className="room-management-filters grid gap-4">
                         <FilterField label="Tìm kiếm"><input
                             type="text"
                             placeholder="Tên, mã phòng, tòa nhà..." title="Tìm kiếm theo tên phòng, mã phòng, toà nhà"
                             value={search}
-                            onChange={e => setSearch(e.target.value)}
+                            onChange={e => { setSearch(e.target.value); setPage(1); }}
                             className="px-4 py-2 flex-1 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                         /></FilterField>
+                        <FilterField label="Vị trí"><select value={locationFilter} onChange={e => { setLocationFilter(e.target.value); setPage(1); }}>
+                            <option value="">Tất cả vị trí</option>
+                            {locationOptions.map(location => <option key={location.value} value={location.value}>{location.label}</option>)}
+                        </select></FilterField>
                         <FilterField label="Trạng thái"><select
                             value={statusFilter}
-                            onChange={e => setStatusFilter(e.target.value)}
+                            onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
                             className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-slate-blue font-medium min-w-[160px]"
                         >
                             <option value="">Tất cả trạng thái</option>
@@ -447,7 +478,7 @@ const RoomManagement = ({ readOnly = false }) => {
                             <option value="inactive">Ngừng hoạt động</option>
                         </select></FilterField>
                         <RefreshButton
-                            onClick={() => fetchRoomsList()}
+                            onClick={() => { fetchRoomsList(); fetchFilterOptions(); }}
                             busy={loading}
                         />
                     </FilterBar>

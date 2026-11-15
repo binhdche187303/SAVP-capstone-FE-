@@ -1,8 +1,12 @@
+import './MeetingAttendanceAdmin.css';
+import StatisticCard from '../../components/common/StatisticCard';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Activity, AlertTriangle, ArrowLeft, Calendar, Clock, Search, Users, MapPin, ArrowRight } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { Activity, AlertTriangle, ArrowLeft, Calendar, Clock, Search, Users, MapPin, ArrowRight, CheckCircle2, Filter } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getMeetings, getDepartments } from '../../service/businessAdminServices';
 import MeetingPresenceIVSS from '../../components/meeting/MeetingPresenceIVSS';
 
@@ -35,6 +39,11 @@ const STATUS_TABS = [
     { value: 'in_progress', label: 'Đang diễn ra', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
 ];
 
+const meetingTotal = response => {
+    const value = response?.data?.meta?.total ?? response?.meta?.total ?? response?.data?.total;
+    return value != null && Number.isFinite(Number(value)) ? Number(value) : undefined;
+};
+
 const MeetingAttendanceAdmin = () => {
     const [ITEMS_PER_PAGE, setItemsPerPage] = useState(10);
     const [totalItems, setTotalItems] = useState(undefined);
@@ -56,6 +65,31 @@ const MeetingAttendanceAdmin = () => {
     const [selectedMeeting, setSelectedMeeting] = useState(null);
     const [statusFilter, setStatusFilter] = useState('completed');
     const statusTab = STATUS_TABS.find(t => t.value === statusFilter);
+    const [statusCounts, setStatusCounts] = useState({});
+    const [countsLoading, setCountsLoading] = useState(true);
+    const [countRefresh, setCountRefresh] = useState(0);
+    const listRequestId = useRef(0);
+
+    // Totals cover every page in the same date/search scope as the list.
+    useEffect(() => {
+        let cancelled = false;
+        setCountsLoading(true);
+        setStatusCounts({});
+        const params = { page: 1, limit: 1 };
+        if (fromDate) params.from = `${fromDate}T00:00:00+07:00`;
+        if (toDate) params.to = `${toDate}T23:59:59+07:00`;
+        if (search.trim()) params.search = search.trim();
+        if (selectedDeptId) params.departmentId = selectedDeptId;
+        Promise.all(STATUS_TABS.map(async tab => {
+            try {
+                const response = await getMeetings({ ...params, status: tab.value });
+                return [tab.value, response?.success ? meetingTotal(response) : undefined];
+            } catch { return [tab.value, undefined]; }
+        })).then(counts => {
+            if (!cancelled) { setStatusCounts(Object.fromEntries(counts)); setCountsLoading(false); }
+        });
+        return () => { cancelled = true; };
+    }, [fromDate, toDate, search, selectedDeptId, countRefresh]);
 
     useEffect(() => {
         getDepartments({ limit: 100 }).then((res) => {
@@ -67,6 +101,7 @@ const MeetingAttendanceAdmin = () => {
     }, []);
 
     const fetchMeetings = useCallback(async () => {
+        const requestId = ++listRequestId.current;
         setLoading(true);
         setError(null);
         try {
@@ -81,9 +116,10 @@ const MeetingAttendanceAdmin = () => {
             if (fromDate) params.from = `${fromDate}T00:00:00+07:00`;
             if (toDate) params.to = `${toDate}T23:59:59+07:00`;
             if (search.trim()) params.search = search.trim();
-            // departmentId not supported by GET /meetings — BE returns 400
+            if (selectedDeptId) params.departmentId = selectedDeptId;
 
             const res = await getMeetings(params);
+            if (requestId !== listRequestId.current) return;
             if (res?.success) {
                 setMeetings(res.data?.items || res.data || []);
                 const meta = res.data?.meta || res.meta;
@@ -95,20 +131,24 @@ const MeetingAttendanceAdmin = () => {
                 throw new Error(res?.message || 'Không thể tải danh sách cuộc họp.');
             }
         } catch (err) {
-            setError(err.message || 'Lỗi hệ thống khi tải danh sách cuộc họp.');
+            if (requestId === listRequestId.current) setError(err.message || 'Lỗi hệ thống khi tải danh sách cuộc họp.');
         } finally {
-            setLoading(false);
+            if (requestId === listRequestId.current) setLoading(false);
         }
     }, [fromDate, toDate, search, selectedDeptId, page, statusFilter, ITEMS_PER_PAGE]);
 
     useEffect(() => {
         fetchMeetings();
+        return () => { listRequestId.current += 1; };
     }, [fetchMeetings]);
 
-    const handleSearch = (e) => {
-        e.preventDefault();
+    const clearFilters = () => {
+        setSearch('');
+        setSelectedDeptId('');
+        setFromDate('');
+        setToDate('');
+        setStatusFilter('completed');
         setPage(1);
-        fetchMeetings();
     };
 
     if (selectedMeeting) {
@@ -173,72 +213,78 @@ const MeetingAttendanceAdmin = () => {
                 </div>
             </div>
 
-            <div className="flex gap-2">
-                {STATUS_TABS.map(t => (
-                    <button
-                        key={t.value}
-                        type="button"
-                        onClick={() => { setStatusFilter(t.value); setPage(1); }}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold border ${statusFilter === t.value ? 'bg-action-blue text-white border-action-blue' : 'bg-white text-slate-blue border-platinum-tint hover:text-midnight-indigo'}`}
-                    >
-                        {t.label}
-                    </button>
+            <StatisticGrid columns={2} role="group" aria-label="Trạng thái cuộc họp" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {STATUS_TABS.map(tab => (
+                    <StatisticCard key={tab.value} label={tab.label} value={statusCounts[tab.value]}
+                        icon={tab.value === 'completed' ? CheckCircle2 : Activity}
+                        tone={tab.value === 'in_progress' ? 'success' : 'default'} loading={countsLoading}
+                        selected={statusFilter === tab.value}
+                        onClick={() => { setStatusFilter(tab.value); setPage(1); }} />
                 ))}
-                <span data-ui-text="secondary" className="self-center text-[11px] text-slate-blue ml-2">Chế độ giám sát — chỉ xem, không chỉnh sửa.</span>
-            </div>
+            </StatisticGrid>
+            <p data-ui-text="secondary" className="text-xs text-slate-blue">Chế độ giám sát — chỉ xem, không chỉnh sửa.</p>
 
             {/* Filters */}
-            <FilterBar as="form" variant="card" onSubmit={handleSearch} className="bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm flex flex-wrap gap-3 items-end">
-                <div className="camai-filter-field">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Phòng ban</label>
-                    <select
-                        value={selectedDeptId}
-                        onChange={(e) => { setSelectedDeptId(e.target.value); setPage(1); }}
-                        className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
-                    >
-                        <option value="">Tất cả phòng ban</option>
-                        {departments.map((d) => (
-                            <option key={d.id} value={d.id}>{d.name || d.departmentName}</option>
-                        ))}
-                    </select>
-                </div>
-                <div className="camai-filter-field">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Từ ngày</label>
-                    <input
-                        type="date"
-                        value={fromDate}
-                        onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
-                        className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
-                    />
-                </div>
-                <div className="camai-filter-field">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Đến ngày</label>
-                    <input
-                        type="date"
-                        value={toDate}
-                        onChange={(e) => { setToDate(e.target.value); setPage(1); }}
-                        className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
-                    />
-                </div>
-                <div data-filter-search className="camai-filter-field">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Tìm kiếm</label>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Tên cuộc họp..."
-                            className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
-                        />
-                        <Search className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
+            <FilterBar as="form" variant="card" onSubmit={event => event.preventDefault()} className="meeting-attendance-filters bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm">
+                <div className="meeting-attendance-filter-main">
+                    <div data-filter-search className="camai-filter-field">
+                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Tìm kiếm</label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                                placeholder="Tên cuộc họp..."
+                                className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
+                            />
+                            <Search className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
+                        </div>
+                    </div>
+                    <div className="camai-filter-field">
+                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Phòng ban</label>
+                        <select
+                            value={selectedDeptId}
+                            onChange={(e) => { setSelectedDeptId(e.target.value); setPage(1); }}
+                            className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
+                        >
+                            <option value="">Tất cả phòng ban</option>
+                            {departments.map((d) => (
+                                <option key={d.id} value={d.id}>{d.name || d.departmentName}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
-                <button data-filter-action
-                    type="submit"
-                    className="px-4 py-2 bg-action-blue hover:bg-action-blue/90 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95"
-                >
-                    Áp dụng
-                </button>
+                <div className="meeting-attendance-filter-time">
+                    <CalendarRangePresets from={fromDate} to={toDate} onChange={range => { setFromDate(range.from); setToDate(range.to); setPage(1); }} />
+                    <div className="meeting-attendance-filter-dates">
+                        <div className="camai-filter-field">
+                            <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Từ ngày</label>
+                            <input
+                                type="date"
+                                value={fromDate}
+                                onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+                                className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
+                            />
+                        </div>
+                        <div className="camai-filter-field">
+                            <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Đến ngày</label>
+                            <input
+                                type="date"
+                                value={toDate}
+                                onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+                                className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
+                            />
+                        </div>
+                    </div>
+                    <button data-filter-action
+                        type="button"
+                        onClick={clearFilters}
+                        className="w-full px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                    >
+                        <Filter className="w-4 h-4 inline mr-2" />
+                        Xóa bộ lọc
+                    </button>
+                </div>
             </FilterBar>
 
             {/* Meeting list */}
@@ -248,7 +294,7 @@ const MeetingAttendanceAdmin = () => {
                         Danh sách cuộc họp {statusTab.label.toLowerCase()}
                     </h3>
                     <RefreshButton
-                        onClick={() => { setPage(1); fetchMeetings(); }}
+                        onClick={() => { setPage(1); setCountRefresh(value => value + 1); if (page === 1) fetchMeetings(); }}
                         title="Làm mới"
                         busy={loading}
                     />

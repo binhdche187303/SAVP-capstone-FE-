@@ -7,7 +7,7 @@ const itemKey = item => Array.isArray(item) ? JSON.stringify(item[0]) : item && 
     ? item.id ?? item.userId ?? item.meetingId ?? item.studentId ?? item.zoneId ?? item.roomId ?? item.departmentId ?? item.deviceId ?? item.code ?? item.key ?? JSON.stringify(item)
     : item;
 
-const Collection = ({ standard, items, children, itemLabel = 'bản ghi', initialPageSize = 10, resetKey, revealAdded = false, activeIndex, loading = false, note }) => {
+const Collection = ({ standard, items, children, itemLabel = 'bản ghi', initialPageSize = 10, resetKey, revealAdded = false, activeIndex, loading = false, note, paginationTone }) => {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(initialPageSize);
     const records = Array.isArray(items) ? items : [];
@@ -38,7 +38,7 @@ const Collection = ({ standard, items, children, itemLabel = 'bản ghi', initia
     return <>
         {children(records.slice(startIndex, startIndex + pageSize), startIndex)}
         <PaginationFooter currentPage={safePage} totalPages={totalPages} totalItems={records.length}
-            pageSize={pageSize} onPageChange={setPage} loading={loading} itemLabel={itemLabel} note={note}
+            pageSize={pageSize} onPageChange={setPage} loading={loading} itemLabel={itemLabel} note={note} tone={paginationTone}
             onPageSizeChange={size => { setPageSize(size); setPage(1); }} />
     </>;
 };

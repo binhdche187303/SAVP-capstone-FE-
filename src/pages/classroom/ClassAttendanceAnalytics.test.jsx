@@ -8,7 +8,7 @@ jest.mock('../../service/classAttendanceService', () => ({
 }));
 jest.mock('recharts', () => {
     const Wrap = ({ children }) => <div>{children}</div>;
-    return { ResponsiveContainer: Wrap, BarChart: Wrap, PieChart: Wrap, Pie: () => null, Bar: () => null,
+    return { ResponsiveContainer: Wrap, BarChart: Wrap, LineChart: Wrap, Line: () => null, ReferenceLine: () => null, PieChart: Wrap, Pie: () => null, Bar: () => null,
         CartesianGrid: () => null, Cell: () => null, Tooltip: () => null, XAxis: () => null, YAxis: () => null };
 });
 
@@ -43,8 +43,8 @@ test.each(['business-admin', 'teacher'])('%s lọc được bằng cả năm th�
     await screen.findByText('Trí tuệ nhân tạo', { exact: true });
     const cases = [
         ['Đúng giờ', ['Trí tuệ nhân tạo']], ['Đi muộn', ['Cơ sở dữ liệu']],
-        ['Vắng', ['Trí tuệ nhân tạo', 'Lập trình web']], ['Đã điểm danh', ['Trí tuệ nhân tạo', 'Cơ sở dữ liệu']],
-        ['Tổng buổi học', rows.map(row => row.subject)],
+        ['Vắng', ['Trí tuệ nhân tạo', 'Lập trình web']], ['Có mặt', ['Trí tuệ nhân tạo', 'Cơ sở dữ liệu']],
+        ['Lượt cần điểm danh', rows.map(row => row.subject)],
     ];
     for (const [name, expected] of cases) {
         const card = screen.getByRole('button', { name, exact: true });
@@ -61,25 +61,25 @@ test('kết hợp thẻ với môn học và hiển thị rỗng khi không có 
     fireEvent.change(screen.getByLabelText('Môn học'), { target: { value: 'AI' } });
     await waitFor(() => expect(fetchTeacherClassAttendanceReport).toHaveBeenLastCalledWith(expect.objectContaining({ subjectCode: 'AI' })));
     expect(await screen.findByText('Không có lớp/môn học phù hợp với bộ lọc hiện tại.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Tổng buổi học', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lượt cần điểm danh', exact: true }));
     expectSubjects(['Trí tuệ nhân tạo']);
 });
 
 test('phân trang danh sách thực tế, đổi số dòng và trở về đầu khi lọc', async () => {
-    const manyRows = Array.from({ length: 23 }, (_, index) => ({ ...rows[index % rows.length], id: `synced-${index}`, subject: `Môn thực tế ${index + 1}` }));
+    const manyRows = Array.from({ length: 23 }, (_, index) => ({ ...rows[index % rows.length], id: `synced-${index}`, subjectCode: `subject-${index}`, subject: `Môn thực tế ${index + 1}` }));
     fetchTeacherClassAttendanceReport.mockResolvedValue({ rows: manyRows, totals: { totalSessions: 23, attended: 12, onTime: 6, late: 6, absent: 5, rate: 50 } });
     render(<MemoryRouter initialEntries={['/business-admin/class-attendance']}><ClassAttendanceAnalytics /></MemoryRouter>);
-    await screen.findByText('Hiển thị 1–10 / 23 lớp/môn học');
+    await screen.findByText('Hiển thị 1–10 / 23 môn học');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sau', exact: true })).toBeEnabled());
     expect(fetchClassAttendanceClasses).toHaveBeenCalledWith({ source: 'uel_api' });
     expect(fetchTeacherClassAttendanceReport).toHaveBeenCalledWith(expect.objectContaining({ source: 'uel_api' }));
     fireEvent.click(screen.getByRole('button', { name: 'Sau', exact: true }));
-    expect(screen.getByText('Hiển thị 11–20 / 23 lớp/môn học')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 11–20 / 23 môn học')).toBeInTheDocument();
     expect(within(screen.getByRole('table')).queryByText('Môn thực tế 1')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole('combobox', { name: 'Số dòng/trang' }), { target: { value: '5' } });
-    expect(screen.getByText('Hiển thị 1–5 / 23 lớp/môn học')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Số dòng/trang' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Sau', exact: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Đi muộn', exact: true }));
-    expect(screen.getByText('Hiển thị 1–5 / 6 lớp/môn học')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 1–6 / 6 môn học')).toBeInTheDocument();
 });
 
 test('không chèn lớp mẫu khi API đồng bộ không có dữ liệu', async () => {
@@ -87,6 +87,6 @@ test('không chèn lớp mẫu khi API đồng bộ không có dữ liệu', asy
     fetchTeacherClassAttendanceReport.mockResolvedValue({ rows: [], totals: {} });
     render(<MemoryRouter initialEntries={['/business-admin/class-attendance']}><ClassAttendanceAnalytics /></MemoryRouter>);
     expect(await screen.findByText('Chưa có lớp học thực tế đã đồng bộ phù hợp với bộ lọc hiện tại.')).toBeInTheDocument();
-    expect(screen.getByText('Hiển thị 0–0 / 0 lớp/môn học')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 0–0 / 0 môn học')).toBeInTheDocument();
     expect(screen.queryByText('Trí tuệ nhân tạo')).not.toBeInTheDocument();
 });

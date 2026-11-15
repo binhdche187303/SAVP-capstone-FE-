@@ -1,9 +1,11 @@
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import ReportExportAction from '../../components/common/ReportExportAction';
-import FilterBar from '../../components/common/FilterBar';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import './AuditLogsFilters.css';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
-import { Activity } from 'lucide-react';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Activity, Filter } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -157,6 +159,7 @@ const AuditLogs = () => {
     const today = new Date().toISOString().slice(0, 10);
 
     const [logsList, setLogsList] = useState([]);
+    const fetchVersion = useRef(0);
     const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -213,6 +216,7 @@ const AuditLogs = () => {
 
     // Load data
     const fetchLogs = useCallback(async (pageNumber = 1, pageLimit = 10) => {
+        const version = ++fetchVersion.current;
         setLoading(true);
         setError(null);
 
@@ -229,6 +233,7 @@ const AuditLogs = () => {
 
         try {
             const res = await getAuditLogs(params);
+            if (version !== fetchVersion.current) return;
             if (res?.success) {
                 setLogsList(res.data || []);
                 const serverMeta = res.meta || {};
@@ -243,15 +248,17 @@ const AuditLogs = () => {
                 throw new Error('Fallback to mock data');
             }
         } catch {
+            if (version !== fetchVersion.current) return;
             setLogsList([]);
             setMeta({ page: pageNumber, limit: pageLimit, total: 0, totalPages: 1 });
         } finally {
-            setLoading(false);
+            if (version === fetchVersion.current) setLoading(false);
         }
     }, [selectedAction, selectedEntity, selectedSeverity, startDate, endDate, searchParams]);
 
     useEffect(() => {
         fetchLogs(1, meta.limit);
+        return () => { fetchVersion.current += 1; };
     }, [fetchLogs, meta.limit]);
 
     // Auto-hide alert boxes
@@ -269,13 +276,8 @@ const AuditLogs = () => {
         }
     }, [error]);
 
-    const handleApplyFilters = () => {
-        // Bỏ qua thời gian chờ gõ; nếu từ khóa đã khớp thì effect không chạy lại nên gọi trực tiếp
-        if (search.trim() !== debouncedSearch) setDebouncedSearch(search.trim());
-        else fetchLogs(1, meta.limit);
-    };
-
     const handleClearFilters = () => {
+        if (!debouncedSearch && !selectedAction && !selectedEntity && !selectedSeverity && !startDate && !endDate) fetchLogs(1, meta.limit);
         setSearch('');
         setDebouncedSearch('');
         setSelectedAction('');
@@ -283,7 +285,6 @@ const AuditLogs = () => {
         setSelectedSeverity('');
         setStartDate('');
         setEndDate('');
-        fetchLogs(1, meta.limit);
     };
 
     const handleOpenDetail = (log) => {
@@ -456,113 +457,52 @@ const AuditLogs = () => {
             )}
 
             {/* Filters panel */}
-            <FilterBar variant="card" className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 space-y-4">
-                <div data-filter-grid className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    {/* Search query */}
-                    <div className="camai-filter-field">
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tìm kiếm từ khóa</label>
-                        <input
-                            type="text"
-                            placeholder="Email, tên, hoặc mô tả..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilters(); }}
-                            maxLength={100}
-                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
-                        />
-                    </div>
-
-                    {/* Action Selector */}
-                    <div className="camai-filter-field">
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại hành động</label>
-                        <select
-                            value={selectedAction}
-                            onChange={(e) => setSelectedAction(e.target.value)}
-                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
-                        >
+            <FilterBar variant="card" className="audit-log-filters">
+                <div className="audit-log-filter-main">
+                    <FilterField label="Tìm kiếm từ khóa">
+                        <input type="text" placeholder="Email, tên, hoặc mô tả..." value={search} maxLength={100}
+                            onChange={event => setSearch(event.target.value)} />
+                    </FilterField>
+                    <FilterField label="Loại hành động">
+                        <select value={selectedAction} onChange={event => setSelectedAction(event.target.value)}>
                             <option value="">Tất cả hành động</option>
-                            {actionTypes.map((at) => (
-                                <option key={at.actionType} value={at.actionType}>
-                                    {formatActionName(at.actionType)} ({at.count})
-                                </option>
-                            ))}
+                            {actionTypes.map(action => <option key={action.actionType} value={action.actionType}>{formatActionName(action.actionType)} ({action.count})</option>)}
                         </select>
-                    </div>
-
-                    {/* Severity Selector */}
-                    <div className="camai-filter-field">
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mức độ</label>
-                        <select
-                            value={selectedSeverity}
-                            onChange={(e) => setSelectedSeverity(e.target.value)}
-                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
-                        >
+                    </FilterField>
+                    <FilterField label="Mức độ">
+                        <select value={selectedSeverity} onChange={event => setSelectedSeverity(event.target.value)}>
                             <option value="">Tất cả mức độ</option>
                             <option value="info">Thành công (Info)</option>
                             <option value="warning">Cảnh báo (Warning)</option>
                             <option value="error">Thất bại (Error)</option>
                             <option value="critical">Nghiêm trọng (Critical)</option>
                         </select>
-                    </div>
-
-                    {/* Start date */}
-                    <div className="camai-filter-field">
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Từ ngày</label>
-                        <input
-                            type="date"
-                            value={startDate}
-                            max={endDate || today}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                setStartDate(val);
-                                if (endDate && val > endDate) setEndDate('');
-                            }}
-                            className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-action-blue text-slate-blue ${startDate && endDate && startDate > endDate ? 'border-red-400 bg-red-50' : 'border-platinum-tint'}`}
-                        />
-                    </div>
-
-                    {/* End date */}
-                    <div className="camai-filter-field">
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Đến ngày</label>
-                        <input
-                            type="date"
-                            value={endDate}
-                            min={startDate || undefined}
-                            max={today}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                setEndDate(val);
-                                if (startDate && val < startDate) setStartDate('');
-                            }}
-                            className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-action-blue text-slate-blue ${startDate && endDate && startDate > endDate ? 'border-red-400 bg-red-50' : 'border-platinum-tint'}`}
-                        />
-                        {startDate && endDate && startDate > endDate && (
-                            <p data-ui-text="secondary" className="text-[10px] text-red-500 font-semibold mt-1">Ngày kết thúc phải sau ngày bắt đầu</p>
-                        )}
-                    </div>
+                    </FilterField>
                 </div>
-
-                <div className="flex justify-between items-center pt-2 border-t border-platinum-tint/50">
-                    <div className="text-xs text-slate-blue font-medium">
-                        Tìm thấy <span className="font-bold text-midnight-indigo">{meta.total}</span> bản ghi nhật ký.
+                <div className="audit-log-filter-time">
+                    <CalendarRangePresets from={startDate} to={endDate} onChange={range => { setStartDate(range.from); setEndDate(range.to); }} />
+                    <div className="audit-log-filter-dates">
+                        <FilterField label="Từ ngày">
+                            <input type="date" value={startDate} max={endDate || today} onChange={event => {
+                                const value = event.target.value; setStartDate(value);
+                                if (endDate && value > endDate) setEndDate('');
+                            }} />
+                        </FilterField>
+                        <FilterField label="Đến ngày">
+                            <input type="date" value={endDate} min={startDate || undefined} max={today} onChange={event => {
+                                const value = event.target.value; setEndDate(value);
+                                if (startDate && value < startDate) setStartDate('');
+                            }} />
+                        </FilterField>
                     </div>
-                    <div className="flex gap-2">
-                        <button data-filter-action
-                            type="button"
-                            onClick={handleClearFilters}
-                            className="px-4 py-2 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors"
-                        >
-                            Xóa bộ lọc
-                        </button>
-                        <button data-filter-action
-                            type="button"
-                            onClick={handleApplyFilters}
-                            className="px-4 py-2 bg-cloud-mist hover:bg-platinum-tint text-midnight-indigo rounded-xl text-xs font-semibold transition-colors"
-                        >
-                            Áp dụng
-                        </button>
-                    </div>
+                    <button type="button" data-filter-action onClick={handleClearFilters}
+                        className="audit-log-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors">
+                        <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                    </button>
                 </div>
+                <p data-ui-text="secondary" className="audit-log-filter-count text-slate-blue">
+                    Tìm thấy <span className="font-semibold text-midnight-indigo">{meta.total}</span> bản ghi nhật ký.
+                </p>
             </FilterBar>
 
             {/* Logs Data Table */}

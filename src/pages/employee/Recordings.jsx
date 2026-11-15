@@ -1,9 +1,11 @@
-import FilterBar from '../../components/common/FilterBar';
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import './RecordingsFilters.css';
 import PaginationFooter from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
 import {
     AlertCircle, BookOpen, Calendar, CheckCircle, ChevronLeft, ChevronRight,
-    Clock, FileAudio, FileText, FolderOpen, Play, RefreshCw,
+    Clock, FileAudio, FileText, Filter, FolderOpen, Play, RefreshCw,
     Search, User, Video,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -103,7 +105,7 @@ const Pagination = ({ current, total, onChange }) => {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const EmployeeRecordings = () => {
-    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(9);
+    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(12);
     const navigate = useNavigate();
     const basePath = window.location.pathname.split('/')[1];
 
@@ -299,66 +301,37 @@ const EmployeeRecordings = () => {
             </AnimatePresence>
 
             {/* Filter panel */}
-            <FilterBar variant="card" className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
-                <div data-filter-grid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Search */}
-                    <div className="camai-filter-field space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tìm kiếm</label>
+            <FilterBar variant="card" className="recordings-filters">
+                <div className="recordings-filter-main">
+                    <FilterField label="Tìm kiếm">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                            <input
-                                type="text"
-                                placeholder="Tiêu đề, phòng..."
-                                value={searchQuery}
+                            <input type="text" placeholder="Tiêu đề, phòng..." value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 transition-all"
-                            />
+                                className="w-full pl-9 pr-3 py-2.5 border border-platinum-tint rounded-xl text-sm text-midnight-indigo" />
                         </div>
-                    </div>
-
-                    {/* Room filter */}
-                    <div className="camai-filter-field space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Phòng họp</label>
-                        <select
-                            value={selectedRoom}
-                            onChange={e => setSelectedRoom(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 transition-all"
-                        >
+                    </FilterField>
+                    <FilterField label="Phòng họp">
+                        <select value={selectedRoom} onChange={e => setSelectedRoom(e.target.value)}>
                             <option value="">Tất cả phòng</option>
-                            {uniqueRooms.map(rm => <option key={rm} value={rm}>{rm}</option>)}
+                            {uniqueRooms.map(room => <option key={room} value={room}>{room}</option>)}
                         </select>
+                    </FilterField>
+                </div>
+                <div className="recordings-filter-time">
+                    <CalendarRangePresets from={startDate} to={endDate} onChange={range => { setStartDate(range.from); setEndDate(range.to); }} />
+                    <div className="recordings-filter-dates">
+                        <FilterField label="Từ ngày">
+                            <input type="date" value={startDate} max={endDate || todayStr} onChange={handleStartDateChange} />
+                        </FilterField>
+                        <FilterField label="Đến ngày">
+                            <input type="date" value={endDate} min={startDate || undefined} max={todayStr} onChange={handleEndDateChange} />
+                        </FilterField>
                     </div>
-
-                    {/* From date */}
-                    <div className="camai-filter-field space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Từ ngày</label>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                            <input
-                                type="date"
-                                value={startDate}
-                                max={endDate || todayStr}
-                                onChange={handleStartDateChange}
-                                className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 transition-all"
-                            />
-                        </div>
-                    </div>
-
-                    {/* To date */}
-                    <div className="camai-filter-field space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Đến ngày</label>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                            <input
-                                type="date"
-                                value={endDate}
-                                min={startDate || undefined}
-                                max={todayStr}
-                                onChange={handleEndDateChange}
-                                className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 transition-all"
-                            />
-                        </div>
-                    </div>
+                    <button type="button" data-filter-action className="recordings-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                        onClick={() => { setSearchQuery(''); setSelectedRoom(''); setStartDate(''); setEndDate(''); setCurrentPage(1); }}>
+                        <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                    </button>
                 </div>
             </FilterBar>
 

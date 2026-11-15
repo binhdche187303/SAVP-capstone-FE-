@@ -1,4 +1,4 @@
-import { Calendar, ChevronDown, FileText, Home, PlusCircle, Menu, X, MapPin, Archive, Monitor, UserCheck, ClipboardCheck, Award } from 'lucide-react';
+import { Calendar, ChevronDown, FileText, Home, PlusCircle, Menu, X, MapPin, Archive, Monitor, UserCheck, ClipboardCheck, Award, BarChart2 } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -8,6 +8,7 @@ import UserAvatar from '../../../components/common/UserAvatar';
 import ChangePasswordModal from '../../../components/auth/ChangePasswordModal';
 import NotificationBell from '../../../components/common/NotificationBell';
 import { buildDynamicNavigation, filterStaticNavigation } from '../../../utils/buildDynamicNavigation';
+import { MEETING_BOOKING_ENABLED } from '../../../config/featureFlags';
 import { getCalendarRoleLabel } from '../../../utils/calendarRoleLabel';
 
 
@@ -37,11 +38,12 @@ const STATIC_NAVIGATION_ITEMS = [
                 icon: Calendar,
                 requiredPermission: 'schedule.read.self'
             },
-            {
+            // Ẩn khi MEETING_BOOKING_ENABLED=false — lịch họp đăng ký trên VPĐT, SAVP chỉ hiển thị + điểm danh.
+            ...(MEETING_BOOKING_ENABLED ? [{
                 label: 'Đăng ký họp',
                 to: '/employee/book',
                 icon: PlusCircle
-            },
+            }] : []),
             {
                 // Văn thư đơn vị (BE cấp quyền duyệt theo cờ is_unit_clerk)
                 label: 'Duyệt lịch họp',
@@ -65,6 +67,11 @@ const STATIC_NAVIGATION_ITEMS = [
         label: 'Tài liệu họp',
         to: '/employee/recordings',
         icon: FileText
+    },
+    {
+        label: 'Thống kê cá nhân',
+        to: '/employee/personal-statistics',
+        icon: BarChart2
     },
     {
         label: 'Báo hỏng thiết bị',
@@ -175,25 +182,25 @@ const EmployeeLayout = () => {
     }, []);
 
     const displayName = currentUser?.fullName || 'Nhân viên';
-    const displayRole = getCalendarRoleLabel(currentUser) || 'Cán bộ, viên chức';
+    const displayRole = getCalendarRoleLabel(currentUser) || 'Nhân viên';
 
     return (
         <div className="min-h-screen flex flex-col bg-cloud-mist">
             {/* ========== NAVBAR ========== */}
             <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-platinum-tint">
-                <div className="max-w-[1440px] mx-auto flex items-center justify-between h-16 px-6 lg:px-12">
+                <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4 h-16 px-4 xl:px-6">
                     {/* Left: Logo + Nav */}
-                    <div className="flex items-center gap-10">
+                    <div className="flex min-w-0 items-center gap-4 2xl:gap-6">
                         {/* Logo */}
                         <NavLink
                             to="/employee"
-                            className="flex items-center gap-2 no-underline"
+                            className="flex shrink-0 items-center gap-2 no-underline"
                             aria-label="VISMA IVA home"
                         >
                             <div className="w-12 h-12 bg-white flex items-center justify-center shrink-0">
                                 <img src={logo} alt="VISMA IVA Logo" className="w-full h-full object-contain scale-[1.3]" />
                             </div>
-                            <span className="text-midnight-indigo font-bold text-xl tracking-tight hidden sm:block">
+                            <span className="text-midnight-indigo font-bold text-xl tracking-tight whitespace-nowrap hidden sm:block">
                                 VISMA IVA
                             </span>
                         </NavLink>
@@ -201,7 +208,7 @@ const EmployeeLayout = () => {
                         <nav
                             ref={navRef}
                             aria-label="Primary navigation"
-                            className="hidden min-[1440px]:flex items-center gap-1"
+                            className="hidden min-[1440px]:flex items-center gap-0 2xl:gap-1 whitespace-nowrap"
                         >
                             {navigationItems.map((item) => (
                                 item.isDropdown ? (
@@ -213,9 +220,9 @@ const EmployeeLayout = () => {
                                     >
                                         <button
                                             onClick={() => setOpenDropdown(openDropdown === item.label ? null : item.label)}
-                                            className="px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist flex items-center gap-1.5 bg-transparent border-0"
+                                            className="px-1.5 2xl:px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist flex items-center gap-1.5 bg-transparent border-0"
                                         >
-                                            {item.icon && <item.icon className="w-4 h-4 text-slate-400" />}
+                                            {item.icon && <item.icon className="w-4 h-4 shrink-0 text-slate-400" />}
                                             <span>{item.label}</span>
                                             <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdown === item.label ? 'rotate-180 text-midnight-indigo' : 'text-slate-400'}`} />
                                         </button>
@@ -259,13 +266,13 @@ const EmployeeLayout = () => {
                                         to={item.to}
                                         end={item.end || false}
                                         className={({ isActive }) =>
-                                            `px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 no-underline whitespace-nowrap flex items-center gap-1.5 ${isActive
+                                            `px-1.5 2xl:px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 no-underline whitespace-nowrap flex items-center gap-1.5 ${isActive
                                                 ? 'text-action-blue bg-blue-50 font-bold'
                                                 : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist'
                                             }`
                                         }
                                     >
-                                        {item.icon && <item.icon className="w-4 h-4 text-slate-400" />}
+                                        {item.icon && <item.icon className="w-4 h-4 shrink-0 text-slate-400" />}
                                         <span>{item.label}</span>
                                     </NavLink>
                                 )
@@ -274,7 +281,7 @@ const EmployeeLayout = () => {
                     </div>
 
                     {/* Right: Notification + Profile */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex shrink-0 items-center gap-3">
                         {/* Notification bell */}
                         <NotificationBell basePath="/employee" />
 
@@ -291,7 +298,7 @@ const EmployeeLayout = () => {
                                 onClick={() => setIsProfileMenuOpen((prev) => !prev)}
                                 className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-cloud-mist transition-colors duration-200"
                             >
-                                <div className="hidden sm:flex flex-col items-end">
+                                <div className="hidden sm:flex flex-col items-end whitespace-nowrap">
                                     <span className="text-sm font-semibold text-midnight-indigo leading-tight">
                                         {displayName}
                                     </span>
@@ -435,7 +442,7 @@ const EmployeeLayout = () => {
                                                     }`
                                                 }
                                             >
-                                                {child.icon && <child.icon className="w-4 h-4 text-slate-400" />}
+                                                {child.icon && <child.icon className="w-4 h-4 shrink-0 text-slate-400" />}
                                                 <span>{child.label}</span>
                                             </NavLink>
                                         ))}
@@ -451,7 +458,7 @@ const EmployeeLayout = () => {
                                             }`
                                         }
                                     >
-                                        {item.icon && <item.icon className="w-4 h-4 text-slate-400" />}
+                                        {item.icon && <item.icon className="w-4 h-4 shrink-0 text-slate-400" />}
                                         <span>{item.label}</span>
                                     </NavLink>
                                 )}

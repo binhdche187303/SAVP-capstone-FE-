@@ -1,14 +1,17 @@
+import CalendarRangePresets, { calendarRange } from '../../components/common/CalendarRangePresets';
+import './ANPRManagement.css';
+import StatisticCard from '../../components/common/StatisticCard';
+import StatisticGrid from '../../components/common/StatisticGrid';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import ReportActions from '../../components/common/ReportActions';
 import ReportExportButton from '../../components/common/ReportExportButton';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Car, Download, Search, Calendar as CalendarIcon, X, Mail, Phone, Briefcase, Loader2, LogIn, LogOut } from 'lucide-react';
+import { Car, Download, Search, X, Mail, Phone, Briefcase, Loader2, LogIn, LogOut, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
 import toast from '../../utils/toast';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import DatePicker from '../../components/common/AppDatePicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
 import {
@@ -38,10 +41,11 @@ const getVehicleTypeLabel = (type) => {
     return type || 'Chưa rõ';
 };
 
-// guardMode: bảo vệ trực cổng — chỉ xem luồng xe vào ra; xử lý xe lạ/xe kiểm soát ở trang Cảnh báo an ninh.
+// Shared gate-control workspace for administrators and guards.
 const ANPRManagement = ({ guardMode = false }) => {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [activeTab, setActiveTab] = useState('history'); // 'history', 'register', 'unknown'
+    useEffect(() => { if (guardMode) setActiveTab('history'); }, [guardMode]);
     const [loading, setLoading] = useState(false);
     const [isExportOpen, setIsExportOpen] = useState(false);
 
@@ -59,6 +63,11 @@ const ANPRManagement = ({ guardMode = false }) => {
     const [historyList, setHistoryList] = useState([]);
     const [historyTotal, setHistoryTotal] = useState(0);
     const [filterMatchState, setFilterMatchState] = useState('ALL');
+    const [recognitionCounts, setRecognitionCounts] = useState({ ALL: null, matched: null, unmatched: null });
+    const selectRecognitionFilter = value => {
+        setFilterMatchState(value);
+        setHistoryPage(1);
+    };
     const [filterCamera, setFilterCamera] = useState('');
     const [filterZone, setFilterZone] = useState('');
     const [filterVehicleType, setFilterVehicleType] = useState('');
@@ -126,6 +135,16 @@ const ANPRManagement = ({ guardMode = false }) => {
     const [startDate, endDate] = dateRange;
     const [searchKeyword, setSearchKeyword] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const clearHistoryFilters = () => {
+        setSearchKeyword('');
+        setDebouncedSearch('');
+        setFilterMatchState('ALL');
+        setFilterCamera('');
+        setFilterZone('');
+        setFilterVehicleType('');
+        setDateRange([null, null]);
+        setHistoryPage(1);
+    };
     const [mockPlate, setMockPlate] = useState('30A-123.45');
     const [mockVehicleType, setMockVehicleType] = useState('CAR');
     const [mockLoading, setMockLoading] = useState(false);
@@ -167,10 +186,30 @@ const ANPRManagement = ({ guardMode = false }) => {
                 end.setHours(23, 59, 59, 999);
                 params.to = end.toISOString();
             }
-            const res = await getAdminVehicleHistory(params);
+            // Guard cards show totals across the current date/search/camera scope,
+            // rather than counting only the rows on the displayed page.
+            const summaryStates = guardMode ? ['ALL', 'matched', 'unmatched'].filter(state => state !== filterMatchState) : [];
+            const summaryParams = { ...params, page: 1, limit: 1 };
+            delete summaryParams.matchState;
+            const [res, ...summaries] = await Promise.all([
+                getAdminVehicleHistory(params),
+                ...summaryStates.map(state => getAdminVehicleHistory({
+                    ...summaryParams,
+                    ...(state === 'ALL' ? {} : { matchState: state }),
+                })),
+            ]);
             if (res?.success) {
                 setHistoryList(res.data);
                 setHistoryTotal(res.meta?.total || 0);
+                if (guardMode) {
+                    setRecognitionCounts(previous => {
+                        const next = { ...previous, [filterMatchState]: res.meta?.total ?? 0 };
+                        summaryStates.forEach((state, index) => {
+                            if (summaries[index]?.success) next[state] = summaries[index].meta?.total ?? 0;
+                        });
+                        return next;
+                    });
+                }
             } else {
                 setHistoryList([]);
                 setHistoryTotal(0);
@@ -268,15 +307,15 @@ const ANPRManagement = ({ guardMode = false }) => {
     // ============================================
     useEffect(() => {
         if (activeTab === 'history') fetchHistory(true);
-    }, [activeTab, filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate, historyPage, itemsPerPage]);
+    }, [guardMode, activeTab, filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate, historyPage, itemsPerPage]);
 
     useEffect(() => {
-        if (activeTab === 'unknown') fetchUnknown();
-    }, [activeTab, unknownPage, itemsPerPage]);
+        if (!guardMode && activeTab === 'unknown') fetchUnknown();
+    }, [guardMode, activeTab, unknownPage, itemsPerPage]);
 
     useEffect(() => {
-        if (activeTab === 'register') fetchUsers();
-    }, [activeTab]);
+        if (!guardMode && activeTab === 'register') fetchUsers();
+    }, [guardMode, activeTab]);
 
     useEffect(() => {
         // Auto-refresh logic for Dashboard (history/unknown)
@@ -285,11 +324,12 @@ const ANPRManagement = ({ guardMode = false }) => {
             interval = setInterval(() => {
                 if (document.hidden) return;
                 if (activeTab === 'history') fetchHistory();
-                if (activeTab === 'unknown') fetchUnknown();
+                if (!guardMode && activeTab === 'unknown') fetchUnknown();
             }, ANPR_HISTORY_REFRESH_MS);
         }
         return () => clearInterval(interval);
     }, [
+        guardMode,
         activeTab,
         filterMatchState,
         filterCamera,
@@ -313,13 +353,25 @@ const ANPRManagement = ({ guardMode = false }) => {
                 <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Kiểm soát ra vào cổng</h1>
                 <p className="text-slate-blue text-sm mt-1">
                     {guardMode
-                        ? 'Theo dõi xe vào ra theo thời gian thực. Xe lạ / xe trong danh sách kiểm soát được xử lý (Cho qua / Chặn) tại mục Cảnh báo an ninh.'
+                        ? 'Theo dõi lượt xe ra vào và lọc theo kết quả nhận diện biển số.'
                         : 'Theo dõi lịch sử vào ra, quản lý biển lạ và đăng ký phương tiện cho nhân sự.'}
                 </p>
             </div>
 
-            {/* TABS NAVIGATION */}
-            {!guardMode && (
+            {/* Guard cards filter the history table; administrators retain their tabs. */}
+            {guardMode ? (
+                <StatisticGrid columns={3}>
+                    <StatisticCard label="Tất cả lượt xe" aria-label="Tất cả lượt xe" icon={Car}
+                        value={recognitionCounts.ALL} selected={filterMatchState === 'ALL'}
+                        onClick={() => selectRecognitionFilter('ALL')} />
+                    <StatisticCard label="Khớp dữ liệu" aria-label="Khớp dữ liệu" icon={CheckCircle2} tone="success"
+                        value={recognitionCounts.matched} selected={filterMatchState === 'matched'}
+                        onClick={() => selectRecognitionFilter(filterMatchState === 'matched' ? 'ALL' : 'matched')} />
+                    <StatisticCard label="Biển lạ" aria-label="Biển lạ" icon={AlertTriangle} tone="danger"
+                        value={recognitionCounts.unmatched} selected={filterMatchState === 'unmatched'}
+                        onClick={() => selectRecognitionFilter(filterMatchState === 'unmatched' ? 'ALL' : 'unmatched')} />
+                </StatisticGrid>
+            ) : (
             <div className="flex bg-white rounded-2xl border border-platinum-tint p-1 shadow-sm-2">
                 <button
                     onClick={() => setActiveTab('history')}
@@ -358,12 +410,12 @@ const ANPRManagement = ({ guardMode = false }) => {
                         <div className="flex flex-wrap items-center gap-2">
 
                             <ReportActions>
-                                <ReportExportButton label="Xuất báo cáo"
+                                {!guardMode && <ReportExportButton label="Xuất báo cáo"
                                     onClick={() => setIsExportOpen(true)}
                                     legacyClassName="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors"
                                 >
                                     <Download className="w-4 h-4" /> Xuất báo cáo
-                                </ReportExportButton>
+                                </ReportExportButton>}
                                 <RefreshButton
                                     onClick={() => fetchHistory()}
                                     disabled={loading}
@@ -374,80 +426,90 @@ const ANPRManagement = ({ guardMode = false }) => {
                     </div>
 
                     {/* Filter bar */}
-                    <FilterBar data-filter-grid variant="card" style={{ '--filter-column-min': '18rem' }} className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3 bg-cloud-mist/50 p-4 rounded-xl border border-platinum-tint">
-                        {/* Search */}
-                        <FilterField label="Tìm kiếm"><div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                            <input
-                                type="text"
-                                placeholder="Tìm theo biển số"
-                                value={searchKeyword}
-                                onChange={(e) => setSearchKeyword(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-platinum-tint text-sm text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white transition-all"
-                            />
-                        </div></FilterField>
+                    <FilterBar data-filter-grid variant="card" className="anpr-history-filters grid gap-4">
+                        <div className="anpr-history-filter-main">
+                            {/* Search */}
+                            <FilterField label="Tìm kiếm"><div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
+                                <input
+                                    type="text"
+                                    placeholder="Tìm theo biển số"
+                                    value={searchKeyword}
+                                    onChange={(e) => setSearchKeyword(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-platinum-tint text-sm text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white transition-all"
+                                />
+                            </div></FilterField>
 
-                        {/* Date range */}
-                        <FilterField label="Khoảng ngày"><div className="relative">
-                            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue z-10 pointer-events-none" />
-                            <DatePicker
-                                selectsRange
-                                startDate={startDate}
-                                endDate={endDate}
-                                onChange={(update) => setDateRange(update)}
-                                placeholderText="Chọn từ ngày – đến ngày"
-                                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-platinum-tint text-sm text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white"
-                                dateFormat="dd/MM/yyyy"
-                                isClearable
-                            />
-                        </div></FilterField>
+                            {/* Match state */}
+                            <FilterField label="Kết quả nhận diện"><select
+                                value={filterMatchState}
+                                onChange={(e) => selectRecognitionFilter(e.target.value)}
+                                className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white transition-all"
+                            >
+                                <option value="ALL">Tất cả trạng thái</option>
+                                <option value="matched">Khớp dữ liệu</option>
+                                <option value="unmatched">Biển lạ</option>
+                            </select></FilterField>
 
-                        {/* Match state */}
-                        <FilterField label="Kết quả nhận diện"><select
-                            value={filterMatchState}
-                            onChange={(e) => setFilterMatchState(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white transition-all"
-                        >
-                            <option value="ALL">Tất cả trạng thái</option>
-                            <option value="matched">Khớp dữ liệu</option>
-                            <option value="unmatched">Biển lạ</option>
-                        </select></FilterField>
+                            <FilterField label="Camera"><select
+                                value={filterCamera}
+                                onChange={(e) => setFilterCamera(e.target.value)}
+                                className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
+                            >
+                                <option value="">Tất cả camera</option>
+                                {cameraOptions.map((camera) => {
+                                    const name = camera.deviceName || camera.device_name;
+                                    return <option key={camera.id || name} value={name}>{name}</option>;
+                                })}
+                            </select></FilterField>
 
-                        <FilterField label="Camera"><select
-                            value={filterCamera}
-                            onChange={(e) => setFilterCamera(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
-                        >
-                            <option value="">Tất cả camera</option>
-                            {cameraOptions.map((camera) => {
-                                const name = camera.deviceName || camera.device_name;
-                                return <option key={camera.id || name} value={name}>{name}</option>;
-                            })}
-                        </select></FilterField>
+                            <FilterField label="Khu vực"><select
+                                value={filterZone}
+                                onChange={(e) => setFilterZone(e.target.value)}
+                                className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
+                            >
+                                <option value="">Tất cả khu vực</option>
+                                {zoneOptions.map((zone) => (
+                                    <option key={zone.id} value={zone.id}>{zone.zoneName || zone.zone_name || zone.name}</option>
+                                ))}
+                            </select></FilterField>
 
-                        <FilterField label="Khu vực"><select
-                            value={filterZone}
-                            onChange={(e) => setFilterZone(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
-                        >
-                            <option value="">Tất cả khu vực</option>
-                            {zoneOptions.map((zone) => (
-                                <option key={zone.id} value={zone.id}>{zone.zoneName || zone.zone_name || zone.name}</option>
-                            ))}
-                        </select></FilterField>
-
-                        <FilterField label="Loại phương tiện"><select
-                            value={filterVehicleType}
-                            onChange={(e) => setFilterVehicleType(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
-                        >
-                            <option value="">Tất cả loại xe</option>
-                            <option value="car">Ô tô</option>
-                            <option value="motorbike">Xe máy</option>
-                            <option value="motorcycle">Xe máy</option>
-                            <option value="truck">Xe tải</option>
-                            <option value="bus">Xe buýt</option>
-                        </select></FilterField>
+                            <FilterField label="Loại phương tiện"><select
+                                value={filterVehicleType}
+                                onChange={(e) => setFilterVehicleType(e.target.value)}
+                                className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
+                            >
+                                <option value="">Tất cả loại xe</option>
+                                <option value="car">Ô tô</option>
+                                <option value="motorbike">Xe máy</option>
+                                <option value="motorcycle">Xe máy</option>
+                                <option value="truck">Xe tải</option>
+                                <option value="bus">Xe buýt</option>
+                            </select></FilterField>
+                        </div>
+                        <div className="anpr-history-filter-time">
+                            <CalendarRangePresets from={startDate ? calendarRange('day', startDate).from : ''}
+                                to={endDate ? calendarRange('day', endDate).from : ''}
+                                onChange={range => { setDateRange([new Date(`${range.from}T00:00:00`), new Date(`${range.to}T00:00:00`)]); setHistoryPage(1); }} />
+                            <div className="anpr-history-filter-dates">
+                                <FilterField label="Từ ngày">
+                                    <input type="date" value={startDate ? calendarRange('day', startDate).from : ''}
+                                        max={endDate ? calendarRange('day', endDate).from : undefined}
+                                        onChange={event => { const value = event.target.value; setDateRange(current => [value ? new Date(`${value}T00:00:00`) : null, current[1]]); setHistoryPage(1); }} />
+                                </FilterField>
+                                <FilterField label="Đến ngày">
+                                    <input type="date" value={endDate ? calendarRange('day', endDate).from : ''}
+                                        min={startDate ? calendarRange('day', startDate).from : undefined}
+                                        onChange={event => { const value = event.target.value; setDateRange(current => [current[0], value ? new Date(`${value}T00:00:00`) : null]); setHistoryPage(1); }} />
+                                </FilterField>
+                            </div>
+                            <div className="anpr-history-reset">
+                                <button type="button" data-filter-action onClick={clearHistoryFilters}
+                                    className="w-full px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors">
+                                    <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                                </button>
+                            </div>
+                        </div>
                     </FilterBar>
 
                     {/* Table */}
@@ -607,7 +669,7 @@ const ANPRManagement = ({ guardMode = false }) => {
             )}
 
             {/* TAB CONTENT: UNKNOWN VEHICLES */}
-            {activeTab === 'unknown' && (
+            {!guardMode && activeTab === 'unknown' && (
                 <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 p-6 space-y-6 animate-fade-in">
                     <div>
                         <h2 className="text-lg font-bold text-midnight-indigo">Danh sách biển số lạ</h2>
@@ -669,11 +731,11 @@ const ANPRManagement = ({ guardMode = false }) => {
             )}
 
             {/* TAB CONTENT: REGISTER */}
-            {activeTab === 'register' && (
+            {!guardMode && activeTab === 'register' && (
                 <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 p-8 animate-fade-in max-w-2xl mx-auto">
                     <div className="mb-6">
                         <h2 className="text-lg font-bold text-midnight-indigo">Đăng ký xe cho nhân viên</h2>
-                        <p className="text-xs text-slate-blue mt-1">Dùng quyền Admin để chủ động cấp phép phương tiện cho người dùng vào hệ thống.</p>
+                        <p className="text-xs text-slate-blue mt-1">Đăng ký phương tiện cho nhân viên để đối chiếu khi xe ra vào cổng.</p>
                     </div>
 
                     <form onSubmit={handleRegisterVehicle} className="space-y-5">
@@ -683,7 +745,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                 required
                                 value={selectedUser}
                                 onChange={(e) => setSelectedUser(e.target.value)}
-                                className="w-full px-4 py-2.5 rounded-xl border border-platinum-tint focus:border-action-blue focus:ring-1 focus:ring-action-blue text-sm outline-none"
+                                className="w-full bg-white px-4 py-2.5 rounded-xl border border-platinum-tint focus:border-action-blue focus:ring-1 focus:ring-action-blue text-sm outline-none"
                             >
                                 <option value="" disabled>-- Nhấn để chọn nhân viên --</option>
                                 {users.map(u => (

@@ -222,7 +222,8 @@ const CameraGroups = () => {
                     className="w-full pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm" />
             </FilterBar>
 
-            <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-5">
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start gap-5">
+                <section aria-label="Danh sách nhóm camera" className="min-w-0 space-y-3">
                 <PaginatedCollection items={groups} itemLabel="nhóm camera">
 {(camaiPageItems, camaiStartIndex) => (
 <div className="space-y-2">
@@ -251,8 +252,9 @@ const CameraGroups = () => {
                 </div>
 )}
 </PaginatedCollection>
+                </section>
 
-                <div className="bg-white border border-platinum-tint rounded-2xl p-5 min-h-[200px]">
+                <section aria-label="Chi tiết nhóm camera" className="min-w-0 bg-white border border-platinum-tint rounded-2xl p-5 min-h-[200px]">
                     {!detail ? (
                         <p className="text-sm text-slate-500">Chọn một nhóm để xem và quản lý camera.</p>
                     ) : (
@@ -301,7 +303,7 @@ const CameraGroups = () => {
                             )}
                         </>
                     )}
-                </div>
+                </section>
             </div>
 
             {modal === 'create' && <Modal title="Tạo nhóm camera" onClose={() => setModal(null)}><GroupForm zones={zones} onSubmit={create} onCancel={() => setModal(null)} busy={busy} /></Modal>}

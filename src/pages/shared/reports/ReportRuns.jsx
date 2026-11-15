@@ -1,9 +1,11 @@
+import './ReportRunsFilters.css';
+import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
 import ResponsiveTable from '../../../components/common/ResponsiveTable';
 import FilterBar from '../../../components/common/FilterBar';
 import PaginationFooter from '../../../components/common/PaginationFooter';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Download, History, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Download, Filter, History, RotateCcw } from 'lucide-react';
 import { listScheduleRuns, listSchedules, retryScheduleRun, downloadRunFile } from '../../../service/reportCenterService';
 import { formatDateTime } from '../../../utils/reportFormat';
 import toast from '../../../utils/toast';
@@ -83,10 +85,11 @@ const ReportRuns = () => {
                 <p className="text-xs text-slate-blue mt-1">Từng lần hệ thống tạo và gửi báo cáo: kết quả, người nhận, file đính kèm.</p>
             </div>
 
-            <FilterBar variant="card" className={`${cardCls} p-4 flex flex-wrap gap-4 items-end`}>
+            <FilterBar variant="card" className="report-runs-filters">
+                <div className="report-runs-filter-main">
                 <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="rr-schedule">Lịch gửi</label>
-                    <select id="rr-schedule" className={`${inputCls} max-w-[260px]`} value={filters.scheduleId} onChange={(e) => change({ scheduleId: e.target.value })}>
+                    <select id="rr-schedule" className={inputCls} value={filters.scheduleId} onChange={(e) => change({ scheduleId: e.target.value })}>
                         <option value="">Tất cả</option>
                         {schedules.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -99,6 +102,10 @@ const ReportRuns = () => {
                         <option value="failed">Thất bại</option>
                     </select>
                 </div>
+                </div>
+                <div className="report-runs-filter-time">
+                <CalendarRangePresets from={filters.from} to={filters.to} onChange={range => { change(range); }} />
+                <div className="report-runs-filter-dates">
                 <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="rr-from">Từ ngày</label>
                     <input id="rr-from" type="date" className={inputCls} value={filters.from} onChange={(e) => change({ from: e.target.value })} />
@@ -106,6 +113,16 @@ const ReportRuns = () => {
                 <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="rr-to">Đến ngày</label>
                     <input id="rr-to" type="date" className={inputCls} value={filters.to} onChange={(e) => change({ to: e.target.value })} />
+                </div>
+                </div>
+                <button type="button" data-filter-action
+                    className="report-runs-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                    onClick={() => {
+                        setFilters({ scheduleId: '', status: '', from: '', to: '' });
+                        setPage(1);
+                    }}>
+                    <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                </button>
                 </div>
             </FilterBar>
 

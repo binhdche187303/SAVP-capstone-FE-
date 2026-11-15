@@ -1,3 +1,4 @@
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar from '../../components/common/FilterBar';
@@ -9,7 +10,6 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-
 
 import {
     getPendingMeetingRequests,
@@ -334,7 +334,6 @@ const ParticipantConflictPanel = ({ info }) => {
 const MeetingApprovals = () => {
     const [limit, setLimit] = useState(10);
 
-
     // List & pagination states
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -353,7 +352,6 @@ const MeetingApprovals = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-
 
     // Modal states
     const [selectedRequest, setSelectedRequest] = useState(null);
@@ -618,26 +616,28 @@ const MeetingApprovals = () => {
                             </div>
                         </div>
 
-                        {/* From Date */}
-                        <div className="camai-filter-field">
-                            <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Từ ngày</label>
-                            <input
-                                type="date"
-                                value={fromDate}
-                                onChange={(e) => setFromDate(e.target.value)}
-                                className="w-full px-3.5 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
-                            />
-                        </div>
-
-                        {/* To Date */}
-                        <div className="camai-filter-field">
-                            <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Đến ngày</label>
-                            <input
-                                type="date"
-                                value={toDate}
-                                onChange={(e) => setToDate(e.target.value)}
-                                className="w-full px-3.5 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
-                            />
+                        <div className="camai-filter-period-row">
+                            <CalendarRangePresets from={fromDate} to={toDate} onChange={range => { setFromDate(range.from); setToDate(range.to); }} />
+                            <div className="camai-filter-period-dates">
+                                <div className="camai-filter-field">
+                                    <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Từ ngày</label>
+                                    <input
+                                        type="date"
+                                        value={fromDate}
+                                        onChange={(e) => setFromDate(e.target.value)}
+                                        className="w-full px-3.5 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
+                                    />
+                                </div>
+                                <div className="camai-filter-field">
+                                    <label className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Đến ngày</label>
+                                    <input
+                                        type="date"
+                                        value={toDate}
+                                        onChange={(e) => setToDate(e.target.value)}
+                                        className="w-full px-3.5 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 

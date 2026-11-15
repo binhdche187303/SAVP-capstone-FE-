@@ -1,0 +1,10 @@
+.camai-filter-bar.recordings-filters[data-filter-bar] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.recordings-filter-main, .recordings-filter-time, .recordings-filter-dates { display: grid; min-width: 0; align-items: end; gap: 16px; }
+.recordings-filter-main { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+.recordings-filter-time { grid-template-columns: minmax(0, 28rem) minmax(0, 1fr) auto; }
+.recordings-filter-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.recordings-filters .camai-filter-field { min-width: 0; width: 100%; }
+@media (max-width: 1000px) { .recordings-filter-time { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 550px) { .recordings-filter-main { grid-template-columns: minmax(0, 1fr); } }
+
+.recordings-filter-reset { justify-self: end; white-space: nowrap; }

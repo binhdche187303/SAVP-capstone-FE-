@@ -1,3 +1,4 @@
+import TimeRangeButtons from '../common/TimeRangeButtons';
 import PaginatedCollection from '../common/PaginatedCollection';
 import { Activity, AlertTriangle, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -100,15 +101,6 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
                         <p data-ui-text="code" className="text-[10px] font-mono text-steel-gray tracking-wider">{device.device_code}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                        <select
-                            value={days}
-                            onChange={(e) => setDays(Number(e.target.value))}
-                            className="px-2 py-1 border border-platinum-tint rounded-lg text-xs text-slate-blue bg-white focus:outline-none focus:border-action-blue"
-                        >
-                            <option value={7}>7 ngày</option>
-                            <option value={30}>30 ngày</option>
-                            <option value={90}>90 ngày</option>
-                        </select>
                         <button onClick={onClose} className="p-1.5 rounded-lg text-steel-gray hover:bg-cloud-mist">
                             <X className="w-4 h-4" />
                         </button>
@@ -116,6 +108,8 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    <TimeRangeButtons label="Khoảng thời gian" value={days} onChange={setDays}
+                        options={[[7, '7 ngày'], [30, '30 ngày'], [90, '90 ngày']]} />
                     {loading ? (
                         <div className="flex justify-center py-16">
                             <div className="w-8 h-8 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />

@@ -23,7 +23,7 @@ const toParams = ({ preset, ...rest }) => rest;
 const ownFilters = ({ preset, from, to, q, ...rest }) => Object.fromEntries(Object.entries(rest).filter(([, v]) => v));
 
 const ReportViewer = () => {
-    const [PAGE_SIZE, setPageSize] = useState(20);
+    const [PAGE_SIZE, setPageSize] = useState(10);
     const { type } = useParams();
     const base = useAreaBase();
     const definition = getReportDefinition(type);

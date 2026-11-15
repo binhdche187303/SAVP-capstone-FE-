@@ -15,6 +15,7 @@ export const reportPresetRange = (preset, from, to) => {
     const start = new Date(today);
     const end = new Date(today);
     if (preset === 'week') { start.setDate(today.getDate() - ((today.getDay() + 6) % 7)); end.setDate(start.getDate() + 6); }
+    if (preset === 'year') { start.setMonth(0, 1); end.setMonth(11, 31); }
     if (preset === 'month') { start.setDate(1); end.setMonth(today.getMonth() + 1, 0); }
     const ymd = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return { from: ymd(start), to: ymd(end) };

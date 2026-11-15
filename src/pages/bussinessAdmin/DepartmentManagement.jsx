@@ -71,7 +71,7 @@ const DepartmentManagement = () => {
     const [membersList, setMembersList] = useState([]);
     const [membersLoading, setMembersLoading] = useState(false);
     const [membersPage, setMembersPage] = useState(1);
-    const [membersLimit, setMembersLimit] = useState(5);
+    const [membersLimit, setMembersLimit] = useState(10);
     const [membersTotalPages, setMembersTotalPages] = useState(1);
     const [membersTotalCount, setMembersTotalCount] = useState(0);
     const [roles, setRoles] = useState([]);
@@ -665,12 +665,12 @@ const DepartmentManagement = () => {
 </colgroup>
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/50">
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Phòng ban</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Mô tả chi tiết</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Thành viên</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Trạng thái</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Ngày tạo lập</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase text-right">Hành động</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Phòng ban</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Mô tả chi tiết</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Thành viên</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Trạng thái</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Ngày tạo lập</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase text-right">Hành động</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -683,25 +683,25 @@ const DepartmentManagement = () => {
                                 ) : (
                                     departmentsList.map((dept) => (
                                         <tr key={dept.id} className="border-b border-platinum-tint/40 hover:bg-cloud-mist/30 transition-colors">
-                                            <td className="py-4 px-6">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-lg bg-blue-50 text-action-blue flex items-center justify-center font-bold text-sm">
+                                            <td className="align-middle py-4 px-6">
+                                                <div className="flex min-w-0 items-center gap-3">
+                                                    <div className="w-9 h-9 shrink-0 rounded-lg bg-blue-50 text-action-blue flex items-center justify-center font-bold text-sm">
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                         </svg>
                                                     </div>
                                                     <span data-ui-text="primary"
                                                         onClick={() => handleViewMembers(dept)}
-                                                        className="text-sm font-bold text-midnight-indigo hover:text-action-blue hover:underline cursor-pointer"
+                                                        className="min-w-0 flex-1 text-sm font-bold text-midnight-indigo hover:text-action-blue hover:underline cursor-pointer"
                                                     >
                                                         {dept.name}
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-6 text-sm text-slate-blue max-w-sm truncate">
+                                            <td className="align-middle py-4 px-6 text-sm text-slate-blue max-w-sm truncate">
                                                 {dept.description || 'Không có mô tả'}
                                             </td>
-                                            <td className="py-4 px-6 text-sm text-midnight-indigo font-semibold">
+                                            <td className="align-middle py-4 px-6 text-sm text-midnight-indigo font-semibold">
                                                 <button
                                                     onClick={() => handleViewMembers(dept)}
                                                     className="inline-flex items-center px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-action-blue rounded-lg text-xs font-semibold transition-colors"
@@ -709,7 +709,7 @@ const DepartmentManagement = () => {
                                                     {dept.memberCount || 0} nhân sự
                                                 </button>
                                             </td>
-                                            <td className="py-4 px-6">
+                                            <td className="align-middle py-4 px-6">
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                                                     dept.isActive !== false
                                                         ? 'bg-green-50 text-green-700'
@@ -719,28 +719,29 @@ const DepartmentManagement = () => {
                                                     {dept.isActive !== false ? 'Hoạt động' : 'Vô hiệu hóa'}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-6 text-sm text-slate-blue">
+                                            <td className="align-middle py-4 px-6 text-sm text-slate-blue">
                                                 {dept.createdAt ? new Date(dept.createdAt).toLocaleDateString('vi-VN') : '---'}
                                             </td>
-                                            <td className="py-4 px-6 text-right space-x-2">
+                                            <td className="align-middle py-4 px-6 text-right">
+                                                <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     onClick={() => openEditModal(dept)}
                                                     title="Chỉnh sửa thông tin"
-                                                    className="inline-flex p-1.5 rounded-lg text-slate-blue hover:text-action-blue hover:bg-blue-50 transition-colors"
+                                                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-blue hover:text-action-blue hover:bg-blue-50 transition-colors"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                     </svg>
                                                 </button>
                                                 {dept.id === PARTNER_DEPARTMENT_ID ? (
-                                                    <span title="Phòng ban hệ thống, không thể vô hiệu hóa" className="inline-flex p-1.5 rounded-lg text-slate-300 cursor-not-allowed">
+                                                    <span title="Phòng ban hệ thống, không thể vô hiệu hóa" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-300 cursor-not-allowed">
                                                         <Lock className="w-4 h-4" />
                                                     </span>
                                                 ) : dept.isActive !== false ? (
                                                     <button
                                                         onClick={() => handleDeactivateDept(dept)}
                                                         title="Vô hiệu hóa phòng ban"
-                                                        className="inline-flex p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                                                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
                                                     >
                                                         <Power className="w-4 h-4" />
                                                     </button>
@@ -748,11 +749,12 @@ const DepartmentManagement = () => {
                                                     <button
                                                         onClick={() => handleReactivateDept(dept)}
                                                         title="Kích hoạt lại phòng ban"
-                                                        className="inline-flex p-1.5 rounded-lg text-green-600 hover:text-green-800 hover:bg-green-50 transition-colors"
+                                                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-green-600 hover:text-green-800 hover:bg-green-50 transition-colors"
                                                     >
                                                         <RefreshCw className="w-4 h-4" />
                                                     </button>
                                                 )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))

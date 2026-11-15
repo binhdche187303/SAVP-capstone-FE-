@@ -25,6 +25,7 @@ import { getUsers } from '../../service/employeeServices';
 import { downloadReport, currentUserName, fmtVN, toDate } from '../../utils/exportExcel';
 import ExportMenu from '../../components/report/ExportMenu';
 import toast from '../../utils/toast';
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 // ─── constants ──────────────────────────────────────────────────────────────
 
@@ -778,10 +779,10 @@ const RoomAccessLogs = () => {
                                 disabled={!selectedRoomId}
                                 className={`w-full pl-9 pr-8 py-2.5 border rounded-xl text-sm text-left font-semibold outline-none transition-all ${
                                     !selectedRoomId
-                                        ? 'bg-slate-50 border-platinum-tint text-slate-400 cursor-not-allowed'
+                                        ? 'bg-white border-platinum-tint text-slate-400 cursor-not-allowed'
                                         : isMeetingDropdownOpen
                                             ? 'bg-white border-action-blue ring-2 ring-action-blue/20 text-midnight-indigo'
-                                            : 'bg-cloud-mist hover:bg-white border-platinum-tint text-midnight-indigo'
+                                            : 'bg-white hover:bg-white border-platinum-tint text-midnight-indigo'
                                 }`}
                             >
                                 <span className="truncate block">

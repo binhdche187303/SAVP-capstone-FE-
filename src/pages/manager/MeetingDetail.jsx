@@ -160,12 +160,12 @@ const ManagerMeetingDetail = () => {
     const [refreshTranscriptKey, setRefreshTranscriptKey] = useState(0);
     const [runningSttSessionIds, setRunningSttSessionIds] = useState(() => new Set());
     const [audioPage, setAudioPage] = useState(1);
-    const [audioItemsPerPage, setAudioItemsPerPage] = useState(5);
+    const [audioItemsPerPage, setAudioItemsPerPage] = useState(10);
 
     // Pagination for long lists
     const [agendaPage, setAgendaPage] = useState(1);
     const [participantsPage, setParticipantsPage] = useState(1);
-    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(5);
+    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(10);
 
     /**
      * Chuẩn hoá DTO lồng nhau từ API GET /meetings/:id

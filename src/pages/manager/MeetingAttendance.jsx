@@ -1,3 +1,4 @@
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
@@ -5,7 +6,6 @@ import { Activity, AlertTriangle, ArrowLeft, Calendar, Clock, Search, Users, Map
 import { useState, useEffect, useCallback } from 'react';
 import { getMeetings } from '../../service/businessAdminServices';
 import MeetingPresenceIVSS from '../../components/meeting/MeetingPresenceIVSS';
-
 
 const formatDateTime = (iso) => {
     if (!iso) return '—';
@@ -25,8 +25,6 @@ const toLocalDateStr = (date) => {
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
 };
-
-
 
 const MeetingAttendance = () => {
     const [ITEMS_PER_PAGE, setItemsPerPage] = useState(10);
@@ -147,24 +145,7 @@ const MeetingAttendance = () => {
 
             {/* Filters */}
             <FilterBar as="form" variant="card" onSubmit={handleSearch} className="bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm flex flex-wrap gap-3 items-end">
-                <div className="camai-filter-field">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Từ ngày</label>
-                    <input
-                        type="date"
-                        value={fromDate}
-                        onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
-                        className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
-                    />
-                </div>
-                <div className="camai-filter-field">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Đến ngày</label>
-                    <input
-                        type="date"
-                        value={toDate}
-                        onChange={(e) => { setToDate(e.target.value); setPage(1); }}
-                        className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
-                    />
-                </div>
+
                 <div data-filter-search className="camai-filter-field">
                     <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Tìm kiếm</label>
                     <div className="relative">
@@ -184,6 +165,30 @@ const MeetingAttendance = () => {
                 >
                     Áp dụng
                 </button>
+
+                <div className="camai-filter-period-row">
+                    <CalendarRangePresets from={fromDate} to={toDate} onChange={range => { setFromDate(range.from); setToDate(range.to); setPage(1); }} />
+                    <div className="camai-filter-period-dates">
+                        <div className="camai-filter-field">
+                            <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Từ ngày</label>
+                            <input
+                                type="date"
+                                value={fromDate}
+                                onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+                                className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
+                            />
+                        </div>
+                        <div className="camai-filter-field">
+                            <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Đến ngày</label>
+                            <input
+                                type="date"
+                                value={toDate}
+                                onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+                                className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
+                            />
+                        </div>
+                    </div>
+                </div>
             </FilterBar>
 
             {/* Meeting list */}

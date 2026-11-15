@@ -2,7 +2,7 @@ import StatisticGrid from '../common/StatisticGrid';
 import StatisticCard from '../common/StatisticCard';
 import { cardCls } from '../common/uiClasses';
 
-// items: [{ key, label, value }] — value đã được định dạng thành chuỗi.
+// items: [{ key, label, value, tone? }] — value đã được định dạng thành chuỗi.
 const KpiTiles = ({ items = [] }) => (
     <StatisticGrid columns={5} className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {items.map((item) => (

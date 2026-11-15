@@ -6,6 +6,7 @@ import RefreshButton from '../common/RefreshButton';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Database, LogIn, LogOut, RefreshCw, Search, ShieldQuestion } from 'lucide-react';
 import { getMeetingAccessEvents } from '../../service/managerServices';
+import SharedStatCard from '../../components/common/StatCard';
 
 const formatTime = (value) => value
     ? new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -45,7 +46,7 @@ const buildMockEvents = () => {
 };
 
 const MeetingAccessLogTab = ({ meetingId }) => {
-    const [pageSize, setPageSize] = useState(5);
+    const [pageSize, setPageSize] = useState(10);
     const [data, setData] = useState({ events: [], roomName: null });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');

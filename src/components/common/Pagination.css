@@ -73,3 +73,24 @@ nav[data-pagination="standard"] > span {
     font-weight: 600;
     line-height: 20px;
 }
+
+/* Keep text navigation identical in narrow panels and align wrapped controls to the right. */
+.camai-pagination-footer > nav[data-pagination="standard"] {
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+/* Pagination inside a red warning panel shares its background and status color. */
+.camai-pagination-footer[data-pagination-tone="danger"] {
+    background: transparent;
+    border-color: #FECACA;
+    padding: 12px 0 0;
+}
+.camai-pagination-footer[data-pagination-tone="danger"] .text-slate-blue,
+.camai-pagination-footer[data-pagination-tone="danger"] nav { color: #B91C1C; }
+.camai-pagination-footer[data-pagination-tone="danger"] nav button {
+    color: #B91C1C; border-color: #FECACA; background: #FFF5F5;
+}
+.camai-pagination-footer[data-pagination-tone="danger"] nav button[aria-current="page"] {
+    color: #FFF; background: #DC2626; border-color: #DC2626;
+}

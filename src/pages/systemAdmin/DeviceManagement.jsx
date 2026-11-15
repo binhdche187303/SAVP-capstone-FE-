@@ -31,6 +31,7 @@ import { subscribeToDeviceStatusChanges, subscribeToNotificationUpdates, subscri
 import DeviceConnectionHistoryPanel from '../../components/devices/DeviceConnectionHistoryPanel';
 import CameraAiConfigModal from '../../components/devices/CameraAiConfigModal';
 import { CAMERA_TYPES, LANE_LABEL, getAnprInfo } from '../../mocks/cameraMock';
+import SharedStatCard from '../../components/common/StatCard';
 
 // Realtime trạng thái: tải lại im lặng mỗi 30s + ngay khi có cảnh báo/thông báo mới qua
 // WebSocket (BE gửi khi camera đổi online↔offline). So trạng thái cũ/mới để báo thay đổi.
@@ -848,7 +849,7 @@ const DeviceManagement = () => {
                                     Xem cảnh báo
                                 </Link>
                             </div>
-                            <PaginatedCollection items={offlineDevices} itemLabel="thiết bị" initialPageSize={5}>
+                            <PaginatedCollection items={offlineDevices} itemLabel="thiết bị" paginationTone="danger">
 {(camaiPageItems, camaiStartIndex) => (
 <ul className="divide-y divide-red-100">
                                 {camaiPageItems.map((camaiRecord, camaiIndex) => (d => (
@@ -872,11 +873,7 @@ const DeviceManagement = () => {
                             </ul>
 )}
 </PaginatedCollection>
-                            {offlineDevices.length > 5 && (
-                                <button data-ui-text="action" onClick={() => { setSelectedStatus('offline'); setPage(1); }} className="mt-1 text-[11px] font-semibold text-red-700 hover:underline">
-                                    và {offlineDevices.length - 5} thiết bị khác — lọc tất cả
-                                </button>
-                            )}
+
                         </div>
                     )}
 

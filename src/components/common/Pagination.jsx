@@ -1,55 +1,38 @@
 import React from 'react';
 import { useInRouterContext, useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
 import './Pagination.css';
 
 const STANDARD_AREAS = new Set(['system-admin', 'business-admin', 'manager', 'employee', 'guard']);
 
-const PaginationControls = ({ currentPage: requestedPage = 1, totalPages: requestedTotalPages, onPageChange, disabled = false, hasNextPage, standard }) => {
+const PaginationControls = ({ currentPage: requestedPage = 1, totalPages: requestedTotalPages, onPageChange, disabled = false, hasNextPage, standard, compact: compactPreference }) => {
     const totalPages = standard && Number.isFinite(requestedTotalPages) ? Math.max(1, requestedTotalPages) : requestedTotalPages;
     const currentPage = standard ? Math.max(1, Math.min(requestedPage, Number.isFinite(totalPages) ? totalPages : requestedPage)) : requestedPage;
     const navRef = React.useRef(null);
-    const [compact, setCompact] = React.useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 639px)').matches);
+    const [automaticCompact, setAutomaticCompact] = React.useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 639px)').matches);
+    const compact = !standard && (compactPreference ?? automaticCompact);
     React.useEffect(() => {
-        if (typeof window.matchMedia !== 'function') return undefined;
+        if (standard || typeof window.matchMedia !== 'function') return undefined;
         const media = window.matchMedia('(max-width: 639px)');
-        const container = navRef.current?.parentElement;
-        const update = () => setCompact(standard && container?.clientWidth > 0 ? container.clientWidth < 640 : media.matches);
+        const update = () => setAutomaticCompact(media.matches);
         update();
         media.addEventListener?.('change', update);
-        const observer = standard && container && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
-        observer?.observe(container);
-        return () => { media.removeEventListener?.('change', update); observer?.disconnect(); };
-    }, [standard, totalPages]);
+        return () => media.removeEventListener?.('change', update);
+    }, [standard]);
 
     if (!Number.isFinite(totalPages)) {
         return (
             <nav ref={navRef} data-pagination={standard ? 'standard' : undefined} aria-label="Phân trang" className="flex flex-wrap items-center gap-1.5">
                 <button type="button" disabled={disabled || currentPage <= 1} onClick={() => onPageChange(Math.max(1, currentPage - 1))} className="px-2.5 py-1.5 border border-platinum-tint rounded-lg text-[10.5px] font-bold hover:bg-cloud-mist disabled:opacity-50">Trước</button>
-                <span className="px-2 text-[10.5px] font-bold text-slate-blue" aria-current="page">Trang {currentPage}</span>
+                {standard ? (
+                    <button type="button" disabled={disabled} aria-current="page" onClick={() => onPageChange(currentPage)}
+                        className="w-7 h-7 rounded-lg border bg-action-blue text-white border-action-blue shadow-sm">{currentPage}</button>
+                ) : <span className="px-2 text-[10.5px] font-bold text-slate-blue" aria-current="page">Trang {currentPage}</span>}
                 <button type="button" disabled={disabled || !hasNextPage} onClick={() => onPageChange(currentPage + 1)} className="px-2.5 py-1.5 border border-platinum-tint rounded-lg text-[10.5px] font-bold hover:bg-cloud-mist disabled:opacity-50">Sau</button>
             </nav>
         );
     }
 
     if (totalPages <= 1 && !standard) return null;
-
-    if (standard && compact) {
-        return (
-            <nav ref={navRef} data-pagination="standard" aria-label="Phân trang" className="flex flex-wrap items-center gap-1.5">
-                <button type="button" className="w-7 border border-platinum-tint hover:bg-cloud-mist disabled:opacity-50" aria-label="Trước" title="Trang trước" disabled={disabled || currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>
-                    <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-                </button>
-                <span aria-current="page" aria-label={`Trang ${currentPage} trên ${totalPages}`} className="px-2 text-action-blue whitespace-nowrap">{currentPage}/{totalPages}</span>
-                <button type="button" className="w-7 border border-platinum-tint hover:bg-cloud-mist disabled:opacity-50" aria-label="Sau" title="Trang sau" disabled={disabled || currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>
-                    <ChevronRight className="w-4 h-4" aria-hidden="true" />
-                </button>
-                <button type="button" className="w-7 border border-platinum-tint hover:bg-cloud-mist disabled:opacity-50" aria-label="Trang cuối" title="Trang cuối" disabled={disabled || currentPage >= totalPages} onClick={() => onPageChange(totalPages)}>
-                    <ChevronsRight className="w-4 h-4" aria-hidden="true" />
-                </button>
-            </nav>
-        );
-    }
 
     const getPages = () => {
         const pages = [];

@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
-const WIDTH = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' };
+const WIDTH = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl', xl: 'max-w-6xl' };
 
 // Hộp thoại nền mờ dùng chung cho các form của phân hệ Khách và Báo cáo.
 const SimpleModal = ({ isOpen, title, onClose, children, footer, size = 'md' }) => {

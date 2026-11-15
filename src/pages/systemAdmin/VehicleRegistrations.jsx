@@ -18,6 +18,7 @@ import {
 
 
 import UserAvatar from '../../components/common/UserAvatar';
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 

@@ -1,0 +1,10 @@
+.camai-filter-bar.personal-calendar-filters[data-filter-bar] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.personal-calendar-filter-main, .personal-calendar-filter-time { display: grid; align-items: end; gap: 16px; min-width: 0; }
+.personal-calendar-filter-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.personal-calendar-filter-time { grid-template-columns: minmax(0, 24rem) minmax(0, 1fr) auto; }
+.personal-calendar-filters .camai-filter-field { width: 100%; min-width: 0; }
+.personal-calendar-reset { justify-self: end; white-space: nowrap; }
+@media (max-width: 850px) {
+    .personal-calendar-filter-time { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 550px) { .personal-calendar-filter-main { grid-template-columns: minmax(0, 1fr); } }

@@ -34,7 +34,7 @@ import {
  * — không còn gộp chung với nút "Lưu cấu hình" toàn trang.
  */
 const SystemSettings = () => {
-    const [CHANNELS_PER_PAGE, setChannelsPerPage] = useState(8);
+    const [CHANNELS_PER_PAGE, setChannelsPerPage] = useState(10);
     // Tab State
     const [activeTab, setActiveTab] = useState('workspace'); // workspace | camera (recording/system tạm ẩn)
 

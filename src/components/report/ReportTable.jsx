@@ -17,7 +17,7 @@ const columnWeight = col => {
     return 1.5;
 };
 
-const ReportTable = ({ columns, rows = [], total = 0, page = 1, limit = 20, sortKey, sortDir, onSort, onPageChange, onPageSizeChange, loading }) => {
+const ReportTable = ({ columns, rows = [], total = 0, page = 1, limit = 10, sortKey, sortDir, onSort, onPageChange, onPageSizeChange, loading }) => {
 
     const totalWeight = columns.reduce((total, col) => total + columnWeight(col), 0);
 

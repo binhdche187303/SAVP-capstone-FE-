@@ -7,7 +7,7 @@ const List = ({ items = rows, remove = jest.fn(), ...props }) => <PaginatedColle
     {(visible, start) => <ul>{visible.map((item, index) => <li key={item.id}>{item.name}<button onClick={() => remove(start + index)}>Xóa {item.name}</button></li>)}</ul>}
 </PaginatedCollection>;
 
-test('chuyển trang, giữ chỉ số bản ghi và thay đổi số dòng thực tế', () => {
+test('chuyển trang, giữ chỉ số bản ghi và cố định 10 dòng mỗi trang', () => {
     const remove = jest.fn();
     render(<List remove={remove} />);
     expect(screen.getByText('Hiển thị 1–10 / 23 bản ghi')).toBeInTheDocument();
@@ -15,8 +15,9 @@ test('chuyển trang, giữ chỉ số bản ghi và thay đổi số dòng th�
     fireEvent.click(screen.getByRole('button', { name: 'Xóa Bản ghi 11' }));
     expect(remove).toHaveBeenCalledWith(10);
     expect(screen.queryByText('Bản ghi 1', { exact: true })).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Số dòng/trang'), { target: { value: '5' } });
-    expect(screen.getByText('Hiển thị 1–5 / 23 bản ghi')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Số dòng/trang')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sau', exact: true }));
+    expect(screen.getByText('Hiển thị 21–23 / 23 bản ghi')).toBeInTheDocument();
 });
 
 test('trở về trang đầu khi bộ lọc trả tập bản ghi mới', () => {
@@ -29,7 +30,7 @@ test('trở về trang đầu khi bộ lọc trả tập bản ghi mới', () =>
 
 test('khóa bộ điều khiển lúc tải và xử lý danh sách rỗng', () => {
     const { rerender } = render(<List loading />);
-    expect(screen.getByLabelText('Số dòng/trang')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sau', exact: true })).toBeDisabled();
     rerender(<List items={[]} />);
     expect(screen.getByText('Hiển thị 0–0 / 0 bản ghi')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sau', exact: true })).toBeDisabled();

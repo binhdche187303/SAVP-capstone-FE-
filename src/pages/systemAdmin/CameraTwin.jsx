@@ -18,6 +18,7 @@ import { buildTwin, cameraKind, norm } from "../../components/cameraTwin/twinDat
 import { getCampusMap } from "../../service/campusService";
 import { getDevices, getRooms, getZones } from "../../service/sysAdminServices";
 import { buildPlan, placeCameras, savedLayout } from "../../utils/floorPlan";
+import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 // Sơ đồ camera 3D (Campus Digital Twin). Camera, trạng thái, zone, phòng, cảnh báo: dữ liệu thật từ BE.
 // Hình khối khuôn viên: cấu hình tĩnh đồ lại từ bản vẽ (campusModel). Mặt bằng tầng: buildPlan như sơ đồ 2D.
@@ -463,7 +464,7 @@ const CameraTwin = () => {
                   {twin.unplacedCameras.length} camera · {twin.unmatchedZones.length} zone · {twin.unmatchedRooms.length} phòng chưa khớp tòa nhà
                   trên sơ đồ (A1, A2, B1, B2…). Khai báo "Tòa nhà" của zone / "Khu" của phòng theo tên tòa để hiển thị.
                 </p>
-                <PaginatedCollection items={twin?.unplacedCameras} itemLabel="camera" initialPageSize={8}>
+                <PaginatedCollection items={twin?.unplacedCameras} itemLabel="camera" initialPageSize={10}>
 {(camaiPageItems, camaiStartIndex) => (
 <ul className="mt-1 space-y-0.5">
                   {camaiPageItems.map((camaiRecord, camaiIndex) => ((c) => (

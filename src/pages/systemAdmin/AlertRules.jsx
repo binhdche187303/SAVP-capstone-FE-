@@ -302,7 +302,7 @@ const AlertRules = () => {
                     </span>
                     <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight flex items-center">
                         <ShieldAlert className="w-7 h-7 mr-3 text-action-blue" />
-                        Cấu hình Luật Cảnh báo
+                        Quy tắc cảnh báo
                     </h1>
                     <p className="text-slate-blue text-sm mt-1 ml-10">
                         Định nghĩa các điều kiện tự động kích hoạt cảnh báo an ninh.

@@ -32,6 +32,7 @@ import {
     UserX,
     BarChart2
 } from 'lucide-react';
+import SharedStatCard from '../../components/common/StatCard';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ const Avatar = ({ user, size = 'md' }) => {
 // ─── User Detail Modal ──────────────────────────────────────────────────────
 
 const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, onClose }) => {
-    const [logItemsPerPage, setLogItemsPerPage] = useState(5);
+    const [logItemsPerPage, setLogItemsPerPage] = useState(10);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [timeline, setTimeline] = useState(null);
@@ -520,7 +521,7 @@ const UserProfileModal = ({ user, onClose }) => {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) => {
-    const [itemsPerPage, setItemsPerPage] = useState(8);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [presenceSummary, setPresenceSummary] = useState(null);

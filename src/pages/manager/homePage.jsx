@@ -1,3 +1,4 @@
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -35,6 +36,7 @@ import {
 import { getManagerSummary } from '../../service/campusService';
 import DashboardBanner from '../../components/common/DashboardBanner';
 import { subscribeToMeetingRequestUpdates } from '../../utils/socket';
+import SharedStatCard from '../../components/common/StatCard';
 
 const COLORS = ['#006BFF', '#7F3DFF', '#FFAE00', '#FF3B30'];
 
@@ -679,7 +681,7 @@ const ManagerHomePage = () => {
                                 ) : pendingRequests.length === 0 ? (
                                     <div className="p-8 text-center text-slate-blue font-medium">Không có yêu cầu đặt phòng nào chờ phê duyệt.</div>
                                 ) : (
-                                    <PaginatedCollection items={pendingRequests} itemLabel="yêu cầu" initialPageSize={5}>
+                                    <PaginatedCollection items={pendingRequests} itemLabel="yêu cầu" initialPageSize={10}>
 {(camaiPageItems, camaiStartIndex) => (
 <ResponsiveTable className="w-full text-left border-collapse">
 <colgroup>
@@ -787,28 +789,7 @@ const ManagerHomePage = () => {
                         {/* Filters */}
                         <FilterBar variant="card" className="bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm flex flex-col md:flex-row md:items-end justify-between gap-4">
                             <div data-filter-grid data-filter-fields className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
-                                <div className="camai-filter-field">
-                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1 flex items-center gap-1">
-                                        <Calendar className="w-3.5 h-3.5" /> Từ ngày
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={fromDate}
-                                        onChange={(e) => setFromDate(e.target.value)}
-                                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
-                                    />
-                                </div>
-                                <div className="camai-filter-field">
-                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1 flex items-center gap-1">
-                                        <Calendar className="w-3.5 h-3.5" /> Đến ngày
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={toDate}
-                                        onChange={(e) => setToDate(e.target.value)}
-                                        className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
-                                    />
-                                </div>
+
                                 <div className="camai-filter-field">
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">
                                         Phòng ban phụ trách
@@ -819,6 +800,34 @@ const ManagerHomePage = () => {
                                         value={departmentName}
                                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-cloud-mist text-midnight-indigo font-semibold focus:outline-none"
                                     />
+                                </div>
+
+                                <div className="camai-filter-period-row">
+                                    <CalendarRangePresets from={fromDate} to={toDate} onChange={range => { setFromDate(range.from); setToDate(range.to); }} />
+                                    <div className="camai-filter-period-dates">
+                                        <div className="camai-filter-field">
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1 flex items-center gap-1">
+                                                <Calendar className="w-3.5 h-3.5" /> Từ ngày
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={fromDate}
+                                                onChange={(e) => setFromDate(e.target.value)}
+                                                className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
+                                            />
+                                        </div>
+                                        <div className="camai-filter-field">
+                                            <label className="block text-xs font-bold text-slate-blue uppercase mb-1 flex items-center gap-1">
+                                                <Calendar className="w-3.5 h-3.5" /> Đến ngày
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={toDate}
+                                                onChange={(e) => setToDate(e.target.value)}
+                                                className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div>

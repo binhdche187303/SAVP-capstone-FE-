@@ -74,7 +74,7 @@ const RealtimeRoomMonitor = () => {
                 // Tính hasMore và totalPages từ meta (nhiều field name khác nhau)
                 const pag = res.data?.meta ?? res.data?.pagination ?? res.meta ?? {};
                 const total = pag.total ?? pag.totalItems ?? pag.totalCount;
-                setNoShowTotal(total);
+                setNoShowTotal(total == null || !Number.isFinite(Number(total)) ? undefined : Number(total));
                 const tp = pag.totalPages ?? pag.total_pages
                     ?? (total > 0 ? Math.ceil(total / NO_SHOW_LIMIT) : 0);
                 setNoShowTotalPages(tp > 0 ? tp : 1);
@@ -373,7 +373,7 @@ const RealtimeRoomMonitor = () => {
 
             {/* Tổng hợp danh sách No-show */}
             <div className="mt-8 bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
-                <PaginationFooter currentPage={noShowPage} totalPages={Number.isFinite(noShowTotal) ? noShowTotalPages : undefined} totalItems={noShowTotal} pageSize={NO_SHOW_LIMIT} itemLabel="trường hợp" onPageChange={changeNoShowPage} onPageSizeChange={size => { setNoShowLimit(size); noShowPageRef.current = 1; setNoShowPage(1); }} loading={isNoShowsLoading} hasNextPage={noShowHasMore} visibleCount={allNoShows.length} legacy={<div className="p-4 border-b border-outline-gray bg-cloud-mist/30 flex justify-between items-center">
+                <div className="p-4 border-b border-outline-gray bg-cloud-mist/30 flex justify-between items-center">
                     <h3 className="font-bold text-midnight-indigo flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-red-500" />
                         Danh sách vi phạm No-show gần đây
@@ -382,7 +382,7 @@ const RealtimeRoomMonitor = () => {
                         <RefreshCw className={`w-3.5 h-3.5 ${isNoShowsLoading ? 'animate-spin' : ''}`} />
                         Làm mới
                     </button>
-                </div>} />
+                </div>
 
                 {/* Table error */}
                 {noShowTableError && (
@@ -470,31 +470,9 @@ const RealtimeRoomMonitor = () => {
                     </ResponsiveTable>
                 </div>
 
-                {/* Pagination — luôn hiển thị khi có data */}
-                {(allNoShows.length > 0 || noShowPage > 1) && (
-                    <div className="px-4 py-3 border-t border-outline-gray bg-cloud-mist/20 flex items-center justify-between text-xs text-slate-blue">
-                        <span>
-                            Trang <span className="font-bold text-midnight-indigo">{noShowPage}</span>
-                            {noShowTotalPages > 1 && <> / {noShowTotalPages}</>}
-                        </span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => changeNoShowPage(noShowPage - 1)}
-                                disabled={noShowPage <= 1 || isNoShowsLoading}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg font-semibold bg-white hover:bg-cloud-mist disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                ← Trước
-                            </button>
-                            <button
-                                onClick={() => changeNoShowPage(noShowPage + 1)}
-                                disabled={(!noShowHasMore && noShowPage >= noShowTotalPages) || isNoShowsLoading}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg font-semibold bg-white hover:bg-cloud-mist disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Sau →
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {/* Phân trang danh sách vi phạm */}
+                <PaginationFooter currentPage={noShowPage} totalPages={Number.isFinite(noShowTotal) ? noShowTotalPages : undefined} totalItems={noShowTotal} pageSize={NO_SHOW_LIMIT} itemLabel="trường hợp" onPageChange={changeNoShowPage} onPageSizeChange={size => { setNoShowLimit(size); noShowPageRef.current = 1; setNoShowPage(1); }} loading={isNoShowsLoading} hasNextPage={noShowHasMore} visibleCount={allNoShows.length} />
+
             </div>
 
             {/* ─────────── No-Show Detail Modal ─────────── */}

@@ -1,0 +1,61 @@
+.camai-time-field { min-width: 0; max-width: 100%; }
+.camai-time-label {
+    display: block;
+    margin-bottom: 6px;
+    color: #476788;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 18px;
+    text-transform: uppercase;
+}
+.camai-time-buttons[data-filter-presets],
+.camai-filter-bar[data-filter-bar] .camai-time-buttons[data-filter-presets] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    overflow: visible;
+}
+.camai-time-buttons [data-filter-preset] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 14px;
+    border: 1px solid #D4E0ED;
+    border-radius: 8px;
+    background: #FFF;
+    color: #476788;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.camai-time-buttons [data-filter-preset]:hover:not(:disabled) { background: #F1F6FF; }
+.camai-time-buttons [data-filter-preset][aria-pressed="true"],
+.camai-filter-bar[data-filter-bar] .camai-time-buttons [data-filter-preset][aria-pressed="true"] {
+    border-color: #0066FF;
+    background: #0066FF;
+    color: #FFF;
+}
+.camai-time-buttons [data-filter-preset]:focus-visible { outline: 2px solid #0066FF; outline-offset: 2px; }
+.camai-time-buttons [data-filter-preset]:disabled { opacity: .6; cursor: not-allowed; }
+.camai-filter-bar[data-filter-bar] .camai-time-field {
+    flex: 1.5 1 26rem;
+    align-self: end;
+}
+.camai-filter-bar .camai-time-label { margin-bottom: 0; }
+
+.camai-time-select {
+    width: 100%; min-width: 0; height: 38px; padding: 6px 12px;
+    border: 1px solid #D4E0ED; border-radius: 10px;
+    background: #FFF; color: #476788; font: inherit; font-size: 14px;
+}
+.camai-time-select:focus-visible { outline: 2px solid #0066FF; outline-offset: 2px; }

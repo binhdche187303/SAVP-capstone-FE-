@@ -777,27 +777,8 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                         Quản lý hồ sơ, cấu hình phân quyền (Role) và giám sát trạng thái tài khoản.
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                    <ReportExportAction format="xlsx" filterSummary={['Toàn bộ danh sách người dùng theo quyền truy cập. API xuất hiện chưa nhận các bộ lọc trên màn hình.']} label="Xuất dữ liệu Excel"
-                        onClick={handleExportExcel}
-                        legacyClassName="inline-flex items-center justify-center px-4 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
-                    >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Xuất dữ liệu Excel
-                    </ReportExportAction>
+                <div data-user-header-actions className="flex w-full md:w-auto flex-col items-start md:items-end gap-3">
                     {!isSystemAdminMode && (
-                        <>
-                            <button
-                                onClick={() => { resetForm(); setIsImportModalOpen(true); }}
-                                className="inline-flex items-center justify-center px-4 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
-                            >
-                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                Nhập từ Excel
-                            </button>
                             <button
                                 onClick={openCreateModal}
                                 className="inline-flex items-center justify-center px-4 py-2 bg-action-blue text-white hover:bg-glacier-blue rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
@@ -807,8 +788,31 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                 </svg>
                                 Tạo người dùng
                             </button>
-                        </>
                     )}
+                    <div data-user-file-actions className={`grid w-full items-center gap-3 ${isSystemAdminMode ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                        {!isSystemAdminMode && (
+                            <button
+                                onClick={() => { resetForm(); setIsImportModalOpen(true); }}
+                                style={{ height: 38, minHeight: 38, whiteSpace: 'nowrap' }}
+                                className="inline-flex items-center justify-center px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
+                            >
+                                <svg className="w-4 h-4 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Nhập từ Excel
+                            </button>
+                        )}
+                    <ReportExportAction format="xlsx" filterSummary={['Toàn bộ danh sách người dùng theo quyền truy cập. API xuất hiện chưa nhận các bộ lọc trên màn hình.']} label="Xuất dữ liệu Excel"
+                        style={{ height: 38, minHeight: 38 }}
+                        onClick={handleExportExcel}
+                        legacyClassName="inline-flex items-center justify-center px-4 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
+                    >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Xuất dữ liệu Excel
+                    </ReportExportAction>
+                    </div>
                 </div>
             </div>
 

@@ -1,0 +1,32 @@
+.class-attendance-analytics-filters {
+    container-type: inline-size;
+}
+
+.class-attendance-analytics-filter-main,
+.class-attendance-analytics-filter-time {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+    align-items: end;
+}
+
+.class-attendance-analytics-filter-main {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.class-attendance-analytics-filter-time {
+    grid-template-columns: minmax(0, 28rem) minmax(0, 1fr);
+    margin-top: 16px;
+}
+
+@container (max-width: 750px) {
+    .class-attendance-analytics-filter-time {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@container (max-width: 500px) {
+    .class-attendance-analytics-filter-main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

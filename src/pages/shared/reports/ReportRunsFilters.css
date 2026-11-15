@@ -1,0 +1,45 @@
+.camai-filter-bar.report-runs-filters[data-filter-bar] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    container-type: inline-size;
+}
+
+.report-runs-filter-main,
+.report-runs-filter-time,
+.report-runs-filter-dates {
+    display: grid;
+    align-items: end;
+    min-width: 0;
+    gap: 16px;
+}
+
+.report-runs-filter-main,
+.report-runs-filter-dates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.report-runs-filter-time {
+    grid-template-columns: minmax(0, 28rem) minmax(0, 1fr) auto;
+}
+
+.report-runs-filter-reset {
+    justify-self: end;
+    white-space: nowrap;
+}
+
+.report-runs-filters .camai-filter-field {
+    width: 100%;
+    min-width: 0;
+}
+
+@container (max-width: 1050px) {
+    .report-runs-filter-time {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@container (max-width: 500px) {
+    .report-runs-filter-main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
