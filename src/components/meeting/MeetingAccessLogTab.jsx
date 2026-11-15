@@ -157,18 +157,9 @@ const MeetingAccessLogTab = ({ meetingId }) => {
             </FilterBar>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60">
-                    <p data-ui-text="label" className="text-[10px] font-bold uppercase text-emerald-700">Đang trong phòng</p>
-                    <p className="text-2xl font-bold text-emerald-800 mt-1">{currentPeople.length} <span data-ui-text="secondary" className="text-xs font-medium">người</span></p>
-                </div>
-                <div className="p-4 rounded-xl border border-platinum-tint bg-white">
-                    <p data-ui-text="label" className="text-[10px] font-bold uppercase text-slate-blue">Tổng sự kiện</p>
-                    <p className="text-2xl font-bold text-midnight-indigo mt-1">{events.length}</p>
-                </div>
-                <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/60">
-                    <p data-ui-text="label" className="text-[10px] font-bold uppercase text-amber-700">Cần kiểm tra</p>
-                    <p className="text-2xl font-bold text-amber-800 mt-1">{events.filter((e) => e.isStranger || e.isUnmatched).length}</p>
-                </div>
+                <SharedStatCard tone="green" label="Đang trong phòng" value={<>{currentPeople.length} <span className="text-xs font-medium">người</span></>} />
+                <SharedStatCard label="Tổng sự kiện" value={events.length} />
+                <SharedStatCard tone="amber" label="Cần kiểm tra" value={events.filter((e) => e.isStranger || e.isUnmatched).length} />
             </div>
 
             <div className="border border-platinum-tint rounded-xl overflow-hidden bg-white">
