@@ -114,8 +114,8 @@ export const updateClassAttendanceSettings = async (settings, classId, administr
     return response?.data || settings;
 };
 
-export const fetchClassAttendanceClasses = async () => {
-    const response = await get('/class-attendance/classes', { skipToast: true });
+export const fetchClassAttendanceClasses = async ({ source = 'uel_api' } = {}) => {
+    const response = await get(`/class-attendance/classes${buildQuery({ source })}`, { skipToast: true });
     return response?.data || [];
 };
 
@@ -193,10 +193,11 @@ export const exportSemesterClassAttendanceCsv = async ({
     subjectCode = 'all',
     administrativeClass = 'all',
     mode = 'semester',
+    source = 'uel_api',
     anchorDate = todayKey()
 } = {}) => {
     const dateValue = anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate;
-    const response = await get(`/class-attendance/export.csv${buildQuery({ classId, semester, subjectCode, administrativeClass, mode, anchorDate: dateValue })}`, { skipToast: true });
+    const response = await get(`/class-attendance/export.csv${buildQuery({ classId, semester, subjectCode, administrativeClass, source, mode, anchorDate: dateValue })}`, { skipToast: true });
     if (!response?.isBlob || !response.data) {
         throw new Error('Không xuất được file chuyên cần từ máy chủ.');
     }
@@ -235,6 +236,7 @@ export const fetchTeacherClassAttendanceReport = async ({
     anchorDate = todayKey(),
     subjectCode = 'all',
     administrativeClass = 'all',
+    source = 'uel_api',
     // include='warnings' → BE trả thêm warning/nextSession/slots/hasSessionToday cho từng lớp.
     include
 } = {}) => {
@@ -245,6 +247,7 @@ export const fetchTeacherClassAttendanceReport = async ({
         subjectCode,
         administrativeClass,
         include,
+        source,
         anchorDate: anchorDate instanceof Date ? toDateKey(anchorDate) : anchorDate
     })}`, { skipToast: true });
     return response?.data;

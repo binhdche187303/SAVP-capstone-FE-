@@ -1,3 +1,4 @@
+import AppTypography from "./components/common/AppTypography";
 import ToastContainer from "./components/common/ToastContainer";
 import NotificationBanner from "./components/common/NotificationBanner";
 import AllRouter from "./routers/AllRouter";
@@ -13,6 +14,7 @@ window.addEventListener('auth-expired', () => {
 function App() {
   return (
     <>
+      <AppTypography />
       <AllRouter />
       <ToastContainer />
       <NotificationBanner />

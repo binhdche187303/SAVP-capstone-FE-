@@ -623,17 +623,21 @@ const buildAttention = (state, now, today) => {
         ATTENTION_ORDER.indexOf(a.kind) - ATTENTION_ORDER.indexOf(b.kind) || new Date(a.since) - new Date(b.since));
 };
 
-export const getDesk = ({ date } = {}) =>
+export const getDesk = ({ date, from, to } = {}) =>
     read((state, now) => {
-        const today = date || localYmd(now);
-        const scheduledToday = state.visits.filter((v) => localYmd(v.scheduledFrom) === today);
-        const carriedOver = state.visits.filter((v) => isOnSite(v) && localYmd(v.scheduledFrom) !== today);
-        const items = [...scheduledToday, ...carriedOver].sort((a, b) => new Date(a.scheduledFrom) - new Date(b.scheduledFrom));
+        const today = from || date || localYmd(now);
+        const until = to || today;
+        const inRange = value => value && localYmd(value) >= today && localYmd(value) <= until;
+        const scheduledToday = state.visits.filter((v) => inRange(v.scheduledFrom));
+        const carriedOver = state.visits.filter((v) => isOnSite(v) && !inRange(v.scheduledFrom));
+        const arrivedToday = state.visits.filter((v) => v.checkInAt && inRange(v.checkInAt));
+        const items = [...new Map([...scheduledToday, ...carriedOver, ...arrivedToday].map(v => [v.id, v])).values()]
+            .sort((a, b) => new Date(a.scheduledFrom) - new Date(b.scheduledFrom));
 
         const alerts = [];
         state.visits.forEach((v) => {
             v.events.forEach((e) => {
-                if ((e.type === 'access_denied' || e.type === 'manual_review') && localYmd(e.at) === today) {
+                if ((e.type === 'access_denied' || e.type === 'manual_review') && inRange(e.at)) {
                     alerts.push({
                         at: e.at, type: e.type, note: e.note, zoneName: zoneName(state, e.zoneId),
                         visitId: v.id, code: v.code, visitorName: v.visitor.fullName,
@@ -646,7 +650,7 @@ export const getDesk = ({ date } = {}) =>
         return {
             kpis: {
                 expected: scheduledToday.filter((v) => v.status !== 'rejected' && v.status !== 'cancelled').length,
-                arrived: state.visits.filter((v) => v.checkInAt && localYmd(v.checkInAt) === today).length,
+                arrived: state.visits.filter((v) => v.checkInAt && inRange(v.checkInAt)).length,
                 onSite: state.visits.filter(isOnSite).length,
                 overstay: state.visits.filter((v) => isOverstay(v, now)).length,
             },

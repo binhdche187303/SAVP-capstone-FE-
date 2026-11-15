@@ -1,0 +1,26 @@
+/* Use one outer gutter for operational screens. Dialogs, camera previews and
+   printable report pages retain their own inner dimensions. */
+body[data-standard-typography] [data-page-frame="wide"] {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin-inline: 0;
+    padding: 16px !important;
+}
+
+body[data-standard-typography] [data-page-surface="wide"] {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin-inline: 0;
+    padding-inline: 0 !important;
+    padding-top: 0 !important;
+}
+
+@media (min-width: 768px) {
+    body[data-standard-typography] [data-page-frame="wide"] {
+        padding: 24px !important;
+    }
+}

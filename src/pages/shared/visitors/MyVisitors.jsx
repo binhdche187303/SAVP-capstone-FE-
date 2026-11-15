@@ -1,3 +1,7 @@
+import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
+import PaginatedCollection from '../../../components/common/PaginatedCollection';
+import FilterBar from '../../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../../components/common/PaginationFooter';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, Link2, UserCheck, UserPlus } from 'lucide-react';
 import {
@@ -27,8 +31,6 @@ const myHostId = () => {
 
 // S5 (2.10): màn của người được gặp — duyệt khách xin gặp mình, mời khách, nhận thông báo.
 const REFRESH_MS = 20000;
-const PAGE_SIZE = 5;
-const NOTE_PAGE_SIZE = 8;
 const VISIT_STATUS_OPTIONS = [
     ['', 'Tất cả trạng thái'],
     ['pending_approval', 'Chờ duyệt'],
@@ -49,10 +51,10 @@ const VisitLine = ({ visit, onOpen, children }) => (
     <li className="px-6 py-3 flex flex-wrap items-center gap-3">
         <VisitorAvatar visitor={visit.visitor} size={40} />
         <div className="flex-1 min-w-[180px]">
-            <button type="button" className="text-sm font-semibold text-midnight-indigo hover:text-action-blue text-left" onClick={() => onOpen(visit.id)}>
+            <button data-ui-text="primary" type="button" className="text-sm font-semibold text-midnight-indigo hover:text-action-blue text-left" onClick={() => onOpen(visit.id)}>
                 {visit.visitor.fullName}
             </button>
-            <p className="text-[11px] text-slate-blue">
+            <p data-ui-text="secondary" className="text-[11px] text-slate-blue">
                 {visit.visitor.organization || 'Không rõ đơn vị'} · {visit.purpose} · {fmtTimeRange(visit.scheduledFrom, visit.scheduledTo)}
                 {visit.visitor.hasPhoto ? '' : ' · Chưa có ảnh'}
             </p>
@@ -61,18 +63,25 @@ const VisitLine = ({ visit, onOpen, children }) => (
     </li>
 );
 
-// Luôn hiện dòng "Hiển thị x–y / tổng" để người dùng thấy danh sách có phân trang; nút trang chỉ hiện khi > 1 trang.
-const Pager = ({ page, total, onChange, pageSize = PAGE_SIZE }) => {
-    if (total === 0) return null;
+const Pager = ({ page, total, onChange, pageSize, onPageSizeChange }) => {
     const pages = Math.max(1, Math.ceil(total / pageSize));
-    page = Math.min(page, pages);
-    const from = (page - 1) * pageSize + 1;
-    const to = Math.min(total, page * pageSize);
     return (
-        <div className="px-6 py-3 border-t border-pale-gray flex flex-wrap items-center justify-between gap-3 text-xs">
-            <span className="text-slate-blue">Hiển thị {from}–{to} / {total}</span>
-            <Pagination currentPage={page} totalPages={pages} onPageChange={onChange} />
-        </div>
+        <PaginationRegion legacyVisible={pages > 1}><PaginationFooter
+            currentPage={page}
+            totalPages={pages}
+            totalItems={total}
+            pageSize={pageSize}
+            onPageSizeChange={onPageSizeChange}
+            onPageChange={onChange}
+            itemLabel={"lượt khách"}
+            legacy={<div className="px-6 py-3 border-t border-pale-gray flex items-center justify-between gap-3 text-xs">
+            <span className="text-slate-blue">Trang {page}/{pages}</span>
+            <div className="flex gap-2">
+                <button type="button" className="px-3 py-1.5 rounded-lg border border-platinum-tint text-midnight-indigo font-semibold disabled:opacity-40" disabled={page <= 1} onClick={() => onChange(page - 1)}>Trước</button>
+                <button type="button" className="px-3 py-1.5 rounded-lg border border-platinum-tint text-midnight-indigo font-semibold disabled:opacity-40" disabled={page >= pages} onClick={() => onChange(page + 1)}>Sau</button>
+            </div>
+        </div>}
+        /></PaginationRegion>
     );
 };
 
@@ -90,7 +99,7 @@ const StatusFilter = ({ value, onChange }) => {
                 onClick={() => setOpen((current) => !current)}
             >
                 <span className="truncate">{selected[1]}</span>
-                <span className="text-[10px] text-slate-blue">▾</span>
+                <span data-ui-text="action" className="text-[10px] text-slate-blue">▾</span>
             </button>
             {open && (
                 <div className="absolute left-0 top-full z-30 mt-1 min-w-[220px] overflow-hidden rounded-xl border border-platinum-tint bg-white p-1 shadow-lg" role="listbox" aria-label="Trạng thái">
@@ -116,13 +125,16 @@ const Block = ({ title, countId, count, empty, footer, children }) => (
     <div className={`${cardCls} overflow-hidden`}>
         <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex items-center justify-between">
             <h3 className="font-bold text-midnight-indigo text-sm">{title}</h3>
-            <span data-testid={countId} className="px-2 py-0.5 rounded-md bg-pale-gray text-[11px] font-bold text-midnight-indigo">{count}</span>
+            <span data-ui-text="badge" data-testid={countId} className="px-2 py-0.5 rounded-md bg-pale-gray text-[11px] font-bold text-midnight-indigo">{count}</span>
         </div>
-        {count === 0 ? <p className="px-6 py-8 text-center text-xs text-slate-blue">{empty}</p> : <><ul className="divide-y divide-pale-gray">{children}</ul>{footer}</>}
+        {count === 0 ? <p className="px-6 py-8 text-center text-xs text-slate-blue">{empty}</p> : <ul className="divide-y divide-pale-gray">{children}</ul>}
+        {footer}
     </div>
 );
 
 const MyVisitors = () => {
+    const [PAGE_SIZE, setPageSize] = useState(10);
+    const changePageSize = size => { setPageSize(size); setPages({ pending: 1, upcoming: 1, past: 1 }); };
     const [lookups, setLookups] = useState({ zones: [], purposes: [] });
     const [visits, setVisits] = useState(null);
     const [notifications, setNotifications] = useState([]);
@@ -208,7 +220,6 @@ const MyVisitors = () => {
 
     const unreadCount = notifications.filter((n) => !n.read).length;
     // Danh sách tự làm mới 20s/lần: nếu số thông báo giảm thì kẹp lại trang hiện tại.
-    const notePageSafe = Math.min(notePage, Math.max(1, Math.ceil(notifications.length / NOTE_PAGE_SIZE)));
     const filteredVisits = useMemo(() => {
         if (!visits) return null;
         const q = filter.q.trim().toLocaleLowerCase('vi-VN');
@@ -251,7 +262,7 @@ const MyVisitors = () => {
             upcoming: slice(filteredVisits.upcoming, pages.upcoming),
             past: slice(filteredVisits.past, pages.past),
         };
-    }, [filteredVisits, pages]);
+    }, [filteredVisits, pages, PAGE_SIZE]);
 
     const updateFilter = (changes) => {
         setFilter((prev) => ({ ...prev, ...changes }));
@@ -259,10 +270,10 @@ const MyVisitors = () => {
     };
 
     return (
-        <div className={pageCls}>
+        <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         <UserCheck className="w-6 h-6 text-action-blue" />
                         Khách của tôi
                     </h2>
@@ -291,49 +302,55 @@ const MyVisitors = () => {
                     <p>Khách chưa có ảnh khuôn mặt, bảo vệ sẽ chụp khi khách đến.</p>
                 </div>
             )}
-            <div className={`${cardCls} p-4 flex flex-wrap items-end gap-3 font-sans`}>
-                <div className="flex-1 min-w-[220px]">
+            <FilterBar variant="card" className={`${cardCls} p-4 flex flex-wrap items-end gap-3 font-sans`}>
+                <div className="camai-filter-field">
                     <label htmlFor="my-visitors-search" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Tìm kiếm</label>
                     <input
                         id="my-visitors-search"
                         className={`${inputCls} w-full text-sm`}
                         value={filter.q}
                         onChange={(e) => updateFilter({ q: e.target.value })}
-                        placeholder="Tên khách, mã lượt, email, số điện thoại..."
+                        placeholder="Tên, mã lượt, email, SĐT..." title="Tìm theo tên khách, mã lượt, email hoặc số điện thoại"
                     />
                 </div>
-                <div className="min-w-[180px]">
+                <div className="camai-filter-field">
                     <label htmlFor="my-visitors-status" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Trạng thái</label>
                     <StatusFilter value={filter.status} onChange={(status) => updateFilter({ status })} />
                 </div>
-                <div>
-                    <label htmlFor="my-visitors-from" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Từ ngày</label>
-                    <input id="my-visitors-from" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.from} onChange={(e) => updateFilter({ from: e.target.value })} />
+
+                <div className="camai-filter-period-row">
+                    <CalendarRangePresets from={filter.from} to={filter.to} onChange={range => { updateFilter(range); }} />
+                    <div className="camai-filter-period-dates">
+                        <div className="camai-filter-field">
+                            <label htmlFor="my-visitors-from" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Từ ngày</label>
+                            <input id="my-visitors-from" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.from} onChange={(e) => updateFilter({ from: e.target.value })} />
+                        </div>
+                        <div className="camai-filter-field">
+                            <label htmlFor="my-visitors-to" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Đến ngày</label>
+                            <input id="my-visitors-to" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.to} onChange={(e) => updateFilter({ to: e.target.value })} />
+                        </div>
+                    </div>
+                    <button data-filter-action type="button" className={btnGhost} onClick={clearFilter} disabled={!filter.q && !filter.status && !filter.from && !filter.to}>Xóa lọc</button>
                 </div>
-                <div>
-                    <label htmlFor="my-visitors-to" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Đến ngày</label>
-                    <input id="my-visitors-to" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.to} onChange={(e) => updateFilter({ to: e.target.value })} />
-                </div>
-                <button type="button" className={btnGhost} onClick={clearFilter} disabled={!filter.q && !filter.status && !filter.from && !filter.to}>Xóa lọc</button>
-            </div>
+            </FilterBar>
             {error && <div className={errorBoxCls}>{error}</div>}
             {!error && !visits && <div className="flex items-center justify-center h-64"><div className={spinnerCls} /></div>}
 
             {visits && (
                 <div className="grid lg:grid-cols-3 gap-6 items-start">
                     <div className="lg:col-span-2 space-y-6">
-                        <Block title="Cần bạn duyệt" countId="my-pending-count" count={filteredVisits.pending.length} empty="Không có khách nào phù hợp" footer={<Pager page={pages.pending} total={filteredVisits.pending.length} onChange={(page) => setPages((prev) => ({ ...prev, pending: page }))} />}>
+                        <Block title="Cần bạn duyệt" countId="my-pending-count" count={filteredVisits.pending.length} empty="Không có khách nào phù hợp" footer={<Pager pageSize={PAGE_SIZE} onPageSizeChange={changePageSize} page={pages.pending} total={filteredVisits.pending.length} onChange={(page) => setPages((prev) => ({ ...prev, pending: page }))} />}>
                             {visibleVisits.pending.map((visit) => (
                                 <VisitLine key={visit.id} visit={visit} onOpen={setDetailId}>
                                     <div className="flex gap-2">
-                                        <button type="button" aria-label="Duyệt" className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-semibold hover:bg-glacier-blue" onClick={() => setDetailId(visit.id)}>Duyệt</button>
-                                        <button type="button" className="px-3 py-1.5 rounded-lg border border-platinum-tint text-[11px] font-semibold text-midnight-indigo hover:bg-cloud-mist" onClick={() => { setRejecting(visit); setReason(''); setRejectError(null); }}>Từ chối</button>
+                                        <button data-ui-text="action" type="button" aria-label="Duyệt" className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-semibold hover:bg-glacier-blue" onClick={() => setDetailId(visit.id)}>Duyệt</button>
+                                        <button data-ui-text="action" type="button" className="px-3 py-1.5 rounded-lg border border-platinum-tint text-[11px] font-semibold text-midnight-indigo hover:bg-cloud-mist" onClick={() => { setRejecting(visit); setReason(''); setRejectError(null); }}>Từ chối</button>
                                     </div>
                                 </VisitLine>
                             ))}
                         </Block>
 
-                        <Block title="Sắp đến / đang tiếp" countId="my-upcoming-count" count={filteredVisits.upcoming.length} empty="Không có khách nào phù hợp" footer={<Pager page={pages.upcoming} total={filteredVisits.upcoming.length} onChange={(page) => setPages((prev) => ({ ...prev, upcoming: page }))} />}>
+                        <Block title="Sắp đến / đang tiếp" countId="my-upcoming-count" count={filteredVisits.upcoming.length} empty="Không có khách nào phù hợp" footer={<Pager pageSize={PAGE_SIZE} onPageSizeChange={changePageSize} page={pages.upcoming} total={filteredVisits.upcoming.length} onChange={(page) => setPages((prev) => ({ ...prev, upcoming: page }))} />}>
                             {visibleVisits.upcoming.map((visit) => (
                                 <VisitLine key={visit.id} visit={visit} onOpen={setDetailId}>
                                     <VisitStatusBadge status={visit.status} overstay={visit.overstay} />
@@ -341,7 +358,7 @@ const MyVisitors = () => {
                             ))}
                         </Block>
 
-                        <Block title="Đã tiếp" countId="my-past-count" count={filteredVisits.past.length} empty="Không có khách nào phù hợp" footer={<Pager page={pages.past} total={filteredVisits.past.length} onChange={(page) => setPages((prev) => ({ ...prev, past: page }))} />}>
+                        <Block title="Đã tiếp" countId="my-past-count" count={filteredVisits.past.length} empty="Không có khách nào phù hợp" footer={<Pager pageSize={PAGE_SIZE} onPageSizeChange={changePageSize} page={pages.past} total={filteredVisits.past.length} onChange={(page) => setPages((prev) => ({ ...prev, past: page }))} />}>
                             {visibleVisits.past.map((visit) => (
                                 <VisitLine key={visit.id} visit={visit} onOpen={setDetailId}>
                                     <VisitStatusBadge status={visit.status} />
@@ -354,27 +371,28 @@ const MyVisitors = () => {
                         <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex items-center justify-between gap-2">
                             <h3 className="font-bold text-midnight-indigo text-sm flex items-center gap-2">
                                 <Bell className="w-4 h-4 text-action-blue" /> Thông báo
-                                <span data-testid="my-unread-count" className="px-2 py-0.5 rounded-md bg-action-blue text-white text-[11px] font-bold">{unreadCount}</span>
+                                <span data-ui-text="badge" data-testid="my-unread-count" className="px-2 py-0.5 rounded-md bg-action-blue text-white text-[11px] font-bold">{unreadCount}</span>
                             </h3>
-                            <button type="button" className="text-[11px] font-semibold text-action-blue hover:underline disabled:opacity-40" disabled={unreadCount === 0} onClick={markRead}>Đánh dấu đã đọc</button>
+                            <button data-ui-text="action" type="button" className="text-[11px] font-semibold text-action-blue hover:underline disabled:opacity-40" disabled={unreadCount === 0} onClick={markRead}>Đánh dấu đã đọc</button>
                         </div>
                         {notifications.length === 0 ? (
                             <p className="px-6 py-8 text-center text-xs text-slate-blue">Chưa có thông báo nào</p>
                         ) : (
-                            <>
-                            <ul className="divide-y divide-pale-gray">
-                                {notifications.slice((notePageSafe - 1) * NOTE_PAGE_SIZE, notePageSafe * NOTE_PAGE_SIZE).map((note) => (
+                            <PaginatedCollection items={notifications} itemLabel="thông báo">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="divide-y divide-pale-gray max-h-[32rem] overflow-y-auto">
+                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((note) => (
                                     <li key={note.id} className="px-6 py-3 flex gap-2">
                                         <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${note.read ? 'bg-transparent' : 'bg-action-blue'}`} />
                                         <button type="button" className="text-left" onClick={() => setDetailId(note.visitId)}>
-                                            <p className={`text-xs ${note.read ? 'text-slate-blue' : 'font-semibold text-midnight-indigo'}`}>{note.message}</p>
-                                            <p className="text-[11px] text-steel-gray">{fmtDateTime(note.createdAt)}</p>
+                                            <p data-ui-text="action" className={`text-xs ${note.read ? 'text-slate-blue' : 'font-semibold text-midnight-indigo'}`}>{note.message}</p>
+                                            <p data-ui-text="secondary" className="text-[11px] text-steel-gray">{fmtDateTime(note.createdAt)}</p>
                                         </button>
                                     </li>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (notifications)))}
                             </ul>
-                            <Pager page={notePageSafe} total={notifications.length} pageSize={NOTE_PAGE_SIZE} onChange={setNotePage} />
-                            </>
+)}
+</PaginatedCollection>
                         )}
                     </div>
                 </div>

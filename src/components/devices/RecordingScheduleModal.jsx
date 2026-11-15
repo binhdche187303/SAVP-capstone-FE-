@@ -82,7 +82,7 @@ const RecordingScheduleModal = ({ device, recording, onClose, onSaved }) => {
               <CalendarClock className="w-4 h-4 text-action-blue" /> Lịch ghi
               hình
             </h3>
-            <p className="text-[10px] text-slate-blue mt-0.5">
+            <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-0.5">
               {device.device_name} · {device.device_code}
             </p>
           </div>
@@ -164,7 +164,7 @@ const RecordingScheduleModal = ({ device, recording, onClose, onSaved }) => {
               </p>
               <div className="flex gap-1">
                 {PRESETS.map((p) => (
-                  <button
+                  <button data-ui-text="action"
                     key={p.label}
                     type="button"
                     onClick={() => setRec({ ...rec, schedule: p.rows() })}
@@ -178,7 +178,7 @@ const RecordingScheduleModal = ({ device, recording, onClose, onSaved }) => {
             <div className="select-none">
               <div className="flex ml-8">
                 {HOURS.map((h) => (
-                  <span
+                  <span data-ui-text="secondary"
                     key={h}
                     className="flex-1 text-center text-[9px] text-steel-gray"
                   >
@@ -237,7 +237,7 @@ const RecordingScheduleModal = ({ device, recording, onClose, onSaved }) => {
 
         <div className="px-6 py-4 flex items-center justify-end gap-3 border-t border-platinum-tint shrink-0">
           {error && (
-            <p className="mr-auto text-xs text-red-600 font-medium">{error}</p>
+            <p data-ui-text="secondary" className="mr-auto text-xs text-red-600 font-medium">{error}</p>
           )}
           <button
             type="button"

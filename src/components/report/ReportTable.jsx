@@ -1,17 +1,33 @@
+import ResponsiveTable from '../common/ResponsiveTable';
+import PaginationFooter from '../common/PaginationFooter';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import Pagination from '../common/Pagination';
+
 import { cardCls, thCls, tdCls } from '../common/uiClasses';
 import { formatCell } from '../../utils/reportFormat';
 
 const NUMERIC = ['number', 'percent', 'hours', 'minutes', 'duration'];
 
-const ReportTable = ({ columns, rows = [], total = 0, page = 1, limit = 20, sortKey, sortDir, onSort, onPageChange, loading }) => {
-    const first = total === 0 ? 0 : (page - 1) * limit + 1;
-    const last = Math.min(page * limit, total);
+// Give descriptive columns more space than counts, across all report types.
+const columnWeight = col => {
+    if (/(?:fullName|ownerName|hostName|visitorName|handlerName|subject)$/.test(col.key)) return 3.2;
+    if (/(?:departmentName|organization|classSectionName|subjectName|roomName|zoneName|cameraName|purpose)$/.test(col.key)) return 2.8;
+    if (col.key === 'code') return 2.3;
+    if (col.format === 'datetime') return 2;
+    if (NUMERIC.includes(col.format)) return 1;
+    return 1.5;
+};
+
+const ReportTable = ({ columns, rows = [], total = 0, page = 1, limit = 10, sortKey, sortDir, onSort, onPageChange, onPageSizeChange, loading }) => {
+
+    const totalWeight = columns.reduce((total, col) => total + columnWeight(col), 0);
+
     return (
         <div className={`${cardCls} overflow-hidden`}>
             <div className="overflow-x-auto">
-                <table className="w-full">
+                <ResponsiveTable className="w-full">
+                    <colgroup>
+                        {columns.map(col => <col key={col.key} style={{ width: `${100 * columnWeight(col) / totalWeight}%` }} />)}
+                    </colgroup>
                     <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                         <tr>
                             {columns.map((col) => {
@@ -45,12 +61,18 @@ const ReportTable = ({ columns, rows = [], total = 0, page = 1, limit = 20, sort
                             </tr>
                         ))}
                     </tbody>
-                </table>
+                </ResponsiveTable>
             </div>
-            <div className="px-4 py-3 border-t border-platinum-tint flex flex-wrap items-center justify-between gap-3">
-                <span className="text-xs text-slate-blue">Hiển thị {first}–{last} / {total.toLocaleString('vi-VN')}</span>
-                <Pagination currentPage={page} totalPages={Math.ceil(total / limit)} onPageChange={onPageChange} />
-            </div>
+            <PaginationFooter
+                currentPage={page}
+                totalPages={Math.ceil(total / limit)}
+                totalItems={total}
+                pageSize={limit}
+                onPageSizeChange={onPageSizeChange}
+                onPageChange={onPageChange}
+                itemLabel={"bản ghi"}
+                loading={loading}
+            />
         </div>
     );
 };

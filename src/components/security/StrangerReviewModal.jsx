@@ -115,7 +115,7 @@ const StrangerReviewModal = ({ stranger, onClose, onDone }) => {
                 </div>
 
                 <div>
-                    <p className="text-xs font-bold text-slate-blue mb-1">Các lần xuất hiện là người này ({picked.size}/{sightings.length})</p>
+                    <p data-ui-text="primary" className="text-xs font-bold text-slate-blue mb-1">Các lần xuất hiện là người này ({picked.size}/{sightings.length})</p>
                     <div className="grid grid-cols-4 gap-2 max-h-36 overflow-y-auto">
                         {sightings.map((x) => (
                             <label key={x.eventId} className={`relative rounded-lg border-2 cursor-pointer p-1 text-[10px] text-center ${picked.has(x.eventId) ? 'border-action-blue bg-blue-50' : 'border-slate-200 opacity-60'}`}>
@@ -128,7 +128,7 @@ const StrangerReviewModal = ({ stranger, onClose, onDone }) => {
                 </div>
 
                 <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-blue">Người được xác nhận *</p>
+                    <p data-ui-text="primary" className="text-xs font-bold text-slate-blue">Người được xác nhận *</p>
                     {user ? (
                         <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
                             <span className="text-sm font-semibold text-emerald-800 inline-flex items-center gap-2">
@@ -149,7 +149,7 @@ const StrangerReviewModal = ({ stranger, onClose, onDone }) => {
                                     <li key={u.id}>
                                         <button type="button" onClick={() => setUser(u)} className="w-full text-left px-3 py-2 text-sm hover:bg-cloud-mist">
                                             <span className="font-semibold text-midnight-indigo">{u.fullName}</span>
-                                            <span className="text-xs text-slate-400"> {u.employeeCode || u.employee_code ? `· ${u.employeeCode || u.employee_code}` : ''} {u.departmentName ? `· ${u.departmentName}` : ''}</span>
+                                            <span data-ui-text="action" className="text-xs text-slate-400"> {u.employeeCode || u.employee_code ? `· ${u.employeeCode || u.employee_code}` : ''} {u.departmentName ? `· ${u.departmentName}` : ''}</span>
                                         </button>
                                     </li>
                                 ))}

@@ -1,3 +1,7 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import { Building, RefreshCw, Power, Lock } from 'lucide-react';
 import { PARTNER_DEPARTMENT_ID } from '../../constants/partnerAccount';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -42,7 +46,7 @@ const DepartmentManagement = () => {
     // Search and filter states
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
-    const [limit] = useState(10);
+    const [limit, setLimit] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [totalDepartments, setTotalDepartments] = useState(0);
 
@@ -67,7 +71,7 @@ const DepartmentManagement = () => {
     const [membersList, setMembersList] = useState([]);
     const [membersLoading, setMembersLoading] = useState(false);
     const [membersPage, setMembersPage] = useState(1);
-    const [membersLimit] = useState(5);
+    const [membersLimit, setMembersLimit] = useState(10);
     const [membersTotalPages, setMembersTotalPages] = useState(1);
     const [membersTotalCount, setMembersTotalCount] = useState(0);
     const [roles, setRoles] = useState([]);
@@ -167,13 +171,13 @@ const DepartmentManagement = () => {
     }, [fetchDepartments, fetchAllActiveDepartments]);
 
     // Fetch members belonging to a department with pagination
-    const fetchDepartmentMembers = useCallback(async (deptId, pageNum = 1) => {
+    const fetchDepartmentMembers = useCallback(async (deptId, pageNum = 1, pageLimit = membersLimit) => {
         setMembersLoading(true);
         try {
             const res = await getUsers({ 
                 departmentId: deptId, 
                 page: pageNum, 
-                limit: membersLimit 
+                limit: pageLimit
             });
             if (res?.success) {
                 setMembersList(res.data || []);
@@ -583,7 +587,7 @@ const DepartmentManagement = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Building className="w-3.5 h-3.5" />
                         Phòng ban
                     </span>
@@ -624,8 +628,8 @@ const DepartmentManagement = () => {
             )}
 
             {/* Filter controls */}
-            <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="relative flex-1 max-w-md">
+            <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <FilterField label="Tìm kiếm"><div className="relative flex-1 max-w-md">
                     <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-blue">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -633,13 +637,13 @@ const DepartmentManagement = () => {
                     </span>
                     <input
                         type="text"
-                        placeholder="Tìm kiếm theo Tên phòng ban hoặc Mô tả..."
+                        placeholder="Tên phòng ban, mô tả..." title="Tìm kiếm theo Tên phòng ban hoặc Mô tả"
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                         className="pl-10 pr-4 py-2 w-full border border-platinum-tint rounded-xl text-sm text-midnight-indigo placeholder:text-steel-gray focus:outline-none focus:border-action-blue"
                     />
-                </div>
-            </div>
+                </div></FilterField>
+            </FilterBar>
 
             {/* Departments Table Card */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
@@ -650,15 +654,23 @@ const DepartmentManagement = () => {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <ResponsiveTable className="w-full text-left border-collapse">
+<colgroup>
+<col style={{ width: '24%' }} />
+<col style={{ width: '27%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '13%' }} />
+</colgroup>
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/50">
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Phòng ban</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Mô tả chi tiết</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Thành viên</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Trạng thái</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase">Ngày tạo lập</th>
-                                    <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase text-right">Hành động</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Phòng ban</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Mô tả chi tiết</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Thành viên</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Trạng thái</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Ngày tạo lập</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase text-right">Hành động</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -671,25 +683,25 @@ const DepartmentManagement = () => {
                                 ) : (
                                     departmentsList.map((dept) => (
                                         <tr key={dept.id} className="border-b border-platinum-tint/40 hover:bg-cloud-mist/30 transition-colors">
-                                            <td className="py-4 px-6">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-lg bg-blue-50 text-action-blue flex items-center justify-center font-bold text-sm">
+                                            <td className="align-middle py-4 px-6">
+                                                <div className="flex min-w-0 items-center gap-3">
+                                                    <div className="w-9 h-9 shrink-0 rounded-lg bg-blue-50 text-action-blue flex items-center justify-center font-bold text-sm">
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                         </svg>
                                                     </div>
-                                                    <span 
+                                                    <span data-ui-text="primary"
                                                         onClick={() => handleViewMembers(dept)}
-                                                        className="text-sm font-bold text-midnight-indigo hover:text-action-blue hover:underline cursor-pointer"
+                                                        className="min-w-0 flex-1 text-sm font-bold text-midnight-indigo hover:text-action-blue hover:underline cursor-pointer"
                                                     >
                                                         {dept.name}
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-6 text-sm text-slate-blue max-w-sm truncate">
+                                            <td className="align-middle py-4 px-6 text-sm text-slate-blue max-w-sm truncate">
                                                 {dept.description || 'Không có mô tả'}
                                             </td>
-                                            <td className="py-4 px-6 text-sm text-midnight-indigo font-semibold">
+                                            <td className="align-middle py-4 px-6 text-sm text-midnight-indigo font-semibold">
                                                 <button
                                                     onClick={() => handleViewMembers(dept)}
                                                     className="inline-flex items-center px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-action-blue rounded-lg text-xs font-semibold transition-colors"
@@ -697,7 +709,7 @@ const DepartmentManagement = () => {
                                                     {dept.memberCount || 0} nhân sự
                                                 </button>
                                             </td>
-                                            <td className="py-4 px-6">
+                                            <td className="align-middle py-4 px-6">
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                                                     dept.isActive !== false
                                                         ? 'bg-green-50 text-green-700'
@@ -707,28 +719,29 @@ const DepartmentManagement = () => {
                                                     {dept.isActive !== false ? 'Hoạt động' : 'Vô hiệu hóa'}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-6 text-sm text-slate-blue">
+                                            <td className="align-middle py-4 px-6 text-sm text-slate-blue">
                                                 {dept.createdAt ? new Date(dept.createdAt).toLocaleDateString('vi-VN') : '---'}
                                             </td>
-                                            <td className="py-4 px-6 text-right space-x-2">
+                                            <td className="align-middle py-4 px-6 text-right">
+                                                <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     onClick={() => openEditModal(dept)}
                                                     title="Chỉnh sửa thông tin"
-                                                    className="inline-flex p-1.5 rounded-lg text-slate-blue hover:text-action-blue hover:bg-blue-50 transition-colors"
+                                                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-blue hover:text-action-blue hover:bg-blue-50 transition-colors"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                     </svg>
                                                 </button>
                                                 {dept.id === PARTNER_DEPARTMENT_ID ? (
-                                                    <span title="Phòng ban hệ thống, không thể vô hiệu hóa" className="inline-flex p-1.5 rounded-lg text-slate-300 cursor-not-allowed">
+                                                    <span title="Phòng ban hệ thống, không thể vô hiệu hóa" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-300 cursor-not-allowed">
                                                         <Lock className="w-4 h-4" />
                                                     </span>
                                                 ) : dept.isActive !== false ? (
                                                     <button
                                                         onClick={() => handleDeactivateDept(dept)}
                                                         title="Vô hiệu hóa phòng ban"
-                                                        className="inline-flex p-1.5 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                                                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
                                                     >
                                                         <Power className="w-4 h-4" />
                                                     </button>
@@ -736,47 +749,31 @@ const DepartmentManagement = () => {
                                                     <button
                                                         onClick={() => handleReactivateDept(dept)}
                                                         title="Kích hoạt lại phòng ban"
-                                                        className="inline-flex p-1.5 rounded-lg text-green-600 hover:text-green-800 hover:bg-green-50 transition-colors"
+                                                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-green-600 hover:text-green-800 hover:bg-green-50 transition-colors"
                                                     >
                                                         <RefreshCw className="w-4 h-4" />
                                                     </button>
                                                 )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
                                 )}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
                 )}
 
                 {/* Pagination Footer */}
-                {!loading && (
-                    <div className="px-6 py-4 border-t border-platinum-tint bg-cloud-mist/20 flex items-center justify-between">
-                        <span className="text-xs text-slate-blue">
-                            Hiển thị {departmentsList.length} trên tổng số {totalDepartments} phòng ban
-                        </span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPage(p => Math.max(p - 1, 1))}
-                                disabled={page === 1}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50 transition-colors"
-                            >
-                                Trước
-                            </button>
-                            <span className="px-3 py-1.5 text-xs font-bold text-midnight-indigo">
-                                Trang {page} / {totalPages}
-                            </span>
-                            <button
-                                onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                                disabled={page === totalPages}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50 transition-colors"
-                            >
-                                Tiếp
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {<PaginationRegion legacyVisible={!loading}><PaginationFooter
+                        currentPage={page}
+                        totalPages={totalPages}
+                        totalItems={totalDepartments}
+                        pageSize={limit}
+                        onPageChange={setPage}
+                        itemLabel={"phòng ban"}
+                        loading={loading}
+                     onPageSizeChange={size => { setLimit(size); setPage(1); }} /></PaginationRegion>}
             </div>
 
             {/* CREATE DEPT MODAL */}
@@ -816,7 +813,7 @@ const DepartmentManagement = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1 flex items-center gap-2">
                                     Mã phòng ban <span className="text-red-500">*</span>
-                                    <span className="text-[10px] font-normal normal-case text-action-blue bg-blue-50 px-1.5 py-0.5 rounded">Tự động</span>
+                                    <span data-ui-text="badge" className="text-[10px] font-normal normal-case text-action-blue bg-blue-50 px-1.5 py-0.5 rounded">Tự động</span>
                                 </label>
                                 <div className="flex gap-2">
                                     <input
@@ -842,7 +839,7 @@ const DepartmentManagement = () => {
                                 {deptCodeInlineError ? (
                                     <p className="mt-1 text-xs text-red-600">{deptCodeInlineError}</p>
                                 ) : (
-                                    <p className="mt-1 text-[11px] text-slate-blue">Mã ngẫu nhiên, có thể chỉnh thủ công. Chỉ A-Z, 0-9, _ và -.</p>
+                                    <p data-ui-text="secondary" className="mt-1 text-[11px] text-slate-blue">Mã ngẫu nhiên, có thể chỉnh thủ công. Chỉ A-Z, 0-9, _ và -.</p>
                                 )}
                             </div>
                             <div>
@@ -897,7 +894,7 @@ const DepartmentManagement = () => {
                                     value={formData.departmentCode || '—'}
                                     className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-cloud-mist text-slate-blue cursor-not-allowed font-mono"
                                 />
-                                <p className="text-[10px] text-slate-blue mt-1">Mã phòng ban không thể thay đổi sau khi tạo.</p>
+                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-1">Mã phòng ban không thể thay đổi sau khi tạo.</p>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên phòng ban <span className="text-red-500">*</span></label>
@@ -976,7 +973,14 @@ const DepartmentManagement = () => {
                                 <p className="text-center text-sm text-slate-blue py-12 flex-1">Phòng ban này chưa có nhân sự nào được phân bổ.</p>
                             ) : (
                                 <div className="w-full overflow-x-auto overflow-y-auto flex-1 min-h-0 border border-platinum-tint/60 rounded-xl shadow-sm-1">
-                                    <table className="w-full text-left border-collapse min-w-[750px]">
+                                    <ResponsiveTable className="w-full text-left border-collapse min-w-[750px]">
+<colgroup>
+<col style={{ width: '34%' }} />
+<col style={{ width: '17%' }} />
+<col style={{ width: '20%' }} />
+<col style={{ width: '15%' }} />
+<col style={{ width: '14%' }} />
+</colgroup>
                                         <thead>
                                             <tr className="border-b border-platinum-tint bg-cloud-mist/50 select-none">
                                                 <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase whitespace-nowrap">Hồ sơ</th>
@@ -996,7 +1000,7 @@ const DepartmentManagement = () => {
                                                                 className="w-10 h-10 rounded-full shrink-0 font-bold text-sm"
                                                             />
                                                             <div>
-                                                                <h4 
+                                                                <h4 data-ui-text="primary"
                                                                     onClick={() => handleUserViewDetail(user)}
                                                                     className="text-sm font-bold text-midnight-indigo leading-tight cursor-pointer hover:underline hover:text-action-blue whitespace-nowrap"
                                                                 >
@@ -1012,14 +1016,14 @@ const DepartmentManagement = () => {
                                                     <td className="py-4 px-6">
                                                         <div className="flex flex-wrap gap-1 max-w-[180px]">
                                                             {user.roles?.map(r => (
-                                                                <span key={r.id} className="inline-flex text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold whitespace-nowrap">
+                                                                <span data-ui-text="badge" key={r.id} className="inline-flex text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold whitespace-nowrap">
                                                                     {r.name}
                                                                 </span>
                                                             )) || <span className="text-xs text-steel-gray">Chưa phân quyền</span>}
                                                         </div>
                                                     </td>
                                                     <td className="py-4 px-6 whitespace-nowrap">
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${(user.accountStatus === 'locked' || user.locked)
+                                                        <span data-ui-text="badge" className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${(user.accountStatus === 'locked' || user.locked)
                                                             ? 'bg-red-50 text-red-700'
                                                             : 'bg-green-50 text-green-700'
                                                             }`}>
@@ -1086,45 +1090,21 @@ const DepartmentManagement = () => {
                                                 </tr>
                                             ))}
                                         </tbody>
-                                    </table>
+                                    </ResponsiveTable>
                                 </div>
                             )}
 
                             {/* Pagination for Members List */}
-                            {!membersLoading && membersList.length > 0 && (
-                                <div className="px-6 py-3 border-t border-platinum-tint bg-cloud-mist/10 flex items-center justify-between select-none rounded-xl mt-4">
-                                    <span className="text-xs text-slate-blue">
-                                        Hiển thị {membersList.length} trên tổng số {membersTotalCount} thành viên
-                                    </span>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => {
-                                                const prevPage = Math.max(membersPage - 1, 1);
-                                                setMembersPage(prevPage);
-                                                fetchDepartmentMembers(selectedDept.id, prevPage);
-                                            }}
-                                            disabled={membersPage === 1}
-                                            className="px-2.5 py-1 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50 transition-colors"
-                                        >
-                                            Trước
-                                        </button>
-                                        <span className="px-2.5 py-1 text-xs font-bold text-midnight-indigo">
-                                            Trang {membersPage} / {membersTotalPages}
-                                        </span>
-                                        <button
-                                            onClick={() => {
-                                                const nextPage = Math.min(membersPage + 1, membersTotalPages);
-                                                setMembersPage(nextPage);
-                                                fetchDepartmentMembers(selectedDept.id, nextPage);
-                                            }}
-                                            disabled={membersPage === membersTotalPages}
-                                            className="px-2.5 py-1 border border-platinum-tint rounded-lg text-xs font-semibold bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-50 transition-colors"
-                                        >
-                                            Tiếp
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                            {<PaginationRegion legacyVisible={!membersLoading && membersList.length > 0}><PaginationFooter
+                                    currentPage={membersPage}
+                                    totalPages={membersTotalPages}
+                                    totalItems={membersTotalCount}
+                                    pageSize={membersLimit}
+                                    onPageSizeChange={size => { setMembersLimit(size); setMembersPage(1); fetchDepartmentMembers(selectedDept.id, 1, size); }}
+                                    onPageChange={(p) => { setMembersPage(p); fetchDepartmentMembers(selectedDept.id, p); }}
+                                    itemLabel={"thành viên"}
+                                    loading={membersLoading}
+                                /></PaginationRegion>}
 
                         </div>
                     </div>
@@ -1149,7 +1129,7 @@ const DepartmentManagement = () => {
                         </div>
                         <form onSubmit={handleUserCreateSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
                             {createUserError && (
-                                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                                <div data-ui-text="badge" className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
                                     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                     </svg>
@@ -1359,26 +1339,30 @@ const DepartmentManagement = () => {
                             ) : userLogs.length === 0 ? (
                                 <p className="text-center text-sm text-slate-blue py-8">Không có bản ghi hoạt động nào.</p>
                             ) : (
-                                <div className="max-h-[300px] overflow-y-auto space-y-4 pr-2">
-                                    {userLogs.map((log) => (
+                                <PaginatedCollection items={userLogs} itemLabel="lượt ra/vào">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="max-h-[300px] overflow-y-auto space-y-4 pr-2">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((log) => (
                                         <div key={log.id} className="p-3 bg-cloud-mist rounded-xl border border-outline-gray/60 space-y-1">
                                             <div className="flex justify-between items-start gap-2">
-                                                <p className="text-xs font-bold text-midnight-indigo">
+                                                <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">
                                                     {log.description || ACTION_MAP[log.action] || log.action}
                                                 </p>
-                                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${log.status === 'success' ? 'bg-emerald-50 text-emerald-700' : log.status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                <span data-ui-text="badge" className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${log.status === 'success' ? 'bg-emerald-50 text-emerald-700' : log.status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
                                                     {log.status === 'success' ? 'Thành công' : log.status === 'failed' ? 'Thất bại' : log.status || ''}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between items-center pt-0.5">
-                                                <p className="text-[10px] text-slate-blue">Tác nhân: {log.actorName || log.actorEmail || '—'}</p>
-                                                <span className="text-[10px] text-slate-blue">
+                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Tác nhân: {log.actorName || log.actorEmail || '—'}</p>
+                                                <span data-ui-text="secondary" className="text-[10px] text-slate-blue">
                                                     {log.timestamp ? new Date(log.timestamp).toLocaleString('vi-VN') : ''}
                                                 </span>
                                             </div>
                                         </div>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (userLogs)))}
                                 </div>
+)}
+</PaginatedCollection>
                             )}
                             <div className="pt-4 flex justify-end border-t border-platinum-tint mt-4">
                                 <button
@@ -1423,7 +1407,7 @@ const DepartmentManagement = () => {
                                         <p className="text-sm text-slate-blue mt-0.5">{selectedUserDetail.email}</p>
                                         <div className="flex gap-1.5 mt-1">
                                             {selectedUserDetail.roles?.map(r => (
-                                                <span key={r.id} className="text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
+                                                <span data-ui-text="badge" key={r.id} className="text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
                                                     {r.roleName || r.name}
                                                 </span>
                                             ))}
@@ -1471,7 +1455,7 @@ const DepartmentManagement = () => {
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                                             <div>
                                                 <span className="text-slate-blue block text-xs">Trạng thái hoạt động:</span>
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
                                                     selectedUserDetail.accountStatus === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                                                 }`}>
                                                     {selectedUserDetail.accountStatus === 'active' ? 'Hoạt động' : 'Bị khóa'}
@@ -1485,7 +1469,7 @@ const DepartmentManagement = () => {
                                             </div>
                                             <div>
                                                 <span className="text-slate-blue block text-xs">Hồ sơ khuôn mặt (FaceID):</span>
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
                                                     selectedUserDetail.hasFaceProfile ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
                                                 }`}>
                                                     {selectedUserDetail.hasFaceProfile ? 'Đã hợp lệ' : 'Chưa đăng ký'}

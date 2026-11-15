@@ -1,8 +1,10 @@
-import {
-    AlertTriangle, Briefcase, Car, CheckCircle2,
-    Filter, Mail, Phone, RefreshCw, Search,
-    User, Users, X, XCircle, ChevronDown,
-} from 'lucide-react';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { AlertTriangle, Briefcase, Car, CheckCircle2, Filter, Mail, Phone, Search, User, Users, X, XCircle, ChevronDown } from 'lucide-react';
 import { FaBicycle, FaCar, FaMotorcycle } from 'react-icons/fa';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -14,7 +16,7 @@ import {
     getUsers,
 } from '../../service/sysAdminServices';
 
-import Pagination from '../../components/common/Pagination';
+
 import UserAvatar from '../../components/common/UserAvatar';
 import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
@@ -57,8 +59,9 @@ const formatDateTime = (iso) => {
 
 // ─── stat card ─────────────────────────────────────────────────────────────
 
-const StatCard = ({ icon, label, value, colorCls, loading }) => (
-    <SharedStatCard icon={icon} label={label} value={value} tone={toneOf(colorCls)} loading={loading} />
+const StatCard = ({ icon, label, value, colorCls, loading, onClick, selected, hint }) => (
+    <StatisticCard icon={icon} label={label} value={value} tone={statisticTone(colorCls)} loading={loading}
+        onClick={onClick} selected={selected} helper={hint} />
 );
 
 // ─── main component ─────────────────────────────────────────────────────────
@@ -70,7 +73,8 @@ const VehicleRegistrations = () => {
     const [meta, setMeta]                   = useState(null);
     const [usersMap, setUsersMap]           = useState({});
 
-    const [filters, setFilters] = useState({ page: 1, limit: 10, search: '', status: '', vehicleType: '' });
+    const [filters, setFilters] = useState({ page: 1, limit: 10, search: '', status: '', vehicleType: '', owner: '' });
+    const [showOwnerFilter, setShowOwnerFilter] = useState(false);
 
     // owner modal
     const [selectedOwner,      setSelectedOwner]      = useState(null);
@@ -158,35 +162,45 @@ const VehicleRegistrations = () => {
     // ── render ──────────────────────────────────────────────────────────────
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto pb-10">
+        <div data-page-surface="wide" className="space-y-6 max-w-7xl mx-auto pb-10">
 
             {/* ── Header ── */}
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700">
+                        <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700">
                             <Car className="w-3.5 h-3.5" /> Kiểm soát Phương tiện
                         </span>
                     </div>
                     <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Lịch sử Đăng ký Xe</h1>
                     <p className="text-slate-blue text-sm mt-1">Toàn bộ phương tiện đã đăng ký — tra cứu theo chủ xe, biển số hoặc loại xe.</p>
                 </div>
-                <button
+                <RefreshButton
                     onClick={() => fetchRegistrations()}
-                    className="self-start flex items-center gap-2 px-4 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl hover:bg-cloud-mist transition-colors text-sm font-semibold"
                     title="Làm mới dữ liệu"
-                >
-                    <RefreshCw className="w-4 h-4" /> Làm mới
-                </button>
+                    busy={loading}
+                />
             </div>
 
             {/* ── Stat cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={Car}          label="Tổng phương tiện"  value={meta?.total ?? registrations.length} colorCls="bg-indigo-50 text-indigo-600"  loading={loading} />
-                <StatCard icon={CheckCircle2} label="Đang hoạt động"   value={activeCount}                         colorCls="bg-emerald-50 text-emerald-600" loading={loading} />
-                <StatCard icon={XCircle}      label="Vô hiệu"           value={disabledCount}                       colorCls="bg-red-50 text-red-500"         loading={loading} />
-                <StatCard icon={Users}        label="Số chủ xe"         value={uniqueOwners}                        colorCls="bg-blue-50 text-action-blue"    loading={loading} />
-            </div>
+            <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard icon={Car} label="Tổng phương tiện" value={meta?.total ?? registrations.length}
+                    colorCls="bg-indigo-50 text-indigo-600" loading={loading}
+                    selected={!filters.status && !filters.search && !filters.vehicleType && !filters.owner && !showOwnerFilter}
+                    onClick={() => { setShowOwnerFilter(false); setFilters(prev => ({ ...prev, page: 1, search: '', status: '', vehicleType: '', owner: '' })); }} />
+                <StatCard icon={CheckCircle2} label="Đang hoạt động" value={activeCount}
+                    colorCls="bg-emerald-50 text-emerald-600" loading={loading}
+                    selected={filters.status === 'active'} hint="Trong trang hiện tại"
+                    onClick={() => handleFilterChange('status', filters.status === 'active' ? '' : 'active')} />
+                <StatCard icon={XCircle} label="Vô hiệu" value={disabledCount}
+                    colorCls="bg-red-50 text-red-500" loading={loading}
+                    selected={filters.status === 'disabled'} hint="Trong trang hiện tại"
+                    onClick={() => handleFilterChange('status', filters.status === 'disabled' ? '' : 'disabled')} />
+                <StatCard icon={Users} label="Số chủ xe" value={uniqueOwners}
+                    colorCls="bg-blue-50 text-action-blue" loading={loading}
+                    selected={showOwnerFilter} hint="Trong trang hiện tại"
+                    onClick={() => { setShowOwnerFilter(prev => !prev); handleFilterChange('owner', ''); }} />
+            </StatisticGrid>
 
             {/* ── Error ── */}
             <AnimatePresence>
@@ -200,13 +214,13 @@ const VehicleRegistrations = () => {
             </AnimatePresence>
 
             {/* ── Filters ── */}
-            <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
+            <FilterBar variant="card" className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
                 <div className="flex items-center gap-2 mb-4 text-sm font-extrabold text-midnight-indigo">
                     <Filter className="w-4 h-4 text-slate-blue" /> Bộ lọc
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div data-filter-grid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* search */}
-                    <div className="lg:col-span-2 relative">
+                    <FilterField label="Tìm kiếm" className="lg:col-span-2"><div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
                         <input
                             type="text"
@@ -215,10 +229,23 @@ const VehicleRegistrations = () => {
                             onChange={(e) => handleFilterChange('search', e.target.value)}
                             className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
                         />
-                    </div>
+                    </div></FilterField>
+
+                    {showOwnerFilter && (
+                        <FilterField label="Chủ xe"><div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
+                            <input
+                                type="text"
+                                placeholder="Tên hoặc email chủ xe..."
+                                value={filters.owner}
+                                onChange={(e) => handleFilterChange('owner', e.target.value)}
+                                className="w-full pl-9 pr-3 py-2.5 border border-platinum-tint rounded-xl text-sm"
+                            />
+                        </div></FilterField>
+                    )}
 
                     {/* status filter */}
-                    <div className="relative">
+                    <FilterField label="Trạng thái"><div className="relative">
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
                         <select
                             value={filters.status}
@@ -229,10 +256,10 @@ const VehicleRegistrations = () => {
                             <option value="active">Hoạt động</option>
                             <option value="disabled">Vô hiệu</option>
                         </select>
-                    </div>
+                    </div></FilterField>
 
                     {/* vehicle type filter */}
-                    <div className="relative">
+                    <FilterField label="Loại phương tiện"><div className="relative">
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
                         <select
                             value={filters.vehicleType}
@@ -244,18 +271,27 @@ const VehicleRegistrations = () => {
                             <option value="MOTORBIKE">🏍️ Xe máy</option>
                             <option value="BICYCLE">🚲 Xe đạp</option>
                         </select>
-                    </div>
+                    </div></FilterField>
                 </div>
-            </div>
+            </FilterBar>
 
             {/* ── Table ── */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <ResponsiveTable className="w-full text-left text-sm">
+                        <colgroup>
+                            <col style={{ width: '11%' }} />
+                            <col style={{ width: '7%' }} />
+                            <col style={{ width: '29%' }} />
+                            <col style={{ width: '15%' }} />
+                            <col style={{ width: '11%' }} />
+                            <col style={{ width: '13%' }} />
+                            <col style={{ width: '14%' }} />
+                        </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
-                                <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider">Ngày ĐK</th>
-                                <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider">Giờ ĐK</th>
+                                <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider">Ngày</th>
+                                <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider">Giờ</th>
                                 <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider">Chủ xe</th>
                                 <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider text-center">Biển số</th>
                                 <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider text-center">Loại xe</th>
@@ -338,7 +374,7 @@ const VehicleRegistrations = () => {
                                                             />
                                                             <div>
                                                                 <p className="font-bold text-action-blue group-hover:text-blue-700 transition-colors leading-tight">{ownerName}</p>
-                                                                <p className="text-[11px] text-slate-blue">{ownerEmail}</p>
+                                                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{ownerEmail}</p>
                                                             </div>
                                                         </button>
                                                     ) : (
@@ -348,7 +384,7 @@ const VehicleRegistrations = () => {
                                                             </div>
                                                             <div>
                                                                 <p className="font-semibold text-slate-400">Không rõ</p>
-                                                                <p className="text-[11px] text-slate-300">—</p>
+                                                                <p data-ui-text="secondary" className="text-[11px] text-slate-300">—</p>
                                                             </div>
                                                         </div>
                                                     )}
@@ -376,7 +412,7 @@ const VehicleRegistrations = () => {
 
                                                 {/* Trạng thái */}
                                                 <td className="px-6 py-4 text-center">
-                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold ${sm.cls}`}>
+                                                    <span data-ui-text="secondary" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold ${sm.cls}`}>
                                                         <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
                                                         {sm.label}
                                                     </span>
@@ -387,22 +423,19 @@ const VehicleRegistrations = () => {
                                 </AnimatePresence>
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
 
                 {/* Pagination */}
-                {meta && meta.total > 0 && (
-                    <div className="px-6 py-4 bg-cloud-mist/30 border-t border-platinum-tint flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <span className="text-xs font-medium text-slate-blue">
-                            Trang {meta.page}/{meta.totalPages} — {meta.total} bản ghi
-                        </span>
-                        <Pagination
-                            currentPage={filters.page}
-                            totalPages={meta.totalPages}
-                            onPageChange={(p) => handleFilterChange('page', p)}
-                        />
-                    </div>
-                )}
+                {meta && <PaginationRegion legacyVisible={meta && meta.total > 0}><PaginationFooter
+                        currentPage={meta.page}
+                        totalPages={meta.totalPages}
+                        totalItems={meta.total}
+                        pageSize={filters.limit}
+                        onPageChange={(p) => handleFilterChange('page', p)}
+                        itemLabel={"bản ghi"}
+                        loading={loading}
+                     onPageSizeChange={size => { setFilters(previous => ({ ...previous, limit: size, page: 1 })); }} /></PaginationRegion>}
             </div>
 
             {/* ── Owner Detail Modal ── */}
@@ -457,7 +490,7 @@ const VehicleRegistrations = () => {
                                             )}
                                             <h4 className="text-xl font-extrabold text-midnight-indigo text-center">{name}</h4>
                                             {code && (
-                                                <span className="mt-1.5 text-[11px] font-mono text-slate-blue bg-cloud-mist px-2.5 py-0.5 rounded-full border border-platinum-tint">
+                                                <span data-ui-text="code" className="mt-1.5 text-[11px] font-mono text-slate-blue bg-cloud-mist px-2.5 py-0.5 rounded-full border border-platinum-tint">
                                                     {code}
                                                 </span>
                                             )}
@@ -474,7 +507,7 @@ const VehicleRegistrations = () => {
                                                         <Icon className="w-5 h-5" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-[11px] font-semibold text-slate-blue">{label}</p>
+                                                        <p data-ui-text="label" className="text-[11px] font-semibold text-slate-blue">{label}</p>
                                                         <p className="text-sm font-bold text-midnight-indigo truncate">{value}</p>
                                                     </div>
                                                 </div>

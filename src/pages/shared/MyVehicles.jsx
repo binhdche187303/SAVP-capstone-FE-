@@ -1,3 +1,6 @@
+import TableColumns from '../../components/common/TableColumns';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
 import { Car } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
@@ -111,10 +114,10 @@ const MyVehicles = () => {
                 onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
                 onCancel={() => setConfirm(null)}
             />
-            <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up pb-8">
+            <div data-page-surface="wide" className="max-w-5xl mx-auto space-y-6 animate-fade-in-up pb-8">
             <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm-2">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Car className="w-3.5 h-3.5" />
                         Phương tiện
                     </span>
@@ -145,7 +148,10 @@ const MyVehicles = () => {
 
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <PaginatedCollection items={vehicles} itemLabel="phương tiện">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-left border-collapse">
+<TableColumns widths={[23, 18, 18, 31, 10]} />
                         <thead>
                             <tr className="bg-cloud-mist border-b border-platinum-tint">
                                 <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase tracking-wider">Biển số xe</th>
@@ -172,7 +178,7 @@ const MyVehicles = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                vehicles.map((vehicle) => (
+                                camaiPageItems.map((camaiRecord, camaiIndex) => ((vehicle) => (
                                     <tr key={vehicle.id} className="hover:bg-cloud-mist/50 transition-colors">
                                         <td className="py-4 px-6">
                                             <span className="font-bold text-midnight-indigo border border-steel-gray px-3 py-1 rounded bg-white shadow-sm font-mono tracking-widest">{vehicle.plate_number || vehicle.plate_raw}</span>
@@ -183,7 +189,7 @@ const MyVehicles = () => {
                                             </span>
                                         </td>
                                         <td className="py-4 px-6">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                                            <span data-ui-text="badge" className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
                                                 vehicle.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-steel-gray/20 text-slate-blue'
                                             }`}>
                                                 {vehicle.status === 'active' ? 'Đang hoạt động' : 'Tạm vô hiệu'}
@@ -213,10 +219,12 @@ const MyVehicles = () => {
                                             </button>
                                         </td>
                                     </tr>
-                                ))
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (vehicles)))
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                 </div>
             </div>
         </div>
@@ -245,7 +253,7 @@ const MyVehicles = () => {
                                     placeholder="VD: 30A-123.45"
                                     className="w-full px-4 py-2.5 rounded-xl border border-platinum-tint focus:border-action-blue focus:ring-1 focus:ring-action-blue text-sm font-mono outline-none"
                                 />
-                                <p className="text-[11px] text-slate-blue mt-1">Viết liền hoặc có dấu gạch ngang đều được (Hệ thống sẽ tự chuẩn hóa).</p>
+                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-1">Viết liền hoặc có dấu gạch ngang đều được (Hệ thống sẽ tự chuẩn hóa).</p>
                             </div>
                             
                             <div>

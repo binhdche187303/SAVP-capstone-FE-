@@ -1,10 +1,11 @@
+import PaginatedCollection from '../common/PaginatedCollection';
 import { Building2, ChevronRight, DoorOpen } from "lucide-react";
 import { SOURCE } from "./campusModel";
 import { STATE } from "./theme";
 
 const Stat = ({ label, value, color }) => (
   <div className="rounded-lg bg-slate-50 px-2 py-1.5">
-    <p className="text-[10px] text-slate-500">{label}</p>
+    <p data-ui-text="secondary" className="text-[10px] text-slate-500">{label}</p>
     <p className="text-sm font-bold tabular-nums" style={{ color }}>{value}</p>
   </div>
 );
@@ -23,7 +24,7 @@ const BuildingInfoPanel = ({ twin, selectedBuildingId, selectedGateId, onSelectB
     <div className="space-y-4">
       {b && (
         <section className="rounded-xl border border-[#1e3a5f]/20 bg-[#1e3a5f]/[0.04] p-3">
-          <p className="text-[10px] font-bold uppercase text-slate-500">{b.role}</p>
+          <p data-ui-text="label" className="text-[10px] font-bold uppercase text-slate-500">{b.role}</p>
           <h3 className="text-base font-bold text-slate-900">{b.name}</h3>
           <div className="mt-2 grid grid-cols-3 gap-1.5">
             <Stat label="Camera" value={twin.summarize(b.cameraIds).total} />
@@ -35,7 +36,7 @@ const BuildingInfoPanel = ({ twin, selectedBuildingId, selectedGateId, onSelectB
             {b.areaM2 && <div>Diện tích xây dựng: <b>{b.areaM2.toLocaleString("vi-VN")} m²</b></div>}
             <div>Tầng có dữ liệu camera: <b>{b.floorList.length ? b.floorList.map((f) => f.label).join(", ") : "chưa có"}</b></div>
           </dl>
-          {b.note && <p className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-800">{b.note}</p>}
+          {b.note && <p data-ui-text="badge" className="mt-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-800">{b.note}</p>}
           <button
             onClick={() => onOpenBuilding(b.id)}
             disabled={!b.floorList.length}
@@ -49,9 +50,9 @@ const BuildingInfoPanel = ({ twin, selectedBuildingId, selectedGateId, onSelectB
 
       {g && (
         <section className="rounded-xl border border-[#1e3a5f]/20 bg-[#1e3a5f]/[0.04] p-3">
-          <p className="text-[10px] font-bold uppercase text-slate-500">Cổng · {g.side}</p>
+          <p data-ui-text="label" className="text-[10px] font-bold uppercase text-slate-500">Cổng · {g.side}</p>
           <h3 className="text-base font-bold text-slate-900">{g.name}</h3>
-          <p className="mt-1 text-[11px] text-slate-600">
+          <p data-ui-text="secondary" className="mt-1 text-[11px] text-slate-600">
             Zone: {g.zones.length ? g.zones.map((z) => z.zone_code).join(", ") : <span className="text-amber-700">chưa gán zone cổng nào</span>}
           </p>
           <ul className="mt-2 space-y-1">
@@ -72,8 +73,10 @@ const BuildingInfoPanel = ({ twin, selectedBuildingId, selectedGateId, onSelectB
 
       <section>
         <h3 className="mb-1.5 text-[11px] font-bold uppercase text-slate-500">Tòa nhà</h3>
-        <ul className="space-y-0.5">
-          {placedBuildings.map((x) => {
+        <PaginatedCollection items={placedBuildings} itemLabel="tòa nhà">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-0.5">
+          {camaiPageItems.map((camaiRecord, camaiIndex) => ((x) => {
             const s = twin.summarize(x.cameraIds);
             return (
               <li key={x.id}>
@@ -90,10 +93,12 @@ const BuildingInfoPanel = ({ twin, selectedBuildingId, selectedGateId, onSelectB
                 </button>
               </li>
             );
-          })}
+          })(camaiRecord, camaiStartIndex + camaiIndex, (placedBuildings)))}
         </ul>
+)}
+</PaginatedCollection>
         {unplaced.map((x) => (
-          <p key={x.id} className="mt-1 px-2 text-[11px] text-slate-400">
+          <p data-ui-text="secondary" key={x.id} className="mt-1 px-2 text-[11px] text-slate-400">
             {x.name} — {x.role}: chưa có vị trí trên sơ đồ khuôn viên
           </p>
         ))}
@@ -101,8 +106,10 @@ const BuildingInfoPanel = ({ twin, selectedBuildingId, selectedGateId, onSelectB
 
       <section>
         <h3 className="mb-1.5 text-[11px] font-bold uppercase text-slate-500">Cổng</h3>
-        <ul className="space-y-0.5">
-          {Object.values(twin.gates).map((x) => {
+        <PaginatedCollection items={Object.values(twin.gates)} itemLabel="cổng">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-0.5">
+          {camaiPageItems.map((camaiRecord, camaiIndex) => ((x) => {
             const s = twin.summarize(x.cameraIds);
             return (
               <li key={x.id}>
@@ -119,8 +126,10 @@ const BuildingInfoPanel = ({ twin, selectedBuildingId, selectedGateId, onSelectB
                 </button>
               </li>
             );
-          })}
+          })(camaiRecord, camaiStartIndex + camaiIndex, (Object.values(twin.gates))))}
         </ul>
+)}
+</PaginatedCollection>
       </section>
     </div>
   );

@@ -286,7 +286,7 @@ const MinutesTabContent = ({ meetingId, isHost, isSecretary = false, transcriptS
                 {activeTab === 'compare' && hasBoth ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div>
-                            <h4 className="text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <h4 data-ui-text="label" className="text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                 <PenLine className="w-3.5 h-3.5" /> Bản thủ công
                             </h4>
                             {manualDetail && (
@@ -300,7 +300,7 @@ const MinutesTabContent = ({ meetingId, isHost, isSecretary = false, transcriptS
                             )}
                         </div>
                         <div>
-                            <h4 className="text-[11px] font-bold text-purple-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <h4 data-ui-text="label" className="text-[11px] font-bold text-purple-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                 <Sparkles className="w-3.5 h-3.5" /> Bản AI
                             </h4>
                             {aiDetail && (
@@ -393,7 +393,7 @@ const MinutesTabContent = ({ meetingId, isHost, isSecretary = false, transcriptS
             </div>
 
             {isHost && allowAiCreate && config?.enabled !== false && (transcriptStatus === 'empty' || transcriptStatus === 'loading') && (
-                <p className="text-[10px] text-amber-600 mt-4 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                <p data-ui-text="badge" className="text-[10px] text-amber-600 mt-4 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5" /> Tính năng AI yêu cầu phải có Bản ghi (Transcript) trước.
                 </p>
             )}

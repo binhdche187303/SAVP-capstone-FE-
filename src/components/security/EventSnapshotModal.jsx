@@ -169,7 +169,7 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
                     {/* Ảnh cắt biển số (HGVision) — góc trên trái, ẩn nếu không có */}
                     {plateUrl && (
                         <div className={`absolute top-4 left-4 bg-black/70 border border-white/20 rounded-lg p-2 shadow-2xl ${plateVisible ? 'block' : 'hidden'}`}>
-                            <div className="text-[11px] text-white/70 font-semibold mb-1">Biển số</div>
+                            <div data-ui-text="primary" className="text-[11px] text-white/70 font-semibold mb-1">Biển số</div>
                             <img
                                 key={plateUrl}
                                 src={plateUrl}

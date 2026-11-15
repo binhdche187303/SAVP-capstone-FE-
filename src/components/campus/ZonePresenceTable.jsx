@@ -1,5 +1,9 @@
+import TableColumns from '../common/TableColumns';
+import PaginatedCollection from '../common/PaginatedCollection';
+import ResponsiveTable from '../common/ResponsiveTable';
+import RefreshButton from '../common/RefreshButton';
 import { useState, useEffect, useCallback } from 'react';
-import { Building2, ChevronDown, ChevronRight, RefreshCw, Users } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, Users } from 'lucide-react';
 import { getCampusOverview, getPresenceByDepartment } from '../../service/campusService';
 
 // Bảng "Hiện diện hiện tại" (2.12) — dùng chung cho dashboard System Admin & Business Admin.
@@ -57,7 +61,10 @@ const SUBTITLES = {
 
 const DepartmentTable = ({ departments }) => (
     <div className="overflow-x-auto">
-        <table className="w-full" style={{ fontSize: 13, borderCollapse: 'collapse' }}>
+        <PaginatedCollection items={departments} itemLabel="đơn vị">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full" style={{ fontSize: 13, borderCollapse: 'collapse' }}>
+<TableColumns widths={[38, 15, 15, 32]} />
             <thead>
                 <tr style={{ color: C.muted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     <th className="text-left font-semibold py-2 px-3">Phòng ban</th>
@@ -67,7 +74,7 @@ const DepartmentTable = ({ departments }) => (
                 </tr>
             </thead>
             <tbody>
-                {departments.map((d) => {
+                {camaiPageItems.map((camaiRecord, camaiIndex) => ((d) => {
                     const pct = d.totalStaff > 0 ? Math.round((d.presentCount / d.totalStaff) * 100) : 0;
                     return (
                         <tr key={d.departmentId ?? '__none__'} style={{ borderTop: `1px solid ${C.borderSub}` }}>
@@ -87,9 +94,11 @@ const DepartmentTable = ({ departments }) => (
                             </td>
                         </tr>
                     );
-                })}
+                })(camaiRecord, camaiStartIndex + camaiIndex, (departments)))}
             </tbody>
-        </table>
+        </ResponsiveTable>
+)}
+</PaginatedCollection>
     </div>
 );
 
@@ -181,10 +190,13 @@ const ZonePresenceTable = () => {
                     {current?.generatedAt && (
                         <span style={{ fontSize: 11, color: C.muted }}>Cập nhật {formatTime(current.generatedAt)}</span>
                     )}
-                    <button type="button" onClick={load} disabled={loading} title="Làm mới"
-                        className="p-1.5 rounded-lg transition-colors hover:bg-slate-100 disabled:opacity-50">
-                        <RefreshCw style={{ width: 15, height: 15, color: C.muted }} className={loading ? 'animate-spin' : ''} />
-                    </button>
+                    <RefreshButton
+                        type="button"
+                        onClick={load}
+                        disabled={loading}
+                        title="Làm mới"
+                        busy={loading}
+                    />
                 </div>
             </div>
 
@@ -202,7 +214,10 @@ const ZonePresenceTable = () => {
                 <p style={{ fontSize: 13, color: C.muted, padding: '12px 0' }}>Chưa có khu vực nào được cấu hình.</p>
             ) : (
                 <div className="overflow-x-auto">
-                    <table className="w-full" style={{ fontSize: 13, borderCollapse: 'collapse' }}>
+                    <PaginatedCollection items={buildings} itemLabel="tòa nhà">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full" style={{ fontSize: 13, borderCollapse: 'collapse' }}>
+<TableColumns widths={[36, 13, 17, 24, 10]} />
                         <thead>
                             <tr style={{ color: C.muted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 <th className="text-left font-semibold py-2 px-3">Khu vực</th>
@@ -213,7 +228,7 @@ const ZonePresenceTable = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {buildings.map((b) => {
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((b) => {
                                 const bKey = b.building ?? '__none__';
                                 const isCollapsed = !!collapsed[bKey];
                                 return [
@@ -255,9 +270,11 @@ const ZonePresenceTable = () => {
                                         )),
                                     ])),
                                 ];
-                            })}
+                            })(camaiRecord, camaiStartIndex + camaiIndex, (buildings)))}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                 </div>
             )}
         </div>

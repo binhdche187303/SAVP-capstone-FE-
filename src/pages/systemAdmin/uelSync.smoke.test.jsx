@@ -54,7 +54,7 @@ test('hiện tình trạng, lượt gần nhất với bước lỗi', async () 
     expect(await screen.findByText('Đồng bộ dữ liệu Đào tạo UEL')).toBeInTheDocument();
     expect(screen.getByText('Đã cấu hình')).toBeInTheDocument();
     expect(screen.getAllByText('Có bước lỗi').length).toBeGreaterThan(0);
-    expect(screen.getByText('Bảng study_periods trống')).toBeInTheDocument();
+    expect(screen.getByText('Chưa có bảng giờ tiết học. Vui lòng nhập giờ bắt đầu và kết thúc của từng tiết.')).toBeInTheDocument();
     // Cài đặt cũ chỉ có namHoc/hocKy → hiểu là học kỳ chỉ định.
     expect(screen.getByLabelText('Chỉ định')).toBeChecked();
 });
@@ -128,4 +128,11 @@ test('tra cứu trực tiếp: lịch dạy 1 ngày gửi kèm ngày, hiện b�
     );
     expect(await screen.findByText('Cơ sở dữ liệu')).toBeInTheDocument();
     expect(screen.getByText('Học phần')).toBeInTheDocument();
+});
+
+test('cảnh báo của lượt cũ hiển thị tiếng Việt thay cho lỗi trùng email', async () => {
+    svc.getUelSyncRuns.mockResolvedValue([{ ...RUN, results: [{ step: 'staff', fetched: 2, upserted: 1, skipped: 1, deactivated: 0, warnings: ['cán bộ SDH162: duplicate key value violates unique constraint "ux_users_email_active"'] }] }]);
+    render(<UelSync />);
+    expect(await screen.findByText(/cán bộ SDH162: Email này đã được dùng cho một tài khoản khác/)).toBeInTheDocument();
+    expect(screen.queryByText(/duplicate key/)).not.toBeInTheDocument();
 });

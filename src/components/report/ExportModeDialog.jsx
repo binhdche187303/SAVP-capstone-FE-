@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Stamp } from 'lucide-react';
 import SimpleModal from '../common/SimpleModal';
+import FilterBar, { FilterField } from '../common/FilterBar';
 import SignerPicker from './SignerPicker';
 import { listTemplates } from '../../service/reportTemplateService';
 import useAreaBase from '../../hooks/useAreaBase';
@@ -16,9 +17,25 @@ const optionCls = (active, disabled) =>
         active ? 'border-action-blue bg-blue-50/60' : 'border-platinum-tint bg-white hover:bg-cloud-mist'
     } ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`;
 
-const ExportModeDialog = ({ isOpen, format, reportType, onClose, onConfirm }) => {
+const ExportModeDialog = ({ isOpen, format, formats, reportType, onClose, onConfirm, title, filterSummary = [], initialRange, editableRange = false, allowStandard = true, pdfPrint = false }) => {
     const base = useAreaBase();
     const [mode, setMode] = useState('normal');
+    const availableFormats = formats || [format || 'xlsx'];
+    const formatKey = availableFormats.join(',');
+    const [selectedFormat, setSelectedFormat] = useState(format || availableFormats[0]);
+    const [range, setRange] = useState(initialRange || {});
+    const [pending, setPending] = useState(false);
+    const [downloadInfo, setDownloadInfo] = useState(null);
+    const standardSupported = allowStandard && selectedFormat !== 'csv';
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const choices = formatKey.split(',');
+        setSelectedFormat(choices.includes(format) ? format : choices[0]);
+        setRange({ from: initialRange?.from || '', to: initialRange?.to || '' });
+        setPending(false);
+        setDownloadInfo(null);
+    }, [isOpen, format, formatKey, initialRange?.from, initialRange?.to]);
     const [templates, setTemplates] = useState(null);
     const [loadError, setLoadError] = useState(null);
     const [templateId, setTemplateId] = useState('');
@@ -39,7 +56,7 @@ const ExportModeDialog = ({ isOpen, format, reportType, onClose, onConfirm }) =>
     };
 
     useEffect(() => {
-        if (!isOpen) return undefined;
+        if (!isOpen || !allowStandard) return undefined;
         let stale = false;
         setMode('normal');
         setTemplates(null);
@@ -60,14 +77,31 @@ const ExportModeDialog = ({ isOpen, format, reportType, onClose, onConfirm }) =>
             }
         });
         return () => { stale = true; };
-    }, [isOpen, reportType]);
+    }, [isOpen, reportType, allowStandard]);
 
     const hasTemplates = Boolean(templates?.length);
     const slots = template ? template.layout.signatures.filter((s) => s.mode !== 'hidden') : [];
     const setSigner = (slotId, patch) => setSigners((prev) => ({ ...prev, [slotId]: { ...prev[slotId], ...patch } }));
 
+    const performExport = async extra => {
+        setPending(true);
+        setError(null);
+        try {
+            const result = await (formats ? onConfirm(extra, { format: selectedFormat, range }) : onConfirm(extra));
+            if (result?.success === false) throw new Error(result.message || 'Không xuất được báo cáo');
+            if (result?.data?.downloadUrl) setDownloadInfo(result.data);
+        } catch (failure) {
+            setError(failure?.message || 'Không xuất được báo cáo. Vui lòng thử lại.');
+        } finally { setPending(false); }
+    };
+
     const confirm = () => {
-        if (mode === 'normal') { onConfirm({}); return; }
+        if (pending) return;
+        if (initialRange && (!range.from || !range.to || range.from > range.to)) {
+            setError('Vui lòng chọn đủ Từ ngày / Đến ngày và bảo đảm ngày bắt đầu không sau ngày kết thúc.');
+            return;
+        }
+        if (mode === 'normal' || !standardSupported) { performExport({}); return; }
         if (!template) { setError('Vui lòng chọn mẫu báo cáo'); return; }
         const built = buildSignerPayload(template.layout, signers);
         if (built.error) { setError(built.error); return; }
@@ -82,50 +116,84 @@ const ExportModeDialog = ({ isOpen, format, reportType, onClose, onConfirm }) =>
         if (addressee.trim() !== baseAddressee) extra.addressee = addressee.trim();
         const baseRecipients = template.layout.recipients.enabled ? template.layout.recipients.items : [];
         if (lines.join('\n') !== baseRecipients.join('\n')) extra.recipients = lines;
-        onConfirm(extra);
+        performExport(extra);
     };
 
     return (
         <SimpleModal
             isOpen={isOpen}
-            title={`Xuất ${FORMAT_LABELS[format] || ''} — chọn kiểu bản xuất`}
-            onClose={onClose}
+            title={title || (formats ? 'Xuất báo cáo' : `Xuất ${FORMAT_LABELS[format] || ''} — chọn kiểu bản xuất`)}
+            onClose={pending ? undefined : onClose}
             footer={(
                 <>
-                    <button type="button" className={btnGhost} onClick={onClose}>Hủy</button>
-                    <button type="button" className={btnPrimary} onClick={confirm} disabled={mode === 'standard' && !template}>Xuất file</button>
+                    <button type="button" className={btnGhost} onClick={onClose} disabled={pending}>{downloadInfo ? 'Đóng' : 'Hủy'}</button>
+                    {downloadInfo ? <a className={btnPrimary} href={downloadInfo.downloadUrl} target="_blank" rel="noreferrer">Tải file</a> : <button type="button" className={btnPrimary} onClick={confirm} disabled={pending || (standardSupported && mode === 'standard' && !template)}>{pending ? 'Đang xuất…' : 'Xuất file'}</button>}
                 </>
             )}
         >
-            <div className="space-y-4">
+            {downloadInfo ? <div role="status" className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                Báo cáo đã sẵn sàng. Bấm “Tải file” để lưu về máy.
+                {downloadInfo.fileName && <p className="mt-2 break-words font-semibold">{downloadInfo.fileName}</p>}
+            </div> : <div className="space-y-4">
+                {formats && (
+                    <fieldset disabled={pending} className="space-y-2">
+                        <legend className={labelCls}>Định dạng file</legend>
+                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Định dạng file">
+                            {availableFormats.map(value => (
+                                <button key={value} type="button" role="radio" aria-checked={selectedFormat === value}
+                                    onClick={() => { setSelectedFormat(value); setError(null); if (value === 'csv') setMode('normal'); }}
+                                    className={`min-h-[38px] px-4 py-2 rounded-xl border text-sm font-semibold ${selectedFormat === value ? 'border-action-blue bg-blue-50 text-action-blue' : 'border-platinum-tint text-slate-blue bg-white'}`}>
+                                    {FORMAT_LABELS[value] || value.toUpperCase()}
+                                </button>
+                            ))}
+                        </div>
+                    </fieldset>
+                )}
+                {filterSummary.length > 0 && (
+                    <div className="rounded-xl border border-platinum-tint bg-cloud-mist/40 p-3 space-y-1">
+                        <p className={labelCls}>Phạm vi dữ liệu xuất</p>
+                        {filterSummary.filter(Boolean).map((line, index) => <p key={index} className="text-xs text-slate-blue break-words">{line}</p>)}
+                    </div>
+                )}
+                {initialRange && (editableRange ? (
+                    <FilterBar variant="inline" data-filter-grid className="grid gap-4">
+                        <FilterField label="Từ ngày"><input type="date" value={range.from || ''} max={range.to || undefined} disabled={pending} onChange={e => setRange(previous => ({ ...previous, from: e.target.value }))} /></FilterField>
+                        <FilterField label="Đến ngày"><input type="date" value={range.to || ''} min={range.from || undefined} disabled={pending} onChange={e => setRange(previous => ({ ...previous, to: e.target.value }))} /></FilterField>
+                    </FilterBar>
+                ) : (
+                    <p className="text-sm text-slate-blue">Khoảng ngày đang áp dụng: <strong>{(range.from || '').split('-').reverse().join('/')} — {(range.to || '').split('-').reverse().join('/')}</strong></p>
+                ))}
+                {pdfPrint && selectedFormat === 'pdf' && mode === 'normal' && <p className="text-xs text-slate-blue">Bản thường PDF mở cửa sổ in để lưu thành PDF; bản quy chuẩn tải file PDF.</p>}
+                {pending && <p role="status" className="text-sm text-action-blue">Đang tạo và chuẩn bị tải file báo cáo…</p>}
+                {!standardSupported && <p className="text-xs text-slate-blue">{selectedFormat === 'csv' ? 'CSV chỉ hỗ trợ bản thường.' : 'Loại dữ liệu này chưa hỗ trợ bản quy chuẩn.'}</p>}
                 <div className="grid sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Kiểu bản xuất">
-                    <label className={optionCls(mode === 'normal', false)}>
-                        <input type="radio" name="export-mode" className="mt-1 accent-[#006BFF]" checked={mode === 'normal'} onChange={() => { setMode('normal'); setError(null); }} />
+                    <label className={optionCls(mode === 'normal', pending)}>
+                        <input type="radio" name="export-mode" className="mt-1 accent-[#006BFF]" checked={mode === 'normal'} disabled={pending} onChange={() => { setMode('normal'); setError(null); }} />
                         <span>
                             <span className="flex items-center gap-1.5 text-sm font-bold text-midnight-indigo"><FileText className="w-4 h-4 text-action-blue" /> Bản thường</span>
-                            <span className="block text-[11px] text-slate-blue mt-1">Số liệu và bảng như đang xem trên màn hình. Dùng để tra cứu, đối chiếu nhanh.</span>
+                            <span data-ui-text="secondary" className="block text-[11px] text-slate-blue mt-1">Số liệu và bảng như đang xem trên màn hình. Dùng để tra cứu, đối chiếu nhanh.</span>
                         </span>
                     </label>
-                    <label className={optionCls(mode === 'standard', !hasTemplates)}>
-                        <input type="radio" name="export-mode" className="mt-1 accent-[#006BFF]" checked={mode === 'standard'} disabled={!hasTemplates} onChange={() => setMode('standard')} />
+                    <label className={optionCls(mode === 'standard', !hasTemplates || !standardSupported || pending)}>
+                        <input type="radio" name="export-mode" className="mt-1 accent-[#006BFF]" checked={mode === 'standard'} disabled={!hasTemplates || !standardSupported || pending} onChange={() => setMode('standard')} />
                         <span>
                             <span className="flex items-center gap-1.5 text-sm font-bold text-midnight-indigo"><Stamp className="w-4 h-4 text-action-blue" /> Bản quy chuẩn</span>
-                            <span className="block text-[11px] text-slate-blue mt-1">Theo thể thức Nghị định 30/2020: quốc hiệu, số ký hiệu, kính gửi, khối ký, nơi nhận, phụ lục.</span>
+                            <span data-ui-text="secondary" className="block text-[11px] text-slate-blue mt-1">Theo thể thức Nghị định 30/2020: quốc hiệu, số ký hiệu, kính gửi, khối ký, nơi nhận, phụ lục.</span>
                         </span>
                     </label>
                 </div>
 
-                {templates === null && <p className="text-xs text-slate-blue">Đang tải danh sách mẫu…</p>}
-                {templates !== null && !hasTemplates && (
-                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                {standardSupported && templates === null && <p className="text-xs text-slate-blue">Đang tải danh sách mẫu…</p>}
+                {standardSupported && templates !== null && !hasTemplates && (
+                    <p data-ui-text="badge" className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
                         {loadError || 'Chưa có mẫu quy chuẩn cho báo cáo này.'}{' '}
-                        {!loadError && base !== '/manager' && (
+                        {!loadError && ['/system-admin', '/business-admin'].includes(base) && (
                             <Link to={`${base}/report-templates`} className="font-semibold underline">Tạo mẫu tại mục Mẫu báo cáo</Link>
                         )}
                     </p>
                 )}
 
-                {mode === 'standard' && template && (
+                {standardSupported && mode === 'standard' && template && (
                     <div className="space-y-4 border-t border-platinum-tint pt-4">
                         <div className="space-y-1">
                             <label className={labelCls} htmlFor="export-template">Mẫu báo cáo</label>
@@ -135,7 +203,7 @@ const ExportModeDialog = ({ isOpen, format, reportType, onClose, onConfirm }) =>
                         </div>
 
                         <div className="space-y-2">
-                            <p className={labelCls}>Người ký</p>
+                            <p data-ui-text="label" className={labelCls}>Người ký</p>
                             {slots.length === 0 && <p className="text-xs text-slate-blue">Mẫu này không in khối ký.</p>}
                             {slots.map((slot) => {
                                 const pick = signers[slot.id] || { included: true, userId: null, fullName: '' };
@@ -144,8 +212,8 @@ const ExportModeDialog = ({ isOpen, format, reportType, onClose, onConfirm }) =>
                                     <div key={slot.id} className="rounded-xl border border-platinum-tint p-3 space-y-2" data-testid={`signer-${slot.id}`}>
                                         <div className="flex items-center justify-between gap-3">
                                             <div>
-                                                <p className="text-xs font-bold text-midnight-indigo">{[slot.authority, slot.title].filter(Boolean).join(' — ')}</p>
-                                                <p className={`text-[10px] font-semibold ${required ? 'text-red-600' : 'text-slate-blue'}`}>{SIGNATURE_MODE_LABELS[slot.mode]}</p>
+                                                <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">{[slot.authority, slot.title].filter(Boolean).join(' — ')}</p>
+                                                <p data-ui-text="primary" className={`text-[10px] font-semibold ${required ? 'text-red-600' : 'text-slate-blue'}`}>{SIGNATURE_MODE_LABELS[slot.mode]}</p>
                                             </div>
                                             {!required && (
                                                 <label className="inline-flex items-center gap-1.5 text-[11px] text-midnight-indigo cursor-pointer">
@@ -184,7 +252,7 @@ const ExportModeDialog = ({ isOpen, format, reportType, onClose, onConfirm }) =>
                 )}
 
                 {error && <div className={errorBoxCls} role="alert">{error}</div>}
-            </div>
+            </div>}
         </SimpleModal>
     );
 };

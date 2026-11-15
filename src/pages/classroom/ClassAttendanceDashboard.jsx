@@ -1,3 +1,7 @@
+import PaginationFooter from '../../components/common/PaginationFooter';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import DateInput from '../../components/common/DateInput';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
@@ -178,7 +182,7 @@ const DayBar = ({ value, onChange, summary }) => {
                 </button>
                 <label className={`${stepClass} relative cursor-pointer`} title="Chọn ngày">
                     <CalendarDays className="w-4 h-4" />
-                    <input
+                    <DateInput
                         type="date"
                         value={value}
                         onChange={(event) => event.target.value && onChange(event.target.value)}
@@ -315,18 +319,18 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
             .filter(row => !keyword || normalizeSearch(`${row.name || ''} ${row.code || ''}`).includes(keyword));
     }, [filteredRows, studentFilter, studentSearch]);
 
-    const studentsPerPage = 20;
+    const [studentsPerPage, setStudentsPerPage] = useState(10);
     const studentPageCount = Math.max(1, Math.ceil(tableRows.length / studentsPerPage));
     const visibleRows = useMemo(
         () => tableRows.slice((studentPage - 1) * studentsPerPage, studentPage * studentsPerPage),
-        [tableRows, studentPage]
+        [tableRows, studentPage, studentsPerPage]
     );
 
-    const eventsPerPage = 5;
+    const [eventsPerPage, setEventsPerPage] = useState(mode === 'teacher' ? 5 : 10);
     const eventPageCount = Math.max(1, Math.ceil(attendanceEvents.length / eventsPerPage));
     const visibleAttendanceEvents = useMemo(
         () => attendanceEvents.slice((eventPage - 1) * eventsPerPage, eventPage * eventsPerPage),
-        [attendanceEvents, eventPage]
+        [attendanceEvents, eventPage, eventsPerPage]
     );
 
     const refresh = useCallback(() => {
@@ -746,6 +750,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         </div>
                         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-blue">
                             <span className="font-semibold text-midnight-indigo">Lớp HP {selectedClass?.code || '—'}</span>
+                            {selectedClass?.semester && <span>{selectedClass.semester}</span>}
                             <span className="inline-flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> {formatLongDay(selectedDate)}</span>
                             {selectedRawSession ? <>
                                 <span className="inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {selectedRawSession.startTime} – {selectedRawSession.endTime}</span>
@@ -782,7 +787,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatisticGrid columns={4} className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <SharedStatCard
                     label="Sĩ số"
                     value={filteredSummary.total}
@@ -814,7 +819,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                     onClick={() => setStudentFilter(v => (v === 'missing' ? 'all' : 'missing'))}
                     active={studentFilter === 'missing'}
                 />
-            </div>
+            </StatisticGrid>
 
             {mode === 'teacher' && (
                 <ClassScanPopup notice={scanNotice} onClose={() => setScanNotice(null)} />
@@ -921,7 +926,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                     </label>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <ResponsiveTable className="w-full text-sm">
                         <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
                             <tr>
                                 <th className="text-center px-3 py-2.5 w-12">#</th>
@@ -968,16 +973,10 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                 </tr>
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
-                {tableRows.length > 0 && (
-                    <div className="px-4 py-3 border-t border-platinum-tint flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <span className="text-[11px] text-slate-blue">
-                            Hiển thị {(studentPage - 1) * studentsPerPage + 1}–{Math.min(studentPage * studentsPerPage, tableRows.length)} trong {tableRows.length} sinh viên
-                        </span>
-                        {studentPageCount > 1 && <Pagination currentPage={studentPage} totalPages={studentPageCount} onPageChange={setStudentPage} />}
-                    </div>
-                )}
+                <PaginationFooter currentPage={studentPage} totalPages={studentPageCount} totalItems={tableRows.length} pageSize={studentsPerPage}
+                    onPageChange={setStudentPage} onPageSizeChange={size => { setStudentsPerPage(size); setStudentPage(1); }} itemLabel="sinh viên" loading={dayLoading} />
             </div>
 
             <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
@@ -989,7 +988,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                     <p className="px-4 py-8 text-center text-sm text-slate-blue">Chưa có lượt vào/ra được ghi nhận trong ngày.</p>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <ResponsiveTable className="w-full text-sm">
                             <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
                                 <tr>
                                     <th className="text-left px-4 py-2.5">Thời gian</th>
@@ -1025,17 +1024,11 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                     );
                                 })}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
                 )}
-                {eventPageCount > 1 && (
-                    <div className="px-4 py-3 border-t border-platinum-tint flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <span className="text-[11px] text-slate-blue">
-                            Hiển thị {(eventPage - 1) * eventsPerPage + 1}–{Math.min(eventPage * eventsPerPage, attendanceEvents.length)} trong {attendanceEvents.length} lượt ghi nhận
-                        </span>
-                        <Pagination currentPage={eventPage} totalPages={eventPageCount} onPageChange={setEventPage} />
-                    </div>
-                )}
+                <PaginationFooter currentPage={eventPage} totalPages={eventPageCount} totalItems={attendanceEvents.length} pageSize={eventsPerPage}
+                    onPageChange={setEventPage} onPageSizeChange={size => { setEventsPerPage(size); setEventPage(1); }} itemLabel="lượt ghi nhận" />
             </div>
             </>}
         </div>

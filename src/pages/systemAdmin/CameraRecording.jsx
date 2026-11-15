@@ -1,3 +1,7 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
 import { Archive, CalendarClock, Film, Gauge, HardDrive, Video } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -31,10 +35,8 @@ const formatGB = (gb) =>
     ? `${(gb / 1024).toFixed(2)} TB`
     : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`;
 
-const StatCard = ({ icon, label, value, sub, tone = "text-midnight-indigo", children }) => (
-  <SharedStatCard icon={icon} label={label} value={value} hint={sub} tone={toneOf(tone)}>
-    {children}
-  </SharedStatCard>
+const StatCard = ({ label, value, sub, tone = '' }) => (
+    <StatisticCard label={label} value={value} helper={sub} tone={statisticTone(tone)} compactValue={typeof value === 'string' && value.length > 12} />
 );
 
 /** Thanh 7 ngày tóm tắt lịch: mỗi ngày = tỉ lệ giờ có ghi. */
@@ -140,7 +142,7 @@ const CameraRecording = () => {
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+          <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
             <Film className="w-3.5 h-3.5" /> Camera AI
           </span>
           <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">
@@ -163,27 +165,15 @@ const CameraRecording = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={HardDrive}
-          label="Dung lượng đã dùng"
-          value={
-            <>
-              {formatGB(totalUsed)}{" "}
-              <span className="text-sm font-semibold opacity-70">
-                / {formatGB(capacityGB)}
-              </span>
-            </>
-          }
-          tone={usedPct > 85 ? "text-red-600" : usedPct > 70 ? "text-amber-600" : "text-midnight-indigo"}
-        >
+      <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatisticCard extraPosition="footer" label="Dung lượng đã dùng" value={formatGB(totalUsed)} helper={`/ ${formatGB(capacityGB)}`} icon={HardDrive}>
           <div className="h-2 rounded-full bg-cloud-mist mt-2 overflow-hidden">
             <div
               className={`h-full ${usedPct > 85 ? "bg-red-500" : usedPct > 70 ? "bg-amber-500" : "bg-green-500"}`}
               style={{ width: `${Math.min(100, usedPct)}%` }}
             />
           </div>
-        </StatCard>
+        </StatisticCard>
         <StatCard
           icon={Video}
           label="Camera đang ghi"
@@ -210,7 +200,7 @@ const CameraRecording = () => {
           sub={`Cần ${formatGB(steadyState)} khi đủ chính sách lưu`}
           tone={fits ? "text-green-600" : "text-red-600"}
         />
-      </div>
+      </StatisticGrid>
 
       <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
         {loading ? (
@@ -218,7 +208,18 @@ const CameraRecording = () => {
             <div className="w-8 h-8 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <PaginatedCollection items={rows} itemLabel="camera">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-sm">
+<colgroup>
+<col style={{ width: '22%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '20%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '16%' }} />
+<col style={{ width: '7%' }} />
+</colgroup>
             <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
               <tr>
                 <th className="text-left px-4 py-3 font-bold">Camera</th>
@@ -233,7 +234,7 @@ const CameraRecording = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-platinum-tint">
-              {rows.map(({ device, rec, used, perDay }) => {
+              {camaiPageItems.map((camaiRecord, camaiIndex) => (({ device, rec, used, perDay }) => {
                 const active = rec.mode !== "off" && device.status === "online";
                 return (
                   <tr key={device.id} className="hover:bg-cloud-mist/30">
@@ -241,12 +242,12 @@ const CameraRecording = () => {
                       <p className="font-semibold text-midnight-indigo">
                         {device.device_name}
                       </p>
-                      <p className="text-[10px] font-mono text-steel-gray">
+                      <p data-ui-text="code" className="text-[10px] font-mono text-steel-gray">
                         {device.device_code} · {TYPE_LABEL[device.device_type]}
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      <span
+                      <span data-ui-text="badge"
                         className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${RECORDING_MODE[rec.mode].cls}`}
                       >
                         {RECORDING_MODE[rec.mode].label}
@@ -255,7 +256,7 @@ const CameraRecording = () => {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <WeekStrip schedule={rec.schedule} mode={rec.mode} />
-                        <span className="text-[11px] text-slate-blue tabular-nums">
+                        <span data-ui-text="secondary" className="text-[11px] text-slate-blue tabular-nums">
                           {scheduledHoursPerWeek(rec.schedule)}h/tuần
                         </span>
                       </div>
@@ -267,18 +268,18 @@ const CameraRecording = () => {
                       <p className="font-semibold text-midnight-indigo">
                         {formatGB(used)}
                       </p>
-                      <p className="text-[10px] text-steel-gray">
+                      <p data-ui-text="secondary" className="text-[10px] text-steel-gray">
                         +{formatGB(perDay)}/ngày
                       </p>
                     </td>
                     <td className="px-4 py-3">
                       {active ? (
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-red-600">
+                        <span data-ui-text="secondary" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-red-600">
                           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />{" "}
                           Đang ghi
                         </span>
                       ) : (
-                        <span className="text-[11px] font-semibold text-steel-gray">
+                        <span data-ui-text="primary" className="text-[11px] font-semibold text-steel-gray">
                           {rec.mode === "off"
                             ? "Tắt ghi"
                             : `Gián đoạn (${device.status})`}
@@ -295,9 +296,11 @@ const CameraRecording = () => {
                     </td>
                   </tr>
                 );
-              })}
+              })(camaiRecord, camaiStartIndex + camaiIndex, (rows)))}
             </tbody>
-          </table>
+          </ResponsiveTable>
+)}
+</PaginatedCollection>
         )}
       </div>
 

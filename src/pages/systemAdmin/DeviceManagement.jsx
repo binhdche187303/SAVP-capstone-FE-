@@ -1,4 +1,11 @@
-import { Activity, Ban, Cpu, Film, Wifi, WifiOff, Wrench } from 'lucide-react';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard from '../../components/common/StatisticCard';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import './DeviceManagement.css';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { Activity, Cpu, Film } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -690,7 +697,7 @@ const DeviceManagement = () => {
             {/* Header section */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Cpu className="w-3.5 h-3.5" />
                         IoT
                     </span>
@@ -720,28 +727,21 @@ const DeviceManagement = () => {
                     <span className="font-semibold text-midnight-indigo">Đang theo dõi trực tiếp</span>
                     <span>· cập nhật {lastUpdated ? timeAgo(lastUpdated, now) : '...'}</span>
                 </div>
-                <button
+                <RefreshButton
                     onClick={() => fetchData(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold text-action-blue hover:bg-blue-50 transition-colors"
-                >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Làm mới
-                </button>
+                    busy={loading}
+                />
             </div>
 
             {/* UC-51: Device status summary cards */}
             {statusSummary && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                    <SharedStatCard icon={Cpu} label="Tổng thiết bị" value={statusSummary.total ?? devicesList.length} />
-                    <SharedStatCard icon={Wifi} tone="green" label="Online" value={statusSummary.online ?? 0} />
-                    <SharedStatCard icon={WifiOff} tone="red" label="Offline" value={statusSummary.offline ?? 0} />
-                    {/* BE trước đây không tách riêng disabled khỏi "unknown" nên field này luôn undefined
-                        → hiện 0 dù có thiết bị bị vô hiệu thật. Đã sửa BE trả đúng field `disabled`. */}
-                    <SharedStatCard icon={Ban} tone="slate" label="Vô hiệu" value={statusSummary.disabled ?? 0} />
-                    <SharedStatCard icon={Wrench} tone="amber" label="Bảo trì" value={statusSummary.maintenance ?? 0} />
-                </div>
+                <StatisticGrid columns={5} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <StatisticCard label="Tổng thiết bị" value={statusSummary.total ?? devicesList.length} icon={Cpu} />
+                    <StatisticCard label="Online" value={statusSummary.online ?? 0} tone="success" />
+                    <StatisticCard label="Offline" value={statusSummary.offline ?? 0} tone="danger" />
+                    <StatisticCard label="Vô hiệu" value={statusSummary.disabled ?? 0} />
+                    <StatisticCard label="Bảo trì" value={statusSummary.maintenance ?? 0} tone="warning" />
+                </StatisticGrid>
             )}
 
             {/* Notification messages */}
@@ -772,23 +772,24 @@ const DeviceManagement = () => {
             ) : (
                 <>
                     {/* Filter bar */}
-                    <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 p-4 flex flex-col sm:flex-row gap-3 sm:items-center">
-                        <div className="relative flex-1 min-w-0">
-                            <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-steel-gray">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                            </span>
-                            <input
-                                type="text"
-                                placeholder="Tìm theo tên, mã thiết bị hoặc địa chỉ IP..."
-                                value={search}
-                                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                                className="pl-9 pr-4 py-2 w-full border border-platinum-tint rounded-xl text-sm text-midnight-indigo placeholder:text-steel-gray focus:outline-none focus:border-action-blue"
-                            />
-                        </div>
-                        <div className="flex flex-wrap gap-2 shrink-0">
-                            <select
+                    <FilterBar variant="card" className="device-filter-panel">
+                        <div className="device-filter-fields">
+                            <FilterField label="Tìm kiếm" className="device-filter-search"><div className="relative min-w-0">
+                                <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-steel-gray">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </span>
+                                <input
+                                    type="text"
+                                    placeholder="Tên, mã thiết bị hoặc IP"
+                                    title="Tìm theo tên, mã thiết bị hoặc địa chỉ IP"
+                                    value={search}
+                                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                                    className="pl-9 pr-4 py-2 w-full border border-platinum-tint rounded-xl text-sm text-midnight-indigo placeholder:text-steel-gray focus:outline-none focus:border-action-blue"
+                                />
+                            </div></FilterField>
+                            <FilterField label="Phòng"><select
                                 value={selectedRoomId}
                                 onChange={(e) => { setSelectedRoomId(e.target.value); setPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue bg-white"
@@ -797,8 +798,8 @@ const DeviceManagement = () => {
                                 {rooms.map(room => (
                                     <option key={room.roomId} value={room.roomId}>{room.roomName}</option>
                                 ))}
-                            </select>
-                            <select
+                            </select></FilterField>
+                            <FilterField label="Loại thiết bị"><select
                                 value={selectedType}
                                 onChange={(e) => { setSelectedType(e.target.value); setPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue bg-white"
@@ -809,8 +810,8 @@ const DeviceManagement = () => {
                                 <option value="room_camera">Camera phòng</option>
                                 <option value="anpr_camera">Camera biển số</option>
                                 <option value="face_server">Face Server</option>
-                            </select>
-                            <select
+                            </select></FilterField>
+                            <FilterField label="Trạng thái"><select
                                 value={selectedStatus}
                                 onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue bg-white"
@@ -820,8 +821,8 @@ const DeviceManagement = () => {
                                 <option value="offline">Offline</option>
                                 <option value="disabled">Vô hiệu</option>
                                 <option value="maintenance">Bảo trì</option>
-                            </select>
-                            <select
+                            </select></FilterField>
+                            <FilterField label="Tình trạng kết nối"><select
                                 value={selectedHealth}
                                 onChange={(e) => { setSelectedHealth(e.target.value); setPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue bg-white"
@@ -830,14 +831,12 @@ const DeviceManagement = () => {
                                 {Object.entries(HEALTH_CONFIG).map(([value, h]) => (
                                     <option key={value} value={value}>{h.label}</option>
                                 ))}
-                            </select>
+                            </select></FilterField>
                         </div>
-                        {filteredDevices.length > 0 && (
-                            <span className="text-xs text-steel-gray shrink-0 font-semibold tabular-nums">
-                                {filteredDevices.length} thiết bị
-                            </span>
-                        )}
-                    </div>
+                        <span data-ui-text="secondary" className="device-filter-count text-xs text-steel-gray font-semibold tabular-nums" role="status">
+                            {filteredDevices.length} thiết bị
+                        </span>
+                    </FilterBar>
 
                     {/* Sự cố đang mở: thiết bị đang mất kết nối */}
                     {offlineDevices.length > 0 && (
@@ -850,8 +849,10 @@ const DeviceManagement = () => {
                                     Xem cảnh báo
                                 </Link>
                             </div>
-                            <ul className="divide-y divide-red-100">
-                                {offlineDevices.slice(0, 5).map(d => (
+                            <PaginatedCollection items={offlineDevices} itemLabel="thiết bị" paginationTone="danger">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="divide-y divide-red-100">
+                                {camaiPageItems.map((camaiRecord, camaiIndex) => (d => (
                                     <li key={d.id} className="py-1.5 flex items-center justify-between gap-3">
                                         <span className="text-xs text-red-800 min-w-0 truncate">
                                             <span className="font-mono font-semibold">{d.device_code}</span> · {d.device_name}
@@ -859,22 +860,20 @@ const DeviceManagement = () => {
                                         </span>
                                         <span className="flex items-center gap-1 shrink-0">
                                             {(CAMERA_TYPES.includes(d.device_type) || d.device_type === 'face_server') && (
-                                                <button onClick={() => handleCheckAvailability(d)} className="px-2 py-1 rounded-lg text-[11px] font-semibold text-red-700 hover:bg-red-100">
+                                                <button data-ui-text="action" onClick={() => handleCheckAvailability(d)} className="px-2 py-1 rounded-lg text-[11px] font-semibold text-red-700 hover:bg-red-100">
                                                     Ping lại
                                                 </button>
                                             )}
-                                            <button onClick={() => setHistoryDevice(d)} className="px-2 py-1 rounded-lg text-[11px] font-semibold text-red-700 hover:bg-red-100">
+                                            <button data-ui-text="action" onClick={() => setHistoryDevice(d)} className="px-2 py-1 rounded-lg text-[11px] font-semibold text-red-700 hover:bg-red-100">
                                                 Lịch sử
                                             </button>
                                         </span>
                                     </li>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (offlineDevices)))}
                             </ul>
-                            {offlineDevices.length > 5 && (
-                                <button onClick={() => { setSelectedStatus('offline'); setPage(1); }} className="mt-1 text-[11px] font-semibold text-red-700 hover:underline">
-                                    và {offlineDevices.length - 5} thiết bị khác — lọc tất cả
-                                </button>
-                            )}
+)}
+</PaginatedCollection>
+
                         </div>
                     )}
 
@@ -902,7 +901,7 @@ const DeviceManagement = () => {
                                             <div className="p-5 flex flex-col gap-3.5 flex-1">
                                                 {/* Row: type badge + status */}
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wide uppercase ${cfg.badgeBg} ${cfg.badgeText}`}>
+                                                    <span data-ui-text="badge" className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wide uppercase ${cfg.badgeBg} ${cfg.badgeText}`}>
                                                         {cfg.label}
                                                     </span>
                                                     <div className="flex items-center gap-1.5 shrink-0">
@@ -929,7 +928,7 @@ const DeviceManagement = () => {
                                                                 </>
                                                             )}
                                                         </span>
-                                                        <span className={`text-[11px] font-bold ${
+                                                        <span data-ui-text="primary" className={`text-[11px] font-bold ${
                                                             device.status === 'online' ? 'text-green-600' :
                                                             device.status === 'disabled' ? 'text-gray-400' :
                                                             device.status === 'maintenance' ? 'text-amber-600' :
@@ -946,12 +945,12 @@ const DeviceManagement = () => {
                                                 {/* Name + code */}
                                                 <div>
                                                     <h3 className="text-[15px] font-bold text-midnight-indigo leading-snug line-clamp-1">{device.device_name}</h3>
-                                                    <p className="mt-0.5 text-[10px] font-mono text-steel-gray tracking-wider">{device.device_code}</p>
+                                                    <p data-ui-text="code" className="mt-0.5 text-[10px] font-mono text-steel-gray tracking-wider">{device.device_code}</p>
                                                     <div className="mt-2 flex items-center gap-2 flex-wrap">
-                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${(HEALTH_CONFIG[device.health_status] || HEALTH_CONFIG.unknown).cls}`}>
+                                                        <span data-ui-text="badge" className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${(HEALTH_CONFIG[device.health_status] || HEALTH_CONFIG.unknown).cls}`}>
                                                             {(HEALTH_CONFIG[device.health_status] || HEALTH_CONFIG.unknown).label}
                                                         </span>
-                                                        <span className="text-[11px] text-slate-blue">
+                                                        <span data-ui-text="secondary" className="text-[11px] text-slate-blue">
                                                             Hoạt động lần cuối: <span className="font-semibold text-midnight-indigo">{timeAgo(device.last_seen_at, now)}</span>
                                                         </span>
                                                     </div>
@@ -961,7 +960,7 @@ const DeviceManagement = () => {
                                                 {device.device_type === 'anpr_camera' && (() => {
                                                     const anpr = getAnprInfo(device);
                                                     return (
-                                                        <div className="flex items-center justify-between gap-2 rounded-xl bg-orange-50 px-3 py-2 text-[11px]">
+                                                        <div data-ui-text="secondary" className="flex items-center justify-between gap-2 rounded-xl bg-orange-50 px-3 py-2 text-[11px]">
                                                             <span className="font-semibold text-orange-700">
                                                                 {LANE_LABEL[anpr.laneDirection]} · Làn {anpr.laneNo}
                                                             </span>
@@ -977,7 +976,7 @@ const DeviceManagement = () => {
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                         </svg>
                                                         {assignedRoom ? (
-                                                            <span className="text-xs font-semibold text-midnight-indigo truncate">{assignedRoom.roomName}</span>
+                                                            <span data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo truncate">{assignedRoom.roomName}</span>
                                                         ) : (
                                                             <span className="text-xs text-steel-gray italic">Chưa gán phòng</span>
                                                         )}
@@ -988,9 +987,9 @@ const DeviceManagement = () => {
                                                         </svg>
                                                         <div className="min-w-0">
                                                             {device.ip_address ? (
-                                                                <p className="text-[11px] font-mono font-semibold text-midnight-indigo">{device.ip_address}</p>
+                                                                <p data-ui-text="code" className="text-[11px] font-mono font-semibold text-midnight-indigo">{device.ip_address}</p>
                                                             ) : (
-                                                                <p className="text-[11px] italic text-steel-gray">Chưa có IP</p>
+                                                                <p data-ui-text="secondary" className="text-[11px] italic text-steel-gray">Chưa có IP</p>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1032,7 +1031,7 @@ const DeviceManagement = () => {
                                                         {device.device_type === 'face_server' && (
                                                             <>
                                                             {!device.metadata_json?.face_server_config ? (
-                                                                <button
+                                                                <button data-ui-text="action"
                                                                     onClick={() => handleOpenFaceConfig(device)}
                                                                     title="Cấu hình Face Server lần đầu"
                                                                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
@@ -1128,46 +1127,19 @@ const DeviceManagement = () => {
                             </div>
 
                             {/* Pagination */}
-                            {filteredDevices.length > limit && (
-                                <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-slate-blue font-medium">Số thẻ:</span>
-                                        <select
-                                            value={limit}
-                                            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-                                            className="px-2 py-1 border border-platinum-tint rounded-lg text-xs text-slate-blue focus:outline-none focus:border-action-blue bg-white font-semibold"
-                                        >
-                                            <option value={9}>9</option>
-                                            <option value={12}>12</option>
-                                            <option value={24}>24</option>
-                                        </select>
-                                        <span className="text-xs text-slate-blue tabular-nums">
-                                            {(page - 1) * limit + 1}–{Math.min(page * limit, filteredDevices.length)} / {filteredDevices.length}
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            disabled={page <= 1}
-                                            onClick={() => setPage(page - 1)}
-                                            className="px-3 py-1.5 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            Trước
-                                        </button>
-                                        <span className="px-3 py-1.5 text-xs font-bold text-midnight-indigo tabular-nums">
-                                            {page} / {totalPages}
-                                        </span>
-                                        <button
-                                            disabled={page >= totalPages}
-                                            onClick={() => setPage(page + 1)}
-                                            className="px-3 py-1.5 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            Sau
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+
                         </>
                     )}
+{<PaginationRegion legacyVisible={filteredDevices.length > limit}><PaginationFooter
+                                    currentPage={page}
+                                    totalPages={totalPages}
+                                    totalItems={filteredDevices.length}
+                                    pageSize={limit}
+                                    onPageChange={setPage}
+                                    itemLabel={"thiết bị"}
+                                    loading={loading}
+                                    onPageSizeChange={size => { setLimit(size); setPage(1); }}
+                                /></PaginationRegion>}
                 </>
             )}
 
@@ -1206,7 +1178,7 @@ const DeviceManagement = () => {
                                 />
                                 <FieldError msg={fieldErrors.deviceName} />
                             </div>
-                            <p className="text-[10px] text-slate-blue">Sau khi đăng ký, dùng nút bút chì tím để cấu hình RTSP cho camera.</p>
+                            <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Sau khi đăng ký, dùng nút bút chì tím để cấu hình RTSP cho camera.</p>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại thiết bị</label>
@@ -1237,7 +1209,7 @@ const DeviceManagement = () => {
                                     </div>
                                 )}
                             </div>
-                            <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                            <p data-ui-text="secondary" className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
                                 Gán phòng cho thiết bị sau khi tạo — dùng nút <strong>Gán phòng</strong> (icon tòa nhà) trong danh sách.
                             </p>
                             <div className="grid grid-cols-2 gap-4">
@@ -1303,7 +1275,7 @@ const DeviceManagement = () => {
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại thiết bị</label>
                                 <div className="px-3 py-2 border border-platinum-tint bg-cloud-mist rounded-xl text-sm text-steel-gray flex items-center justify-between">
                                     <span>{TYPE_MAP[formData.deviceType] || formData.deviceType}</span>
-                                    <span className="text-[10px] text-slate-blue ml-2">(không thể đổi sau khi tạo)</span>
+                                    <span data-ui-text="secondary" className="text-[10px] text-slate-blue ml-2">(không thể đổi sau khi tạo)</span>
                                 </div>
                             </div>
                             <div>
@@ -1386,7 +1358,7 @@ const DeviceManagement = () => {
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Path <span className="text-red-500">*</span></label>
                                     <input type="text" value={rtspConfig.rtsp_path} onChange={(e) => setRtspConfig({...rtspConfig, rtsp_path: e.target.value})} placeholder="/live/main" className={`w-full px-3 py-2 border rounded-xl text-sm font-mono focus:outline-none ${fieldErrors.rtsp_path ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`} />
                                     <FieldError msg={fieldErrors.rtsp_path} />
-                                    <p className="text-[10px] text-slate-blue mt-1">Bắt đầu bằng /</p>
+                                    <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-1">Bắt đầu bằng /</p>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
@@ -1397,7 +1369,7 @@ const DeviceManagement = () => {
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Password</label>
                                     <input type="password" value={rtspConfig.rtsp_password} onChange={(e) => setRtspConfig({...rtspConfig, rtsp_password: e.target.value})} placeholder="••••••••" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue" />
-                                    <p className="text-[10px] text-slate-blue mt-1">Bỏ trống nếu không đổi mật khẩu.</p>
+                                    <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-1">Bỏ trống nếu không đổi mật khẩu.</p>
                                 </div>
                             </div>
                             <div className="flex justify-end gap-3 pt-4 border-t border-platinum-tint">
@@ -1425,7 +1397,7 @@ const DeviceManagement = () => {
                         </div>
                         <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
                             {/* Cảnh báo one-time */}
-                            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold text-center">
+                            <div data-ui-text="badge" className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 font-semibold text-center">
                                 ⚠ Lưu lại ngay — sẽ không hiển thị lại được. Nếu mất, phải cấu hình lại từ đầu (token cũ sẽ mất tác dụng).
                             </div>
 
@@ -1452,7 +1424,7 @@ const DeviceManagement = () => {
                             {tokenModalData.urls && (
                                 <div className="space-y-3">
                                     <p className="text-xs font-bold text-slate-blue uppercase">URL Callback (điền vào cấu hình thiết bị vật lý)</p>
-                                    <p className="text-[10px] text-slate-blue bg-blue-50 rounded-lg p-2">
+                                    <p data-ui-text="badge" className="text-[10px] text-slate-blue bg-blue-50 rounded-lg p-2">
                                         Các URL này đã bao gồm device_code và token. Sao chép trực tiếp vào từng field tương ứng trên thiết bị.
                                     </p>
 
@@ -1462,9 +1434,9 @@ const DeviceManagement = () => {
                                         { label: 'Stranger URL', key: 'stranger', url: tokenModalData.urls.stranger },
                                     ].map(({ label, key, url }) => (
                                         <div key={key}>
-                                            <p className="text-[10px] font-bold text-slate-blue mb-1">{label}</p>
+                                            <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue mb-1">{label}</p>
                                             <div className="flex items-center gap-2">
-                                                <div className="flex-1 bg-slate-100 rounded-lg px-3 py-2 font-mono text-[11px] text-midnight-indigo break-all select-all">
+                                                <div data-ui-text="code" className="flex-1 bg-slate-100 rounded-lg px-3 py-2 font-mono text-[11px] text-midnight-indigo break-all select-all">
                                                     {url}
                                                 </div>
                                                 <button
@@ -1513,7 +1485,7 @@ const DeviceManagement = () => {
                                 <h3 className="font-bold text-midnight-indigo text-sm">
                                     {faceConfigDevice.metadata_json?.face_server_config ? 'Sửa cấu hình Face Server' : 'Cấu hình Face Server lần đầu'}
                                 </h3>
-                                <p className="text-[10px] text-slate-blue mt-0.5">{faceConfigDevice.device_name} · {faceConfigDevice.device_code}</p>
+                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-0.5">{faceConfigDevice.device_name} · {faceConfigDevice.device_code}</p>
                             </div>
                             <button onClick={() => setIsFaceConfigModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -1522,7 +1494,7 @@ const DeviceManagement = () => {
                         <form onSubmit={handleFaceConfigSubmit} noValidate className="flex flex-col flex-1 min-h-0">
                         <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
                             {faceConfigDevice.metadata_json?.face_server_config && (
-                                <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                <div data-ui-text="secondary" className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                                     ⚠ Lưu lại sẽ tạo <strong>Token mới</strong> — token cũ và mọi URL đang dùng trên thiết bị vật lý sẽ mất tác dụng ngay, cần cập nhật lại thiết bị bằng token mới sau khi lưu.
                                 </div>
                             )}
@@ -1561,7 +1533,7 @@ const DeviceManagement = () => {
                                     placeholder="10.0.5.20 (để trống nếu không chắc IP thiết bị)"
                                     className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-mono focus:outline-none focus:border-action-blue"
                                 />
-                                <p className="text-[10px] text-amber-600 mt-1">⚠ Nếu điền sai IP, mọi callback từ thiết bị sẽ bị chặn 403. Để trống để bỏ qua kiểm tra.</p>
+                                <p data-ui-text="secondary" className="text-[10px] text-amber-600 mt-1">⚠ Nếu điền sai IP, mọi callback từ thiết bị sẽ bị chặn 403. Để trống để bỏ qua kiểm tra.</p>
                             </div>
 
                             {/* paths */}
@@ -1585,7 +1557,7 @@ const DeviceManagement = () => {
                                         </div>
                                     ))}
                                 </div>
-                                <p className="text-[10px] text-slate-blue">URL thật server lắng nghe cố định: <span className="font-mono">/api/v1/vf/</span>, <span className="font-mono">/api/v1/hb/</span>, <span className="font-mono">/api/v1/sf/</span> — không phụ thuộc vào giá trị nhập ở đây.</p>
+                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">URL thật server lắng nghe cố định: <span className="font-mono">/api/v1/vf/</span>, <span className="font-mono">/api/v1/hb/</span>, <span className="font-mono">/api/v1/sf/</span> — không phụ thuộc vào giá trị nhập ở đây.</p>
                             </div>
 
                             {/* base_url/username/password — chiều BE→thiết bị (gọi API camera để upload ảnh/thêm người) */}
@@ -1625,7 +1597,7 @@ const DeviceManagement = () => {
                                         />
                                     </div>
                                 </div>
-                                <p className="text-[10px] text-slate-blue">Để trống nếu không đổi (giữ nguyên giá trị đã cấu hình trước đó). Mật khẩu được mã hoá trước khi lưu, không hiển thị lại sau khi lưu.</p>
+                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Để trống nếu không đổi (giữ nguyên giá trị đã cấu hình trước đó). Mật khẩu được mã hoá trước khi lưu, không hiển thị lại sau khi lưu.</p>
                             </div>
 
                             {/* callback_enabled */}
@@ -1638,7 +1610,7 @@ const DeviceManagement = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm font-semibold text-midnight-indigo">Bật callback ngay</p>
-                                    <p className="text-[10px] text-slate-blue">callback_enabled — mặc định bật</p>
+                                    <p data-ui-text="secondary" className="text-[10px] text-slate-blue">callback_enabled — mặc định bật</p>
                                 </div>
                             </label>
                         </div>

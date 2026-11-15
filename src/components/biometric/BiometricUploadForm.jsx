@@ -144,7 +144,7 @@ const BiometricUploadForm = ({ onSuccess, onCancel, compact }) => {
                     Chọn ảnh
                     <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
                 </label>
-                <span className="text-[10px] text-steel-gray">Chấp nhận JPG, PNG, WEBP — tối đa 5MB</span>
+                <span data-ui-text="secondary" className="text-[10px] text-steel-gray">Chấp nhận JPG, PNG, WEBP — tối đa 5MB</span>
             </div>
 
             {error && (

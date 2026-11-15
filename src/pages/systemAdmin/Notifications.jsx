@@ -1,3 +1,6 @@
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
 import { AlertTriangle, Bell, Calendar, CheckCircle, CheckSquare, Clock, Eye, EyeOff, Info, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,7 +53,7 @@ const Notifications = () => {
     // Filters & Pagination
     const [filterType, setFilterType] = useState(''); // '', 'unread', 'read'
     const [page, setPage] = useState(1);
-    const [limit] = useState(10);
+    const [limit, setLimit] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
 
@@ -178,11 +181,11 @@ const Notifications = () => {
     };
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto">
+        <div data-page-surface="wide" className="space-y-6 max-w-4xl mx-auto">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Bell className="w-3.5 h-3.5" />
                         Trung tâm thông báo
                     </span>
@@ -198,13 +201,14 @@ const Notifications = () => {
                         <CheckSquare className="w-4 h-4 mr-2 text-green-600" />
                         Đọc tất cả
                     </button>
-                    <button
+                    <RefreshButton
                         onClick={fetchNotificationsList}
-                        className="p-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl hover:bg-cloud-mist transition-colors duration-200"
+                        legacyClassName="p-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl hover:bg-cloud-mist transition-colors duration-200"
                         title="Tải lại thông báo"
+                        busy={loading}
                     >
                         <RefreshCw className="w-4 h-4" />
-                    </button>
+                    </RefreshButton>
                 </div>
             </div>
 
@@ -224,13 +228,13 @@ const Notifications = () => {
             </AnimatePresence>
 
             {/* Filter buttons */}
-            <div className="flex gap-2 border-b border-platinum-tint pb-2">
+            <FilterBar variant="card" className="flex gap-2 border-b border-platinum-tint pb-2">
                 {[
                     { key: '', label: 'Tất cả thông báo' },
                     { key: 'unread', label: 'Chưa đọc' },
                     { key: 'read', label: 'Đã đọc' }
                 ].map(tab => (
-                    <button
+                    <button data-filter-preset
                         key={tab.key}
                         onClick={() => { setFilterType(tab.key); setPage(1); }}
                         className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
@@ -242,14 +246,14 @@ const Notifications = () => {
                         {tab.label}
                     </button>
                 ))}
-            </div>
+            </FilterBar>
 
             {/* List */}
             <div className="space-y-4">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-platinum-tint min-h-[200px]">
                         <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
-                        <p className="text-slate-blue text-xs font-semibold mt-3">Đang tải danh sách thông báo...</p>
+                        <p data-ui-text="primary" className="text-slate-blue text-xs font-semibold mt-3">Đang tải danh sách thông báo...</p>
                     </div>
                 ) : notificationsList.length === 0 ? (
                     <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-platinum-tint text-center min-h-[200px]">
@@ -274,7 +278,7 @@ const Notifications = () => {
                                     </div>
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-2">
-                                            <h4 className={`text-sm font-bold text-midnight-indigo ${!noti.read ? 'font-extrabold' : ''}`}>{noti.title}</h4>
+                                            <h4 data-ui-text="primary" className={`text-sm font-bold text-midnight-indigo ${!noti.read ? 'font-extrabold' : ''}`}>{noti.title}</h4>
                                             {!noti.read && (
                                                 <span className="w-2 h-2 rounded-full bg-red-500" />
                                             )}
@@ -284,7 +288,7 @@ const Notifications = () => {
                                             dangerouslySetInnerHTML={{ __html: removePriorityText(sanitizeBody(noti.body)) }}
                                         />
                                         {priorityMeta && (
-                                            <span className={`inline-flex items-center gap-1.5 w-fit px-2 py-0.5 rounded-full border text-[10px] font-bold ${priorityMeta.className}`}>
+                                            <span data-ui-text="secondary" className={`inline-flex items-center gap-1.5 w-fit px-2 py-0.5 rounded-full border text-[10px] font-bold ${priorityMeta.className}`}>
                                                 <span className={`h-1.5 w-1.5 rounded-full ${priorityMeta.dotClassName}`} />
                                                 Mức độ: {priorityMeta.label}
                                             </span>
@@ -294,7 +298,7 @@ const Notifications = () => {
                                             xử lý riêng nào cho notificationType='no_show_alert', chỉ hiện text thô. */}
                                         <NoShowInlineAction item={noti} />
                                         {noti.payloadJson?.conflictDetails?.length > 0 && (
-                                            <div className="bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-2 text-[11px] text-rose-800 space-y-1 mt-1">
+                                            <div data-ui-text="secondary" className="bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-2 text-[11px] text-rose-800 space-y-1 mt-1">
                                                 <p className="font-semibold">Xung đột với:</p>
                                                 {noti.payloadJson.conflictDetails.map((c, idx) => (
                                                     <p key={c.bookingId || idx}>
@@ -310,7 +314,7 @@ const Notifications = () => {
                                                 )}
                                             </div>
                                         )}
-                                        <div className="flex items-center gap-1 text-[10px] text-steel-gray pt-1">
+                                        <div data-ui-text="secondary" className="flex items-center gap-1 text-[10px] text-steel-gray pt-1">
                                             <Calendar className="w-3.5 h-3.5" />
                                             <span>{formatDate(noti.createdAt)}</span>
                                         </div>
@@ -338,7 +342,18 @@ const Notifications = () => {
                         ))}
 
                         {/* Pagination footer */}
-                        <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between">
+
+                    </div>
+                )}
+<PaginationFooter
+                            currentPage={page}
+                            totalPages={totalPages}
+                            totalItems={totalItems}
+                            pageSize={limit}
+                            onPageChange={setPage}
+                            itemLabel={"thông báo"}
+                            loading={loading}
+                            legacy={<div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1 flex items-center justify-between">
                             <span className="text-xs text-slate-blue">
                                 Hiển thị {notificationsList.length} trên tổng số {totalItems} thông báo
                             </span>
@@ -361,9 +376,8 @@ const Notifications = () => {
                                     Sau
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                )}
+                        </div>}
+                         onPageSizeChange={size => { setLimit(size); setPage(1); }} />
             </div>
         </div>
     );

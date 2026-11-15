@@ -1,3 +1,5 @@
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, CheckCircle2, Clock, Filter, TrendingUp, UserCheck, XCircle } from 'lucide-react';
 import {
@@ -173,13 +175,13 @@ const StudentClassDashboard = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <StatisticGrid columns={5} className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <StatCard icon={CalendarDays} label="Buổi học" value={summary.totalSessions || 0} helper="Theo lịch lớp" />
                 <StatCard icon={UserCheck} label="Đã điểm danh" value={summary.attended || 0} helper={`${summary.attendanceRate || 0}%`} tone="green" />
                 <StatCard icon={CheckCircle2} label="Đúng giờ" value={summary.onTime || 0} tone="green" />
                 <StatCard icon={Clock} label="Đi muộn" value={summary.late || 0} tone="amber" />
                 <StatCard icon={XCircle} label="Vắng" value={summary.absent || 0} tone="red" />
-            </div>
+            </StatisticGrid>
 
             <div className="bg-white border border-platinum-tint rounded-2xl shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-platinum-tint bg-cloud-mist/10">
@@ -198,7 +200,7 @@ const StudentClassDashboard = () => {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <ResponsiveTable className="w-full text-sm">
                             <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
                                 <tr>
                                     <th className="text-left px-5 py-4">Ngày</th>
@@ -226,7 +228,7 @@ const StudentClassDashboard = () => {
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
                 )}
             </div>

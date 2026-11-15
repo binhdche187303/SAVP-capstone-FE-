@@ -129,10 +129,10 @@ const DetectionZoneEditor = ({ zone, onChange }) => {
         </div>
       </div>
       <div className="flex items-center justify-between mt-1.5">
-        <p className="text-[10px] text-slate-blue">
+        <p data-ui-text="secondary" className="text-[10px] text-slate-blue">
           Kéo chuột trên khung để vẽ lại vùng. Ngoài vùng sẽ bỏ qua.
         </p>
-        <button
+        <button data-ui-text="action"
           type="button"
           onClick={() => onChange({ x: 0, y: 0, w: 100, h: 100 })}
           className="text-[10px] font-semibold text-action-blue hover:underline"
@@ -205,7 +205,7 @@ const CameraAiConfigModal = ({ device, onClose, onSaved }) => {
               <BrainCircuit className="w-4 h-4 text-indigo-600" /> Cấu hình AI
               Camera
             </h3>
-            <p className="text-[10px] text-slate-blue mt-0.5">
+            <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-0.5">
               {device.device_name} · {device.device_code}
             </p>
           </div>
@@ -220,7 +220,7 @@ const CameraAiConfigModal = ({ device, onClose, onSaved }) => {
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
             {error && (
-              <p className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+              <p data-ui-text="badge" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
                 {error}
               </p>
             )}
@@ -238,10 +238,10 @@ const CameraAiConfigModal = ({ device, onClose, onSaved }) => {
                     className="flex items-center justify-between gap-2 p-3 rounded-xl border border-platinum-tint"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-midnight-indigo">
+                      <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">
                         {f.label}
                       </p>
-                      <p className="text-[10px] text-slate-blue">{f.hint}</p>
+                      <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{f.hint}</p>
                     </div>
                     <Toggle
                       on={flags[f.key]}
@@ -252,7 +252,7 @@ const CameraAiConfigModal = ({ device, onClose, onSaved }) => {
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-slate-blue mt-1.5">
+              <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-1.5">
                 Lưu vào hệ thống. Đây là cấu hình khai báo — camera/IVSS cần
                 được bật tương ứng.
               </p>
@@ -270,7 +270,7 @@ const CameraAiConfigModal = ({ device, onClose, onSaved }) => {
                   <label className="text-xs font-semibold text-midnight-indigo">
                     Ngưỡng độ tin cậy
                   </label>
-                  <span className="text-xs font-bold text-action-blue tabular-nums">
+                  <span data-ui-text="primary" className="text-xs font-bold text-action-blue tabular-nums">
                     {adv.confidence}%
                   </span>
                 </div>
@@ -282,7 +282,7 @@ const CameraAiConfigModal = ({ device, onClose, onSaved }) => {
                   onChange={(e) => set({ confidence: Number(e.target.value) })}
                   className="w-full accent-action-blue"
                 />
-                <p className="text-[10px] text-slate-blue">
+                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">
                   Kết quả dưới ngưỡng bị bỏ qua. Cao hơn → ít nhận nhầm nhưng dễ
                   bỏ sót.
                 </p>
@@ -379,10 +379,10 @@ const CameraAiConfigModal = ({ device, onClose, onSaved }) => {
                       className="flex items-center justify-between gap-2 p-3 rounded-xl border border-platinum-tint"
                     >
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-midnight-indigo">
+                        <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">
                           {label}
                         </p>
-                        <p className="text-[10px] text-slate-blue">{hint}</p>
+                        <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{hint}</p>
                       </div>
                       <Toggle
                         on={adv[key]}

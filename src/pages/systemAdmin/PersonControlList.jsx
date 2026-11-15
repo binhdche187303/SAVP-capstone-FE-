@@ -1,4 +1,8 @@
-import { AlertTriangle, CheckCircle, Edit3, Filter, Plus, RefreshCw, Search, Trash2, UserX, X } from 'lucide-react';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { AlertTriangle, CheckCircle, Edit3, Filter, Plus, Search, Trash2, UserX, X } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -11,7 +15,7 @@ import {
 } from '../../service/personControlListService';
 import { getUsers } from '../../service/businessAdminServices';
 import { motion, AnimatePresence } from 'framer-motion';
-import Pagination from '../../components/common/Pagination';
+
 import { API_BASE_URL } from '../../utils/request';
 
 // Đối chiếu khi nhận diện khuôn mặt chạy theo user_id → bắt buộc chọn user có trong hệ thống.
@@ -258,11 +262,11 @@ const PersonControlList = () => {
     const formSelectCls = 'w-full px-4 py-2.5 bg-slate-50 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue focus:bg-white transition-colors';
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto pb-10">
+        <div data-page-surface="wide" className="space-y-6 max-w-7xl mx-auto pb-10">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <UserX className="w-3.5 h-3.5" />
                         Đối tượng
                     </span>
@@ -278,13 +282,11 @@ const PersonControlList = () => {
                         <Plus className="w-4 h-4 mr-1.5" />
                         Thêm đối tượng
                     </button>
-                    <button
+                    <RefreshButton
                         onClick={() => fetchPersons()}
-                        className="p-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl hover:bg-cloud-mist transition-colors duration-200"
                         title="Tải lại dữ liệu"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                    </button>
+                        busy={loading}
+                    />
                 </div>
             </div>
 
@@ -305,13 +307,13 @@ const PersonControlList = () => {
             </AnimatePresence>
 
             {/* Filters */}
-            <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1">
+            <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1">
                 <div className="flex items-center gap-2 mb-4 text-sm font-bold text-midnight-indigo">
                     <Filter className="w-4 h-4 text-slate-blue" />
                     Bộ lọc tìm kiếm
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-1.5">
+                <div data-filter-grid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Phân loại</label>
                         <select value={filters.list_type} onChange={(e) => handleFilterChange('list_type', e.target.value)} className={inputCls}>
                             <option value="">Tất cả phân loại</option>
@@ -319,7 +321,7 @@ const PersonControlList = () => {
                             <option value="watchlist">Danh sách theo dõi</option>
                         </select>
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Trạng thái</label>
                         <select value={filters.active} onChange={(e) => handleFilterChange('active', e.target.value)} className={inputCls}>
                             <option value="">Tất cả trạng thái</option>
@@ -328,12 +330,20 @@ const PersonControlList = () => {
                         </select>
                     </div>
                 </div>
-            </div>
+            </FilterBar>
 
             {/* Table */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <ResponsiveTable className="w-full text-left text-sm">
+<colgroup>
+<col style={{ width: '27%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '24%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '13%' }} />
+</colgroup>
                         <thead className="bg-cloud-mist/50 border-b border-platinum-tint">
                             <tr>
                                 <th className="px-6 py-4 font-extrabold text-xs text-slate-blue uppercase tracking-wider text-left">Đối tượng</th>
@@ -388,17 +398,17 @@ const PersonControlList = () => {
                                                     )}
                                                     <div>
                                                         <div className="font-extrabold text-midnight-indigo">{person.display_name}</div>
-                                                        <div className="text-[11px] text-slate-blue mt-0.5">Cập nhật: {formatDate(person.updated_at)}</div>
+                                                        <div data-ui-text="primary" className="text-[11px] text-slate-blue mt-0.5">Cập nhật: {formatDate(person.updated_at)}</div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${listType.color}`}>
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${listType.color}`}>
                                                     {listType.label}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${priority.color}`}>
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${priority.color}`}>
                                                     {priority.label}
                                                 </span>
                                             </td>
@@ -408,11 +418,11 @@ const PersonControlList = () => {
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center">
                                                     {person.active ? (
-                                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-green-700">
+                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[11px] font-bold text-green-700">
                                                             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Hoạt động
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-blue">
+                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-blue">
                                                             <div className="w-1.5 h-1.5 rounded-full bg-slate-blue"></div> Vô hiệu
                                                         </span>
                                                     )}
@@ -433,22 +443,19 @@ const PersonControlList = () => {
                                 })
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
 
                 {/* Pagination */}
-                {meta && meta.total > 0 && (
-                    <div className="px-6 py-4 bg-cloud-mist/30 border-t border-platinum-tint flex items-center justify-between">
-                        <span className="text-xs font-medium text-slate-blue">
-                            Hiển thị trang {meta.page} / {meta.totalPages} (Tổng {meta.total} bản ghi)
-                        </span>
-                        <Pagination
-                            currentPage={filters.page}
-                            totalPages={meta.totalPages}
-                            onPageChange={(p) => handleFilterChange('page', p)}
-                        />
-                    </div>
-                )}
+                {meta && <PaginationRegion legacyVisible={meta && meta.total > 0}><PaginationFooter
+                        currentPage={meta.page}
+                        totalPages={meta.totalPages}
+                        totalItems={meta.total}
+                        pageSize={filters.limit}
+                        onPageChange={(p) => handleFilterChange('page', p)}
+                        itemLabel={"bản ghi"}
+                        loading={loading}
+                     onPageSizeChange={size => { setFilters(previous => ({ ...previous, limit: size, page: 1 })); }} /></PaginationRegion>}
             </div>
 
             {/* Modal Add/Edit */}
@@ -494,8 +501,8 @@ const PersonControlList = () => {
                                                             <div className="px-4 py-3 text-xs text-slate-blue">Đang tìm...</div>
                                                         ) : userResults.map(u => (
                                                             <button type="button" key={u.id} onClick={() => selectUser(u)} className="w-full text-left px-4 py-2.5 hover:bg-cloud-mist transition-colors">
-                                                                <div className="text-sm font-semibold text-midnight-indigo">{u.fullName}</div>
-                                                                <div className="text-[11px] text-slate-blue">
+                                                                <div data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{u.fullName}</div>
+                                                                <div data-ui-text="secondary" className="text-[11px] text-slate-blue">
                                                                     {[u.employeeCode, u.email].filter(Boolean).join(' · ')}
                                                                     {u.hasFaceProfile === false && <span className="text-amber-600"> · chưa có khuôn mặt</span>}
                                                                 </div>
@@ -505,8 +512,8 @@ const PersonControlList = () => {
                                                 )}
                                             </div>
                                         )}
-                                        {formErrors.user_id && <p className="text-xs text-red-500 font-medium mt-1.5">{formErrors.user_id}</p>}
-                                        <p className="text-[11px] text-slate-400 mt-1">Hệ thống nhận diện theo khuôn mặt đã đăng ký của người dùng này.</p>
+                                        {formErrors.user_id && <p data-ui-text="secondary" className="text-xs text-red-500 font-medium mt-1.5">{formErrors.user_id}</p>}
+                                        <p data-ui-text="secondary" className="text-[11px] text-slate-400 mt-1">Hệ thống nhận diện theo khuôn mặt đã đăng ký của người dùng này.</p>
                                     </div>
                                 )}
 
@@ -519,7 +526,7 @@ const PersonControlList = () => {
                                         onChange={(e) => setField('display_name', e.target.value)}
                                         className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.display_name ? 'border-red-500 focus:border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                     />
-                                    {formErrors.display_name && <p className="text-xs text-red-500 font-medium mt-1.5">{formErrors.display_name}</p>}
+                                    {formErrors.display_name && <p data-ui-text="secondary" className="text-xs text-red-500 font-medium mt-1.5">{formErrors.display_name}</p>}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -550,7 +557,7 @@ const PersonControlList = () => {
                                         onChange={(e) => setField('reason', e.target.value)}
                                         className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors resize-none ${formErrors.reason ? 'border-red-500 focus:border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                     />
-                                    {formErrors.reason && <p className="text-xs text-red-500 font-medium mt-1.5">{formErrors.reason}</p>}
+                                    {formErrors.reason && <p data-ui-text="secondary" className="text-xs text-red-500 font-medium mt-1.5">{formErrors.reason}</p>}
                                 </div>
 
                                 <div className="flex items-center gap-3 p-4 bg-cloud-mist/50 border border-platinum-tint rounded-xl">

@@ -1,3 +1,6 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import './AttendanceViolationConfig.css';
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { SlidersHorizontal, Plus, Trash2, Save, Lock, Info, CheckCircle, AlertCircle, X, Hand, Pencil } from 'lucide-react';
@@ -132,7 +135,7 @@ const AttendanceViolationConfig = () => {
     const isEdit = !!editing?.id;
 
     return (
-        <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        <div data-page-surface="wide" className="p-6 space-y-6 max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center">
                     <SlidersHorizontal className="w-5 h-5" />
@@ -205,21 +208,31 @@ const AttendanceViolationConfig = () => {
                     </button>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                    <PaginatedCollection items={rules} itemLabel="hình thức vi phạm">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="attendance-violation-table w-full text-left">
+                        <colgroup>
+                            <col style={{ width: '6%' }} />
+                            <col style={{ width: '23%' }} />
+                            <col style={{ width: '10%' }} />
+                            <col style={{ width: '35%' }} />
+                            <col style={{ width: '16%' }} />
+                            <col style={{ width: '10%' }} />
+                        </colgroup>
                         <thead>
                             <tr className="text-[10px] uppercase font-bold text-slate-blue border-b border-platinum-tint">
-                                <th className="px-5 py-3 w-14">STT</th>
-                                <th className="px-5 py-3 w-72">Hình thức vi phạm</th>
-                                <th className="px-5 py-3 w-24 text-center">Điểm trừ</th>
+                                <th className="px-5 py-3">STT</th>
+                                <th className="px-5 py-3">Hình thức vi phạm</th>
+                                <th className="px-5 py-3 text-center">Điểm trừ</th>
                                 <th className="px-5 py-3">Điều kiện ghi nhận</th>
-                                <th className="px-5 py-3 w-32 text-center">Trạng thái</th>
-                                <th className="px-5 py-3 w-24 text-right">Thao tác</th>
+                                <th className="px-5 py-3 text-center">Trạng thái</th>
+                                <th className="px-5 py-3 text-right">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-blue">Đang tải...</td></tr>
-                            ) : rules.map((r, idx) => (
+                            ) : camaiPageItems.map((camaiRecord, camaiIndex) => ((r, idx) => (
                                 <tr
                                     key={r.id}
                                     onClick={() => openEdit(r)}
@@ -228,7 +241,7 @@ const AttendanceViolationConfig = () => {
                                     <td className="px-5 py-4 text-sm font-semibold text-slate-500">{idx + 1}</td>
                                     <td className="px-5 py-4">
                                         <p className="text-sm font-bold text-midnight-indigo">{r.ruleName}</p>
-                                        <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-slate-400">
+                                        <span data-ui-text="secondary" className="mt-1 inline-flex items-center gap-1 text-[10px] text-slate-400">
                                             {r.isSystem
                                                 ? <><Lock className="w-3 h-3" /> Hệ thống tự ghi nhận</>
                                                 : <><Hand className="w-3 h-3" /> Thư ký/chủ trì ghi nhận thủ công</>}
@@ -245,7 +258,7 @@ const AttendanceViolationConfig = () => {
                                         {r.conditionText || <span className="text-slate-400">—</span>}
                                     </td>
                                     <td className="px-5 py-4 text-center">
-                                        <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${
+                                        <span data-ui-text="badge" className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${
                                             r.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
                                         }`}>
                                             {r.isActive ? 'Đang áp dụng' : 'Đã tắt'}
@@ -272,9 +285,11 @@ const AttendanceViolationConfig = () => {
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            ))(camaiRecord, camaiStartIndex + camaiIndex, (rules)))}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                 </div>
             </div>
 
@@ -321,7 +336,7 @@ const AttendanceViolationConfig = () => {
                                     onChange={(e) => { setForm({ ruleName: e.target.value }); setFormError(''); }}
                                     className={`${inputCls} ${formError ? '!border-red-400' : ''}`}
                                 />
-                                {formError && <p className="mt-1 text-xs font-medium text-red-600">{formError}</p>}
+                                {formError && <p data-ui-text="secondary" className="mt-1 text-xs font-medium text-red-600">{formError}</p>}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -335,7 +350,7 @@ const AttendanceViolationConfig = () => {
                                         onChange={(e) => setForm({ penaltyPoints: e.target.value })}
                                         className={inputCls}
                                     />
-                                    <p className="mt-1 text-[11px] text-slate-400">Số âm là điểm trừ, 0 là không trừ</p>
+                                    <p data-ui-text="secondary" className="mt-1 text-[11px] text-slate-400">Số âm là điểm trừ, 0 là không trừ</p>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-600 mb-1.5">Trạng thái</label>

@@ -1,5 +1,7 @@
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import { AlertTriangle, CheckCircle, GripVertical, Key, Plus, RefreshCw, Save, Search, Shield, Trash2, UserCog } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 
 import { createPortal } from 'react-dom';
@@ -40,6 +42,7 @@ const MODULE_TRANSLATIONS = {
     'alerts': 'Cảnh báo an ninh',
     'meetings': 'Phòng họp & Đặt lịch',
     'reports': 'Báo cáo thống kê',
+    'visitors': 'Quản lý khách',
     'accounts': 'Quản lý tài khoản',
     'recording': 'Ghi âm / Ghi hình',
     'face': 'Nhận diện khuôn mặt',
@@ -73,6 +76,11 @@ const MODULE_TRANSLATIONS = {
 };
 
 const PERMISSION_NAME_TRANSLATIONS = {
+    'report.security_alert.export': 'Xuất báo cáo sự kiện an ninh',
+    'report.vehicle.export': 'Xuất báo cáo phương tiện',
+    'report.gate_access.export': 'Xuất báo cáo ra vào khuôn viên',
+    'report.room_utilization.export': 'Xuất báo cáo sử dụng phòng họp',
+    'report.meeting_activity.export': 'Xuất báo cáo hoạt động cuộc họp',
     'gate.access.alert.handle': 'Xử lý cảnh báo ra vào cổng',
     'gate.access.monitor': 'Trực giám sát cổng ra vào',
     'gate.access.read': 'Xem nhật ký ra vào cổng',
@@ -171,7 +179,7 @@ const RoleListItem = ({ role, isSelected, onSelect, onDelete }) => {
                     <h3 className={`font-bold text-sm ${isSelected ? 'text-action-blue' : 'text-midnight-indigo'}`}>{getDisplayRoleName(role)}</h3>
                     <div className="flex items-center gap-1">
                         {role.isSystemRole && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md">HỆ THỐNG</span>
+                            <span data-ui-text="badge" className="text-[10px] font-bold px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md">HỆ THỐNG</span>
                         )}
                         {!role.isSystemRole && (
                             <button
@@ -191,7 +199,30 @@ const RoleListItem = ({ role, isSelected, onSelect, onDelete }) => {
     );
 };
 
+const apiErrorMessage = (error, fallback) => {
+    const message = error?.error?.message || error?.message;
+    return Array.isArray(message) ? message.join(' ') : (typeof message === 'string' && message ? message : fallback);
+};
+
+// Both catalog APIs support at most 100 items per page.
+const loadCatalog = async (fetchPage) => {
+    const items = [];
+    let page = 1;
+    let totalPages = 1;
+    do {
+        const response = await fetchPage({ page, limit: 100 });
+        if (!response?.success || !Array.isArray(response.data)) {
+            throw response || new Error('Máy chủ trả dữ liệu không hợp lệ.');
+        }
+        items.push(...response.data);
+        totalPages = Number(response.meta?.totalPages) || 1;
+        page += 1;
+    } while (page <= totalPages);
+    return items;
+};
+
 const RolePermissionManagement = () => {
+    const [modulesPerPage, setModulesPerPage] = useState(3);
     // Data states
     const [roles, setRoles] = useState([]);
     const [permissions, setPermissions] = useState([]);
@@ -202,12 +233,16 @@ const RolePermissionManagement = () => {
     // UI states
     const [loading, setLoading] = useState(true);
     const [permissionsLoading, setPermissionsLoading] = useState(false);
+    const [permissionsReady, setPermissionsReady] = useState(false);
+    const [catalogError, setCatalogError] = useState(null);
+    const catalogRequest = useRef(0);
+    const roleRequest = useRef(0);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const modulesPerPage = 3;
+
 
     // Modal states
     const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
@@ -223,29 +258,33 @@ const RolePermissionManagement = () => {
     const [isDeletingRole, setIsDeletingRole] = useState(false);
 
     const fetchData = useCallback(async () => {
+        const requestId = ++catalogRequest.current;
         setLoading(true);
-        setError(null);
+        setCatalogError(null);
         try {
-            const [rolesRes, permsRes] = await Promise.all([
-                getRoles({ limit: 100 }),
-                getPermissions({ limit: 500 })
+            const [nextRoles, nextPermissions] = await Promise.all([
+                loadCatalog(getRoles),
+                loadCatalog(getPermissions)
             ]);
-            
-            if (rolesRes?.success && permsRes?.success) {
-                setRoles(sortRoles(rolesRes.data || []));
-                setPermissions(permsRes.data || []);
-            } else {
-                setError('Không thể tải dữ liệu vai trò hoặc quyền hệ thống.');
-            }
+            if (requestId !== catalogRequest.current) return;
+            setRoles(sortRoles(nextRoles));
+            setPermissions(nextPermissions);
+            setCatalogError(null);
         } catch (err) {
-            setError(err?.message || 'Lỗi khi tải dữ liệu hệ thống.');
+            if (requestId === catalogRequest.current) {
+                setCatalogError(apiErrorMessage(err, 'Không tải được danh sách vai trò và quyền. Vui lòng thử lại.'));
+            }
         } finally {
-            setLoading(false);
+            if (requestId === catalogRequest.current) setLoading(false);
         }
     }, []);
 
     useEffect(() => {
         fetchData();
+        return () => {
+            catalogRequest.current += 1;
+            roleRequest.current += 1;
+        };
     }, [fetchData]);
 
     // Reset pagination when searching or changing role
@@ -255,22 +294,28 @@ const RolePermissionManagement = () => {
 
     // Handle selecting a role
     const handleSelectRole = async (role) => {
+        const requestId = ++roleRequest.current;
         setSelectedRole(role);
         setPermissionsLoading(true);
+        setPermissionsReady(false);
+        setRolePermissions([]);
+        setOriginalRolePermissions([]);
         setError(null);
         setSuccessMessage(null);
         try {
             const res = await getRolePermissions(role.id);
-            if (res?.success) {
-                // BE might return full permission objects or just IDs. Assuming full objects.
-                const assignedIds = (res.data || []).map(p => p.permissionId || p.id);
-                setRolePermissions(assignedIds);
-                setOriginalRolePermissions(assignedIds);
-            }
+            if (requestId !== roleRequest.current) return;
+            if (!res?.success || !Array.isArray(res.data)) throw res;
+            const assignedIds = res.data.map(p => p.permissionId || p.id);
+            setRolePermissions(assignedIds);
+            setOriginalRolePermissions(assignedIds);
+            setPermissionsReady(true);
         } catch (err) {
-            setError('Không thể tải danh sách quyền của vai trò này.');
+            if (requestId === roleRequest.current) {
+                setError(apiErrorMessage(err, 'Không thể tải danh sách quyền của vai trò này.'));
+            }
         } finally {
-            setPermissionsLoading(false);
+            if (requestId === roleRequest.current) setPermissionsLoading(false);
         }
     };
 
@@ -355,7 +400,7 @@ const RolePermissionManagement = () => {
     // Save assigned permissions: diff against the originally loaded set so
     // unchecked permissions are actually revoked (POST only ever adds, never removes).
     const handleSavePermissions = async () => {
-        if (!selectedRole) return;
+        if (!selectedRole || !permissionsReady || catalogError) return;
         setSaving(true);
         setError(null);
         setSuccessMessage(null);
@@ -422,7 +467,7 @@ const RolePermissionManagement = () => {
                 setError(res?.message || 'Tạo vai trò thất bại.');
             }
         } catch (err) {
-            setError(err?.message || 'Lỗi tạo vai trò.');
+            setError(apiErrorMessage(err, 'Lỗi tạo vai trò.'));
         }
     };
 
@@ -453,7 +498,7 @@ const RolePermissionManagement = () => {
                 setError(res?.message || 'Không thể xoá vai trò.');
             }
         } catch (err) {
-            setError(err?.message || 'Lỗi kết nối khi xoá vai trò.');
+            setError(apiErrorMessage(err, 'Lỗi kết nối khi xoá vai trò.'));
         } finally {
             setIsDeletingRole(false);
             setRoleToDelete(null);
@@ -477,10 +522,10 @@ const RolePermissionManagement = () => {
     });
 
     return (
-        <div className="p-6 h-full flex flex-col bg-snow-white">
+        <div data-page-surface="wide" className="p-6 h-full flex flex-col bg-snow-white">
             <div className="flex justify-between items-center mb-6 animate-fade-in-up">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <UserCog className="w-3.5 h-3.5" />
                         Phân quyền
                     </span>
@@ -489,10 +534,14 @@ const RolePermissionManagement = () => {
                 </div>
             </div>
 
-            {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start animate-fade-in-up">
+            {(catalogError || error) && (
+                <div role="alert" className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start animate-fade-in-up">
                     <AlertTriangle className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm">{error}</p>
+                    <p className="text-sm flex-1">{catalogError || error}</p>
+                    <button type="button" className="text-sm font-semibold underline" onClick={() => {
+                        if (catalogError || !selectedRole) fetchData();
+                        else handleSelectRole(selectedRole);
+                    }}>Tải lại dữ liệu</button>
                 </div>
             )}
             
@@ -562,7 +611,7 @@ const RolePermissionManagement = () => {
                                     <p className="text-xs text-slate-blue mt-1">Cấu hình các quyền thao tác cho vai trò này</p>
                                 </div>
                                 <div className="flex gap-3">
-                                    <div className="relative">
+                                    <FilterBar variant="inline" className="relative">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue" />
                                         <input 
                                             type="text" 
@@ -571,10 +620,10 @@ const RolePermissionManagement = () => {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                             className="w-48 pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
                                         />
-                                    </div>
+                                    </FilterBar>
                                     <button
                                         onClick={handleSavePermissions}
-                                        disabled={saving || permissionsLoading}
+                                        disabled={saving || permissionsLoading || !permissionsReady || Boolean(catalogError)}
                                         className="inline-flex items-center px-4 py-2 bg-action-blue text-white rounded-xl text-sm font-semibold hover:bg-glacier-blue transition-all shadow-sm disabled:opacity-50"
                                     >
                                         {saving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
@@ -605,6 +654,7 @@ const RolePermissionManagement = () => {
                                                 <label className="bg-cloud-mist/40 px-4 py-2 border-b border-platinum-tint flex items-center gap-3 cursor-pointer">
                                                     <input
                                                         type="checkbox"
+                                                        disabled={!permissionsReady || Boolean(catalogError)}
                                                         className="w-4 h-4 text-action-blue border-platinum-tint rounded focus:ring-action-blue"
                                                         checked={allChecked}
                                                         ref={el => { if (el) el.indeterminate = someChecked; }}
@@ -612,7 +662,7 @@ const RolePermissionManagement = () => {
                                                         title={allChecked ? 'Bỏ chọn tất cả quyền trong nhóm' : 'Chọn tất cả quyền trong nhóm'}
                                                     />
                                                     <h3 className="font-bold text-midnight-indigo text-sm uppercase flex-1">{MODULE_TRANSLATIONS[module] || module}</h3>
-                                                    <span className="text-xs font-semibold text-slate-blue">{checkedCount}/{visiblePermissions.length}</span>
+                                                    <span data-ui-text="primary" className="text-xs font-semibold text-slate-blue">{checkedCount}/{visiblePermissions.length}</span>
                                                 </label>
                                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {visiblePermissions
@@ -623,6 +673,7 @@ const RolePermissionManagement = () => {
                                                             <div className="flex-shrink-0 pt-0.5">
                                                                 <input
                                                                     type="checkbox"
+                                                                    disabled={!permissionsReady || Boolean(catalogError)}
                                                                     className="w-4 h-4 text-action-blue border-platinum-tint rounded rounded focus:ring-action-blue"
                                                                     checked={rolePermissions.includes(p.id)}
                                                                     onChange={() => handleTogglePermission(p.id)}
@@ -655,29 +706,17 @@ const RolePermissionManagement = () => {
                                         </div>
                                         
                                         {/* Pagination Controls */}
-                                        {Math.ceil(filteredModules.length / modulesPerPage) > 1 && (
-                                            <div className="flex justify-center items-center mt-6 pt-4 border-t border-platinum-tint gap-2">
-                                                <button
-                                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                                    disabled={currentPage === 1}
-                                                    className="px-3 py-1 text-sm bg-white border border-platinum-tint rounded-lg disabled:opacity-50 hover:bg-cloud-mist transition-colors"
-                                                >
-                                                    Trước
-                                                </button>
-                                                <span className="text-sm font-medium text-slate-blue px-2">
-                                                    Trang {currentPage} / {Math.ceil(filteredModules.length / modulesPerPage)}
-                                                </span>
-                                                <button
-                                                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredModules.length / modulesPerPage), p + 1))}
-                                                    disabled={currentPage === Math.ceil(filteredModules.length / modulesPerPage)}
-                                                    className="px-3 py-1 text-sm bg-white border border-platinum-tint rounded-lg disabled:opacity-50 hover:bg-cloud-mist transition-colors"
-                                                >
-                                                    Sau
-                                                </button>
-                                            </div>
-                                        )}
+
                                     </div>
                                 )}
+{<PaginationRegion legacyVisible={Math.ceil(filteredModules.length / modulesPerPage) > 1}><PaginationFooter
+                                                currentPage={currentPage}
+                                                totalPages={Math.ceil(filteredModules.length / modulesPerPage)}
+                                                totalItems={filteredModules.length}
+                                                pageSize={modulesPerPage}
+                                                onPageChange={setCurrentPage}
+                                                itemLabel={"nhóm quyền"}
+                                             onPageSizeChange={size => { setModulesPerPage(size); setCurrentPage(1); }} /></PaginationRegion>}
                             </div>
                         </>
                     ) : (
@@ -702,7 +741,7 @@ const RolePermissionManagement = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã vai trò <span className="text-red-500">*</span></label>
                                 <input required type="text" value={createForm.roleCode} onChange={e => setCreateForm({...createForm, roleCode: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-mono" placeholder="VD: GUEST_USER" />
-                                <p className="text-[10px] text-slate-blue mt-1">Chỉ chứa chữ hoa A-Z, số 0-9 và dấu gạch dưới.</p>
+                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-1">Chỉ chứa chữ hoa A-Z, số 0-9 và dấu gạch dưới.</p>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên hiển thị <span className="text-red-500">*</span></label>
@@ -734,7 +773,7 @@ const RolePermissionManagement = () => {
                             <p className="text-sm text-slate-blue mb-1">
                                 Bạn có chắc chắn muốn xoá vai trò <span className="font-bold text-midnight-indigo">{getDisplayRoleName(roleToDelete)}</span>?
                             </p>
-                            <p className="text-[11px] text-red-500 bg-red-50 p-2 rounded-lg mt-3 text-left">
+                            <p data-ui-text="badge" className="text-[11px] text-red-500 bg-red-50 p-2 rounded-lg mt-3 text-left">
                                 Lưu ý: Thao tác này không thể hoàn tác. Người dùng đang có vai trò này có thể sẽ bị mất quyền truy cập.
                             </p>
                         </div>

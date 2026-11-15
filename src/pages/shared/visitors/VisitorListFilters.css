@@ -1,0 +1,45 @@
+.camai-filter-bar.visitor-list-filters[data-filter-bar] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    container-type: inline-size;
+}
+
+.visitor-list-filter-main,
+.visitor-list-filter-time,
+.visitor-list-filter-dates {
+    display: grid;
+    align-items: end;
+    min-width: 0;
+    gap: 16px;
+}
+
+.visitor-list-filter-main,
+.visitor-list-filter-dates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.visitor-list-filter-time {
+    grid-template-columns: minmax(0, 28rem) minmax(0, 1fr) auto;
+}
+
+.visitor-list-filter-reset {
+    justify-self: end;
+    white-space: nowrap;
+}
+
+.visitor-list-filters .camai-filter-field {
+    width: 100%;
+    min-width: 0;
+}
+
+@container (max-width: 1050px) {
+    .visitor-list-filter-time {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@container (max-width: 500px) {
+    .visitor-list-filter-main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

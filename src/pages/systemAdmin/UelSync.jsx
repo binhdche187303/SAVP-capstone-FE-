@@ -1,3 +1,10 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import { syncMessage } from './uelSyncMessages';
+import StatisticCard from '../../components/common/StatisticCard';
+import RefreshButton from '../../components/common/RefreshButton';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import DateInput from '../../components/common/DateInput';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     RefreshCw, Play, Plus, Trash2, ChevronDown, ChevronRight, DatabaseZap, Search,
@@ -61,8 +68,8 @@ const StatusPill = ({ status }) => {
 
 const errorText = (e, fallback) => {
     const m = e?.error?.message;
-    if (Array.isArray(m)) return m.join(' ');
-    return typeof m === 'string' && m ? m : fallback;
+    if (Array.isArray(m)) return m.map(syncMessage).join(' ');
+    return typeof m === 'string' && m ? syncMessage(m) : fallback;
 };
 
 const Card = ({ title, icon: Icon, children, action, className = '' }) => (
@@ -78,16 +85,7 @@ const Card = ({ title, icon: Icon, children, action, className = '' }) => (
     </section>
 );
 
-const Fact = ({ label, value, tone = 'neutral', hint }) => {
-    const tones = { ok: 'text-green-700', warn: 'text-amber-700', neutral: 'text-midnight-indigo' };
-    return (
-        <div className="p-4 bg-cloud-mist/50 border border-platinum-tint/70 rounded-xl min-w-0">
-            <span className="block text-xs font-bold text-slate-blue uppercase tracking-wide">{label}</span>
-            <span className={`block mt-1 text-sm font-semibold ${tones[tone]}`}>{value}</span>
-            {hint && <span className="block mt-1 text-xs text-steel-gray">{hint}</span>}
-        </div>
-    );
-};
+const Fact = ({ label, value, tone = 'neutral', hint }) => <StatisticCard label={label} value={value} compactValue helper={hint} tone={tone === 'ok' ? 'success' : tone === 'warn' ? 'warning' : 'default'} />;
 
 const inputCls =
     'w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo bg-white focus:outline-none focus:ring-2 focus:ring-action-blue/30 focus:border-action-blue disabled:bg-cloud-mist disabled:text-steel-gray';
@@ -177,7 +175,7 @@ const RunRow = ({ run, defaultOpen }) => {
                         {o.fromDate && <>Lịch học {o.fromDate} → {o.toDate}.</>}
                     </p>
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <ResponsiveTable className="w-full text-sm">
                             <thead>
                                 <tr className="text-left text-xs uppercase text-slate-blue">
                                     <th className="py-1.5 pr-3 font-semibold">Bước</th>
@@ -200,12 +198,12 @@ const RunRow = ({ run, defaultOpen }) => {
                                         <td className={`py-2 px-3 text-right ${r.skipped ? 'text-amber-700 font-semibold' : ''}`}>{fmtNum(r.skipped)}</td>
                                         <td className="py-2 px-3 text-right">{fmtNum(r.deactivated)}</td>
                                         <td className="py-2 pl-3 min-w-[200px]">
-                                            {r.error && <p className="text-red-700 font-medium">{r.error}</p>}
+                                            {r.error && <p className="text-red-700 font-medium">{syncMessage(r.error)}</p>}
                                             {r.warnings?.length > 0 && (
                                                 <details className="text-xs text-slate-blue">
                                                     <summary className="cursor-pointer text-amber-700 font-semibold">{r.warnings.length} cảnh báo</summary>
                                                     <ul className="mt-1 space-y-0.5 list-disc pl-4">
-                                                        {r.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                                                        {r.warnings.map((w, i) => <li key={i}>{syncMessage(w)}</li>)}
                                                     </ul>
                                                 </details>
                                             )}
@@ -214,7 +212,7 @@ const RunRow = ({ run, defaultOpen }) => {
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
                 </div>
             )}
@@ -288,7 +286,7 @@ const LookupCard = () => {
                 </label>
                 <label className="block" htmlFor="uel-lk-date">
                     <span className={labelCls}>Ngày</span>
-                    <input id="uel-lk-date" type="date" className={inputCls} disabled={!t.needsDate}
+                    <DateInput id="uel-lk-date" type="date" className={inputCls} disabled={!t.needsDate}
                         value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
                 </label>
                 <button type="submit" disabled={busy} className={btnPrimary}>
@@ -304,20 +302,24 @@ const LookupCard = () => {
                         {result.total} dòng{result.truncated ? ` (hiện ${result.items.length} dòng đầu)` : ''} · API <code>{result.api}</code>
                     </p>
                     <div className="overflow-x-auto max-h-96 overflow-y-auto border border-platinum-tint/70 rounded-xl">
-                        <table className="w-full text-xs">
+                        <PaginatedCollection items={result.items} itemLabel="dòng tra cứu">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-xs">
                             <thead className="sticky top-0 bg-cloud-mist">
                                 <tr className="text-left text-slate-blue">
                                     {columns.map((c) => <th key={c} className="py-2 px-2 font-semibold whitespace-nowrap">{FIELD_LABELS[c] ?? c}</th>)}
                                 </tr>
                             </thead>
                             <tbody>
-                                {result.items.map((row, i) => (
+                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((row, i) => (
                                     <tr key={i} className="border-t border-platinum-tint/60">
                                         {columns.map((c) => <td key={c} className="py-1.5 px-2 whitespace-nowrap text-midnight-indigo">{cellText(row[c])}</td>)}
                                     </tr>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (result.items)))}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
+)}
+</PaginatedCollection>
                     </div>
                 </div>
             ))}
@@ -376,7 +378,9 @@ const PeriodsCard = ({ periods: initial, onSaved }) => {
                 <p className="text-sm text-amber-700">Chưa có tiết nào. Bấm "Thêm tiết" để nhập theo lịch tiết của Trường.</p>
             ) : (
                 <div className="overflow-x-auto max-h-80 overflow-y-auto">
-                    <table className="w-full text-sm">
+                    <PaginatedCollection items={rows} itemLabel="tiết học" resetKey="study-periods" revealAdded>
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-sm">
                         <thead className="sticky top-0 bg-white">
                             <tr className="text-left text-xs uppercase text-slate-blue">
                                 <th className="py-1.5 pr-2 font-semibold">Tiết</th>
@@ -386,7 +390,7 @@ const PeriodsCard = ({ periods: initial, onSaved }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.map((p, i) => (
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((p, i) => (
                                 <tr key={i} className="border-t border-platinum-tint/60">
                                     <td className="py-1.5 pr-2 w-20">
                                         <input aria-label="Số tiết" type="number" min={1} max={30} className={inputCls}
@@ -408,9 +412,11 @@ const PeriodsCard = ({ periods: initial, onSaved }) => {
                                         </button>
                                     </td>
                                 </tr>
-                            ))}
+                            ))(camaiRecord, camaiStartIndex + camaiIndex, (rows)))}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                 </div>
             )}
             <div className="flex flex-wrap items-center gap-3">
@@ -622,7 +628,7 @@ const UelSync = () => {
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     const refresh = useCallback(async () => {
-        const [st, rs] = await Promise.all([getUelSyncStatus(), getUelSyncRuns(10)]);
+        const [st, rs] = await Promise.all([getUelSyncStatus(), getUelSyncRuns(100)]);
         setStatus(st);
         setRuns(rs ?? []);
         return st;
@@ -690,11 +696,11 @@ const UelSync = () => {
     const doneSteps = lastRun?.results?.length ?? 0;
     const nextAt = status?.schedule?.nextRunAt ? new Date(status.schedule.nextRunAt) : null;
     const runBlocker = !status?.configured
-        ? 'Chưa cấu hình API key UEL trên server (UEL_API_BASE_URL, UEL_API_KEY).'
+        ? 'Chưa thiết lập kết nối với hệ thống UEL. Vui lòng liên hệ người quản trị.'
         : null;
 
     return (
-        <div className="space-y-6 animate-fade-in-up max-w-5xl mx-auto">
+        <div data-page-surface="wide" className="space-y-6 animate-fade-in-up max-w-5xl mx-auto">
             {UEL_SYNC_PREVIEW && (
                 <div className="flex items-start gap-2 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-sm">
                     <TriangleAlert className="w-4 h-4 mt-0.5 shrink-0" />
@@ -714,13 +720,10 @@ const UelSync = () => {
                         bản ghi không còn ở Trường chỉ bị vô hiệu hóa, không bị xóa.
                     </p>
                 </div>
-                <button type="button" onClick={() => refresh().catch(() => undefined)} className={btnGhost}>
-                    <RefreshCw className={`w-4 h-4 ${isRunning ? 'animate-spin' : ''}`} />
-                    Làm mới
-                </button>
+                <RefreshButton onClick={() => refresh().catch(() => undefined)} busy={isRunning} />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <StatisticGrid columns={3} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Fact
                     label="Kết nối API"
                     value={status?.configured ? 'Đã cấu hình' : 'Chưa có API key'}
@@ -743,7 +746,7 @@ const UelSync = () => {
                     tone={!lastRun ? 'neutral' : lastRun.status === 'succeeded' ? 'ok' : lastRun.status === 'running' ? 'neutral' : 'warn'}
                     hint={lastRun ? `${fmtTime(lastRun.startedAt)} · ${lastRun.trigger === 'schedule' ? 'tự động' : 'bấm tay'}` : null}
                 />
-            </div>
+            </StatisticGrid>
 
             <Card title="Đồng bộ ngay" icon={Play}>
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -794,9 +797,13 @@ const UelSync = () => {
                     {runs.length === 0 ? (
                         <p className="text-sm text-steel-gray">Chưa có lượt đồng bộ nào. Bấm "Đồng bộ toàn bộ" ở trên để chạy lượt đầu tiên.</p>
                     ) : (
-                        <ul className="space-y-2">
-                            {runs.map((r, i) => <RunRow key={r.id ?? r.startedAt} run={r} defaultOpen={i === 0 && r.status !== 'running'} />)}
+                        <PaginatedCollection items={runs} itemLabel="lượt đồng bộ">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-2">
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((r, i) => <RunRow key={r.id ?? r.startedAt} run={r} defaultOpen={i === 0 && r.status !== 'running'} />)(camaiRecord, camaiStartIndex + camaiIndex, (runs)))}
                         </ul>
+)}
+</PaginatedCollection>
                     )}
                 </Card>
             </div>

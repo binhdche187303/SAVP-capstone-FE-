@@ -1,10 +1,14 @@
+import TableColumns from '../../components/common/TableColumns';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import { Activity, AlertTriangle, Calendar, Check, Clock, Download, Edit3, FileText, GripVertical, List, Loader2, MapPin, Pause, Play, Search, Sparkles, Trash2, Upload, Users, UserPlus, Video, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { RichTextView } from '../../components/common/RichTextEditor';
 import { useState, useEffect, useCallback } from 'react';
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import DatePicker from "react-datepicker";
+import DatePicker from '../../components/common/AppDatePicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { vi } from 'date-fns/locale/vi';
 import TimePicker from '../../components/common/TimePicker';
@@ -61,6 +65,8 @@ const handleDateChangeRaw = (e) => {
 };
 
 const EmployeeMeetingDetail = () => {
+    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(10);
+    const [logItemsPerPage, setLogItemsPerPage] = useState(10);
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -96,7 +102,7 @@ const EmployeeMeetingDetail = () => {
     const [activeParticipantTab, setActiveParticipantTab] = useState('internal');
     const [internalPage, setInternalPage] = useState(1);
     const [externalPage, setExternalPage] = useState(1);
-    const ITEMS_PER_PAGE = 2;
+
 
     // Editing modal states
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -166,7 +172,7 @@ const EmployeeMeetingDetail = () => {
     const [refreshTranscriptKey, setRefreshTranscriptKey] = useState(0);
     const [runningSttSessionIds, setRunningSttSessionIds] = useState(() => new Set());
     const [audioPage, setAudioPage] = useState(1);
-    const audioItemsPerPage = 5;
+    const [audioItemsPerPage, setAudioItemsPerPage] = useState(10);
     const [searchParams] = useSearchParams();
     const initialTab = searchParams.get('tab') || 'transcript';
     const [activeRightTab, setActiveRightTab] = useState(initialTab);
@@ -1070,7 +1076,7 @@ const EmployeeMeetingDetail = () => {
                 onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
                 onCancel={() => setConfirm(null)}
             />
-            <div className="max-w-5xl mx-auto space-y-6 animate-fade-in-up">
+            <div data-page-surface="wide" className="max-w-5xl mx-auto space-y-6 animate-fade-in-up">
                 {/* Header / Actions */}
                 <div className="flex justify-end gap-2 w-full">
                     {canManage && effectiveStatus !== 'cancelled' && effectiveStatus !== 'completed' && !isEnded && (
@@ -1145,18 +1151,18 @@ const EmployeeMeetingDetail = () => {
                     <div className="flex flex-col md:flex-row justify-between items-start gap-6 pb-6 border-b border-platinum-tint/60 relative z-10">
                         <div className="space-y-4 w-full">
                             <div className="flex flex-wrap items-center gap-3">
-                                <span className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider shadow-sm flex items-center gap-1.5 ${(STATUS_BADGE[effectiveStatus] || STATUS_BADGE.cancelled).className
+                                <span data-ui-text="label" className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider shadow-sm flex items-center gap-1.5 ${(STATUS_BADGE[effectiveStatus] || STATUS_BADGE.cancelled).className
                                     }`}>
                                     <div className={`w-1.5 h-1.5 rounded-full ${effectiveStatus === 'in_progress' ? 'bg-emerald-500 animate-pulse' : 'bg-current'}`} />
                                     {(STATUS_BADGE[effectiveStatus] || { label: effectiveStatus }).label}
                                 </span>
                                 {meeting.recordingEnabled && (
-                                    <span className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-100 flex items-center gap-1.5 shadow-sm">
+                                    <span data-ui-text="badge" className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-100 flex items-center gap-1.5 shadow-sm">
                                         <Video className="w-3.5 h-3.5" /> Tự động ghi hình
                                     </span>
                                 )}
                                 {meeting.meeting_code && (
-                                    <span className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-sm font-mono flex items-center gap-1.5">
+                                    <span data-ui-text="secondary" className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-sm font-mono flex items-center gap-1.5">
                                         Mã cuộc họp: <span className="text-midnight-indigo">{meeting.meeting_code}</span>
                                     </span>
                                 )}
@@ -1178,8 +1184,8 @@ const EmployeeMeetingDetail = () => {
                         <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
                             <Calendar className="w-5 h-5 text-action-blue shrink-0" />
                             <div>
-                                <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Ngày họp</span>
-                                <span className="text-xs font-semibold text-midnight-indigo">
+                                <span data-ui-text="label" className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Ngày họp</span>
+                                <span data-ui-text="secondary" className="text-xs font-semibold text-midnight-indigo">
                                     {new Date(meeting.start_time || meeting.startTime).toLocaleDateString('vi-VN')}
                                     {new Date(meeting.start_time || meeting.startTime).toLocaleDateString('vi-VN') !== new Date(meeting.end_time || meeting.endTime).toLocaleDateString('vi-VN') 
                                         ? ` - ${new Date(meeting.end_time || meeting.endTime).toLocaleDateString('vi-VN')}` 
@@ -1191,8 +1197,8 @@ const EmployeeMeetingDetail = () => {
                         <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
                             <Clock className="w-5 h-5 text-action-blue shrink-0" />
                             <div>
-                                <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Thời gian</span>
-                                <span className="text-xs font-semibold text-midnight-indigo">
+                                <span data-ui-text="label" className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Thời gian</span>
+                                <span data-ui-text="secondary" className="text-xs font-semibold text-midnight-indigo">
                                     {new Date(meeting.start_time || meeting.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {new Date(meeting.end_time || meeting.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
@@ -1201,8 +1207,8 @@ const EmployeeMeetingDetail = () => {
                         <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
                             <MapPin className="w-5 h-5 text-action-blue shrink-0" />
                             <div className="truncate">
-                                <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Phòng họp / Cơ sở</span>
-                                <span className="text-xs font-semibold text-midnight-indigo block truncate">
+                                <span data-ui-text="label" className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Phòng họp / Cơ sở</span>
+                                <span data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo block truncate">
                                     {meeting.room?.room_name || meeting.room?.roomName || 'N/A'} {meeting.room?.site_name || meeting.room?.siteName ? `(${meeting.room?.site_name || meeting.room?.siteName})` : ''}
                                 </span>
                             </div>
@@ -1211,8 +1217,8 @@ const EmployeeMeetingDetail = () => {
                         <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
                             <Users className="w-5 h-5 text-action-blue shrink-0" />
                             <div className="truncate">
-                                <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Người chủ trì</span>
-                                <span className="text-xs font-semibold text-midnight-indigo block truncate">{hostName}</span>
+                                <span data-ui-text="label" className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Người chủ trì</span>
+                                <span data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo block truncate">{hostName}</span>
                             </div>
                         </div>
 
@@ -1220,8 +1226,8 @@ const EmployeeMeetingDetail = () => {
                             <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
                                 <Users className="w-5 h-5 text-action-blue shrink-0" />
                                 <div className="truncate">
-                                    <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Thư ký</span>
-                                    <span className="text-xs font-semibold text-midnight-indigo block truncate">{meeting.secretaryName}</span>
+                                    <span data-ui-text="label" className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Thư ký</span>
+                                    <span data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo block truncate">{meeting.secretaryName}</span>
                                 </div>
                             </div>
                         )}
@@ -1230,8 +1236,8 @@ const EmployeeMeetingDetail = () => {
                             <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
                                 <MapPin className="w-5 h-5 text-purple-600 shrink-0" />
                                 <div className="truncate">
-                                    <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Vị trí cụ thể</span>
-                                    <span className="text-xs font-semibold text-midnight-indigo block truncate">{meeting.room.location}</span>
+                                    <span data-ui-text="label" className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Vị trí cụ thể</span>
+                                    <span data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo block truncate">{meeting.room.location}</span>
                                 </div>
                             </div>
                         )}
@@ -1240,8 +1246,8 @@ const EmployeeMeetingDetail = () => {
                             <div className="flex items-center gap-3 p-3 bg-cloud-mist/40 rounded-xl border border-outline-gray/40">
                                 <Users className="w-5 h-5 text-emerald-600 shrink-0" />
                                 <div>
-                                    <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Sức chứa</span>
-                                    <span className="text-xs font-semibold text-midnight-indigo">{meeting.room.capacity} người</span>
+                                    <span data-ui-text="label" className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Sức chứa</span>
+                                    <span data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">{meeting.room.capacity} người</span>
                                 </div>
                             </div>
                         )}
@@ -1260,7 +1266,7 @@ const EmployeeMeetingDetail = () => {
                                     Chương trình làm việc ({meeting.agenda?.length || 0})
                                 </h3>
                                 {canManage && effectiveStatus !== 'cancelled' && effectiveStatus !== 'completed' && (
-                                    <button
+                                    <button data-ui-text="action"
                                         onClick={() => setIsAgendaModalOpen(true)}
                                         className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 border border-action-blue/20 bg-blue-50 text-action-blue hover:bg-blue-100 rounded-md text-[11px] font-bold transition-all shadow-sm shrink-0"
                                     >
@@ -1269,18 +1275,20 @@ const EmployeeMeetingDetail = () => {
                                 )}
                             </div>
                             {meeting.agenda && meeting.agenda.length > 0 ? (
-                                <div className="space-y-4 max-h-[400px] overflow-y-auto scrollbar-thin pr-2">
-                                    {meeting.agenda.map((item, idx) => (
+                                <PaginatedCollection items={meeting?.agenda} itemLabel="nội dung">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="space-y-4 max-h-[400px] overflow-y-auto scrollbar-thin pr-2">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((item, idx) => (
                                         <div key={idx} className="flex gap-4 items-start relative pl-6 before:absolute before:left-2 before:top-2 before:bottom-0 before:w-0.5 before:bg-platinum-tint last:before:hidden">
                                             <div className="absolute left-0 top-1 w-4 h-4 rounded-full bg-action-blue/10 border border-action-blue flex items-center justify-center text-[9px] font-bold text-action-blue">
                                                 {idx + 1}
                                             </div>
                                             <div className="flex-1 bg-cloud-mist/55 p-3 rounded-xl border border-outline-gray/60">
                                                 <div className="flex justify-between items-center">
-                                                    <h4 className="font-semibold text-midnight-indigo text-xs sm:text-sm flex items-center gap-2">
+                                                    <h4 data-ui-text="label" className="font-semibold text-midnight-indigo text-xs sm:text-sm flex items-center gap-2">
                                                         {item.title}
                                                     </h4>
-                                                    <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded font-bold">{item.durationMin} phút</span>
+                                                    <span data-ui-text="badge" className="text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded font-bold">{item.durationMin} phút</span>
                                                 </div>
                                                 {item.attachments && item.attachments.length > 0 && (
                                                     <div className="mt-2 flex flex-col gap-1.5">
@@ -1298,8 +1306,10 @@ const EmployeeMeetingDetail = () => {
                                                 )}
                                             </div>
                                         </div>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (meeting.agenda)))}
                                 </div>
+)}
+</PaginatedCollection>
                             ) : (
                                 <p className="text-xs text-slate-blue italic text-center py-4">Chưa có Agenda nào được cấu hình cho cuộc họp này.</p>
                             )}
@@ -1318,7 +1328,7 @@ const EmployeeMeetingDetail = () => {
                                 {(canAddParticipants || canAddExternalParticipant) && (
                                     <div className="flex flex-wrap items-center gap-2 shrink-0">
                                         {canAddParticipants && (
-                                            <button
+                                            <button data-ui-text="action"
                                                 onClick={() => setIsImportModalOpen(true)}
                                                 className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-[11px] font-bold transition-all shadow-sm"
                                             >
@@ -1326,7 +1336,7 @@ const EmployeeMeetingDetail = () => {
                                             </button>
                                         )}
                                         {canAddExternalParticipant && (
-                                            <button
+                                            <button data-ui-text="action"
                                                 onClick={() => setShowAddGuestModal(true)}
                                                 className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-md text-[11px] font-bold transition-all shadow-sm"
                                             >
@@ -1376,7 +1386,7 @@ const EmployeeMeetingDetail = () => {
                                                                 />
                                                                 <div className="truncate">
                                                                     <span className="block text-xs font-bold text-action-blue uppercase tracking-wider text-[9px]">Người chủ trì</span>
-                                                                    <span className="text-xs font-bold text-midnight-indigo block truncate">{hostName}</span>
+                                                                    <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo block truncate">{hostName}</span>
                                                                 </div>
                                                             </div>
                                                         );
@@ -1390,7 +1400,7 @@ const EmployeeMeetingDetail = () => {
                                                                 />
                                                                 <div className="truncate">
                                                                     <span className="block text-xs font-bold text-slate-blue uppercase tracking-wider text-[9px]">Người tham dự</span>
-                                                                    <span className="text-xs font-bold text-midnight-indigo block truncate">{p.fullName || p.full_name}</span>
+                                                                    <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo block truncate">{p.fullName || p.full_name}</span>
                                                                 </div>
                                                             </div>
                                                             {canManage && effectiveStatus !== 'cancelled' && effectiveStatus !== 'completed' && (
@@ -1406,8 +1416,14 @@ const EmployeeMeetingDetail = () => {
                                                     );
                                                 })}
                                             </div>
-                                            {totalPages > 1 && (
-                                                <div className="flex justify-center items-center gap-2 mt-2">
+                                            {<PaginationRegion legacyVisible={totalPages > 1}><PaginationFooter
+                                                    currentPage={internalPage}
+                                                    totalPages={totalPages}
+                                                    totalItems={allInternal.length}
+                                                    pageSize={ITEMS_PER_PAGE}
+                                                    onPageChange={setInternalPage}
+                                                    itemLabel={"người tham gia"}
+                                                    legacy={<div className="flex justify-center items-center gap-2 mt-2">
                                                     <button
                                                         onClick={() => setInternalPage(p => Math.max(1, p - 1))}
                                                         disabled={internalPage === 1}
@@ -1425,8 +1441,8 @@ const EmployeeMeetingDetail = () => {
                                                     >
                                                         Sau
                                                     </button>
-                                                </div>
-                                            )}
+                                                </div>}
+                                                 onPageSizeChange={size => { setItemsPerPage(size); setInternalPage(1); setExternalPage(1); }} /></PaginationRegion>}
                                         </>
                                     );
                                 })()}
@@ -1447,8 +1463,8 @@ const EmployeeMeetingDetail = () => {
                                                             </div>
                                                             <div className="truncate">
                                                                 <span className="block text-xs font-bold text-amber-600 uppercase tracking-wider text-[9px]">Khách ngoài</span>
-                                                                <span className="text-xs font-bold text-midnight-indigo block truncate">{p.name || p.fullName || p.full_name}</span>
-                                                                <span className="text-[10px] text-slate-blue block truncate">{p.email}</span>
+                                                                <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo block truncate">{p.name || p.fullName || p.full_name}</span>
+                                                                <span data-ui-text="secondary" className="text-[10px] text-slate-blue block truncate">{p.email}</span>
                                                             </div>
                                                         </div>
                                                         {canManage && effectiveStatus !== 'cancelled' && effectiveStatus !== 'completed' && (
@@ -1466,8 +1482,14 @@ const EmployeeMeetingDetail = () => {
                                                     <p className="text-xs text-slate-blue italic text-center py-4">Chưa có khách ngoài nào.</p>
                                                 )}
                                             </div>
-                                            {totalPages > 1 && (
-                                                <div className="flex justify-center items-center gap-2 mt-2">
+                                            {<PaginationRegion legacyVisible={totalPages > 1}><PaginationFooter
+                                                    currentPage={externalPage}
+                                                    totalPages={totalPages}
+                                                    totalItems={allExternal.length}
+                                                    pageSize={ITEMS_PER_PAGE}
+                                                    onPageChange={setExternalPage}
+                                                    itemLabel={"khách"}
+                                                    legacy={<div className="flex justify-center items-center gap-2 mt-2">
                                                     <button
                                                         onClick={() => setExternalPage(p => Math.max(1, p - 1))}
                                                         disabled={externalPage === 1}
@@ -1485,8 +1507,8 @@ const EmployeeMeetingDetail = () => {
                                                     >
                                                         Sau
                                                     </button>
-                                                </div>
-                                            )}
+                                                </div>}
+                                                 onPageSizeChange={size => { setItemsPerPage(size); setInternalPage(1); setExternalPage(1); }} /></PaginationRegion>}
                                         </>
                                     );
                                 })()}
@@ -1541,19 +1563,19 @@ const EmployeeMeetingDetail = () => {
                             {isHost && !selectedPresenceUser ? (
                                 <div className="bg-white rounded-2xl border border-platinum-tint overflow-hidden">
                                     <div className="px-5 py-3 border-b border-platinum-tint bg-cloud-mist/30">
-                                        <p className="text-[11px] text-slate-blue font-semibold">
+                                        <p data-ui-text="primary" className="text-[11px] text-slate-blue font-semibold">
                                             Bạn là chủ trì cuộc họp — xem được thời lượng tham dự của tất cả người tham dự. Bấm vào 1 người để xem chi tiết.
                                         </p>
                                     </div>
                                     {hostPresenceLoading ? (
                                         <div className="p-8 flex flex-col items-center gap-3 animate-pulse">
                                             <div className="w-8 h-8 border-2 border-action-blue border-t-transparent rounded-full animate-spin"></div>
-                                            <span className="text-xs text-slate-blue font-semibold">Đang tải dữ liệu từ IVSS...</span>
+                                            <span data-ui-text="primary" className="text-xs text-slate-blue font-semibold">Đang tải dữ liệu từ IVSS...</span>
                                         </div>
                                     ) : hostPresenceError ? (
                                         <div className="p-6 flex flex-col items-center gap-3 text-center">
                                             <AlertTriangle className="w-8 h-8 text-red-500" />
-                                            <p className="text-xs text-red-700 font-semibold">{hostPresenceError}</p>
+                                            <p data-ui-text="primary" className="text-xs text-red-700 font-semibold">{hostPresenceError}</p>
                                             <button
                                                 onClick={handleOpenPresenceTab}
                                                 className="text-xs font-bold text-action-blue hover:underline"
@@ -1571,12 +1593,12 @@ const EmployeeMeetingDetail = () => {
                                                     className="w-full px-5 py-3 flex items-center justify-between gap-3 text-left hover:bg-cloud-mist/30 transition-colors"
                                                 >
                                                     <div className="min-w-0">
-                                                        <p className="text-xs font-bold text-midnight-indigo truncate">{p.fullName || 'Không tên'}</p>
-                                                        <p className="text-[10px] text-slate-blue truncate">{p.departmentName || '—'}</p>
+                                                        <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo truncate">{p.fullName || 'Không tên'}</p>
+                                                        <p data-ui-text="action" className="text-[10px] text-slate-blue truncate">{p.departmentName || '—'}</p>
                                                     </div>
                                                     <div className="flex items-center gap-3 shrink-0">
-                                                        <span className="text-[10px] font-semibold text-midnight-indigo">{formatPresenceDuration(p.durationMs)}</span>
-                                                        <span className={`text-[10px] font-bold ${((p.presentRatio || 0) * 100) >= 80 ? 'text-emerald-600' : ((p.presentRatio || 0) * 100) >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
+                                                        <span data-ui-text="action" className="text-[10px] font-semibold text-midnight-indigo">{formatPresenceDuration(p.durationMs)}</span>
+                                                        <span data-ui-text="action" className={`text-[10px] font-bold ${((p.presentRatio || 0) * 100) >= 80 ? 'text-emerald-600' : ((p.presentRatio || 0) * 100) >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
                                                             {((p.presentRatio || 0) * 100).toFixed(1)}%
                                                         </span>
                                                         <ChevronRight className="w-3.5 h-3.5 text-slate-blue" />
@@ -1602,7 +1624,7 @@ const EmployeeMeetingDetail = () => {
                                         <ChevronLeft className="w-3.5 h-3.5" />
                                         Quay lại danh sách người tham dự
                                     </button>
-                                    <p className="text-xs font-bold text-midnight-indigo">
+                                    <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">
                                         {selectedPresenceUser.fullName || 'Không tên'}
                                     </p>
                                 </div>
@@ -1610,12 +1632,12 @@ const EmployeeMeetingDetail = () => {
                             {presenceLoading ? (
                                 <div className="bg-white rounded-2xl border border-platinum-tint p-8 flex flex-col items-center gap-3 animate-pulse">
                                     <div className="w-8 h-8 border-2 border-action-blue border-t-transparent rounded-full animate-spin"></div>
-                                    <span className="text-xs text-slate-blue font-semibold">Đang tải dữ liệu từ IVSS...</span>
+                                    <span data-ui-text="primary" className="text-xs text-slate-blue font-semibold">Đang tải dữ liệu từ IVSS...</span>
                                 </div>
                             ) : presenceError ? (
                                 <div className="bg-red-50 border border-red-200 rounded-2xl p-6 flex flex-col items-center gap-3 text-center">
                                     <AlertTriangle className="w-8 h-8 text-red-500" />
-                                    <p className="text-xs text-red-700 font-semibold">{presenceError}</p>
+                                    <p data-ui-text="primary" className="text-xs text-red-700 font-semibold">{presenceError}</p>
                                     <button
                                         onClick={async () => {
                                         if (isHost && selectedPresenceUser) {
@@ -1642,7 +1664,7 @@ const EmployeeMeetingDetail = () => {
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div className="bg-white rounded-2xl border border-platinum-tint p-4 flex items-center justify-between shadow-sm">
                                             <div className="space-y-1">
-                                                <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Thời gian có mặt</span>
+                                                <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Thời gian có mặt</span>
                                                 <div className="text-lg font-bold text-midnight-indigo">{formatPresenceDuration(presenceData.duration?.durationMs)}</div>
                                             </div>
                                             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -1651,7 +1673,7 @@ const EmployeeMeetingDetail = () => {
                                         </div>
                                         <div className="bg-white rounded-2xl border border-platinum-tint p-4 flex items-center justify-between shadow-sm">
                                             <div className="space-y-1">
-                                                <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tỉ lệ tham dự</span>
+                                                <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tỉ lệ tham dự</span>
                                                 <div className="text-lg font-bold text-midnight-indigo">{((presenceData.duration?.presentRatio || 0) * 100).toFixed(1)}%</div>
                                                 <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1">
                                                     <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, (presenceData.duration?.presentRatio || 0) * 100)}%` }}></div>
@@ -1663,8 +1685,8 @@ const EmployeeMeetingDetail = () => {
                                         </div>
                                         <div className="bg-white rounded-2xl border border-platinum-tint p-4 flex items-center justify-between shadow-sm">
                                             <div className="space-y-1">
-                                                <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Số lần ghi nhận</span>
-                                                <div className="text-lg font-bold text-midnight-indigo">{presenceData.duration?.segmentCount || 0} <span className="text-xs font-medium text-slate-blue">đoạn</span></div>
+                                                <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Số lần ghi nhận</span>
+                                                <div className="text-lg font-bold text-midnight-indigo">{presenceData.duration?.segmentCount || 0} <span data-ui-text="secondary" className="text-xs font-medium text-slate-blue">đoạn</span></div>
                                             </div>
                                             <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                                                 <Users className="w-5 h-5" />
@@ -1677,7 +1699,7 @@ const EmployeeMeetingDetail = () => {
                                         <h4 className="text-xs font-bold text-slate-blue uppercase tracking-wide">Biểu đồ trục thời gian họp</h4>
                                         {meetingStartTime && meetingEndTime ? (
                                             <div className="space-y-3">
-                                                <div className="flex justify-between items-center text-[10px] text-slate-blue font-bold pb-2 border-b border-platinum-tint">
+                                                <div data-ui-text="secondary" className="flex justify-between items-center text-[10px] text-slate-blue font-bold pb-2 border-b border-platinum-tint">
                                                     <span>Bắt đầu: {formatPresenceTime(meetingStartTime)}</span>
                                                     <span>Kết thúc: {formatPresenceTime(meetingEndTime)}</span>
                                                 </div>
@@ -1693,7 +1715,7 @@ const EmployeeMeetingDetail = () => {
                                                             <div key={idx} style={{ left: `${left}%`, width: `${width}%` }}
                                                                 className="absolute top-0 bottom-0 bg-emerald-500/80 border-x border-emerald-600/30 group cursor-pointer"
                                                                 title={`Có mặt: ${formatPresenceTime(seg.start)} - ${formatPresenceTime(seg.end)}`}>
-                                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-1.5 bg-slate-900 text-white text-[9.5px] rounded-lg shadow-md whitespace-nowrap z-10">
+                                                                <div data-ui-text="badge" className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-1.5 bg-slate-900 text-white text-[9.5px] rounded-lg shadow-md whitespace-nowrap z-10">
                                                                     Có mặt: {formatPresenceTime(seg.start)} – {formatPresenceTime(seg.end)}
                                                                 </div>
                                                             </div>
@@ -1710,10 +1732,10 @@ const EmployeeMeetingDetail = () => {
                                                             <div key={idx} style={{ left: `${left}%` }}
                                                                 className="absolute top-0 bottom-0 w-0.5 z-20 group cursor-pointer">
                                                                 <div className={`w-px h-full ${isEnter ? 'bg-emerald-600' : 'bg-amber-600'}`}></div>
-                                                                <span className={`absolute -top-1.5 -translate-x-1/2 text-[9px] font-bold ${isEnter ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                                                <span data-ui-text="primary" className={`absolute -top-1.5 -translate-x-1/2 text-[9px] font-bold ${isEnter ? 'text-emerald-700' : 'text-amber-700'}`}>
                                                                     {isEnter ? '▲' : '▼'}
                                                                 </span>
-                                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 p-1.5 bg-slate-900 text-white text-[9.5px] rounded-lg shadow-md whitespace-nowrap z-30">
+                                                                <div data-ui-text="badge" className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 p-1.5 bg-slate-900 text-white text-[9.5px] rounded-lg shadow-md whitespace-nowrap z-30">
                                                                     {isEnter ? 'VÀO CỬA' : 'RA CỬA'}: {formatPresenceTime(ev.at)}
                                                                     {ev.similarity != null ? ` (Độ khớp: ${(ev.similarity <= 1 ? ev.similarity * 100 : ev.similarity).toFixed(0)}%)` : ''}
                                                                 </div>
@@ -1721,7 +1743,7 @@ const EmployeeMeetingDetail = () => {
                                                         );
                                                     })}
                                                 </div>
-                                                <div className="flex flex-wrap gap-4 mt-2 text-[10.5px] text-slate-blue font-semibold">
+                                                <div data-ui-text="secondary" className="flex flex-wrap gap-4 mt-2 text-[10.5px] text-slate-blue font-semibold">
                                                     <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-emerald-500/80 border border-emerald-600/20 rounded"></span>Thời gian có mặt</span>
                                                     <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-slate-100 border border-platinum-tint rounded"></span>Thời gian vắng mặt</span>
                                                     <span className="flex items-center gap-1"><span className="text-emerald-700 font-bold">▲</span>Vào phòng</span>
@@ -1735,7 +1757,7 @@ const EmployeeMeetingDetail = () => {
 
                                     {/* Event log */}
                                     {presenceData.timeline?.events?.length > 0 && (() => {
-                                        const logItemsPerPage = 5;
+
                                         const employeeEvents = presenceData.timeline.events || [];
                                         const logTotalPages = Math.ceil(employeeEvents.length / logItemsPerPage);
                                         const currentEmployeeEvents = employeeEvents.slice((logPage - 1) * logItemsPerPage, logPage * logItemsPerPage);
@@ -1745,11 +1767,12 @@ const EmployeeMeetingDetail = () => {
                                                 <div className="flex justify-between items-center">
                                                     <h4 className="text-xs font-bold text-slate-blue uppercase tracking-wide">Chi tiết các mốc quét camera</h4>
                                                     {logTotalPages > 1 && (
-                                                        <span className="text-[10px] text-slate-blue font-bold">Trang {logPage}/{logTotalPages}</span>
+                                                        <span data-ui-text="primary" className="text-[10px] text-slate-blue font-bold">Trang {logPage}/{logTotalPages}</span>
                                                     )}
                                                 </div>
                                                 <div className="border border-outline-gray rounded-xl overflow-hidden bg-white shadow-sm">
-                                                    <table className="w-full text-left text-xs border-collapse text-center">
+                                                    <ResponsiveTable className="w-full text-left text-xs border-collapse text-center">
+<TableColumns widths={[22, 23, 40, 15]} />
                                                         <thead>
                                                             <tr className="bg-cloud-mist border-b border-outline-gray text-slate-blue font-bold sticky top-0">
                                                                 <th className="p-2.5 text-left">Thời điểm</th>
@@ -1765,7 +1788,7 @@ const EmployeeMeetingDetail = () => {
                                                                     <tr key={idx} className="border-b border-outline-gray hover:bg-cloud-mist/30">
                                                                         <td className="p-2.5 text-left font-medium text-midnight-indigo">{formatPresenceTime(ev.at)}</td>
                                                                         <td className="p-2.5 text-center">
-                                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                                                                            <span data-ui-text="secondary" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                                                                                 ev.direction === 'enter'
                                                                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                                                     : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -1789,12 +1812,12 @@ const EmployeeMeetingDetail = () => {
                                                                                     />
                                                                                 </div>
                                                                             ) : (
-                                                                                <span className="text-[10px] text-slate-400 font-medium italic">Không ảnh</span>
+                                                                                <span data-ui-text="secondary" className="text-[10px] text-slate-400 font-medium italic">Không ảnh</span>
                                                                             )}
                                                                         </td>
                                                                         <td className="p-2.5 text-center">
                                                                             {simValue !== null ? (
-                                                                                <span className={`inline-flex px-2 py-0.5 rounded font-bold text-[10px] border ${
+                                                                                <span data-ui-text="badge" className={`inline-flex px-2 py-0.5 rounded font-bold text-[10px] border ${
                                                                                     simValue >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                                                                     simValue >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                                                                     'bg-red-50 text-red-700 border-red-200'
@@ -1809,12 +1832,18 @@ const EmployeeMeetingDetail = () => {
                                                                 );
                                                             })}
                                                         </tbody>
-                                                    </table>
+                                                    </ResponsiveTable>
                                                 </div>
                                                 
                                                 {/* Inner Log Pagination */}
-                                                {logTotalPages > 1 && (
-                                                    <div className="flex justify-between items-center pt-2 px-1">
+                                                {<PaginationRegion legacyVisible={logTotalPages > 1}><PaginationFooter
+                                                        currentPage={logPage}
+                                                        totalPages={logTotalPages}
+                                                        totalItems={employeeEvents.length}
+                                                        pageSize={logItemsPerPage}
+                                                        onPageChange={setLogPage}
+                                                        itemLabel={"mốc quét"}
+                                                        legacy={<div className="flex justify-between items-center pt-2 px-1">
                                                         <span className="text-[10px] text-slate-blue font-bold">
                                                             Hiển thị {(logPage - 1) * logItemsPerPage + 1}–{Math.min(logPage * logItemsPerPage, employeeEvents.length)} trong {employeeEvents.length} mốc quét
                                                         </span>
@@ -1836,8 +1865,8 @@ const EmployeeMeetingDetail = () => {
                                                                 Sau ›
                                                             </button>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    </div>}
+                                                     onPageSizeChange={size => { setLogItemsPerPage(size); setLogPage(1); }} /></PaginationRegion>}
                                             </div>
                                         );
                                     })()}
@@ -1876,8 +1905,7 @@ const EmployeeMeetingDetail = () => {
                                                     <Play className="w-4 h-4 text-action-blue" />
                                                     Bản ghi âm cuộc họp
                                                 </h3>
-                                                {totalAudioPages > 1 && (
-                                                    <div className="flex items-center gap-1.5 bg-cloud-mist rounded-lg p-1 border border-platinum-tint">
+                                                {<PaginationRegion legacyVisible={totalAudioPages > 1}><PaginationFooter currentPage={audioPage} totalPages={totalAudioPages} totalItems={audioFiles.length} pageSize={audioItemsPerPage} itemLabel="tệp âm thanh" onPageChange={setAudioPage} onPageSizeChange={size => { setAudioItemsPerPage(size); setAudioPage(1); }} legacy={<div className="flex items-center gap-1.5 bg-cloud-mist rounded-lg p-1 border border-platinum-tint">
                                                         <button 
                                                             onClick={() => setAudioPage(p => Math.max(1, p - 1))}
                                                             disabled={audioPage === 1}
@@ -1885,7 +1913,7 @@ const EmployeeMeetingDetail = () => {
                                                         >
                                                             <ChevronLeft className="w-3.5 h-3.5" />
                                                         </button>
-                                                        <span className="text-[10px] font-bold text-midnight-indigo px-1">
+                                                        <span data-ui-text="primary" className="text-[10px] font-bold text-midnight-indigo px-1">
                                                             {audioPage} / {totalAudioPages}
                                                         </span>
                                                         <button 
@@ -1895,8 +1923,7 @@ const EmployeeMeetingDetail = () => {
                                                         >
                                                             <ChevronRight className="w-3.5 h-3.5" />
                                                         </button>
-                                                    </div>
-                                                )}
+                                                    </div>} /></PaginationRegion>}
                                             </div>
                                             <div className="space-y-4">
                                                 {currentAudioFiles.map((audioFile, idx) => (
@@ -1905,7 +1932,7 @@ const EmployeeMeetingDetail = () => {
                                                             <span className="text-xs font-bold text-midnight-indigo truncate pr-4 flex flex-col">
                                                                 <span>{audioFile.fileName || audioFile.file_name || `Bản ghi âm ${(audioPage - 1) * audioItemsPerPage + idx + 1}`}</span>
                                                                 {audioFile.channelUserId && (
-                                                                    <span className="text-[10px] font-normal text-slate-400 mt-0.5">
+                                                                    <span data-ui-text="secondary" className="text-[10px] font-normal text-slate-400 mt-0.5">
                                                                         Audio track cá nhân
                                                                     </span>
                                                                 )}
@@ -1964,7 +1991,7 @@ const EmployeeMeetingDetail = () => {
                             <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-2 text-center py-8 text-slate-blue">
                                 <Video className="w-8 h-8 mx-auto text-platinum-tint mb-2.5" />
                                 <h4 className="text-xs font-bold text-midnight-indigo uppercase">Chưa khả dụng</h4>
-                                <p className="text-[11px] mt-1 leading-relaxed text-slate-blue/80">
+                                <p data-ui-text="secondary" className="text-[11px] mt-1 leading-relaxed text-slate-blue/80">
                                     Bản ghi âm và bản ghi chữ cuộc họp sẽ khả dụng sau khi cuộc họp kết thúc.
                                 </p>
                             </div>
@@ -2088,12 +2115,12 @@ const EmployeeMeetingDetail = () => {
 
                                 <div className="flex items-center justify-between gap-3 -mt-2">
                                     {hasUncheckedTimeEdit() ? (
-                                        <p className="text-[11px] text-slate-blue flex items-center gap-1">
+                                        <p data-ui-text="secondary" className="text-[11px] text-slate-blue flex items-center gap-1">
                                             <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                                             Bạn đã đổi giờ họp — nên kiểm tra lại trước khi lưu.
                                         </p>
                                     ) : <span />}
-                                    <button
+                                    <button data-ui-text="action"
                                         type="button"
                                         onClick={handleCheckAvailability}
                                         disabled={isFetchingRooms || !editStart || !editEnd}
@@ -2105,7 +2132,7 @@ const EmployeeMeetingDetail = () => {
 
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">
-                                        Chọn phòng họp {isFetchingRooms && <span className="text-[10px] text-action-blue normal-case italic font-normal ml-2">(Đang tải danh sách phòng...)</span>}
+                                        Chọn phòng họp {isFetchingRooms && <span data-ui-text="secondary" className="text-[10px] text-action-blue normal-case italic font-normal ml-2">(Đang tải danh sách phòng...)</span>}
                                     </label>
                                     <select
                                         value={editRoomId}
@@ -2124,21 +2151,23 @@ const EmployeeMeetingDetail = () => {
                                         ))}
                                     </select>
                                     {checkStatus === 'ok' && (
-                                        <p className="text-[11px] text-emerald-600 mt-1.5 flex items-center gap-1 font-medium">
+                                        <p data-ui-text="secondary" className="text-[11px] text-emerald-600 mt-1.5 flex items-center gap-1 font-medium">
                                             <Check className="w-3.5 h-3.5" />
                                             Phòng đang chọn còn trống ở khung giờ này.
                                         </p>
                                     )}
                                     {checkStatus === 'conflict' && (
                                         <div className="mt-1.5">
-                                            <p className="text-[11px] text-red-500 flex items-center gap-1 font-medium">
+                                            <p data-ui-text="secondary" className="text-[11px] text-red-500 flex items-center gap-1 font-medium">
                                                 <AlertTriangle className="w-3.5 h-3.5" />
                                                 Phòng đang chọn không còn trống ở khung giờ này. Bạn vẫn có thể giữ nguyên lựa chọn này (yêu cầu sẽ được gửi Manager duyệt lại) hoặc chọn phòng khác:
                                             </p>
                                             {suggestedAlternativeRooms.length > 0 && (
-                                                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                                    {suggestedAlternativeRooms.map((r, idx) => (
-                                                        <button
+                                                <PaginatedCollection items={suggestedAlternativeRooms} itemLabel="phòng">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="flex flex-wrap gap-1.5 mt-1.5">
+                                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((r, idx) => (
+                                                        <button data-ui-text="primary"
                                                             key={r.roomId || idx}
                                                             type="button"
                                                             onClick={() => {
@@ -2150,13 +2179,15 @@ const EmployeeMeetingDetail = () => {
                                                         >
                                                             {r.roomName}{r.siteName ? ` (${r.siteName})` : ''}
                                                         </button>
-                                                    ))}
+                                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (suggestedAlternativeRooms)))}
                                                 </div>
+)}
+</PaginatedCollection>
                                             )}
                                         </div>
                                     )}
                                     {selectedRoomPendingConflicts.length > 0 && (
-                                        <p className="text-[11px] text-amber-600 mt-1.5 flex items-start gap-1">
+                                        <p data-ui-text="secondary" className="text-[11px] text-amber-600 mt-1.5 flex items-start gap-1">
                                             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                                             Đã có {selectedRoomPendingConflicts.length} yêu cầu khác đang chờ duyệt cho phòng/khung giờ này (chưa được duyệt nên chưa chắc chắn giữ được phòng — Manager sẽ quyết định khi có nhiều yêu cầu trùng nhau).
                                         </p>
@@ -2170,7 +2201,7 @@ const EmployeeMeetingDetail = () => {
                                         onChange={(e) => setEditRecordingEnabled(e.target.checked)}
                                         className="w-4 h-4 rounded text-action-blue border-platinum-tint focus:ring-action-blue"
                                     />
-                                    <span className="text-xs text-midnight-indigo font-semibold">Tự động ghi âm/ghi hình cuộc họp (Yêu cầu đồng ý PDPA)</span>
+                                    <span data-ui-text="primary" className="text-xs text-midnight-indigo font-semibold">Tự động ghi âm/ghi hình cuộc họp (Yêu cầu đồng ý PDPA)</span>
                                 </label>
 
                                 <div className="flex justify-end gap-3 pt-4 border-t border-platinum-tint">
@@ -2262,8 +2293,10 @@ const EmployeeMeetingDetail = () => {
                                     </div>
                                 </div>
 
-                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                                    {agendaList.map((item, idx) => (
+                            <PaginatedCollection items={agendaList} itemLabel="nội dung" resetKey="agenda-editor" revealAdded>
+{(camaiPageItems, camaiStartIndex) => (
+<div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((item, idx) => (
                                         <div 
                                             key={idx} 
                                             draggable
@@ -2291,14 +2324,14 @@ const EmployeeMeetingDetail = () => {
                                             <div className="flex items-start gap-2 overflow-hidden flex-1">
                                                 <GripVertical className="w-4 h-4 text-slate-400 shrink-0 mt-0.5 cursor-grab" />
                                                 <div className="text-left overflow-hidden flex-1">
-                                                    <span className="text-xs font-bold text-midnight-indigo flex items-center gap-2 mb-1 truncate">
+                                                    <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo flex items-center gap-2 mb-1 truncate">
                                                         {item.title}
                                                     </span>
-                                                    <span className="text-[10px] text-slate-blue font-medium block">{item.durationMin} phút</span>
+                                                    <span data-ui-text="secondary" className="text-[10px] text-slate-blue font-medium block">{item.durationMin} phút</span>
                                                     {item.attachments && item.attachments.length > 0 && (
                                                         <div className="mt-1 flex flex-col gap-1">
                                                             {item.attachments.map(att => (
-                                                                <div key={att.id} className="flex items-center justify-between text-[10px] text-action-blue bg-blue-50 px-2 py-0.5 rounded w-full max-w-xs">
+                                                                <div data-ui-text="secondary" key={att.id} className="flex items-center justify-between text-[10px] text-action-blue bg-blue-50 px-2 py-0.5 rounded w-full max-w-xs">
                                                                     <div className="flex items-center gap-1.5 overflow-hidden">
                                                                         <FileText className="w-3 h-3 shrink-0" />
                                                                         <span className="truncate max-w-[180px]">{att.fileName}</span>
@@ -2309,7 +2342,7 @@ const EmployeeMeetingDetail = () => {
                                                         </div>
                                                     )}
                                                     {item.file && item.file instanceof File && (
-                                                        <div className="mt-1 flex items-center gap-1.5 text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded w-max">
+                                                        <div data-ui-text="secondary" className="mt-1 flex items-center gap-1.5 text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded w-max">
                                                             <FileText className="w-3 h-3 shrink-0" />
                                                             <span className="truncate max-w-[200px]">Mới: {item.file.name}</span>
                                                         </div>
@@ -2333,8 +2366,10 @@ const EmployeeMeetingDetail = () => {
                                                 </button>
                                             </div>
                                         </div>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (agendaList)))}
                                 </div>
+)}
+</PaginatedCollection>
                             </div>
 
                             <div className="flex justify-end gap-3 pt-4 border-t border-platinum-tint">
@@ -2447,8 +2482,10 @@ const EmployeeMeetingDetail = () => {
                             </div>
                         </div>
 
-                        <div className="p-6 space-y-3 max-h-60 overflow-y-auto">
-                            {participantConflictModal.conflicts.map((c, idx) => (
+                        <PaginatedCollection items={participantConflictModal?.conflicts} itemLabel="xung đột">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="p-6 space-y-3 max-h-60 overflow-y-auto">
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((c, idx) => (
                                 <div key={idx} className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-sm">
                                     <span className="font-semibold text-midnight-indigo">{c.fullName}</span>
                                     {c.overlappingMeetings?.map((m, i) => (
@@ -2458,8 +2495,10 @@ const EmployeeMeetingDetail = () => {
                                         </p>
                                     ))}
                                 </div>
-                            ))}
+                            ))(camaiRecord, camaiStartIndex + camaiIndex, (participantConflictModal.conflicts)))}
                         </div>
+)}
+</PaginatedCollection>
 
                         <div className="px-6 py-4 border-t border-platinum-tint flex justify-end gap-3">
                             <button

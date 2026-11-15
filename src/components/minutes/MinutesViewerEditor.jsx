@@ -1,3 +1,5 @@
+import TableColumns from '../common/TableColumns';
+import ResponsiveTable from '../common/ResponsiveTable';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -202,10 +204,10 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
 
     const getConfidenceBadge = (confidence) => {
         switch (confidence) {
-            case 'high': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700">Độ tin cậy cao</span>;
-            case 'low': return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-red-100 text-red-700">Độ tin cậy thấp</span>;
+            case 'high': return <span data-ui-text="badge" className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700">Độ tin cậy cao</span>;
+            case 'low': return <span data-ui-text="badge" className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-red-100 text-red-700">Độ tin cậy thấp</span>;
             case 'medium':
-            default: return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-100 text-amber-700">Độ tin cậy T.Bình</span>;
+            default: return <span data-ui-text="badge" className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-100 text-amber-700">Độ tin cậy T.Bình</span>;
         }
     };
 
@@ -219,29 +221,29 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                         <div className="flex items-center gap-2">
                             <h3 className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">{minutes.title || 'Biên bản cuộc họp'}</h3>
                             {minutes.isAiGenerated ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 flex items-center gap-1 border border-purple-200">
+                                <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 flex items-center gap-1 border border-purple-200">
                                     <Sparkles className="w-3 h-3" /> Tạo bởi AI
                                 </span>
                             ) : (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 flex items-center gap-1 border border-blue-200">
+                                <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 flex items-center gap-1 border border-blue-200">
                                     <PenLine className="w-3 h-3" /> Thủ công
                                 </span>
                             )}
                             {minutes.contentFormat === 'blank' && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
                                     Trang trắng
                                 </span>
                             )}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                            <span data-ui-text="badge" className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                                 minutes.status === 'published' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
                             }`}>
                                 {minutes.status === 'published' ? 'Đã ban hành' : 'Bản nháp'}
                             </span>
-                            <span className="text-[10px] text-slate-blue font-medium">Phiên bản: {minutes.versionNo}</span>
+                            <span data-ui-text="secondary" className="text-[10px] text-slate-blue font-medium">Phiên bản: {minutes.versionNo}</span>
                             {minutes.isLiveShared && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-red-100 text-red-700 flex items-center gap-1">
+                                <span data-ui-text="label" className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-red-100 text-red-700 flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
                                     Đang chia sẻ trực tiếp
                                 </span>
@@ -371,7 +373,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Key Points */}
                             <div className="space-y-2">
-                                <h5 className="text-[11px] font-bold text-purple-800">Ý chính (Key Points)</h5>
+                                <h5 data-ui-text="label" className="text-[11px] font-bold text-purple-800">Ý chính (Key Points)</h5>
                                 {isEditing ? (
                                     <textarea
                                         value={editForm.aiSummary.keyPoints.join('\n')}
@@ -393,7 +395,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                             {/* Risks & Open Questions */}
                             <div className="space-y-4">
                                 <div>
-                                    <h5 className="text-[11px] font-bold text-amber-800 flex items-center gap-1">Rủi ro (Risks)</h5>
+                                    <h5 data-ui-text="label" className="text-[11px] font-bold text-amber-800 flex items-center gap-1">Rủi ro (Risks)</h5>
                                     {isEditing ? (
                                         <textarea
                                             value={editForm.aiSummary.risks.join('\n')}
@@ -481,7 +483,8 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                     </h4>
 
                     <div className="overflow-x-auto pb-2 scrollbar-thin w-full">
-                        <table className="w-full text-left border-collapse min-w-[650px]">
+                        <ResponsiveTable className="w-full text-left border-collapse min-w-[650px]">
+                            <TableColumns widths={minutes.isAiGenerated && !isEditing ? [50, 25, 15, 10] : [55, 28, 17]} />
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/50">
                                     <th className="p-3 text-[10px] font-bold text-slate-blue uppercase">Công việc</th>
@@ -539,7 +542,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                                         <tr key={idx} className="border-b border-platinum-tint hover:bg-cloud-mist/30 transition-colors">
                                             <td className="p-3 text-xs text-midnight-indigo font-medium">{item.task}</td>
                                             <td className="p-3 text-xs text-slate-600">{item.owner || '-'}</td>
-                                            <td className="p-3 text-[11px] text-slate-blue font-mono">{item.deadline || '-'}</td>
+                                            <td data-ui-text="primary" className="p-3 text-[11px] text-slate-blue font-mono">{item.deadline || '-'}</td>
                                             {minutes.isAiGenerated && (
                                                 <td className="p-3">{getConfidenceBadge(item.confidence)}</td>
                                             )}
@@ -547,7 +550,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                                     ))
                                 )}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                         {(!minutes.mainContent?.actionItems || minutes.mainContent.actionItems.length === 0) && !isEditing && (
                             <p className="text-xs text-slate-blue italic p-4 text-center">Không có công việc nào được giao.</p>
                         )}
@@ -578,7 +581,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                             placeholder={minutes.contentFormat === 'blank' ? 'Soạn nội dung biên bản...' : 'Ghi chú thêm...'}
                         />
                     ) : (
-                        <div className="p-4 bg-cloud-mist/20 rounded-xl text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        <div data-ui-text="badge" className="p-4 bg-cloud-mist/20 rounded-xl text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
                             {minutes.mainContent?.minutesContent || <span className="italic text-slate-blue">Không có ghi chú thêm.</span>}
                         </div>
                     )}

@@ -338,7 +338,7 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                     <div>
                         <h3 className="text-sm font-bold text-midnight-indigo uppercase tracking-wider">Nội dung cuộc họp (Transcript)</h3>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                            <span data-ui-text="badge" className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                                 transcript?.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 
                                 transcript?.status === 'reviewed' ? 'bg-blue-100 text-blue-700' : 
                                 'bg-purple-100 text-purple-700'
@@ -346,9 +346,9 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                                 {transcript?.status || 'Bản nháp'}
                             </span>
                             {shouldShowConfidenceScore ? (
-                                <span className="text-[10px] text-slate-blue font-medium">Độ chính xác: {(normalizedConfidenceScore * 100).toFixed(0)}%</span>
+                                <span data-ui-text="secondary" className="text-[10px] text-slate-blue font-medium">Độ chính xác: {(normalizedConfidenceScore * 100).toFixed(0)}%</span>
                             ) : hasUnreliableSpeechWarning ? (
-                                <span className="text-[10px] text-amber-600 font-bold">Không đủ dữ liệu phiên âm</span>
+                                <span data-ui-text="primary" className="text-[10px] text-amber-600 font-bold">Không đủ dữ liệu phiên âm</span>
                             ) : null}
                         </div>
                     </div>
@@ -368,20 +368,20 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                     
                     {isHost && transcript?.status === 'draft' && (
                         <div className="flex items-center gap-2 shrink-0">
-                            <button
+                            <button data-ui-text="action"
                                 onClick={() => setIsMappingModalOpen(true)}
                                 className="px-3 py-1.5 bg-white border border-platinum-tint text-action-blue hover:bg-blue-50 rounded-xl text-[11px] font-bold transition-colors flex items-center gap-1 shadow-sm"
                             >
                                 <Users className="w-3.5 h-3.5" /> Gán người nói
                             </button>
-                            <button
+                            <button data-ui-text="action"
                                 onClick={() => handleStatusChange('reviewed')}
                                 disabled={isChangingStatus}
                                 className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] font-bold transition-colors flex items-center gap-1 shadow-sm disabled:opacity-50"
                             >
                                 <CheckCircle className="w-3.5 h-3.5" /> Đánh dấu đã xem
                             </button>
-                            <button
+                            <button data-ui-text="action"
                                 onClick={handleDeleteTranscript}
                                 disabled={isDeleting}
                                 title="Xóa transcript chưa xem"
@@ -392,7 +392,7 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                         </div>
                     )}
                     {isHost && transcript?.status === 'reviewed' && (
-                        <button
+                        <button data-ui-text="action"
                             onClick={() => handleStatusChange('approved')}
                             disabled={isChangingStatus}
                             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-colors flex items-center gap-1 shrink-0 shadow-sm disabled:opacity-50"
@@ -451,14 +451,14 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                                     />
                                 ) : (
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-midnight-indigo">
+                                        <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">
                                             {segment.displayName ? segment.displayName :
                                              segment.speakerLabel === 'unknown' ? 'Chưa xác định' :
                                              segment.speakerLabel?.startsWith('Speaker_') ? segment.speakerLabel.replace('Speaker_', 'Người nói ') :
                                              segment.speakerLabel}
                                         </span>
                                         {isLowConfidence && !isEditing && (
-                                            <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md font-bold flex items-center gap-1" title="Độ chính xác thấp, cần kiểm tra lại">
+                                            <span data-ui-text="badge" className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-md font-bold flex items-center gap-1" title="Độ chính xác thấp, cần kiểm tra lại">
                                                 <AlertTriangle className="w-3 h-3" /> Chú ý
                                             </span>
                                         )}
@@ -481,7 +481,7 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                                                 : <Play className="w-3.5 h-3.5" />}
                                         </button>
                                     )}
-                                    <span className="text-[10px] text-slate-blue font-mono font-semibold bg-slate-100 px-1.5 py-0.5 rounded">
+                                    <span data-ui-text="secondary" className="text-[10px] text-slate-blue font-mono font-semibold bg-slate-100 px-1.5 py-0.5 rounded">
                                         {timeStr}
                                     </span>
                                     {isHost && !isEditing && transcript?.status !== 'approved' && (
@@ -511,14 +511,14 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                                         className="w-full p-2 text-[11px] border border-platinum-tint rounded-lg focus:outline-none focus:border-action-blue focus:ring-1 focus:ring-action-blue"
                                     />
                                     <div className="flex justify-end gap-2">
-                                        <button 
+                                        <button data-ui-text="action"
                                             onClick={() => setEditingSegmentId(null)}
                                             disabled={isSaving}
                                             className="px-3 py-1.5 border border-platinum-tint text-slate-blue rounded-lg text-[11px] font-bold hover:bg-cloud-mist transition-colors"
                                         >
                                             Hủy
                                         </button>
-                                        <button 
+                                        <button data-ui-text="action"
                                             onClick={handleSaveEdit}
                                             disabled={isSaving}
                                             className="px-3 py-1.5 bg-action-blue text-white rounded-lg text-[11px] font-bold hover:bg-glacier-blue transition-colors flex items-center gap-1 disabled:opacity-50"

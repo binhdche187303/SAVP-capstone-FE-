@@ -396,7 +396,7 @@ const CameraLayout = () => {
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+          <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
             <LayoutGrid className="w-3.5 h-3.5" /> Camera AI
           </span>
           <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">
@@ -482,7 +482,7 @@ const CameraLayout = () => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_260px] gap-4">
           <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 p-2 h-fit">
-            <p className="px-2 py-1.5 text-[11px] font-bold uppercase text-slate-blue">
+            <p data-ui-text="label" className="px-2 py-1.5 text-[11px] font-bold uppercase text-slate-blue">
               Tầng
             </p>
             {floors.map((f) => {
@@ -499,11 +499,11 @@ const CameraLayout = () => {
                 >
                   <span className="truncate">{f.key}</span>
                   <span className="flex items-center gap-1 shrink-0">
-                    <span className="text-[11px] text-slate-blue tabular-nums">
+                    <span data-ui-text="action" className="text-[11px] text-slate-blue tabular-nums">
                       {s.total}
                     </span>
                     {s.offline > 0 && (
-                      <span className="px-1.5 rounded bg-red-100 text-red-600 text-[10px] font-bold">
+                      <span data-ui-text="action" className="px-1.5 rounded bg-red-100 text-red-600 text-[10px] font-bold">
                         {s.offline}
                       </span>
                     )}
@@ -646,7 +646,7 @@ const CameraLayout = () => {
                 );
               })}
             </svg>
-            <div className="flex flex-wrap gap-4 px-2 pt-2 text-[11px] text-slate-blue">
+            <div data-ui-text="secondary" className="flex flex-wrap gap-4 px-2 pt-2 text-[11px] text-slate-blue">
               {Object.entries(STATUS_LABEL).map(([k, label]) => (
                 <span key={k} className="flex items-center gap-1.5">
                   <span
@@ -716,20 +716,20 @@ const CameraLayout = () => {
             ) : (
               <div className="space-y-3">
                 <div>
-                  <p className="text-[10px] font-bold uppercase text-slate-blue">
+                  <p data-ui-text="label" className="text-[10px] font-bold uppercase text-slate-blue">
                     {TYPE_LABEL[selected.device.device_type] ||
                       selected.device.device_type}
                   </p>
-                  <p className="text-sm font-bold text-midnight-indigo">
+                  <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">
                     {selected.device.device_name}
                   </p>
-                  <p className="text-[10px] font-mono text-steel-gray">
+                  <p data-ui-text="code" className="text-[10px] font-mono text-steel-gray">
                     {selected.device.device_code}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="bg-cloud-mist rounded-lg p-2">
-                    <p className="text-[10px] text-slate-blue">Trạng thái</p>
+                    <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Trạng thái</p>
                     <p
                       className="font-bold"
                       style={{ color: STATUS_COLOR[selected.device.status] }}
@@ -739,13 +739,13 @@ const CameraLayout = () => {
                     </p>
                   </div>
                   <div className="bg-cloud-mist rounded-lg p-2">
-                    <p className="text-[10px] text-slate-blue">Vị trí</p>
+                    <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Vị trí</p>
                     <p className="font-bold text-midnight-indigo truncate">
                       {selected.block.label}
                     </p>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-blue">
+                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">
                   IP:{" "}
                   <span className="font-mono text-midnight-indigo">
                     {selected.device.ip_address || "—"}
@@ -757,7 +757,7 @@ const CameraLayout = () => {
                       <label className="text-xs font-semibold text-midnight-indigo">
                         Hướng nhìn
                       </label>
-                      <span className="text-xs font-bold text-action-blue tabular-nums">
+                      <span data-ui-text="primary" className="text-xs font-bold text-action-blue tabular-nums">
                         {selected.angle}°
                       </span>
                     </div>

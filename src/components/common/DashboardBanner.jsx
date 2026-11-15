@@ -282,7 +282,7 @@ const DashboardBanner = ({ roleName = 'bạn', compact = false }) => {
                             </div>
 
                             {/* Badge tag */}
-                            <span
+                            <span data-ui-text="badge"
                                 className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-bold border uppercase tracking-widest backdrop-blur-md ${slide.badgeClass}`}
                                 style={{ pointerEvents: 'auto' }}
                             >
@@ -291,7 +291,7 @@ const DashboardBanner = ({ roleName = 'bạn', compact = false }) => {
                             </span>
 
                             {/* Title */}
-                            <h2
+                            <h2 data-page-title
                                 className="text-white font-extrabold leading-tight tracking-tight"
                                 style={{
                                     fontSize: compact ? '1.2rem' : '1.5rem',

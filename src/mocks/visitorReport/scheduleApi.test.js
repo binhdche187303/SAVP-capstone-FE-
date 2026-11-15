@@ -1,3 +1,5 @@
+jest.mock('../../config/featureFlags', () => ({ VISITOR_MOCK_ENABLED: true, REPORT_MOCK_ENABLED: true, ANY_DEMO_DATA: true }));
+
 // src/mocks/visitorReport/scheduleApi.test.js
 import * as svc from '../../service/reportCenterService';
 import { resetState } from './store';

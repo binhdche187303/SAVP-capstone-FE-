@@ -163,7 +163,10 @@ const addDays = (date, days) => {
     return next;
 };
 
-const getPresenceRange = ({ rangeMode = 'day', anchorDate = todayKey() } = {}) => {
+const getPresenceRange = ({ fromDate, toDate, rangeMode = 'day', anchorDate = todayKey() } = {}) => {
+    if (fromDate && toDate) {
+        return { start: startOfLocalDay(fromDate), end: addDays(startOfLocalDay(toDate), 1) };
+    }
     const anchor = startOfLocalDay(anchorDate);
     if (rangeMode === 'week') {
         const day = anchor.getDay();
@@ -178,6 +181,11 @@ const getPresenceRange = ({ rangeMode = 'day', anchorDate = todayKey() } = {}) =
 const isEventInRange = (event, range) => {
     const time = new Date(event?.occurredAt).getTime();
     return Number.isFinite(time) && time >= range.start.getTime() && time < range.end.getTime();
+};
+
+export const filterGuardGateEvents = (events, options = {}) => {
+    const range = getPresenceRange(options);
+    return events.filter(event => isEventInRange(event, range));
 };
 
 const formatTime = (date) => new Date(date).toLocaleTimeString('vi-VN', {
@@ -345,6 +353,22 @@ export const fetchGuardGateEvents = async (params = {}) => {
             presenceDurationText: item.duration_seconds ? formatDuration(Number(item.duration_seconds) / 60) : '--'
         };
     });
+};
+
+// The list API caps each page at 100; collect the selected interval for statistics and CSV.
+export const fetchGuardGateEventsInRange = async (fromDate, toDate) => {
+    const range = getPresenceRange({ fromDate, toDate });
+    const params = {
+        from: range.start.toISOString(),
+        to: new Date(range.end.getTime() - 1).toISOString(),
+        limit: 100
+    };
+    const events = [];
+    for (let page = 1; ; page += 1) {
+        const batch = await fetchGuardGateEvents({ ...params, page });
+        events.push(...batch);
+        if (batch.length < params.limit) return events;
+    }
 };
 
 export const scanGuardGateEvent = async ({ gateId = 'main-in', scenario = 'authorized', snapshotImageBase64 } = {}) => {

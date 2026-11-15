@@ -1,53 +1,61 @@
-// ExportMenu askMode: chọn định dạng → hỏi bản thường / bản quy chuẩn (chỉ mẫu dùng chung) → onExport(format, extra).
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { resetTemplates } from '../../mocks/visitorReport/templateApi';
 import ExportMenu from './ExportMenu';
 
 jest.mock('../../config/featureFlags', () => ({
-    ...jest.requireActual('../../config/featureFlags'),
-    REPORT_MOCK_ENABLED: true,
+    ...jest.requireActual('../../config/featureFlags'), REPORT_MOCK_ENABLED: true,
 }));
-
 const SEED_ID = '10000000-0000-4000-8000-000000000001';
-
-const renderMenu = (props) => render(
-    <MemoryRouter initialEntries={['/system-admin/room-access-logs']}>
-        <ExportMenu onExport={props.onExport} askMode={props.askMode} />
-    </MemoryRouter>,
-);
-
+const renderMenu = props => render(<MemoryRouter initialEntries={['/system-admin/room-access-logs']}><ExportMenu {...props} /></MemoryRouter>);
 beforeEach(() => resetTemplates());
 
-test('không askMode: gọi thẳng onExport(format)', () => {
-    const onExport = jest.fn();
+test('one dialog chooses a format and normal mode before starting export', async () => {
+    const onExport = jest.fn().mockResolvedValue({ success: true });
     renderMenu({ onExport });
-    fireEvent.click(screen.getByText('Xuất báo cáo'));
-    fireEvent.click(screen.getByText('Excel'));
-    expect(onExport).toHaveBeenCalledWith('xlsx');
-    expect(screen.queryByText('Bản quy chuẩn')).not.toBeInTheDocument();
-});
-
-test('askMode: bản thường → onExport(format, {})', async () => {
-    const onExport = jest.fn();
-    renderMenu({ onExport, askMode: true });
-    fireEvent.click(screen.getByText('Xuất báo cáo'));
-    fireEvent.click(screen.getByText('Word'));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất báo cáo' }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('radio', { name: 'PDF' }));
     expect(onExport).not.toHaveBeenCalled();
-    await screen.findByText('Bản quy chuẩn');
-    fireEvent.click(screen.getByText('Xuất file'));
-    expect(onExport).toHaveBeenCalledWith('docx', {});
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất file' }));
+    await waitFor(() => expect(onExport).toHaveBeenCalledWith('pdf', {}));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 });
 
-test('askMode: bản quy chuẩn dùng mẫu chung mặc định', async () => {
-    const onExport = jest.fn();
+test('standard mode uses a saved template and signer choices in the same dialog', async () => {
+    const onExport = jest.fn().mockResolvedValue({ success: true });
     renderMenu({ onExport, askMode: true });
-    fireEvent.click(screen.getByText('Xuất báo cáo'));
-    fireEvent.click(screen.getByText('PDF'));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất báo cáo' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Word' }));
     const standard = await screen.findByRole('radio', { name: /Bản quy chuẩn/ });
     await waitFor(() => expect(standard).toBeEnabled());
     fireEvent.click(standard);
     await screen.findByTestId('signer-maker');
-    fireEvent.click(screen.getByText('Xuất file'));
-    expect(onExport).toHaveBeenCalledWith('pdf', expect.objectContaining({ mode: 'standard', templateId: SEED_ID }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất file' }));
+    await waitFor(() => expect(onExport).toHaveBeenCalledWith('docx', expect.objectContaining({ mode: 'standard', templateId: SEED_ID })));
+});
+
+test('shows export failure, retains choices, and permits a retry', async () => {
+    const onExport = jest.fn().mockResolvedValueOnce({ success: false, message: 'Máy chủ đang bận' }).mockResolvedValueOnce({ success: true });
+    renderMenu({ onExport });
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất báo cáo' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Excel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất file' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Máy chủ đang bận');
+    expect(screen.getByRole('radio', { name: 'Excel' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất file' }));
+    await waitFor(() => expect(onExport).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+});
+
+test('a queued export keeps one dialog open with a signed download link when the file is ready', async () => {
+    const onExport = jest.fn().mockResolvedValue({ success: true, data: { fileName: 'bao-cao.pdf', downloadUrl: 'https://files.example/report.pdf' } });
+    renderMenu({ onExport });
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất báo cáo' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'PDF' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất file' }));
+    expect(await screen.findByRole('link', { name: 'Tải file' })).toHaveAttribute('href', 'https://files.example/report.pdf');
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Xuất file' })).not.toBeInTheDocument();
 });

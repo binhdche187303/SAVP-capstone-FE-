@@ -1,298 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { X, FileText, CheckCircle, AlertTriangle, Download, RefreshCw } from 'lucide-react';
-import { post, get } from '../../utils/request';
 import ExportModeDialog from '../report/ExportModeDialog';
+import { exportReport, completeReportExport } from '../../service/reportCenterService';
+import { post } from '../../utils/request';
+import toast from '../../utils/toast';
 
-// Endpoint cũ /reports/<loại>/exports ứng với loại của Trung tâm báo cáo → xuất được bản quy chuẩn (và Word)
-// qua /reports/center/<loại>/exports. Endpoint không khớp loại nào giữ nguyên luồng cũ.
-const CENTER_TYPES = ['staff-attendance', 'student-attendance', 'gate-access', 'room-utilization', 'vehicle', 'visitor', 'security-alert'];
-const centerTypeOf = (endpoint) => {
-    const m = /^\/reports\/([a-z-]+)\/exports$/.exec(endpoint || '');
-    return m && CENTER_TYPES.includes(m[1]) ? m[1] : null;
+const CENTER_TYPES = new Set(['staff-attendance', 'student-attendance', 'gate-access', 'room-utilization', 'vehicle', 'visitor', 'security-alert']);
+const centerTypeOf = endpoint => {
+    const match = /^\/reports\/([a-z-]+)\/exports$/.exec(endpoint || '');
+    return match && CENTER_TYPES.has(match[1]) ? match[1] : null;
 };
 
-// BE bắt buộc from/to (YYYY-MM-DD) — quy đổi preset sang khoảng ngày theo giờ local.
-const toYmd = (d) => {
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-const presetToRange = (preset) => {
+export const reportPresetRange = (preset, from, to) => {
+    if (preset === 'custom') return { from, to };
     const today = new Date();
-    if (preset === 'week') {
-        const monday = new Date(today);
-        monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-        return { from: toYmd(monday), to: toYmd(today) };
-    }
-    if (preset === 'month') {
-        return { from: toYmd(new Date(today.getFullYear(), today.getMonth(), 1)), to: toYmd(today) };
-    }
-    return { from: toYmd(today), to: toYmd(today) };
+    const start = new Date(today);
+    const end = new Date(today);
+    if (preset === 'week') { start.setDate(today.getDate() - ((today.getDay() + 6) % 7)); end.setDate(start.getDate() + 6); }
+    if (preset === 'year') { start.setMonth(0, 1); end.setMonth(11, 31); }
+    if (preset === 'month') { start.setDate(1); end.setMonth(today.getMonth() + 1, 0); }
+    const ymd = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return { from: ymd(start), to: ymd(end) };
 };
 
-const ExportReportModal = ({
-    isOpen,
-    onClose,
-    endpoint = '/reports/room-utilization/exports',
-    title = 'Xuất báo cáo hiệu năng',
-    formats = ['xlsx', 'pdf', 'csv'],
-}) => {
-    const [format, setFormat] = useState('xlsx');
-    const [preset, setPreset] = useState('month');
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
-    
-    // Status
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [jobId, setJobId] = useState(null);
-    const [jobStatus, setJobStatus] = useState(''); // queued, running, completed, failed
-    const [outputFileId, setOutputFileId] = useState(null);
-    const [downloading, setDownloading] = useState(false);
-    const [asking, setAsking] = useState(false);
+// Legacy endpoints (notably CSV) share the same job and signed-download lifecycle.
+const exportLegacy = async (endpoint, payload) => {
+    const legacyPayload = endpoint === '/reports/room-utilization/exports'
+        ? { from: payload.from, to: payload.to, format: payload.format, delivery: 'download', ...(payload.roomId ? { scope: { roomId: payload.roomId } } : {}) } : payload;
+    const created = await post(endpoint, legacyPayload);
+    return completeReportExport(created, { autoDownload: false, format: payload.format });
+};
 
-    const centerType = centerTypeOf(endpoint);
-    const shownFormats = centerType && !formats.includes('docx') ? [...formats.filter((f) => f !== 'csv'), 'docx', ...formats.filter((f) => f === 'csv')] : formats;
-
-    useEffect(() => {
-        if (!isOpen) {
-            // Reset state
-            setFormat('xlsx');
-            setPreset('month');
-            setFrom('');
-            setTo('');
-            setLoading(false);
-            setError(null);
-            setJobId(null);
-            setJobStatus('');
-            setOutputFileId(null);
-            setAsking(false);
-        }
-    }, [isOpen]);
-
-    // Polling job status
-    useEffect(() => {
-        let intervalId;
-        if (jobId && (jobStatus === 'queued' || jobStatus === 'running')) {
-            intervalId = setInterval(async () => {
-                try {
-                    const res = await get(`/background-jobs/${jobId}`);
-                    if (res?.success) {
-                        const status = res.data.status;
-                        setJobStatus(status);
-                        if (status === 'completed') {
-                            setOutputFileId(res.data.outputFileId);
-                            setLoading(false);
-                            clearInterval(intervalId);
-                        } else if (status === 'failed') {
-                            setError(res.data.errorMessage || 'Xuất báo cáo thất bại.');
-                            setLoading(false);
-                            clearInterval(intervalId);
-                        }
-                    }
-                } catch (err) {
-                    setError('Lỗi khi kiểm tra tiến trình.');
-                    setLoading(false);
-                    clearInterval(intervalId);
-                }
-            }, 2000);
-        }
-        return () => clearInterval(intervalId);
-    }, [jobId, jobStatus]);
-
-    if (!isOpen) return null;
-    if (typeof document === 'undefined') return null;
-
-    // Bấm "Bắt đầu xuất": loại có trong Trung tâm báo cáo → hỏi bản thường / bản quy chuẩn trước (trừ CSV).
-    const handleExport = (e) => {
-        e.preventDefault();
-        if (centerType && format !== 'csv') { setAsking(true); return; }
-        startExport({});
-    };
-
-    const startExport = async (extra) => {
-        setAsking(false);
-        setLoading(true);
-        setError(null);
-        setJobStatus('queued');
-        try {
-            const range = preset === 'custom' ? { from, to } : presetToRange(preset);
-            const useCenter = centerType && (extra.mode === 'standard' || format === 'docx');
-            const payload = { format, ...range, ...extra };
-            const res = await post(useCenter ? `/reports/center/${centerType}/exports` : endpoint, payload);
-            if (res?.success) {
-                setJobId(res.data.jobId);
-                setJobStatus(res.data.status || 'queued');
-            } else {
-                throw new Error(res?.message || 'Không thể tạo tác vụ xuất báo cáo.');
-            }
-        } catch (err) {
-            setError(err.message || 'Lỗi khi khởi tạo tác vụ.');
-            setLoading(false);
-        }
-    };
-
-    const handleDownload = async () => {
-        if (!outputFileId) return;
-        setDownloading(true);
-        setError(null);
-        try {
-            // secure-download cần signed token → lấy downloadUrl (đã ký) từ API detail.
-            const res = await get(`/media-files/${outputFileId}`);
-            if (res?.success && res.data?.downloadUrl) {
-                window.open(res.data.downloadUrl, '_blank');
-            } else {
-                setError(res?.message || 'Không thể tạo liên kết tải xuống.');
-            }
-        } catch (err) {
-            setError(err?.message || err?.error?.message || 'Lỗi khi tải xuống báo cáo. Vui lòng thử lại.');
-        } finally {
-            setDownloading(false);
-        }
-    };
-
-    // Hộp thoại chọn kiểu bản xuất thay chỗ khung này (khung này nằm trên mọi lớp nên không xếp chồng được).
-    if (asking) {
-        return <ExportModeDialog isOpen format={format} reportType={centerType} onClose={() => setAsking(false)} onConfirm={startExport} />;
-    }
-
-    return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-xl p-4">
-            <div className="bg-white rounded-2xl border border-platinum-tint shadow-xl max-w-md w-full flex flex-col overflow-hidden animate-fade-in-up">
-                <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-cloud-mist/50">
-                    <h3 className="font-bold text-midnight-indigo flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-action-blue" />
-                        {title}
-                    </h3>
-                    <button 
-                        onClick={onClose} 
-                        disabled={loading}
-                        className="text-slate-blue hover:text-midnight-indigo"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <form onSubmit={handleExport} className="p-6 space-y-4">
-                    {error && (
-                        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start text-sm animate-fade-in-up">
-                            <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-                            <p>{error}</p>
-                        </div>
-                    )}
-
-                    {jobStatus === 'completed' && outputFileId && (
-                        <div className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl space-y-3 animate-fade-in-up">
-                            <div className="flex items-start text-sm font-semibold text-green-700">
-                                <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-                                <p>Báo cáo đã sẵn sàng tải về!</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleDownload}
-                                disabled={downloading}
-                                className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
-                            >
-                                {downloading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Tải xuống file ({format.toUpperCase()})
-                            </button>
-                        </div>
-                    )}
-
-                    {loading && (
-                        <div className="p-6 flex flex-col items-center justify-center text-center space-y-3 animate-fade-in-up">
-                            <RefreshCw className="w-8 h-8 text-action-blue animate-spin" />
-                            <div>
-                                <p className="text-xs font-bold text-midnight-indigo">Đang tạo báo cáo...</p>
-                                <p className="text-[10px] text-slate-blue mt-1">Trạng thái: {jobStatus === 'running' ? 'Đang chạy' : 'Đang chờ xếp hàng'}</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {!loading && jobStatus !== 'completed' && (
-                        <>
-                            {/* Format Selection */}
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-bold text-slate-blue uppercase">Định dạng file</label>
-                                <div className={`grid gap-3 ${shownFormats.length > 3 ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                                    {shownFormats.map((fmt) => (
-                                        <button
-                                            key={fmt}
-                                            type="button"
-                                            onClick={() => setFormat(fmt)}
-                                            className={`py-2 px-3 border rounded-xl text-xs font-bold transition-all ${
-                                                format === fmt 
-                                                    ? 'border-action-blue bg-blue-50/50 text-action-blue shadow-sm' 
-                                                    : 'border-platinum-tint hover:bg-slate-50 text-slate-blue'
-                                            }`}
-                                        >
-                                            {fmt.toUpperCase()}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Preset Selection */}
-                            <div className="space-y-1.5">
-                                <label className="block text-xs font-bold text-slate-blue uppercase">Khoảng thời gian báo cáo</label>
-                                <select
-                                    value={preset}
-                                    onChange={(e) => setPreset(e.target.value)}
-                                    className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
-                                >
-                                    <option value="day">Hôm nay</option>
-                                    <option value="week">Tuần này</option>
-                                    <option value="month">Tháng này</option>
-                                    <option value="custom">Tùy chọn khoảng</option>
-                                </select>
-                            </div>
-
-                            {preset === 'custom' && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="block text-[10px] font-bold text-slate-blue uppercase">Từ ngày</label>
-                                        <input 
-                                            required
-                                            type="date" 
-                                            value={from} 
-                                            onChange={(e) => setFrom(e.target.value)}
-                                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="block text-[10px] font-bold text-slate-blue uppercase">Đến ngày</label>
-                                        <input 
-                                            required
-                                            type="date" 
-                                            value={to} 
-                                            onChange={(e) => setTo(e.target.value)}
-                                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex justify-end gap-3 pt-4 border-t border-platinum-tint">
-                                <button 
-                                    type="button" 
-                                    onClick={onClose}
-                                    className="px-4 py-2 border border-platinum-tint rounded-xl text-xs font-bold text-slate-blue hover:bg-cloud-mist"
-                                >
-                                    Đóng
-                                </button>
-                                <button 
-                                    type="submit" 
-                                    className="px-4 py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-                                >
-                                    Bắt đầu xuất
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </form>
-            </div>
-        </div>,
-        document.body
-    );
+const ExportReportModal = ({ isOpen, onClose, endpoint = '/reports/room-utilization/exports',
+    title = 'Xuất báo cáo', formats = ['xlsx', 'pdf', 'csv'], filters = {}, filterSummary = [], range }) => {
+    const reportType = centerTypeOf(endpoint);
+    const available = (reportType ? [...new Set([...formats, 'docx'])] : formats).filter(value => !(value === 'csv' && filters.building));
+    const initialRange = range || { from: '', to: '' };
+    return <ExportModeDialog isOpen={isOpen} onClose={onClose} title={title} formats={available}
+        reportType={reportType || undefined} allowStandard={Boolean(reportType)}
+        initialRange={initialRange} editableRange={!range?.from || !range?.to}
+        filterSummary={filterSummary}
+        onConfirm={async (extra, options) => {
+            const payload = { ...filters, ...options.range, format: options.format, ...extra };
+            const result = reportType && options.format !== 'csv'
+                ? await exportReport(reportType, payload, { autoDownload: false }) : await exportLegacy(endpoint, payload);
+            if (result?.success) { toast.success('Đã tạo file báo cáo.'); if (!result.data?.downloadUrl) onClose(); }
+            return result || { success: false, message: 'Không xuất được báo cáo' };
+        }} />;
 };
 
 export default ExportReportModal;

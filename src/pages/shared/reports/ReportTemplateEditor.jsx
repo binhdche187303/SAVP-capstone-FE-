@@ -144,7 +144,7 @@ const ReportTemplateEditor = () => {
 
     if (loadError) {
         return (
-            <div className="p-6 max-w-3xl mx-auto space-y-4">
+            <div data-page-surface="wide" className="p-6 max-w-3xl mx-auto space-y-4">
                 <div className={errorBoxCls}>{loadError}</div>
                 <Link to={`${base}/report-templates`} className={btnGhost}><ArrowLeft className="w-4 h-4" /> Về danh sách mẫu</Link>
             </div>
@@ -163,15 +163,15 @@ const ReportTemplateEditor = () => {
     });
 
     return (
-        <div className="p-6 space-y-4 max-w-[1600px] mx-auto">
+        <div data-page-surface="wide" className="p-6 space-y-4 max-w-[1600px] mx-auto">
             <div className={`${cardCls} px-4 py-3 flex flex-wrap items-end gap-3`}>
                 <button type="button" onClick={back} className="self-center p-2 rounded-lg text-slate-blue hover:bg-cloud-mist" aria-label="Về danh sách mẫu"><ArrowLeft className="w-4 h-4" /></button>
                 <label className="space-y-1 flex-1 min-w-[220px]">
-                    <span className={labelCls}>Tên mẫu</span>
+                    <span data-ui-text="label" className={labelCls}>Tên mẫu</span>
                     <input type="text" className={`${inputCls} w-full`} value={form.name} maxLength={LIMITS.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
                 </label>
                 <label className="space-y-1">
-                    <span className={labelCls}>Áp dụng cho</span>
+                    <span data-ui-text="label" className={labelCls}>Áp dụng cho</span>
                     <select className={inputCls} value={form.reportType || ''} onChange={(e) => setForm((f) => ({ ...f, reportType: e.target.value || null }))}>
                         <option value="">Tất cả báo cáo</option>
                         {REPORT_TYPES.map((t) => <option key={t} value={t}>{REPORT_DEFINITIONS[t].title}</option>)}
@@ -182,7 +182,7 @@ const ReportTemplateEditor = () => {
                     Mẫu mặc định
                 </label>
                 <div className="flex items-center gap-2 ml-auto">
-                    {dirty && <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">Chưa lưu</span>}
+                    {dirty && <span data-ui-text="badge" className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">Chưa lưu</span>}
                     <button type="button" className={btnGhost} disabled={Boolean(previewing)} onClick={() => preview('pdf')}><FileText className="w-4 h-4" /> {previewing === 'pdf' ? 'Đang dựng…' : 'Xem thử PDF'}</button>
                     <button type="button" className={`${btnGhost} !px-3`} disabled={Boolean(previewing)} onClick={() => preview('docx')} title="Tải bản xem thử Word"><FileType2 className="w-4 h-4" /> Word</button>
                     <button type="button" className={`${btnGhost} !px-3`} disabled={Boolean(previewing)} onClick={() => preview('xlsx')} title="Tải bản xem thử Excel"><FileSpreadsheet className="w-4 h-4" /> Excel</button>
@@ -192,14 +192,14 @@ const ReportTemplateEditor = () => {
 
             <div className="grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)_320px] lg:grid-cols-[210px_minmax(0,1fr)]">
                 <aside className={`${cardCls} p-3 space-y-0.5 self-start xl:sticky xl:top-4`} aria-label="Các phần của mẫu">
-                    <p className={`${labelCls} px-2 pb-1`}>Đầu văn bản</p>
+                    <p data-ui-text="label" className={`${labelCls} px-2 pb-1`}>Đầu văn bản</p>
                     {fixedRow('header', 'Quốc hiệu, cơ quan, số')}
                     {fixedRow('logo', 'Logo', assetToggle('logo'))}
                     {fixedRow('watermark', 'Logo nền', assetToggle('watermark'))}
                     {fixedRow('title', 'Tên loại, trích yếu')}
                     {fixedRow('addressee', 'Kính gửi', toggleOf('addressee'))}
 
-                    <p className={`${labelCls} px-2 pt-3 pb-1`}>Thân báo cáo — kéo để đổi chỗ</p>
+                    <p data-ui-text="label" className={`${labelCls} px-2 pt-3 pb-1`}>Thân báo cáo — kéo để đổi chỗ</p>
                     {layout.body.map((block, index) => (
                         <div key={block.id}>
                             {drag.showsIndicator(block.id) && <div className="h-0.5 bg-action-blue rounded-full mx-2" />}
@@ -229,7 +229,7 @@ const ReportTemplateEditor = () => {
                         <Plus className="w-3.5 h-3.5" /> Thêm đoạn tự soạn
                     </button>
 
-                    <p className={`${labelCls} px-2 pt-3 pb-1`}>Cuối văn bản</p>
+                    <p data-ui-text="label" className={`${labelCls} px-2 pt-3 pb-1`}>Cuối văn bản</p>
                     {fixedRow('closing', 'Câu kết', toggleOf('closing'))}
                     {fixedRow('signatures', `Khối ký (${layout.signatures.filter((s) => s.mode !== 'hidden').length} ô)`)}
                     {fixedRow('recipients', 'Nơi nhận', toggleOf('recipients'))}
@@ -238,7 +238,7 @@ const ReportTemplateEditor = () => {
                 </aside>
 
                 <main className="rounded-2xl bg-pale-gray/70 border border-platinum-tint p-6 overflow-x-auto">
-                    <p className="text-[11px] text-slate-blue text-center mb-4">
+                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue text-center mb-4">
                         Trang minh họa {definition ? `với chỉ tiêu của báo cáo ${definition.title.toLowerCase()}` : 'dùng chung'}. Bản in chính xác (ngắt trang, phông chữ) xem bằng nút "Xem thử PDF".
                     </p>
                     <TemplateCanvas layout={layout} definition={definition} assetUrls={assetUrls} selected={selected} onSelect={setSelected} drag={drag} />

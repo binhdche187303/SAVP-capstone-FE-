@@ -22,9 +22,9 @@ const SECTION_TITLES = {
 
 const Field = ({ label, hint, children }) => (
     <label className="block space-y-1">
-        <span className={labelCls}>{label}</span>
+        <span data-ui-text="label" className={labelCls}>{label}</span>
         {children}
-        {hint && <span className="block text-[10px] text-slate-blue">{hint}</span>}
+        {hint && <span data-ui-text="secondary" className="block text-[10px] text-slate-blue">{hint}</span>}
     </label>
 );
 
@@ -72,8 +72,8 @@ const AssetUpload = ({ mediaFileId, onUploaded, label }) => {
             <button type="button" className={`${btnGhost} w-full !text-xs`} disabled={busy} onClick={() => input.current?.click()}>
                 <ImagePlus className="w-4 h-4" /> {busy ? 'Đang tải ảnh…' : mediaFileId ? `Đổi ảnh ${label.toLowerCase()}` : `Chọn ảnh ${label.toLowerCase()}`}
             </button>
-            <p className="text-[10px] text-slate-blue">PNG nền trong suốt cho đẹp nhất. Ảnh được đổi sang PNG trước khi tải lên (tối đa 2 MB).</p>
-            {error && <p className="text-[11px] text-red-600" role="alert">{error}</p>}
+            <p data-ui-text="secondary" className="text-[10px] text-slate-blue">PNG nền trong suốt cho đẹp nhất. Ảnh được đổi sang PNG trước khi tải lên (tối đa 2 MB).</p>
+            {error && <p data-ui-text="secondary" className="text-[11px] text-red-600" role="alert">{error}</p>}
         </div>
     );
 };
@@ -87,14 +87,14 @@ const SignaturesEditor = ({ signatures, onChange }) => {
     };
     return (
         <div className="space-y-3">
-            <p className="text-[11px] text-slate-blue">
+            <p data-ui-text="secondary" className="text-[11px] text-slate-blue">
                 Ô <b>bắt buộc</b> luôn in và phải có người ký; ô <b>tùy chọn</b> người xuất bỏ được (VD: bản lưu không cần Hiệu trưởng ký).
                 Người ký mặc định được điền sẵn lúc xuất, đổi được cho từng lần.
             </p>
             {signatures.map((slot, index) => (
                 <div key={slot.id} className="rounded-xl border border-platinum-tint p-3 space-y-2.5 bg-white">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-midnight-indigo">Ô ký {index + 1}{signatures.length > 1 ? (index === 0 ? ' (bên trái)' : index === signatures.length - 1 ? ' (bên phải)' : ' (giữa)') : ''}</span>
+                        <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo">Ô ký {index + 1}{signatures.length > 1 ? (index === 0 ? ' (bên trái)' : index === signatures.length - 1 ? ' (bên phải)' : ' (giữa)') : ''}</span>
                         <span className="inline-flex">
                             <button type="button" className={iconBtn} aria-label="Đưa ô ký sang trái" disabled={index === 0} onClick={() => move(index, -1)}><ArrowUp className="w-3.5 h-3.5" /></button>
                             <button type="button" className={iconBtn} aria-label="Đưa ô ký sang phải" disabled={index === signatures.length - 1} onClick={() => move(index, 1)}><ArrowDown className="w-3.5 h-3.5" /></button>
@@ -143,7 +143,7 @@ const TemplateInspector = ({ layout, selected, onChange, onAsset }) => {
             <div className="text-center text-xs text-slate-blue py-10 space-y-2">
                 <MousePointerClick className="w-8 h-8 mx-auto text-steel-gray" />
                 <p>Bấm vào một phần trên trang mẫu hoặc trong danh sách bên trái để chỉnh.</p>
-                <p className="text-[11px]">Kéo các mục của thân báo cáo để đổi thứ tự. Các phần còn lại cố định theo Nghị định 30/2020.</p>
+                <p data-ui-text="secondary" className="text-[11px]">Kéo các mục của thân báo cáo để đổi thứ tự. Các phần còn lại cố định theo Nghị định 30/2020.</p>
             </div>
         );
     }
@@ -171,8 +171,8 @@ const TemplateInspector = ({ layout, selected, onChange, onAsset }) => {
                         <Area value={block.text} onChange={(v) => onChange(at('text'), v)} rows={block.kind === 'text' ? 8 : 5} />
                     </Field>
                 )}
-                {block.kind === 'scope' && <p className="text-[11px] text-slate-blue">Bốn dòng kỳ báo cáo, phạm vi, nguồn dữ liệu, thời điểm trích xuất do hệ thống tự điền lúc xuất.</p>}
-                {block.kind === 'summary' && <p className="text-[11px] text-slate-blue">Bảng STT / Chỉ tiêu / Đơn vị tính / Kết quả lấy từ các chỉ số của báo cáo đang xuất.</p>}
+                {block.kind === 'scope' && <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Bốn dòng kỳ báo cáo, phạm vi, nguồn dữ liệu, thời điểm trích xuất do hệ thống tự điền lúc xuất.</p>}
+                {block.kind === 'summary' && <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Bảng STT / Chỉ tiêu / Đơn vị tính / Kết quả lấy từ các chỉ số của báo cáo đang xuất.</p>}
             </>
         );
     } else if (selected === 'header') {
@@ -187,10 +187,10 @@ const TemplateInspector = ({ layout, selected, onChange, onAsset }) => {
                     <Field label="Viết tắt cơ quan"><Text value={h.agencyShort} onChange={(v) => onChange(at('agencyShort'), v)} max={20} /></Field>
                     <Field label="Mã đơn vị soạn"><Text value={h.unitCode} onChange={(v) => onChange(at('unitCode'), v)} max={20} /></Field>
                 </div>
-                <p className="text-[10px] text-slate-blue -mt-1">Số ký hiệu in: Số: …/BC-{h.agencyShort || '…'}{h.unitCode ? `-${h.unitCode}` : ''} (văn thư ghi số khi đăng ký).</p>
+                <p data-ui-text="secondary" className="text-[10px] text-slate-blue -mt-1">Số ký hiệu in: Số: …/BC-{h.agencyShort || '…'}{h.unitCode ? `-${h.unitCode}` : ''} (văn thư ghi số khi đăng ký).</p>
                 <Field label="Tên đơn vị lập báo cáo" hint="Dùng cho biến {unit} trong các đoạn văn."><Text value={h.unitName} onChange={(v) => onChange(at('unitName'), v)} /></Field>
                 <Field label="Địa danh *"><Text value={h.place} onChange={(v) => onChange(at('place'), v)} max={80} /></Field>
-                <p className="text-[11px] text-slate-blue">Quốc hiệu, tiêu ngữ cố định theo thể thức.</p>
+                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Quốc hiệu, tiêu ngữ cố định theo thể thức.</p>
             </>
         );
     } else if (selected === 'logo') {
@@ -202,6 +202,7 @@ const TemplateInspector = ({ layout, selected, onChange, onAsset }) => {
                     <select className={`${inputCls} w-full`} value={L.logo.position} onChange={(e) => onChange(['logo', 'position'], e.target.value)}>
                         <option value="margin">Ở lề trái, cạnh tên cơ quan</option>
                         <option value="above">Phía trên tên cơ quan</option>
+                        <option value="top-left">Góc trên bên trái</option>
                     </select>
                 </Field>
                 <Field label={`Chiều rộng: ${L.logo.widthMm} mm`} hint={L.logo.position === 'margin' ? 'Đặt ở lề trái thì tối đa 24 mm để không lấn vào nội dung.' : undefined}>
@@ -220,13 +221,13 @@ const TemplateInspector = ({ layout, selected, onChange, onAsset }) => {
                 <Field label={`Kích thước: ${L.watermark.widthPct}% bề rộng trang`}>
                     <input type="range" className="w-full accent-[#006BFF]" min={LIMITS.watermarkWidthPct[0]} max={LIMITS.watermarkWidthPct[1]} value={L.watermark.widthPct} onChange={(e) => onChange(['watermark', 'widthPct'], Number(e.target.value))} />
                 </Field>
-                <p className="text-[11px] text-slate-blue">Văn bản trình ký nên để độ đậm thấp (5–10%) để không lấn chữ.</p>
+                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Văn bản trình ký nên để độ đậm thấp (5–10%) để không lấn chữ.</p>
             </>
         );
     } else if (selected === 'title') {
         body = (
             <>
-                <p className="text-[11px] text-slate-blue">Dòng "BÁO CÁO" và kỳ báo cáo cố định.</p>
+                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Dòng "BÁO CÁO" và kỳ báo cáo cố định.</p>
                 <Field label="Trích yếu" hint="Để trống = tên của báo cáo đang xuất (VD: Báo cáo chuyên cần cán bộ).">
                     <Text value={L.title.subject} onChange={(v) => onChange(['title', 'subject'], v)} />
                 </Field>
@@ -261,14 +262,14 @@ const TemplateInspector = ({ layout, selected, onChange, onAsset }) => {
         body = (
             <>
                 <Toggle checked={L.appendix.enabled} onChange={(v) => onChange(['appendix', 'enabled'], v)} label="Kèm phụ lục chi tiết dữ liệu" />
-                <p className="text-[11px] text-slate-blue">Phụ lục in trên trang ngang, đủ các cột của báo cáo. Tắt nếu chỉ cần bảng tổng hợp.</p>
+                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Phụ lục in trên trang ngang, đủ các cột của báo cáo. Tắt nếu chỉ cần bảng tổng hợp.</p>
             </>
         );
     } else if (selected === 'footer') {
         body = (
             <>
                 <Toggle checked={L.footer.provenance} onChange={(v) => onChange(['footer', 'provenance'], v)} label="In dòng nguồn dữ liệu cuối trang" />
-                <p className="text-[11px] text-slate-blue">Ghi thời điểm và tài khoản trích xuất, giúp đối chiếu khi lưu trữ.</p>
+                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Ghi thời điểm và tài khoản trích xuất, giúp đối chiếu khi lưu trữ.</p>
             </>
         );
     }

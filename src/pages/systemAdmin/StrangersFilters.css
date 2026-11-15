@@ -1,0 +1,13 @@
+.camai-filter-bar.strangers-filters[data-filter-bar] { container-type: inline-size; }
+.strangers-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 28rem) minmax(0, 1fr) minmax(160px, 14rem) auto;
+    align-items: end;
+    min-width: 0;
+    gap: 16px;
+}
+.strangers-filter-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 16px; min-width: 0; }
+.strangers-filters .camai-filter-field { width: 100%; min-width: 0; }
+.strangers-filter-reset { justify-self: end; white-space: nowrap; }
+@container (max-width: 1250px) { .strangers-filter-grid { grid-template-columns: minmax(0, 28rem) minmax(0, 1fr); } }
+@container (max-width: 750px) { .strangers-filter-grid { grid-template-columns: minmax(0, 1fr); } }

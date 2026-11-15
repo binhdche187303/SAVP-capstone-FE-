@@ -1,5 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle, Clock, RefreshCw, ShieldAlert, UserRound } from 'lucide-react';
+import '../../components/security/AlertFilters.css';
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
+import { buildSecurityAlertQuery } from '../../utils/securityAlertFilters';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import RefreshButton from '../../components/common/RefreshButton';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { UserRound, Filter } from 'lucide-react';
 import { acknowledgeSecurityAlert, getSecurityAlerts, resolveSecurityAlert } from '../../service/securityAlertService';
 import { getDeskToday, getVisitorLookups } from '../../service/visitorService';
 import { VISITOR_MOCK_ENABLED } from '../../config/featureFlags';
@@ -11,7 +20,6 @@ import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import VisitDetailDrawer from '../../components/visitor/VisitDetailDrawer';
 import DemoDataBanner from '../../components/common/DemoDataBanner';
 import SimpleModal from '../../components/common/SimpleModal';
-import SharedStatCard from '../../components/common/StatCard';
 
 const VISITOR_ALERT_TYPES = ['visitor_overstay', 'visitor_must_leave', 'visitor_zone_violation'];
 
@@ -82,6 +90,7 @@ const statusLabel = {
 
 const severityMeta = {
     critical: { label: 'Nghiêm trọng', className: 'bg-red-100 text-red-800 border-red-300' },
+    urgent: { label: 'Khẩn cấp', className: 'bg-red-50 text-red-700 border-red-200' },
     high: { label: 'Cao', className: 'bg-orange-100 text-orange-800 border-orange-300' },
     medium: { label: 'Trung bình', className: 'bg-amber-50 text-amber-800 border-amber-200' },
     low: { label: 'Thấp', className: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -108,6 +117,11 @@ const resolutionOptions = {
 const VisitorAlerts = () => {
     const [alerts, setAlerts] = useState([]);
     const [status, setStatus] = useState('all');
+    const [criteria, setCriteria] = useState({ alert_type: '', severity: '', zone_id: '', from: '', to: '' });
+    const loadSequence = useRef(0);
+    const changeCriterion = (key, value) => setCriteria(previous => ({ ...previous, [key]: value }));
+    const clearFilters = () => { setStatus('all'); setCriteria({ alert_type: '', severity: '', zone_id: '', from: '', to: '' }); };
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [actionId, setActionId] = useState(null);
@@ -120,40 +134,71 @@ const VisitorAlerts = () => {
     const [resolutionReason, setResolutionReason] = useState('');
 
     const load = useCallback(async () => {
+        const sequence = ++loadSequence.current;
         setLoading(true);
         setError('');
         try {
             if (VISITOR_MOCK_ENABLED) {
                 const desk = await getDeskToday();
-                setAlerts(buildDemoAlerts(desk));
+                if (sequence === loadSequence.current) setAlerts(buildDemoAlerts(desk));
                 return;
             }
-            const responses = await Promise.all(VISITOR_ALERT_TYPES.map((alertType) => getSecurityAlerts({ alert_type: alertType, ...(status !== 'all' ? { status } : {}), page: 1, limit: 50 })));
-            const merged = responses.flatMap((response) => response?.data || []);
+            const collections = await Promise.all((criteria.alert_type ? [criteria.alert_type] : VISITOR_ALERT_TYPES).map(async alertType => {
+                const records = [];
+                for (let page = 1; page <= 200; page += 1) {
+                    const response = await getSecurityAlerts(buildSecurityAlertQuery({ ...criteria, alert_type: alertType, page, limit: 50 }));
+                    if (response?.success === false) throw new Error(response.message || 'Không tải được cảnh báo khách.');
+                    const items = Array.isArray(response?.data) ? response.data : response?.data?.items || [];
+                    records.push(...items);
+                    const pages = response?.meta?.totalPages ?? response?.data?.meta?.totalPages;
+                    if ((Number.isFinite(pages) && page >= pages) || items.length < 50) return records;
+                }
+                throw new Error('Danh sách cảnh báo quá lớn. Vui lòng thu hẹp khoảng thời gian hoặc các tiêu chí lọc.');
+            }));
+            const merged = collections.flat();
             merged.sort((a, b) => new Date(b.last_seen_at || b.triggered_at || b.created_at) - new Date(a.last_seen_at || a.triggered_at || a.created_at));
-            setAlerts(merged);
+            if (sequence === loadSequence.current) setAlerts(merged);
         } catch (err) {
-            setError(err?.message || 'Không tải được cảnh báo khách.');
+            if (sequence === loadSequence.current) setError(err?.message || 'Không tải được cảnh báo khách.');
         } finally {
-            setLoading(false);
+            if (sequence === loadSequence.current) setLoading(false);
         }
-    }, [status]);
+    }, [criteria]);
 
     useEffect(() => {
         getVisitorLookups().then((response) => {
             if (response?.success) setZones(response.data?.zones || []);
         }).catch(() => {});
+    }, []);
+
+    useEffect(() => {
         load();
         const unsubscribe = subscribeToSecurityAlerts(load, load);
         const unsubscribeMock = subscribeToVisitorAlertChanges(load);
-        return () => { unsubscribe(); unsubscribeMock(); };
+        return () => { loadSequence.current += 1; unsubscribe(); unsubscribeMock(); };
     }, [load]);
 
+    // Production data is filtered by the API; apply the same criteria to demo data as well.
+    const scopedAlerts = useMemo(() => alerts.filter(alert => {
+        if (!VISITOR_MOCK_ENABLED) return true;
+        const payload = getPayload(alert);
+        const time = new Date(alert.triggered_at || alert.created_at).getTime();
+        const query = buildSecurityAlertQuery(criteria);
+        const zone = zones.find(item => item.id === criteria.zone_id);
+        return (!criteria.alert_type || alert.alert_type === criteria.alert_type)
+            && (!criteria.severity || alert.severity === criteria.severity)
+            && (!criteria.zone_id || alert.zone_id === criteria.zone_id || payload.zoneName === (zone?.name || zone?.zoneName || zone?.zone_name))
+            && (!query.from || time >= new Date(query.from).getTime())
+            && (!query.to || time <= new Date(query.to).getTime());
+    }), [alerts, criteria, zones]);
+    const filteredAlerts = useMemo(() => scopedAlerts.filter(alert => status === 'all'
+        || (status === 'open' ? alert.status !== 'resolved' : alert.status === status)), [scopedAlerts, status]);
     const counts = useMemo(() => ({
-        total: alerts.length,
-        new: alerts.filter((item) => item.status === 'new').length,
-        acknowledged: alerts.filter((item) => item.status === 'acknowledged').length,
-    }), [alerts]);
+        total: scopedAlerts.length,
+        new: scopedAlerts.filter(item => item.status === 'new').length,
+        acknowledged: scopedAlerts.filter(item => item.status === 'acknowledged').length,
+        resolved: scopedAlerts.filter(item => item.status === 'resolved').length,
+    }), [scopedAlerts]);
 
     const acknowledgeDemo = (id) => {
         setAlerts((current) => current.map((item) => item.id === id ? {
@@ -228,44 +273,81 @@ const VisitorAlerts = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-action-blue">Bảng xử lý riêng</p>
                     <h1 className="text-2xl font-bold text-midnight-indigo mt-1">Cảnh báo khách</h1>
                     <p className="text-sm text-slate-blue mt-1">Theo dõi và xử lý riêng các trường hợp khách cần kiểm tra tại cổng hoặc trong khuôn viên.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <select value={status} onChange={(event) => setStatus(event.target.value)} className="px-3 py-2 rounded-xl border border-platinum-tint bg-white text-sm font-semibold text-midnight-indigo">
-                        <option value="all">Tất cả</option>
-                        <option value="open">Đang mở</option>
-                        <option value="new">Chưa tiếp nhận</option>
-                        <option value="acknowledged">Đang xử lý</option>
-                    </select>
-                    <button type="button" onClick={load} disabled={loading} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-platinum-tint bg-white text-sm font-semibold text-slate-blue disabled:opacity-60">
-                        <RefreshCw className={loading ? 'w-4 h-4 animate-spin' : 'w-4 h-4'} /> Làm mới
-                    </button>
-                </div>
+                <RefreshButton type="button" onClick={load} disabled={loading} busy={loading} />
             </div>
 
             {error && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
             <DemoDataBanner onReset={load} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <SharedStatCard icon={ShieldAlert} label="Tổng cảnh báo khách" value={counts.total} onClick={() => setStatus('all')} active={status === 'all'} />
-                <SharedStatCard icon={AlertTriangle} tone="red" label="Chưa tiếp nhận" value={counts.new} onClick={() => setStatus('new')} active={status === 'new'} />
-                <SharedStatCard icon={Clock} tone="amber" label="Đang xử lý" value={counts.acknowledged} onClick={() => setStatus('acknowledged')} active={status === 'acknowledged'} />
-                <SharedStatCard icon={CheckCircle} tone="green" label="Đã xử lý" value={alerts.filter((item) => item.status === 'resolved').length} onClick={() => setStatus('resolved')} active={status === 'resolved'} />
-            </div>
+            <StatisticGrid columns={4} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatisticCard loading={loading} label="Tổng cảnh báo khách" value={counts.total} selected={status === 'all'} onClick={() => setStatus('all')} />
+                <StatisticCard loading={loading} label="Chưa tiếp nhận" value={counts.new} tone="danger" selected={status === 'new'} onClick={() => setStatus('new')} />
+                <StatisticCard loading={loading} label="Đang xử lý" value={counts.acknowledged} tone="warning" selected={status === 'acknowledged'} onClick={() => setStatus('acknowledged')} />
+                <StatisticCard loading={loading} label="Đã xử lý" value={counts.resolved} tone="success" selected={status === 'resolved'} onClick={() => setStatus('resolved')} />
+            </StatisticGrid>
+
+            <FilterBar data-filter-grid variant="card" className="security-alert-filters grid gap-4">
+                <div className="camai-filter-field">
+                    <label htmlFor="visitor-alert-status">Trạng thái</label>
+                    <select id="visitor-alert-status" value={status} onChange={event => setStatus(event.target.value)}>
+                        <option value="all">Tất cả trạng thái</option><option value="open">Đang mở</option>
+                        <option value="new">Chưa tiếp nhận</option><option value="acknowledged">Đang xử lý</option><option value="resolved">Đã xử lý</option>
+                    </select>
+                </div>
+                <div className="camai-filter-field">
+                    <label htmlFor="visitor-alert-type">Loại cảnh báo</label>
+                    <select id="visitor-alert-type" value={criteria.alert_type} onChange={event => changeCriterion('alert_type', event.target.value)}>
+                        <option value="">Tất cả loại cảnh báo</option>
+                        {VISITOR_ALERT_TYPES.map(type => <option key={type} value={type}>{getAlertTypeLabel(type)}</option>)}
+                    </select>
+                </div>
+                <div className="camai-filter-field">
+                    <label htmlFor="visitor-alert-severity">Mức độ</label>
+                    <select id="visitor-alert-severity" value={criteria.severity} onChange={event => changeCriterion('severity', event.target.value)}>
+                        <option value="">Tất cả mức độ</option>
+                        {Object.entries(severityMeta).map(([value, item]) => <option key={value} value={value}>{item.label}</option>)}
+                    </select>
+                </div>
+                <div className="camai-filter-field">
+                    <label htmlFor="visitor-alert-zone">Vị trí</label>
+                    <select id="visitor-alert-zone" value={criteria.zone_id} onChange={event => changeCriterion('zone_id', event.target.value)}>
+                        <option value="">Toàn hệ thống</option>
+                        {zones.map(zone => <option key={zone.id} value={zone.id}>{[zone.name || zone.zoneName || zone.zone_name, zone.building, zone.floor ? (/^(tầng|tang)/i.test(String(zone.floor)) ? zone.floor : `Tầng ${zone.floor}`) : ''].filter(Boolean).join(' · ')}</option>)}
+                    </select>
+                </div>
+                <div className="security-alert-time-filters">
+                    <CalendarRangePresets from={criteria.from} to={criteria.to} onChange={range => setCriteria(previous => ({ ...previous, ...range }))} />
+                    <div className="security-alert-date-pair">
+                        <div className="camai-filter-field"><label htmlFor="visitor-alert-from">Từ ngày</label><input id="visitor-alert-from" type="date" value={criteria.from} max={criteria.to || undefined} onChange={event => changeCriterion('from', event.target.value)} /></div>
+                        <div className="camai-filter-field"><label htmlFor="visitor-alert-to">Đến ngày</label><input id="visitor-alert-to" type="date" value={criteria.to} min={criteria.from || undefined} onChange={event => changeCriterion('to', event.target.value)} /></div>
+                    </div>
+                    <div className="security-alert-reset"><button type="button" data-filter-action onClick={clearFilters} className="w-full px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"><Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc</button></div>
+                </div>
+            </FilterBar>
 
             <section className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 overflow-hidden">
-                <div className="p-5 border-b border-platinum-tint flex items-center justify-between">
-                    <div><h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2"><UserRound className="w-5 h-5 text-action-blue" /> {status === 'all' ? 'Danh sách cảnh báo' : 'Cần xử lý'} ({alerts.length})</h2><p className="text-xs text-slate-blue mt-1">Tự cập nhật khi có sự kiện mới qua kết nối real-time.</p></div>
-                    <span className="text-xs font-semibold text-slate-blue">{alerts.length} cảnh báo</span>
-                </div>
                 <div className="overflow-x-auto">
+                    <PaginatedCollection items={filteredAlerts} itemLabel="cảnh báo" loading={loading} resetKey={JSON.stringify({ status, ...criteria })}>
+{(camaiPageItems, camaiStartIndex) => (<>
                     {loading && <p className="py-10 text-center text-sm text-slate-blue">Đang tải cảnh báo khách...</p>}
-                    {!loading && alerts.length === 0 && <p className="py-10 text-center text-sm text-slate-blue">Hiện không có cảnh báo khách cần xử lý.</p>}
-                    {!loading && alerts.length > 0 && <table className="w-full min-w-[1120px] text-left">
+                    {!loading && filteredAlerts.length === 0 && <p className="py-10 text-center text-sm text-slate-blue">Không có cảnh báo khách phù hợp với bộ lọc.</p>}
+                    {!loading && filteredAlerts.length > 0 && <ResponsiveTable className="w-full min-w-[1120px] text-left">
+<colgroup>
+<col style={{ width: '20%' }} />
+<col style={{ width: '8%' }} />
+<col style={{ width: '20%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '9%' }} />
+</colgroup>
                         <thead className="bg-cloud-mist/50 border-b border-platinum-tint">
                             <tr className="text-[11px] uppercase tracking-wide text-slate-blue">
                                 <th className="px-5 py-3 font-bold">Cảnh báo</th>
@@ -279,7 +361,7 @@ const VisitorAlerts = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-pale-gray">
-                            {alerts.map((alert) => {
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((alert) => {
                                 const payload = getPayload(alert);
                                 const evidenceId = getEvidenceId(alert);
                                 const visitorPhoto = payload.visitorPhoto || payload.visitor_photo || null;
@@ -287,17 +369,19 @@ const VisitorAlerts = () => {
                                 const severity = severityMeta[alert.severity] || severityMeta.medium;
                                 return <tr key={alert.id} onClick={() => payload.visitId && setDetailId(payload.visitId)} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && payload.visitId) { event.preventDefault(); setDetailId(payload.visitId); } }} tabIndex={payload.visitId ? 0 : undefined} className={`align-top hover:bg-cloud-mist/20 ${payload.visitId ? 'cursor-pointer focus:outline-none focus:bg-blue-50/40' : ''}`}>
                                     <td className="px-5 py-4"><p className="font-bold text-sm text-midnight-indigo">{getAlertTypeLabel(alert.alert_type)}</p><p className="text-xs text-slate-blue mt-1">{payload.detail || payload.reason || payload.message || 'Cần kiểm tra tại cổng'}</p></td>
-                                    <td className="px-4 py-4"><span className={`inline-flex px-2 py-1 rounded-md text-[11px] font-bold border whitespace-nowrap ${severity.className}`}>{severity.label}</span></td>
+                                    <td className="px-4 py-4"><span data-ui-text="badge" className={`inline-flex px-2 py-1 rounded-md text-[11px] font-bold border whitespace-nowrap ${severity.className}`}>{severity.label}</span></td>
                                     <td className="px-4 py-4 text-sm text-midnight-indigo"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-lg overflow-hidden border border-platinum-tint bg-cloud-mist/50 flex items-center justify-center shrink-0">{visitorPhoto ? <img src={visitorPhoto} alt={`Ảnh ${payload.visitorName || 'khách'}`} className="w-full h-full object-cover" /> : <UserRound className="w-5 h-5 text-slate-blue/50" />}</div><div><p className={`font-semibold ${payload.visitId ? 'hover:text-action-blue' : ''}`}>{payload.visitorName || payload.fullName || 'Chưa xác định'}</p><p className="text-xs text-slate-blue mt-1">{payload.code || '—'}</p></div></div></td>
                                     <td className="px-4 py-4 text-xs text-slate-blue">{payload.zoneName || payload.zone_name || alert.zone_name || alert.zone_id || 'Chưa xác định'}</td>
                                     <td className="px-4 py-4 text-xs text-slate-blue"><p>{payload.cameraGroupName || payload.camera_group_name || 'Chưa xác định'}</p><p className="mt-1">{payload.cameraName || payload.camera_name || payload.cameraId || 'Chưa xác định'}</p></td>
                                     <td className="px-4 py-4 text-xs text-slate-blue whitespace-nowrap">{formatTime(alert.last_seen_at || alert.triggered_at || alert.created_at)}<p className="mt-1">{alert.occurrence_count || 1} lượt</p></td>
-                                    <td className="px-4 py-4"><span className="inline-flex px-2 py-1 rounded-md text-[11px] font-bold border bg-blue-50 text-action-blue border-blue-200 whitespace-nowrap">{statusLabel[alert.status] || alert.status}</span>{alert.acknowledged_at && <p className="text-[10px] text-slate-blue mt-2">Tiếp nhận: {formatTime(alert.acknowledged_at)}</p>}{(alert.acknowledged_by_name || alert.acknowledged_by) && <p className="text-[10px] text-slate-blue">Bởi: {alert.acknowledged_by_name || alert.acknowledged_by}</p>}</td>
+                                    <td className="px-4 py-4"><span data-ui-text="badge" className="inline-flex px-2 py-1 rounded-md text-[11px] font-bold border bg-blue-50 text-action-blue border-blue-200 whitespace-nowrap">{statusLabel[alert.status] || alert.status}</span>{alert.acknowledged_at && <p data-ui-text="primary" className="text-[10px] text-slate-blue mt-2">Tiếp nhận: {formatTime(alert.acknowledged_at)}</p>}{(alert.acknowledged_by_name || alert.acknowledged_by) && <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Bởi: {alert.acknowledged_by_name || alert.acknowledged_by}</p>}</td>
                                     <td className="px-5 py-4"><div className="flex justify-end gap-2"><div className="flex flex-col items-end gap-2">{alert.status !== 'resolved' && <button type="button" disabled={busy} onClick={(event) => { event.stopPropagation(); alert.status === 'new' ? openAcknowledgeModal(alert) : openResolveModal(alert); }} className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-xs font-bold disabled:opacity-60 whitespace-nowrap">{busy ? 'Đang xử lý...' : alert.status === 'new' ? 'Tiếp nhận' : 'Xử lý ngay'}</button>}{evidenceId && <button type="button" onClick={(event) => { event.stopPropagation(); setSnapshotEventId(evidenceId); }} className="px-3 py-1.5 rounded-lg border border-platinum-tint text-xs font-bold text-slate-blue hover:text-action-blue whitespace-nowrap">Xem bằng chứng</button>}</div></div></td>
                                 </tr>;
-                            })}
+                            })(camaiRecord, camaiStartIndex + camaiIndex, (alerts)))}
                         </tbody>
-                    </table>}
+                    </ResponsiveTable>}
+</>)}
+</PaginatedCollection>
                 </div>
             </section>
             <EventSnapshotModal isOpen={Boolean(snapshotEventId)} eventId={snapshotEventId} onClose={() => setSnapshotEventId(null)} />
@@ -326,7 +410,7 @@ const VisitorAlerts = () => {
             >
                 <form id="visitor-alert-resolve-form" onSubmit={submitResolve} className="space-y-4">
                     <div className="p-3 rounded-xl border border-platinum-tint bg-white">
-                        <p className="text-[11px] font-bold uppercase text-slate-blue">Loại cảnh báo</p>
+                        <p data-ui-text="label" className="text-[11px] font-bold uppercase text-slate-blue">Loại cảnh báo</p>
                         <p className="text-sm font-bold text-midnight-indigo mt-1">{resolveModal.alert ? getAlertTypeLabel(resolveModal.alert.alert_type) : '—'}</p>
                     </div>
                     <label className="block">
@@ -340,7 +424,7 @@ const VisitorAlerts = () => {
                         <span className="block text-xs font-bold text-midnight-indigo mb-1">Ghi chú bổ sung <span className="font-normal text-slate-blue">(không bắt buộc)</span></span>
                         <textarea value={resolutionNote} onChange={(event) => setResolutionNote(event.target.value)} rows={3} placeholder="Nhập thêm thông tin nếu cần..." className="w-full rounded-lg border border-platinum-tint px-3 py-2 text-sm text-midnight-indigo outline-none focus:border-action-blue" />
                     </label>
-                    <p className="text-[11px] text-slate-blue">Phương án và ghi chú sẽ được lưu vào lịch sử xử lý cảnh báo.</p>
+                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Phương án và ghi chú sẽ được lưu vào lịch sử xử lý cảnh báo.</p>
                 </form>
             </SimpleModal>
             <SimpleModal

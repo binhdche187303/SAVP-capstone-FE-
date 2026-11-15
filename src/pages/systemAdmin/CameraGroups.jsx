@@ -1,4 +1,7 @@
-import { Camera, Plus, RefreshCw, Route, Search, Trash2, X, Edit2, AlertTriangle } from 'lucide-react';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import FilterBar from '../../components/common/FilterBar';
+import RefreshButton from '../../components/common/RefreshButton';
+import { Camera, Plus, Route, Search, Trash2, X, Edit2, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -19,7 +22,7 @@ const STATUS = {
 };
 const StatusBadge = ({ status }) => {
     const [label, cls] = STATUS[status] || [status, STATUS.disabled[1]];
-    return <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${cls}`}>{label}</span>;
+    return <span data-ui-text="badge" className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${cls}`}>{label}</span>;
 };
 
 const list = (res) => (Array.isArray(res?.data) ? res.data : res?.data?.items || []);
@@ -59,8 +62,8 @@ const GroupForm = ({ initial, zones = [], onSubmit, onCancel, busy }) => {
                     aria-invalid={!!codeError}
                     className={`mt-1 w-full px-3 py-2 border rounded-xl text-sm font-normal disabled:bg-slate-50 ${codeError ? '!border-red-500' : 'border-platinum-tint'}`} />
                 {codeError
-                    ? <span role="alert" className="text-[11px] normal-case font-normal text-red-600">{codeError}</span>
-                    : !initial && <span className="text-[11px] normal-case font-normal text-slate-500">Chữ, số, "_" hoặc "-" (2–50 ký tự), không đổi được sau khi tạo.</span>}
+                    ? <span data-ui-text="secondary" role="alert" className="text-[11px] normal-case font-normal text-red-600">{codeError}</span>
+                    : !initial && <span data-ui-text="secondary" className="text-[11px] normal-case font-normal text-slate-500">Chữ, số, "_" hoặc "-" (2–50 ký tự), không đổi được sau khi tạo.</span>}
             </label>
             <label className="block text-xs font-bold text-slate-blue uppercase">Tên nhóm
                 <input value={name} onChange={(e) => setName(e.target.value)} maxLength={150} placeholder="VD: Camera tòa A"
@@ -116,16 +119,20 @@ const AddDevicesModal = ({ group, onClose, onDone }) => {
     return (
         <Modal title={`Thêm camera vào "${group.group_name}"`} onClose={onClose}>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm camera..." className="w-full mb-3 px-3 py-2 border border-platinum-tint rounded-xl text-sm" />
-            <div className="max-h-72 overflow-auto border border-platinum-tint rounded-xl divide-y">
+            <PaginatedCollection items={shown} itemLabel="camera">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="max-h-72 overflow-auto border border-platinum-tint rounded-xl divide-y">
                 {shown.length === 0 && <p className="p-4 text-sm text-slate-500">Không còn camera nào để thêm.</p>}
-                {shown.map((d) => (
+                {camaiPageItems.map((camaiRecord, camaiIndex) => ((d) => (
                     <label key={d.id} className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50">
                         <input type="checkbox" checked={picked.includes(d.id)} onChange={() => toggle(d.id)} />
                         <span className="flex-1">{d.device_name}</span>
                         <StatusBadge status={d.status} />
                     </label>
-                ))}
+                ))(camaiRecord, camaiStartIndex + camaiIndex, (shown)))}
             </div>
+)}
+</PaginatedCollection>
             <div className="flex justify-end gap-2 pt-4">
                 <button onClick={onClose} className="px-4 py-2 text-sm rounded-xl border border-platinum-tint">Hủy</button>
                 <button onClick={submit} disabled={picked.length === 0 || picked.length > 50 || busy}
@@ -198,46 +205,56 @@ const CameraGroups = () => {
                     <p className="text-sm text-slate-blue">Gom camera theo tòa nhà / mục đích để quản lý. Camera offline quá ngưỡng giờ sẽ phát cảnh báo cần bảo trì.</p>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={load} aria-label="Làm mới" className="p-2.5 border border-platinum-tint rounded-xl"><RefreshCw className="w-4 h-4" /></button>
+                    <RefreshButton
+                        onClick={load}
+                        aria-label="Làm mới"
+                        busy={loading}
+                    />
                     <button onClick={() => setModal('create')} className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-action-blue text-white rounded-xl text-sm font-semibold">
                         <Plus className="w-4 h-4" />Tạo nhóm
                     </button>
                 </div>
             </div>
 
-            <div className="relative max-w-sm">
+            <FilterBar variant="inline" className="relative max-w-sm">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tên hoặc mã nhóm"
                     className="w-full pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm" />
-            </div>
+            </FilterBar>
 
-            <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-5">
-                <div className="space-y-2">
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start gap-5">
+                <section aria-label="Danh sách nhóm camera" className="min-w-0 space-y-3">
+                <PaginatedCollection items={groups} itemLabel="nhóm camera">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="space-y-2">
                     {loading && <p className="text-sm text-slate-500">Đang tải...</p>}
                     {!loading && groups.length === 0 && (
                         <div className="p-8 text-center border border-dashed border-platinum-tint rounded-2xl text-sm text-slate-500">
                             {search ? 'Không có nhóm khớp từ khóa.' : 'Chưa có nhóm camera nào. Bấm "Tạo nhóm" để bắt đầu.'}
                         </div>
                     )}
-                    {groups.map((g) => (
+                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((g) => (
                         <button key={g.id} onClick={() => open(g.id)}
                             className={`w-full text-left p-4 rounded-2xl border transition ${detail?.id === g.id ? 'border-action-blue bg-blue-50/40' : 'border-platinum-tint bg-white hover:border-action-blue'}`}>
                             <div className="flex items-center justify-between gap-2">
                                 <span className="font-semibold text-midnight-indigo">{g.group_name}</span>
-                                <span className="text-[11px] text-slate-400">{g.group_code}</span>
+                                <span data-ui-text="action" className="text-[11px] text-slate-400">{g.group_code}</span>
                             </div>
                             {(g.zone_name || g.purpose) && (
-                                <p className="mt-1 text-[11px] text-slate-blue">{[g.zone_name, g.purpose].filter(Boolean).join(' · ')}</p>
+                                <p data-ui-text="action" className="mt-1 text-[11px] text-slate-blue">{[g.zone_name, g.purpose].filter(Boolean).join(' · ')}</p>
                             )}
                             <div className="mt-1 flex items-center gap-3 text-xs text-slate-blue">
                                 <span className="inline-flex items-center gap-1"><Camera className="w-3.5 h-3.5" />{g.device_count} camera</span>
                                 {g.offline_count > 0 && <span className="inline-flex items-center gap-1 text-red-600"><AlertTriangle className="w-3.5 h-3.5" />{g.offline_count} offline</span>}
                             </div>
                         </button>
-                    ))}
+                    ))(camaiRecord, camaiStartIndex + camaiIndex, (groups)))}
                 </div>
+)}
+</PaginatedCollection>
+                </section>
 
-                <div className="bg-white border border-platinum-tint rounded-2xl p-5 min-h-[200px]">
+                <section aria-label="Chi tiết nhóm camera" className="min-w-0 bg-white border border-platinum-tint rounded-2xl p-5 min-h-[200px]">
                     {!detail ? (
                         <p className="text-sm text-slate-500">Chọn một nhóm để xem và quản lý camera.</p>
                     ) : (
@@ -270,19 +287,23 @@ const CameraGroups = () => {
                             {detail.devices.length === 0 ? (
                                 <p className="mt-3 text-sm text-slate-500">Nhóm chưa có camera.</p>
                             ) : (
-                                <ul className="mt-3 divide-y border border-platinum-tint rounded-xl">
-                                    {detail.devices.map((d) => (
+                                <PaginatedCollection items={detail?.devices} itemLabel="camera">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="mt-3 divide-y border border-platinum-tint rounded-xl">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((d) => (
                                         <li key={d.id} className="flex items-center gap-3 px-3 py-2 text-sm">
                                             <span className="flex-1">{d.device_name}</span>
                                             <StatusBadge status={d.status} />
                                             <button onClick={() => removeDevice(d)} disabled={busy} aria-label={`Gỡ ${d.device_name}`} className="text-slate-400 hover:text-red-600"><X className="w-4 h-4" /></button>
                                         </li>
-                                    ))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (detail.devices)))}
                                 </ul>
+)}
+</PaginatedCollection>
                             )}
                         </>
                     )}
-                </div>
+                </section>
             </div>
 
             {modal === 'create' && <Modal title="Tạo nhóm camera" onClose={() => setModal(null)}><GroupForm zones={zones} onSubmit={create} onCancel={() => setModal(null)} busy={busy} /></Modal>}

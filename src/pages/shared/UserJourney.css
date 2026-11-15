@@ -1,0 +1,51 @@
+.journey-event-card {
+    padding: 20px;
+    border: 1px solid #dce3ed;
+    border-radius: 16px;
+    background: #fff;
+    color: #103b5c;
+}
+.journey-event-card .journey-event {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 144px;
+    align-items: start;
+    gap: 24px;
+    font-family: var(--app-ui-font, inherit);
+    font-size: 14px;
+    line-height: 20px;
+}
+.journey-event-content { min-width: 0; }
+.journey-event-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.journey-event-time { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
+.journey-event-badge { padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.journey-event-duration { display: inline-flex; align-items: center; gap: 4px; color: #527197; font-size: 12px; }
+.journey-event-card .journey-event-description { margin: 10px 0 12px; font-size: 14px; font-weight: 600; line-height: 20px; overflow-wrap: anywhere; }
+.journey-event-card .journey-event-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 0; }
+.journey-event-details > div { min-width: 0; }
+.journey-event-card .journey-event-details dt { margin: 0 0 2px; color: #527197; font-size: 12px; font-weight: 700; }
+.journey-event-card .journey-event-details dd { margin: 0; font-size: 14px; font-weight: 400; line-height: 20px; overflow-wrap: anywhere; }
+.journey-event-plate { display: inline-block; border: 1px solid #dce3ed; border-radius: 6px; padding: 2px 8px; font-weight: 600; letter-spacing: normal; }
+.journey-event-card .journey-event-note { margin: 12px 0 0; color: #527197; font-size: 12px; font-weight: 400; }
+.journey-event-image { width: 144px; }
+.journey-event-no-image { width: 100%; aspect-ratio: 16 / 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px solid #dce3ed; border-radius: 8px; background: #f5f7fa; color: #7990ad; font-size: 12px; font-weight: 400; }
+@media (max-width: 640px) {
+    .journey-event-card { padding: 16px; }
+    .journey-event-card .journey-event { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .journey-event-card .journey-event-details { grid-template-columns: minmax(0, 1fr); }
+}
+
+.camai-filter-bar.journey-place-filters[data-filter-bar] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 16px;
+    width: 100%;
+    padding: 16px;
+}
+.journey-place-filters .camai-filter-field { width: 100%; min-width: 0; }
+.journey-place-filters select { width: 100%; min-width: 0; }
+.journey-place-filters [data-filter-action] { white-space: nowrap; }
+@media (max-width: 550px) {
+    .camai-filter-bar.journey-place-filters[data-filter-bar] { grid-template-columns: minmax(0, 1fr); }
+    .journey-place-filters [data-filter-action] { justify-self: end; }
+}

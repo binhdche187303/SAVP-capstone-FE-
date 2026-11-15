@@ -1,5 +1,10 @@
-import { AlertTriangle, Award, Calendar as CalendarIcon, CheckCircle, ChevronLeft, ChevronRight, Clock, Filter, Grid, Info, List, MapPin, PlusCircle, Radio, User, UserCheck, XCircle } from 'lucide-react';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import TimeRangeButtons from '../../components/common/TimeRangeButtons';
+import './PersonalCalendarFilters.css';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import { AlertTriangle, Award, Calendar as CalendarIcon, CheckCircle, Clock, Filter, Info, MapPin, PlusCircle, Radio, User, UserCheck, XCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { MEETING_BOOKING_ENABLED, MEETING_CALENDAR_MOCK_ENABLED } from '../../config/featureFlags';
@@ -34,6 +39,22 @@ const fetchMySchedule = MEETING_CALENDAR_MOCK_ENABLED ? getMockMySchedule : getM
 const ROLE_LABEL = { host: 'Chủ trì', secretary: 'Thư ký', organizer: 'Người tổ chức' };
 const typeOf = (m) => CALENDAR_TYPES[m.calendarType];
 
+const dateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+export const calendarViewRange = (date, view) => {
+    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const end = new Date(start);
+    if (view === 'month') {
+        start.setDate(1);
+        end.setMonth(end.getMonth() + 1, 0);
+    } else if (view === 'week') {
+        start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+        end.setTime(start.getTime());
+        end.setDate(end.getDate() + 6);
+    }
+    return { from: `${dateKey(start)}T00:00:00+07:00`, to: `${dateKey(end)}T23:59:59+07:00` };
+};
+
 const PersonalCalendar = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -49,6 +70,7 @@ const PersonalCalendar = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [statusFilter, setStatusFilter] = useState(''); // all, scheduled, in_progress, cancelled
+    const scheduleVersion = useRef(0);
     const [typeFilter, setTypeFilter] = useState(''); // '' | leadership | other | unit
 
     const openMeeting = (id, date = selectedDate) => {
@@ -73,27 +95,22 @@ const PersonalCalendar = () => {
     });
 
     const fetchSchedule = useCallback(async () => {
+        const version = ++scheduleVersion.current;
         setLoading(true);
         try {
-            // Fetch meetings for the current month context
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            // Calculate last day of month
-            const lastDay = new Date(year, currentDate.getMonth() + 1, 0).getDate();
-
-            const fromStr = `${year}-${month}-01T00:00:00+07:00`;
-            const toStr = `${year}-${month}-${lastDay}T23:59:59+07:00`;
+            const range = calendarViewRange(currentDate, viewMode);
 
             let dataList = [];
             let isSuccess = false;
 
             const res = await fetchMySchedule({
-                from: fromStr,
-                to: toStr,
-                view: 'month',
+                from: range.from,
+                to: range.to,
+                view: viewMode,
                 status: statusFilter ? [statusFilter, statusFilter] : ['scheduled', 'in_progress', 'completed', 'pending_approval', ...(MEETING_CALENDAR_MOCK_ENABLED ? ['cancelled'] : [])]
             });
 
+            if (version !== scheduleVersion.current) return;
             if (res?.success) {
                 isSuccess = true;
                 dataList = res.data?.items || res.data || [];
@@ -107,6 +124,7 @@ const PersonalCalendar = () => {
                 setError(null);
             }
         } catch (err) {
+            if (version !== scheduleVersion.current) return;
             setMeetings([]);
             // A permission-denial (e.g. role lost `schedule.read.self` mid-session while this
             // screen was already open) should land the user on the real 403 page, not an inline
@@ -118,12 +136,13 @@ const PersonalCalendar = () => {
             const errorMsg = err?.error?.message || err?.message || 'Lỗi kết nối máy chủ';
             setError(errorMsg);
         } finally {
-            setLoading(false);
+            if (version === scheduleVersion.current) setLoading(false);
         }
-    }, [currentDate, statusFilter, navigate]);
+    }, [currentDate, viewMode, statusFilter, navigate]);
 
     useEffect(() => {
         fetchSchedule();
+        return () => { scheduleVersion.current += 1; };
     }, [fetchSchedule]);
 
     useEffect(() => {
@@ -220,51 +239,18 @@ const PersonalCalendar = () => {
         return effectiveMeetings.filter(m => isSameDay(new Date(m.startTime), day));
     };
 
-    const handlePrev = () => {
-        if (viewMode === 'month') {
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-        } else {
-            const nextWeek = new Date(currentDate);
-            nextWeek.setDate(currentDate.getDate() - 7);
-            setCurrentDate(nextWeek);
-        }
-    };
-
-    const handleNext = () => {
-        if (viewMode === 'month') {
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-        } else {
-            const nextWeek = new Date(currentDate);
-            nextWeek.setDate(currentDate.getDate() + 7);
-            setCurrentDate(nextWeek);
-        }
-    };
-
-    const formatHeaderDate = () => {
-        if (viewMode === 'month') {
-            return currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
-        } else {
-            const weekDays = getDaysInWeek(currentDate);
-            const startStr = weekDays[0].toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-            const endStr = weekDays[6].toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            return `Tuần: ${startStr} - ${endStr}`;
-        }
-    };
-
     const selectedDayMeetings = getMeetingsForDay(selectedDate);
 
     // Week time slots hours definition (07:00 to 18:00) — UEL có giao ban 7h30
     const hours = Array.from({ length: 12 }, (_, i) => 7 + i);
 
+    const visibleDays = viewMode === 'day' ? [currentDate] : getDaysInWeek(currentDate);
+    const periodName = viewMode === 'day' ? 'ngày' : viewMode === 'week' ? 'tuần' : 'tháng';
     const tabBar = (
         <div className="flex items-center bg-white p-1 rounded-xl border border-platinum-tint shadow-sm w-fit">
             {[['calendar', 'Lịch'], ['attendance', 'Lịch sử tham dự']].map(([key, label]) => (
-                <button
-                    key={key}
-                    type="button"
-                    onClick={() => setTab(key)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === key ? 'bg-action-blue text-white shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
-                >
+                <button key={key} type="button" aria-pressed={tab === key} onClick={() => setTab(key)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === key ? 'bg-action-blue text-white shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}>
                     {label}
                 </button>
             ))}
@@ -311,86 +297,52 @@ const PersonalCalendar = () => {
                 )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* Tháng / Tuần */}
-                    <div className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm flex items-center p-1">
-                        {[['month', 'Tháng', Grid], ['week', 'Tuần', List]].map(([key, label, Icon]) => (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={() => setViewMode(key)}
-                                className={`h-full flex items-center gap-1.5 px-3.5 rounded-lg text-xs font-bold transition-all ${viewMode === key
-                                    ? 'bg-action-blue text-white shadow-sm'
-                                    : 'text-slate-blue hover:text-midnight-indigo'
-                                    }`}
-                            >
-                                <Icon className="w-3.5 h-3.5" /> {label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Điều hướng thời gian */}
-                    <div className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm flex items-stretch">
-                        <button type="button" onClick={handlePrev} className="px-2.5 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-l-xl border-r border-platinum-tint">
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span className="flex items-center justify-center px-4 text-xs font-bold text-midnight-indigo min-w-[150px] select-none">
-                            {formatHeaderDate()}
-                        </span>
-                        <button type="button" onClick={handleNext} className="px-2.5 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50 rounded-r-xl border-l border-platinum-tint">
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }}
-                        className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm px-3.5 text-xs font-bold text-slate-blue hover:text-action-blue"
-                    >
-                        Hôm nay
-                    </button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* Lọc trạng thái */}
-                    <label className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm flex items-center gap-1.5 px-3">
-                        <Filter className="w-3.5 h-3.5 text-slate-blue" />
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="bg-transparent border-0 text-xs font-bold text-midnight-indigo focus:outline-none cursor-pointer"
-                        >
+            <FilterBar variant="card" className="personal-calendar-filters">
+                <div className="personal-calendar-filter-main">
+                    <FilterField label="Trạng thái cuộc họp">
+                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                             <option value="">Tất cả trạng thái</option>
                             <option value="pending_approval">Chờ duyệt</option>
                             <option value="scheduled">Đã lên lịch</option>
-                            {/* <option value="in_progress">Đang diễn ra</option> */}
                             <option value="completed">Đã kết thúc</option>
                             {MEETING_CALENDAR_MOCK_ENABLED && <option value="cancelled">Đã huỷ</option>}
                         </select>
-                    </label>
-
-                    {/* Lọc loại lịch (VPĐT) */}
-                    <label className="h-9 bg-white rounded-xl border border-platinum-tint shadow-sm flex items-center gap-1.5 px-3">
-                        <CalendarIcon className="w-3.5 h-3.5 text-slate-blue" />
-                        <select
-                            value={typeFilter}
-                            onChange={(e) => setTypeFilter(e.target.value)}
-                            className="bg-transparent border-0 text-xs font-bold text-midnight-indigo focus:outline-none cursor-pointer"
-                        >
+                    </FilterField>
+                    <FilterField label="Loại lịch">
+                        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
                             <option value="">Tất cả loại lịch</option>
-                            {Object.entries(CALENDAR_TYPES).map(([key, t]) => <option key={key} value={key}>{t.label}</option>)}
+                            {Object.entries(CALENDAR_TYPES).map(([key, type]) => <option key={key} value={key}>{type.label}</option>)}
                         </select>
-                    </label>
+                    </FilterField>
                 </div>
-            </div>
+                <div className="personal-calendar-filter-time">
+                    <TimeRangeButtons label="Khoảng thời gian"
+                        value={viewMode === 'day' ? (isSameDay(currentDate, new Date()) ? 'today' : '') : viewMode}
+                        onChange={mode => {
+                            if (mode === 'today') { const today = new Date(); setViewMode('day'); setCurrentDate(today); setSelectedDate(today); }
+                            else setViewMode(mode);
+                        }} options={[["today", "Hôm nay"], ["week", "Tuần"], ["month", "Tháng"]]} />
+                    <FilterField label="Ngày xem lịch">
+                        <input type="date" value={dateKey(currentDate)} onChange={event => {
+                            if (!event.target.value) return;
+                            const date = new Date(`${event.target.value}T00:00:00`);
+                            setCurrentDate(date); setSelectedDate(date);
+                        }} />
+                    </FilterField>
+                    <button type="button" data-filter-action className="personal-calendar-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                        onClick={() => { const today = new Date(); setStatusFilter(''); setTypeFilter(''); setViewMode('month'); setCurrentDate(today); setSelectedDate(today); }}>
+                        <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                    </button>
+                </div>
+            </FilterBar>
 
             {/* Số liệu tháng */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="Cuộc họp trong tháng" value={loading ? undefined : monthStats.total} loading={loading} icon={CalendarIcon} hint={`${monthStats.upcoming} cuộc sắp diễn ra`} />
+            <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard label={`Cuộc họp trong ${periodName}`} value={loading ? undefined : monthStats.total} loading={loading} icon={CalendarIcon} hint={`${monthStats.upcoming} cuộc sắp diễn ra`} />
                 <StatCard label="Đang diễn ra" value={loading ? undefined : monthStats.live} loading={loading} icon={Radio} tone={monthStats.live ? 'violet' : 'neutral'} hint={monthStats.live ? 'Bấm cuộc họp để xem ra vào real-time' : 'Không có cuộc họp nào'} />
                 <StatCard label="Đã tham dự" value={loading ? undefined : `${monthStats.attended}/${monthStats.checked}`} loading={loading} icon={UserCheck} tone="green" hint="Cuộc họp có điểm danh đã kết thúc" />
-                <StatCard label="Điểm trừ tháng" value={loading ? undefined : monthStats.points} loading={loading} icon={Award} tone={monthStats.points < 0 ? 'red' : 'neutral'} hint={`${monthStats.violations} lần vi phạm (trễ / về sớm / vắng)`} />
-            </div>
+                <StatCard label={`Điểm trừ trong ${periodName}`} value={loading ? undefined : monthStats.points} loading={loading} icon={Award} tone={monthStats.points < 0 ? 'red' : 'neutral'} hint={`${monthStats.violations} lần vi phạm (trễ / về sớm / vắng)`} />
+            </StatisticGrid>
 
             {/* Chú thích loại lịch */}
             <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold text-slate-blue">
@@ -486,11 +438,11 @@ const PersonalCalendar = () => {
                     ) : (
                         /* Week Grid View with Time Slots */
                         <div className="overflow-x-auto flex-1">
-                            <div className="min-w-[700px] divide-y divide-platinum-tint/60">
+                            <div className={`${viewMode === 'week' ? 'min-w-[700px]' : 'min-w-0'} divide-y divide-platinum-tint/60`}>
                                 {/* Week Days Header Row */}
-                                <div className="grid grid-cols-8 bg-cloud-mist/30 text-center py-3">
+                                <div className={`grid ${viewMode === 'day' ? 'grid-cols-[64px_1fr]' : 'grid-cols-8'} bg-cloud-mist/30 text-center py-3`}>
                                     <div className="text-[10px] font-bold text-slate-blue uppercase flex items-center justify-center">Giờ</div>
-                                    {getDaysInWeek(currentDate).map((day, idx) => {
+                                    {visibleDays.map((day, idx) => {
                                         const isSelected = isSameDay(day, selectedDate);
                                         const isToday = isSameDay(day, new Date());
                                         return (
@@ -517,14 +469,14 @@ const PersonalCalendar = () => {
                                     {hours.map(hour => {
                                         const hourStr = `${String(hour).padStart(2, '0')}:00`;
                                         return (
-                                            <div key={hour} className="grid grid-cols-8 min-h-[52px]">
+                                            <div key={hour} className={`grid ${viewMode === 'day' ? 'grid-cols-[64px_1fr]' : 'grid-cols-8'} min-h-[52px]`}>
                                                 {/* Hour label */}
                                                 <div className="text-[11px] font-bold text-slate-blue flex items-center justify-center border-r border-platinum-tint/40 bg-cloud-mist/10">
                                                     {hourStr}
                                                 </div>
 
                                                 {/* Week days columns */}
-                                                {getDaysInWeek(currentDate).map((day, idx) => {
+                                                {visibleDays.map((day, idx) => {
                                                     const dayMeetings = getMeetingsForDay(day);
                                                     // Find if there is a meeting that starts in this hour slot
                                                     const slotMeeting = dayMeetings.find(m => {
@@ -581,14 +533,16 @@ const PersonalCalendar = () => {
                             </p>
                         </div>
 
-                        <div className="mt-4 space-y-4 max-h-[450px] overflow-y-auto pr-1">
+                        <PaginatedCollection items={selectedDayMeetings} itemLabel="cuộc họp">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="mt-4 space-y-4 max-h-[450px] overflow-y-auto pr-1">
                             {selectedDayMeetings.length === 0 ? (
                                 <div className="text-center py-12 text-slate-blue">
                                     <Info className="w-8 h-8 mx-auto text-platinum-tint mb-2" />
                                     <p className="text-xs font-medium italic">Không có cuộc họp nào được xếp lịch trong ngày này.</p>
                                 </div>
                             ) : (
-                                selectedDayMeetings.map(meet => {
+                                camaiPageItems.map((camaiRecord, camaiIndex) => (meet => {
                                     const StatusIcon = STATUS_CONFIG[meet.status]?.icon || Clock;
                                     const statusStyle = STATUS_CONFIG[meet.status] || { label: 'Không xác định', bg: 'bg-slate-50 text-slate-500 border-platinum-tint' };
                                     const startTimeStr = new Date(meet.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -654,9 +608,11 @@ const PersonalCalendar = () => {
                                             )}
                                         </div>
                                     );
-                                })
+                                })(camaiRecord, camaiStartIndex + camaiIndex, (selectedDayMeetings)))
                             )}
                         </div>
+)}
+</PaginatedCollection>
                     </div>
 
                     <div className="pt-4 border-t border-platinum-tint mt-6 text-[10.5px] text-slate-blue font-medium leading-relaxed bg-cloud-mist/20 p-3 rounded-xl">

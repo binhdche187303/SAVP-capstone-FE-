@@ -1,3 +1,8 @@
+import TableColumns from '../common/TableColumns';
+import ResponsiveTable from '../common/ResponsiveTable';
+import ReportExportAction from '../common/ReportExportAction';
+import FilterBar from '../common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../common/PaginationFooter';
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -110,6 +115,7 @@ const Avatar = ({ user, size = 'md' }) => {
 // ─── User Detail Modal ──────────────────────────────────────────────────────
 
 const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, onClose }) => {
+    const [logItemsPerPage, setLogItemsPerPage] = useState(10);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [timeline, setTimeline] = useState(null);
@@ -142,7 +148,7 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
             .finally(() => setLoading(false));
     }, [meetingId, user.userId]);
 
-    const logItemsPerPage = 5;
+
     const events = timeline?.timeline?.events || [];
     const logTotalPages = Math.ceil(events.length / logItemsPerPage);
     const currentEvents = events.slice((logPage - 1) * logItemsPerPage, logPage * logItemsPerPage);
@@ -166,12 +172,12 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                         <Avatar user={user} size="lg" />
                         <div>
                             <h2 className="text-base font-bold text-midnight-indigo">{user.fullName || 'Không tên'}</h2>
-                            <p className="text-[11px] text-slate-blue font-mono mt-0.5">ID: {user.userId}</p>
-                            {user.email && <p className="text-[11px] text-slate-blue">{user.email}</p>}
+                            <p data-ui-text="code" className="text-[11px] text-slate-blue font-mono mt-0.5">ID: {user.userId}</p>
+                            {user.email && <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{user.email}</p>}
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                        <span data-ui-text="badge" className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
                             isPresent
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : 'bg-slate-100 text-slate-600 border-slate-200'
@@ -193,33 +199,33 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-16 gap-3">
                             <RefreshCw className="w-7 h-7 text-action-blue animate-spin" />
-                            <span className="text-xs text-slate-blue font-semibold">Đang tải dữ liệu tiến trình từ IVSS...</span>
+                            <span data-ui-text="primary" className="text-xs text-slate-blue font-semibold">Đang tải dữ liệu tiến trình từ IVSS...</span>
                         </div>
                     ) : error ? (
                         <div className="p-5 bg-red-50 text-red-700 rounded-xl border border-red-200 flex items-center gap-3">
                             <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                            <p className="text-xs font-medium">{error}</p>
+                            <p data-ui-text="secondary" className="text-xs font-medium">{error}</p>
                         </div>
                     ) : (
                         <>
                             {/* Stats cards */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 <div className="p-3 bg-cloud-mist/40 rounded-xl border border-platinum-tint text-center">
-                                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Thời gian có mặt</p>
+                                    <p data-ui-text="label" className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Thời gian có mặt</p>
                                     <p className="text-sm font-bold text-midnight-indigo mt-1">{formatDuration(timeline?.duration?.durationMs)}</p>
                                 </div>
                                 <div className="p-3 bg-cloud-mist/40 rounded-xl border border-platinum-tint text-center">
-                                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Số lần nhận diện</p>
+                                    <p data-ui-text="label" className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Số lần nhận diện</p>
                                     <p className="text-sm font-bold text-midnight-indigo mt-1">{timeline?.duration?.segmentCount ?? 0} đoạn</p>
                                 </div>
                                 <div className="p-3 bg-cloud-mist/40 rounded-xl border border-platinum-tint text-center">
-                                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Tỉ lệ tham dự</p>
+                                    <p data-ui-text="label" className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Tỉ lệ tham dự</p>
                                     <p className={`text-sm font-bold mt-1 ${Number(ratio) >= 80 ? 'text-emerald-600' : Number(ratio) >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
                                         {((timeline?.duration?.presentRatio ?? 0) * 100).toFixed(1)}%
                                     </p>
                                 </div>
                                 <div className="p-3 bg-cloud-mist/40 rounded-xl border border-platinum-tint text-center">
-                                    <p className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Sự kiện ngoài lịch</p>
+                                    <p data-ui-text="label" className="text-[10px] text-slate-blue font-bold uppercase tracking-wide">Sự kiện ngoài lịch</p>
                                     <p className={`text-sm font-bold mt-1 ${(timeline?.unmatchedCount ?? 0) > 0 ? 'text-amber-600' : 'text-slate-600'}`}>
                                         {timeline?.unmatchedCount ?? 0} lần
                                     </p>
@@ -233,7 +239,7 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                                     Biểu đồ trục thời gian họp
                                 </h4>
 
-                                <div className="flex justify-between text-[10px] text-slate-blue font-bold pb-2 border-b border-platinum-tint">
+                                <div data-ui-text="secondary" className="flex justify-between text-[10px] text-slate-blue font-bold pb-2 border-b border-platinum-tint">
                                     <span>Bắt đầu: {new Date(meetingStartTime).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' })}</span>
                                     <span>Kết thúc: {new Date(meetingEndTime).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
@@ -253,7 +259,7 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                                                 className="absolute top-0 bottom-0 bg-emerald-500/80 border-x border-emerald-600/30 group cursor-pointer"
                                                 title={`Có mặt: ${formatVietnameseTime(seg.start)} – ${formatVietnameseTime(seg.end)}`}
                                             >
-                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-1.5 bg-slate-900 text-white text-[9.5px] rounded-lg shadow-md whitespace-nowrap z-30">
+                                                <div data-ui-text="badge" className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-1.5 bg-slate-900 text-white text-[9.5px] rounded-lg shadow-md whitespace-nowrap z-30">
                                                     Có mặt: {formatVietnameseTime(seg.start)} – {formatVietnameseTime(seg.end)}
                                                 </div>
                                             </div>
@@ -273,10 +279,10 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                                                 className="absolute top-0 bottom-0 w-0.5 z-20 group cursor-pointer"
                                             >
                                                 <div className={`w-px h-full ${isEnter ? 'bg-emerald-600' : 'bg-amber-600'}`} />
-                                                <span className={`absolute -top-1.5 -translate-x-1/2 text-[9px] font-bold ${isEnter ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                                <span data-ui-text="primary" className={`absolute -top-1.5 -translate-x-1/2 text-[9px] font-bold ${isEnter ? 'text-emerald-700' : 'text-amber-700'}`}>
                                                     {isEnter ? '▲' : '▼'}
                                                 </span>
-                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 p-1.5 bg-slate-900 text-white text-[9.5px] rounded-lg shadow-md whitespace-nowrap z-30">
+                                                <div data-ui-text="badge" className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 p-1.5 bg-slate-900 text-white text-[9.5px] rounded-lg shadow-md whitespace-nowrap z-30">
                                                     {isEnter ? 'VÀO CỬA' : 'RA CỬA'}: {formatVietnameseTime(ev.at)}
                                                     {ev.similarity != null ? ` (${(ev.similarity <= 1 ? ev.similarity * 100 : ev.similarity).toFixed(0)}%)` : ''}
                                                 </div>
@@ -285,7 +291,7 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                                     })}
                                 </div>
 
-                                <div className="flex flex-wrap gap-4 text-[10.5px] text-slate-blue font-semibold">
+                                <div data-ui-text="secondary" className="flex flex-wrap gap-4 text-[10.5px] text-slate-blue font-semibold">
                                     <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-emerald-500/80 rounded-sm" />Có mặt trong phòng</span>
                                     <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-slate-100 border border-platinum-tint rounded-sm" />Vắng mặt</span>
                                     <span className="flex items-center gap-1"><span className="text-emerald-700 font-bold">▲</span>Vào cửa</span>
@@ -298,11 +304,12 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                                 <div className="flex justify-between items-center">
                                     <h4 className="text-xs font-bold text-slate-blue uppercase tracking-wide">Chi tiết các mốc quét camera</h4>
                                     {logTotalPages > 1 && (
-                                        <span className="text-[10px] text-slate-blue font-bold">Trang {logPage}/{logTotalPages}</span>
+                                        <span data-ui-text="primary" className="text-[10px] text-slate-blue font-bold">Trang {logPage}/{logTotalPages}</span>
                                     )}
                                 </div>
                                 <div className="border border-platinum-tint rounded-xl overflow-hidden bg-white shadow-sm">
-                                    <table className="w-full text-left text-xs border-collapse">
+                                    <ResponsiveTable className="w-full text-left text-xs border-collapse">
+<TableColumns widths={[20, 25, 40, 15]} />
                                         <thead>
                                             <tr className="bg-cloud-mist/50 border-b border-platinum-tint text-slate-blue font-bold text-center">
                                                 <th className="p-3 text-left">Thời điểm</th>
@@ -319,7 +326,7 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                                                         <tr key={idx} className="border-b border-platinum-tint hover:bg-cloud-mist/20 text-center transition-colors">
                                                             <td className="p-3 text-left font-medium text-midnight-indigo">{formatVietnameseTime(ev.at)}</td>
                                                             <td className="p-3 text-center">
-                                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                                                                <span data-ui-text="secondary" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                                                                     ev.direction === 'enter'
                                                                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                                         : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -343,12 +350,12 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                                                                         />
                                                                     </div>
                                                                 ) : (
-                                                                    <span className="text-[10px] text-slate-400 font-medium italic">Không ảnh</span>
+                                                                    <span data-ui-text="secondary" className="text-[10px] text-slate-400 font-medium italic">Không ảnh</span>
                                                                 )}
                                                             </td>
                                                             <td className="p-3 text-center">
                                                                 {simValue !== null ? (
-                                                                    <span className={`inline-flex px-2 py-0.5 rounded font-bold text-[10px] border ${
+                                                                    <span data-ui-text="badge" className={`inline-flex px-2 py-0.5 rounded font-bold text-[10px] border ${
                                                                         simValue >= 80 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                                                         simValue >= 50 ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                                                         'bg-red-50 text-red-700 border-red-200'
@@ -370,12 +377,18 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                                                 </tr>
                                             )}
                                         </tbody>
-                                    </table>
+                                    </ResponsiveTable>
                                 </div>
                                 
                                 {/* Inner Log Pagination */}
-                                {logTotalPages > 1 && (
-                                    <div className="flex justify-between items-center pt-2 px-1">
+                                {<PaginationRegion legacyVisible={logTotalPages > 1}><PaginationFooter
+                                        currentPage={logPage}
+                                        totalPages={logTotalPages}
+                                        totalItems={events.length}
+                                        pageSize={logItemsPerPage}
+                                        onPageChange={setLogPage}
+                                        itemLabel={"mốc quét"}
+                                        legacy={<div className="flex justify-between items-center pt-2 px-1">
                                         <span className="text-[10px] text-slate-blue font-bold">
                                             Hiển thị {(logPage - 1) * logItemsPerPage + 1}–{Math.min(logPage * logItemsPerPage, events.length)} trong {events.length} mốc quét
                                         </span>
@@ -397,8 +410,8 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                                                 Sau ›
                                             </button>
                                         </div>
-                                    </div>
-                                )}
+                                    </div>}
+                                     onPageSizeChange={size => { setLogItemsPerPage(size); setLogPage(1); }} /></PaginationRegion>}
                             </div>
                         </>
                     )}
@@ -488,7 +501,7 @@ const UserProfileModal = ({ user, onClose }) => {
 
                     <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-blue font-semibold">Mã ID hệ thống:</span>
-                        <span className="font-medium text-slate-500 font-mono select-all text-[10px]" title={user.userId}>{user.userId?.substring(0, 8)}...</span>
+                        <span data-ui-text="code" className="font-medium text-slate-500 font-mono select-all text-[10px]" title={user.userId}>{user.userId?.substring(0, 8)}...</span>
                     </div>
                 </div>
 
@@ -508,6 +521,7 @@ const UserProfileModal = ({ user, onClose }) => {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) => {
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [presenceSummary, setPresenceSummary] = useState(null);
@@ -521,7 +535,7 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
     const [pdfLoading, setPdfLoading] = useState(false);
     const [toastMessage, setToastMessage] = useState(null);
 
-    const itemsPerPage = 8;
+
 
     const triggerToast = (msg, isSuccess = true) => {
         setToastMessage({ text: msg, isSuccess });
@@ -577,6 +591,7 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
             triggerToast('Đã tải xuống báo cáo hiện diện PDF thành công!');
         } catch (err) {
             triggerToast(err.message || 'Không thể xuất báo cáo PDF. Vui lòng thử lại.', false);
+            return { success: false, message: err.message || 'Không thể xuất báo cáo PDF.' };
         } finally {
             setPdfLoading(false);
         }
@@ -663,7 +678,7 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
         <div className="space-y-5">
             {/* Toast */}
             {toastMessage && (
-                <div className={`fixed bottom-5 right-5 z-50 p-4 rounded-xl shadow-lg border text-xs font-bold flex items-center gap-2 ${
+                <div data-ui-text="badge" className={`fixed bottom-5 right-5 z-50 p-4 rounded-xl shadow-lg border text-xs font-bold flex items-center gap-2 ${
                     toastMessage.isSuccess ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
                 }`}>
                     {toastMessage.isSuccess ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
@@ -687,23 +702,23 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
                             <Activity className="w-4 h-4 text-action-blue" />
                             Danh sách đối soát hiện diện phòng họp
                         </h3>
-                        <p className="text-[11px] text-slate-blue mt-0.5">
+                        <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-0.5">
                             So sánh giữa đăng ký tham gia và thực tế camera ghi nhận — click nhân viên để xem chi tiết
                         </p>
                     </div>
-                    <button
+                    <ReportExportAction format="pdf" label="Tải báo cáo PDF" busy={pdfLoading}
                         onClick={handleDownloadPDF}
                         disabled={pdfLoading || participants.length === 0}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-action-blue hover:bg-action-blue/90 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                        legacyClassName="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-action-blue hover:bg-action-blue/90 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
                     >
                         {pdfLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
                         Tải báo cáo PDF
-                    </button>
+                    </ReportExportAction>
                 </div>
 
                 <div className="p-5 space-y-4">
                     {/* Search */}
-                    <div className="relative max-w-sm">
+                    <FilterBar variant="inline" className="relative max-w-sm">
                         <input
                             type="text"
                             placeholder="Tìm nhân viên theo tên hoặc ID..."
@@ -712,11 +727,11 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
                             className="w-full pl-9 pr-4 py-2.5 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
                         />
                         <Search className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
-                    </div>
+                    </FilterBar>
 
                     {/* Table */}
                     <div className="border border-platinum-tint rounded-xl overflow-hidden">
-                        <table className="w-full text-left border-collapse text-xs">
+                        <ResponsiveTable className="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr className="bg-cloud-mist border-b border-platinum-tint text-slate-blue font-bold text-[11px]">
                                     <SortHeader field="fullName" label="Nhân viên" />
@@ -753,15 +768,15 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
                                                     </div>
                                                     <div className="min-w-0">
                                                         <p className="font-semibold text-midnight-indigo group-hover:text-action-blue group-hover:underline truncate max-w-[140px] transition-all">{displayName}</p>
-                                                        {user.email && <p className="text-[10px] text-slate-blue truncate max-w-[140px]">{user.email}</p>}
-                                                        {user.departmentName && <p className="text-[10px] text-slate-blue/80">{user.departmentName}</p>}
+                                                        {user.email && <p data-ui-text="secondary" className="text-[10px] text-slate-blue truncate max-w-[140px]">{user.email}</p>}
+                                                        {user.departmentName && <p data-ui-text="secondary" className="text-[10px] text-slate-blue/80">{user.departmentName}</p>}
                                                     </div>
                                                 </div>
                                             </td>
 
                                             {/* Status */}
                                             <td className="p-3.5">
-                                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                                                <span data-ui-text="secondary" className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                                                     isPresent
                                                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                         : 'bg-slate-100 text-slate-600 border-slate-200'
@@ -776,7 +791,7 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
                                                 {(() => {
                                                     const info = getAttendanceStatusInfo(user.attendanceStatus);
                                                     return (
-                                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${info.className}`}>
+                                                        <span data-ui-text="secondary" className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${info.className}`}>
                                                             <span className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />
                                                             {info.label}
                                                         </span>
@@ -792,7 +807,7 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
                                             {/* Ratio with progress bar */}
                                             <td className="p-3.5">
                                                 <div className="flex flex-col gap-1 min-w-[80px]">
-                                                    <span className={`text-xs font-bold ${ratio >= 80 ? 'text-emerald-600' : ratio >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
+                                                    <span data-ui-text="primary" className={`text-xs font-bold ${ratio >= 80 ? 'text-emerald-600' : ratio >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
                                                         {ratio.toFixed(1)}%
                                                     </span>
                                                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -806,7 +821,7 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
 
                                             {/* Action */}
                                             <td className="p-3.5 text-center">
-                                                <button
+                                                <button data-ui-text="action"
                                                     onClick={() => setSelectedUser(user)}
                                                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-action-blue/10 hover:bg-action-blue text-action-blue hover:text-white text-[10px] font-bold border border-action-blue/20 hover:border-action-blue transition-all active:scale-95"
                                                 >
@@ -822,18 +837,24 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
                                             <div className="flex flex-col items-center gap-2">
                                                 <Users className="w-8 h-8 text-steel-gray" />
                                                 <p className="text-sm font-semibold text-midnight-indigo">Không tìm thấy người dùng phù hợp</p>
-                                                <p className="text-[11px] text-slate-blue">Vui lòng thay đổi từ khoá tìm kiếm</p>
+                                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Vui lòng thay đổi từ khoá tìm kiếm</p>
                                             </div>
                                         </td>
                                     </tr>
                                 )}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
 
                     {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="flex justify-between items-center pt-1">
+                    {<PaginationRegion legacyVisible={totalPages > 1}><PaginationFooter
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalItems={sortedParticipants.length}
+                            pageSize={itemsPerPage}
+                            onPageChange={setCurrentPage}
+                            itemLabel={"người tham gia"}
+                            legacy={<div className="flex justify-between items-center pt-1">
                             <span className="text-[11px] text-slate-blue">
                                 {indexOfFirst + 1}–{Math.min(indexOfFirst + itemsPerPage, sortedParticipants.length)} / {sortedParticipants.length} nhân viên
                             </span>
@@ -869,8 +890,8 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
                                     <ChevronRight className="w-3.5 h-3.5" />
                                 </button>
                             </div>
-                        </div>
-                    )}
+                        </div>}
+                         onPageSizeChange={size => { setItemsPerPage(size); setCurrentPage(1); }} /></PaginationRegion>}
                 </div>
             </div>
 

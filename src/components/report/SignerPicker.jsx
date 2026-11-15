@@ -49,7 +49,7 @@ const SignerPicker = ({ value, onChange, placeholder = 'Gõ tên để tìm ho�
                 )}
             </div>
             {name && (
-                <p className="mt-1 text-[10px] text-slate-blue">
+                <p data-ui-text="secondary" className="mt-1 text-[10px] text-slate-blue">
                     {value?.userId ? 'Người dùng trong hệ thống — họ tên lấy theo hồ sơ.' : 'Nhập tay — in đúng như đã gõ.'}
                 </p>
             )}
@@ -62,8 +62,8 @@ const SignerPicker = ({ value, onChange, placeholder = 'Gõ tên để tìm ho�
                                 className="w-full text-left px-3 py-2 hover:bg-cloud-mist"
                                 onClick={() => { onChange({ userId: o.id, fullName: o.fullName }); setOpen(false); }}
                             >
-                                <span className="block text-xs font-semibold text-midnight-indigo">{o.fullName}</span>
-                                <span className="block text-[10px] text-slate-blue">{[o.positionTitle, o.departmentName].filter(Boolean).join(' · ') || 'Chưa có chức vụ'}</span>
+                                <span data-ui-text="primary" className="block text-xs font-semibold text-midnight-indigo">{o.fullName}</span>
+                                <span data-ui-text="action" className="block text-[10px] text-slate-blue">{[o.positionTitle, o.departmentName].filter(Boolean).join(' · ') || 'Chưa có chức vụ'}</span>
                             </button>
                         </li>
                     ))}

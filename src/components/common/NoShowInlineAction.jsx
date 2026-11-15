@@ -57,7 +57,7 @@ const NoShowInlineAction = ({ item }) => {
     if (effectiveStatus === 'snoozed') {
         const untilStr = formatTime(effectiveSnoozeUntil);
         return (
-            <p className="text-xs font-bold text-emerald-600 mt-1">
+            <p data-ui-text="primary" className="text-xs font-bold text-emerald-600 mt-1">
                 {untilStr ? `✓ Đã xác nhận — đang chờ tới ${untilStr}` : '✓ Đã xác nhận, đang chờ'}
             </p>
         );
@@ -80,7 +80,7 @@ const NoShowInlineAction = ({ item }) => {
                 {localState?.status === 'loading' ? 'Đang xử lý...' : 'Tôi vẫn đến — giữ phòng'}
             </button>
             {localState?.status === 'error' && (
-                <p className="text-[11px] text-red-600 mt-1">{localState.message}</p>
+                <p data-ui-text="secondary" className="text-[11px] text-red-600 mt-1">{localState.message}</p>
             )}
         </div>
     );

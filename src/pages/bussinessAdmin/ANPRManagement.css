@@ -1,0 +1,35 @@
+/* Shared by guard and admin: search first, location filters alongside, dates below. */
+.camai-filter-bar.anpr-history-filters[data-filter-grid] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    container-type: inline-size;
+}
+.anpr-history-filter-main,
+.anpr-history-filter-time {
+    display: grid;
+    align-items: end;
+    gap: 16px;
+    min-width: 0;
+}
+.anpr-history-filter-main { grid-template-columns: minmax(0, 1fr); }
+.anpr-history-filter-time { grid-template-columns: minmax(0, 1fr); }
+@container (min-width: 550px) {
+    .anpr-history-filter-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (min-width: 700px) {
+    .anpr-history-filter-main { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (min-width: 760px) {
+    .anpr-history-filter-time { grid-template-columns: minmax(0, min(28rem, 40%)) minmax(0, 1fr) auto; }
+}
+@container (min-width: 800px) {
+    .anpr-history-filter-main { grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr)); }
+}
+
+.anpr-history-filter-dates {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    min-width: 0;
+}
+
+.anpr-history-reset { align-self: end; justify-self: end; white-space: nowrap; }

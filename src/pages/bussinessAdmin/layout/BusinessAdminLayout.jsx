@@ -186,7 +186,7 @@ const BusinessAdminLayout = () => {
 
                 {/* ══ MAIN AREA ══ */}
                 <main className="flex-1 min-w-0 overflow-y-auto">
-                    <div className="p-4 md:p-6">
+                    <div data-page-frame="wide" className="p-4 md:p-6">
                         <Outlet />
                     </div>
                     <BiometricReminderModal />

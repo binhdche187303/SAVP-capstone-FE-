@@ -1,5 +1,11 @@
-import { Activity } from 'lucide-react';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import ReportExportAction from '../../components/common/ReportExportAction';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import './AuditLogsFilters.css';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import { Activity, Filter } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -153,6 +159,7 @@ const AuditLogs = () => {
     const today = new Date().toISOString().slice(0, 10);
 
     const [logsList, setLogsList] = useState([]);
+    const fetchVersion = useRef(0);
     const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -209,6 +216,7 @@ const AuditLogs = () => {
 
     // Load data
     const fetchLogs = useCallback(async (pageNumber = 1, pageLimit = 10) => {
+        const version = ++fetchVersion.current;
         setLoading(true);
         setError(null);
 
@@ -225,6 +233,7 @@ const AuditLogs = () => {
 
         try {
             const res = await getAuditLogs(params);
+            if (version !== fetchVersion.current) return;
             if (res?.success) {
                 setLogsList(res.data || []);
                 const serverMeta = res.meta || {};
@@ -239,15 +248,17 @@ const AuditLogs = () => {
                 throw new Error('Fallback to mock data');
             }
         } catch {
+            if (version !== fetchVersion.current) return;
             setLogsList([]);
             setMeta({ page: pageNumber, limit: pageLimit, total: 0, totalPages: 1 });
         } finally {
-            setLoading(false);
+            if (version === fetchVersion.current) setLoading(false);
         }
     }, [selectedAction, selectedEntity, selectedSeverity, startDate, endDate, searchParams]);
 
     useEffect(() => {
         fetchLogs(1, meta.limit);
+        return () => { fetchVersion.current += 1; };
     }, [fetchLogs, meta.limit]);
 
     // Auto-hide alert boxes
@@ -265,13 +276,8 @@ const AuditLogs = () => {
         }
     }, [error]);
 
-    const handleApplyFilters = () => {
-        // Bỏ qua thời gian chờ gõ; nếu từ khóa đã khớp thì effect không chạy lại nên gọi trực tiếp
-        if (search.trim() !== debouncedSearch) setDebouncedSearch(search.trim());
-        else fetchLogs(1, meta.limit);
-    };
-
     const handleClearFilters = () => {
+        if (!debouncedSearch && !selectedAction && !selectedEntity && !selectedSeverity && !startDate && !endDate) fetchLogs(1, meta.limit);
         setSearch('');
         setDebouncedSearch('');
         setSelectedAction('');
@@ -279,7 +285,6 @@ const AuditLogs = () => {
         setSelectedSeverity('');
         setStartDate('');
         setEndDate('');
-        fetchLogs(1, meta.limit);
     };
 
     const handleOpenDetail = (log) => {
@@ -354,6 +359,7 @@ const AuditLogs = () => {
         } catch (err) {
             console.error('Lỗi khi xuất tệp nhật ký:', err);
             setError(err?.error?.message || err?.message || 'Có lỗi xảy ra khi xuất tệp nhật ký.');
+            return { success: false, message: err?.error?.message || err?.message || 'Không xuất được nhật ký.' };
         } finally {
             setExporting(false);
         }
@@ -411,7 +417,7 @@ const AuditLogs = () => {
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Activity className="w-3.5 h-3.5" />
                         Nhật ký
                     </span>
@@ -420,16 +426,16 @@ const AuditLogs = () => {
                         Theo dõi lịch sử vận hành, ghi nhận thao tác của quản trị viên và các cảnh báo khẩn cấp.
                     </p>
                 </div>
-                <button
+                <ReportExportAction format="xlsx" label="Xuất nhật ký" busy={exporting}
                     onClick={handleExport}
                     disabled={exporting}
-                    className="inline-flex items-center justify-center px-4 py-2.5 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
+                    legacyClassName="inline-flex items-center justify-center px-4 py-2.5 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
                 >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     {exporting ? 'Đang xuất...' : 'Xuất nhật ký'}
-                </button>
+                </ReportExportAction>
             </div>
 
             {/* Notification messages */}
@@ -451,114 +457,53 @@ const AuditLogs = () => {
             )}
 
             {/* Filters panel */}
-            <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-1 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    {/* Search query */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tìm kiếm từ khóa</label>
-                        <input
-                            type="text"
-                            placeholder="Email, tên, hoặc mô tả..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilters(); }}
-                            maxLength={100}
-                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
-                        />
-                    </div>
-
-                    {/* Action Selector */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại hành động</label>
-                        <select
-                            value={selectedAction}
-                            onChange={(e) => setSelectedAction(e.target.value)}
-                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
-                        >
+            <FilterBar variant="card" className="audit-log-filters">
+                <div className="audit-log-filter-main">
+                    <FilterField label="Tìm kiếm từ khóa">
+                        <input type="text" placeholder="Email, tên, hoặc mô tả..." value={search} maxLength={100}
+                            onChange={event => setSearch(event.target.value)} />
+                    </FilterField>
+                    <FilterField label="Loại hành động">
+                        <select value={selectedAction} onChange={event => setSelectedAction(event.target.value)}>
                             <option value="">Tất cả hành động</option>
-                            {actionTypes.map((at) => (
-                                <option key={at.actionType} value={at.actionType}>
-                                    {formatActionName(at.actionType)} ({at.count})
-                                </option>
-                            ))}
+                            {actionTypes.map(action => <option key={action.actionType} value={action.actionType}>{formatActionName(action.actionType)} ({action.count})</option>)}
                         </select>
-                    </div>
-
-                    {/* Severity Selector */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mức độ</label>
-                        <select
-                            value={selectedSeverity}
-                            onChange={(e) => setSelectedSeverity(e.target.value)}
-                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
-                        >
+                    </FilterField>
+                    <FilterField label="Mức độ">
+                        <select value={selectedSeverity} onChange={event => setSelectedSeverity(event.target.value)}>
                             <option value="">Tất cả mức độ</option>
                             <option value="info">Thành công (Info)</option>
                             <option value="warning">Cảnh báo (Warning)</option>
                             <option value="error">Thất bại (Error)</option>
                             <option value="critical">Nghiêm trọng (Critical)</option>
                         </select>
-                    </div>
-
-                    {/* Start date */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Từ ngày</label>
-                        <input
-                            type="date"
-                            value={startDate}
-                            max={endDate || today}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                setStartDate(val);
-                                if (endDate && val > endDate) setEndDate('');
-                            }}
-                            className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-action-blue text-slate-blue ${startDate && endDate && startDate > endDate ? 'border-red-400 bg-red-50' : 'border-platinum-tint'}`}
-                        />
-                    </div>
-
-                    {/* End date */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Đến ngày</label>
-                        <input
-                            type="date"
-                            value={endDate}
-                            min={startDate || undefined}
-                            max={today}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                setEndDate(val);
-                                if (startDate && val < startDate) setStartDate('');
-                            }}
-                            className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:border-action-blue text-slate-blue ${startDate && endDate && startDate > endDate ? 'border-red-400 bg-red-50' : 'border-platinum-tint'}`}
-                        />
-                        {startDate && endDate && startDate > endDate && (
-                            <p className="text-[10px] text-red-500 font-semibold mt-1">Ngày kết thúc phải sau ngày bắt đầu</p>
-                        )}
-                    </div>
+                    </FilterField>
                 </div>
-
-                <div className="flex justify-between items-center pt-2 border-t border-platinum-tint/50">
-                    <div className="text-xs text-slate-blue font-medium">
-                        Tìm thấy <span className="font-bold text-midnight-indigo">{meta.total}</span> bản ghi nhật ký.
+                <div className="audit-log-filter-time">
+                    <CalendarRangePresets from={startDate} to={endDate} onChange={range => { setStartDate(range.from); setEndDate(range.to); }} />
+                    <div className="audit-log-filter-dates">
+                        <FilterField label="Từ ngày">
+                            <input type="date" value={startDate} max={endDate || today} onChange={event => {
+                                const value = event.target.value; setStartDate(value);
+                                if (endDate && value > endDate) setEndDate('');
+                            }} />
+                        </FilterField>
+                        <FilterField label="Đến ngày">
+                            <input type="date" value={endDate} min={startDate || undefined} max={today} onChange={event => {
+                                const value = event.target.value; setEndDate(value);
+                                if (startDate && value < startDate) setStartDate('');
+                            }} />
+                        </FilterField>
                     </div>
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={handleClearFilters}
-                            className="px-4 py-2 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors"
-                        >
-                            Xóa bộ lọc
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleApplyFilters}
-                            className="px-4 py-2 bg-cloud-mist hover:bg-platinum-tint text-midnight-indigo rounded-xl text-xs font-semibold transition-colors"
-                        >
-                            Áp dụng
-                        </button>
-                    </div>
+                    <button type="button" data-filter-action onClick={handleClearFilters}
+                        className="audit-log-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors">
+                        <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                    </button>
                 </div>
-            </div>
+                <p data-ui-text="secondary" className="audit-log-filter-count text-slate-blue">
+                    Tìm thấy <span className="font-semibold text-midnight-indigo">{meta.total}</span> bản ghi nhật ký.
+                </p>
+            </FilterBar>
 
             {/* Logs Data Table */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
@@ -569,8 +514,17 @@ const AuditLogs = () => {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
+                        <ResponsiveTable className="w-full min-w-[1200px] text-left border-collapse">
+<colgroup>
+<col style={{ width: '12%' }} />
+<col style={{ width: '18%' }} />
+<col style={{ width: '25%' }} />
+<col style={{ width: '18%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '7%' }} />
+</colgroup>
+                            <thead className="whitespace-nowrap">
                                 <tr className="bg-cloud-mist/55 text-slate-blue text-xs font-bold uppercase border-b border-platinum-tint/70">
                                     <th className="py-4 px-6">Thời gian</th>
                                     <th className="py-4 px-6">Tài khoản</th>
@@ -593,16 +547,16 @@ const AuditLogs = () => {
                                         <tr key={log.id} className="hover:bg-cloud-mist/30 transition-colors">
                                             {/* Thời gian — gộp ngày + giờ */}
                                             <td className="py-4 px-6 whitespace-nowrap">
-                                                <div className="font-mono text-xs font-semibold text-midnight-indigo">
+                                                <div data-ui-text="primary" className="text-sm font-semibold tabular-nums text-midnight-indigo">
                                                     {formatTimestamp(log.createdAt || log.timestamp).split(' ')[0]}
                                                 </div>
-                                                <div className="font-mono text-[11px] text-slate-blue">
+                                                <div data-ui-text="secondary" className="text-xs tabular-nums text-slate-blue">
                                                     {formatTimestamp(log.createdAt || log.timestamp).split(' ')[1]}
                                                 </div>
                                             </td>
 
                                             {/* Tài khoản — avatar + tên có thể click */}
-                                            <td className="py-4 px-6">
+                                            <td className="py-4 px-6 min-w-[240px]">
                                                 <div className="flex items-center gap-3">
                                                     <button
                                                         onClick={() => handleOpenActorDetail(log)}
@@ -619,8 +573,8 @@ const AuditLogs = () => {
                                                             className="w-9 h-9 rounded-full font-bold text-sm"
                                                         />
                                                     </button>
-                                                    <div>
-                                                        <button
+                                                    <div className="min-w-0">
+                                                        <button data-ui-text="primary"
                                                             onClick={() => handleOpenActorDetail(log)}
                                                             disabled={!(log.actorUserId || log.actorId)}
                                                             className="font-semibold text-midnight-indigo hover:text-action-blue hover:underline text-left text-sm leading-tight disabled:cursor-default disabled:no-underline disabled:hover:text-midnight-indigo"
@@ -628,7 +582,7 @@ const AuditLogs = () => {
                                                             {log.actorName || 'Hệ thống'}
                                                         </button>
                                                         {log.actorEmail && (
-                                                            <div className="text-xs text-slate-blue font-mono mt-0.5">
+                                                            <div data-ui-text="secondary" className="text-xs text-slate-blue break-all mt-0.5">
                                                                 {log.actorEmail}
                                                             </div>
                                                         )}
@@ -636,19 +590,19 @@ const AuditLogs = () => {
                                                 </div>
                                             </td>
 
-                                            <td className="py-4 px-6">
-                                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${getActionBadge(log.actionType || log.action)}`}>
+                                            <td className="py-4 px-6 min-w-[280px]">
+                                                <span data-ui-text="primary" className={`inline-flex px-2 py-0.5 rounded-full text-sm font-medium border ${getActionBadge(log.actionType || log.action)}`}>
                                                     {formatActionName(log.actionType || log.action)}
                                                 </span>
                                             </td>
-                                            <td className="py-4 px-6 text-xs font-semibold text-slate-blue uppercase">
+                                            <td data-ui-text="primary" className="py-4 px-6 min-w-[210px] text-sm font-medium text-slate-blue">
                                                 {ENTITY_TRANSLATIONS[log.entityType || log.entity] || (log.entityType || log.entity)}
                                             </td>
-                                            <td className="py-4 px-6 text-slate-blue font-mono text-xs">
+                                            <td data-ui-text="primary" className="py-4 px-6 whitespace-nowrap text-slate-blue text-sm">
                                                 {log.ipAddress || '-'}
                                             </td>
                                             <td className="py-4 px-6">
-                                                <span className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-bold ${getStatusBadge(log.severity || log.status)}`}>
+                                                <span data-ui-text="badge" className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(log.severity || log.status)}`}>
                                                     {getStatusLabel(log.severity || log.status)}
                                                 </span>
                                             </td>
@@ -668,53 +622,21 @@ const AuditLogs = () => {
                                     ))
                                 )}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
                 )}
 
                 {/* Pagination footer */}
-                {!loading && logsList.length > 0 && (
-                    <div className="p-4 bg-cloud-mist/20 border-t border-platinum-tint/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-blue font-medium">Số dòng hiển thị:</span>
-                            <select
-                                value={meta.limit}
-                                onChange={(e) => {
-                                    const nextLimit = Number(e.target.value);
-                                    setMeta(prev => ({ ...prev, limit: nextLimit }));
-                                    fetchLogs(1, nextLimit);
-                                }}
-                                className="px-2 py-1 border border-platinum-tint rounded-lg text-xs text-slate-blue focus:outline-none focus:border-action-blue bg-white font-semibold"
-                            >
-                                <option value={10}>10 dòng</option>
-                                <option value={20}>20 dòng</option>
-                                <option value={50}>50 dòng</option>
-                            </select>
-                            <span className="text-xs text-slate-blue">
-                                Hiển thị {(currentPage - 1) * pageLimit + 1} - {Math.min(currentPage * pageLimit, effectiveTotal)} trên {effectiveTotal} dòng
-                            </span>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                disabled={currentPage <= 1}
-                                onClick={() => fetchLogs(currentPage - 1, pageLimit)}
-                                className="px-3 py-1.5 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Trước
-                            </button>
-                            <button
-                                type="button"
-                                disabled={currentPage >= effectiveTotalPages}
-                                onClick={() => fetchLogs(currentPage + 1, pageLimit)}
-                                className="px-3 py-1.5 border border-platinum-tint text-slate-blue hover:bg-cloud-mist rounded-xl text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Sau
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {<PaginationRegion legacyVisible={!loading && logsList.length > 0}><PaginationFooter
+                        currentPage={currentPage}
+                        totalPages={effectiveTotalPages}
+                        totalItems={effectiveTotal}
+                        pageSize={pageLimit}
+                        onPageChange={(p) => fetchLogs(p, pageLimit)}
+                        itemLabel={"dòng"}
+                        loading={loading}
+                        onPageSizeChange={size => { setMeta(previous => ({ ...previous, page: 1, limit: size })); fetchLogs(1, size); }}
+                    /></PaginationRegion>}
             </div>
 
             {/* DETAIL LOG MODAL */}
@@ -733,10 +655,10 @@ const AuditLogs = () => {
                                 <div className="min-w-0">
                                     <h3 className="font-bold text-midnight-indigo text-base leading-tight">Chi tiết nhật ký hoạt động</h3>
                                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${getActionBadge(selectedLog.actionType || selectedLog.action)}`}>
+                                        <span data-ui-text="badge" className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${getActionBadge(selectedLog.actionType || selectedLog.action)}`}>
                                             {formatActionName(selectedLog.actionType || selectedLog.action)}
                                         </span>
-                                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadge(selectedLog.severity || selectedLog.status)}`}>
+                                        <span data-ui-text="badge" className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusBadge(selectedLog.severity || selectedLog.status)}`}>
                                             {getStatusLabel(selectedLog.severity || selectedLog.status)}
                                         </span>
                                     </div>
@@ -756,26 +678,26 @@ const AuditLogs = () => {
                             {/* Row 1: Thời gian + IP */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="bg-cloud-mist/40 rounded-xl p-3.5 border border-platinum-tint/60">
-                                    <span className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Thời gian ghi nhận</span>
-                                    <span className="text-sm font-semibold text-midnight-indigo font-mono">{formatTimestamp(selectedLog.createdAt || selectedLog.timestamp)}</span>
+                                    <span data-ui-text="label" className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Thời gian ghi nhận</span>
+                                    <span data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{formatTimestamp(selectedLog.createdAt || selectedLog.timestamp)}</span>
                                 </div>
                                 <div className="bg-cloud-mist/40 rounded-xl p-3.5 border border-platinum-tint/60">
-                                    <span className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Địa chỉ IP thao tác</span>
-                                    <span className="text-sm font-semibold text-midnight-indigo font-mono">{selectedLog.ipAddress || '—'}</span>
+                                    <span data-ui-text="label" className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Địa chỉ IP thao tác</span>
+                                    <span data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{selectedLog.ipAddress || '—'}</span>
                                 </div>
                             </div>
 
                             {/* Row 2: Tài khoản + Phân hệ */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="bg-cloud-mist/40 rounded-xl p-3.5 border border-platinum-tint/60">
-                                    <span className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Tài khoản thực hiện</span>
-                                    <span className="text-sm font-semibold text-midnight-indigo">{selectedLog.actorName || 'Hệ thống'}</span>
+                                    <span data-ui-text="label" className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Tài khoản thực hiện</span>
+                                    <span data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{selectedLog.actorName || 'Hệ thống'}</span>
                                     {selectedLog.actorEmail && (
-                                        <span className="block text-xs text-slate-blue font-mono mt-0.5">{selectedLog.actorEmail}</span>
+                                        <span data-ui-text="secondary" className="block text-xs text-slate-blue break-all mt-0.5">{selectedLog.actorEmail}</span>
                                     )}
                                 </div>
                                 <div className="bg-cloud-mist/40 rounded-xl p-3.5 border border-platinum-tint/60">
-                                    <span className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Phân hệ</span>
+                                    <span data-ui-text="label" className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Phân hệ</span>
                                     <span className="text-sm font-semibold text-midnight-indigo">
                                         {ENTITY_TRANSLATIONS[selectedLog.entityType || selectedLog.entity] || (selectedLog.entityType || selectedLog.entity) || '—'}
                                     </span>
@@ -785,7 +707,7 @@ const AuditLogs = () => {
                             {/* Description */}
                             {selectedLog.description && (
                                 <div className="rounded-xl border border-outline-gray/50 p-4 bg-white">
-                                    <span className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-2">Mô tả hành động</span>
+                                    <span data-ui-text="label" className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-2">Mô tả hành động</span>
                                     <p className="text-sm text-midnight-indigo leading-relaxed">{selectedLog.description}</p>
                                 </div>
                             )}
@@ -794,7 +716,7 @@ const AuditLogs = () => {
                             {selectedLog.payload && Object.keys(selectedLog.payload).length > 0 && (
                                 <div className="border border-platinum-tint/70 rounded-2xl overflow-hidden">
                                     <div className="px-4 py-3 bg-cloud-mist/40 border-b border-platinum-tint/50">
-                                        <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Chi tiết thay đổi thông tin hệ thống</span>
+                                        <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Chi tiết thay đổi thông tin hệ thống</span>
                                     </div>
                                     <div className="p-4 space-y-1">
                                         {renderPayloadDetails(selectedLog.payload)}
@@ -850,7 +772,7 @@ const AuditLogs = () => {
                                         <p className="text-sm text-slate-blue mt-0.5">{selectedActorUser.email}</p>
                                         <div className="flex gap-1.5 mt-1.5 flex-wrap">
                                             {selectedActorUser.roles?.map((r, idx) => (
-                                                <span key={idx} className="text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
+                                                <span data-ui-text="badge" key={idx} className="text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold">
                                                     {typeof r === 'string' ? r : (r.roleName || r.name || r.roleCode || r.code)}
                                                 </span>
                                             ))}
@@ -901,7 +823,7 @@ const AuditLogs = () => {
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                                             <div>
                                                 <span className="text-slate-blue block text-xs">Trạng thái:</span>
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
                                                     selectedActorUser.accountStatus === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                                                 }`}>
                                                     {selectedActorUser.accountStatus === 'active' ? 'Hoạt động' : 'Bị khóa'}
@@ -917,7 +839,7 @@ const AuditLogs = () => {
                                             </div>
                                             <div>
                                                 <span className="text-slate-blue block text-xs">Hồ sơ khuôn mặt:</span>
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${
                                                     selectedActorUser.hasFaceProfile ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
                                                 }`}>
                                                     {selectedActorUser.hasFaceProfile ? 'Đã đăng ký' : 'Chưa đăng ký'}

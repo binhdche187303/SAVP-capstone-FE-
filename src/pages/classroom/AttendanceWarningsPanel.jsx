@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Info, Loader2, Search } from 'lucide-react';
 import StatCard from '../../components/common/StatCard';
 import Pagination from '../../components/common/Pagination';
+import PaginationFooter from '../../components/common/PaginationFooter';
 import { fetchAttendanceWarnings } from '../../service/classAttendanceService';
 
 export const WARNING_LEVELS = {
@@ -16,7 +17,6 @@ const LEVEL_FILTERS = {
     near: { label: 'Gần ngưỡng', test: (r) => r.level === 'near' }
 };
 
-const ROWS_PER_PAGE = 10;
 
 export const WarningBadge = ({ level }) => {
     const item = WARNING_LEVELS[level] || WARNING_LEVELS.ok;
@@ -42,6 +42,7 @@ const AttendanceWarningsPanel = ({ semester, subjectCode, administrativeClass, o
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState('all');
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         let cancelled = false;
@@ -65,10 +66,10 @@ const AttendanceWarningsPanel = ({ semester, subjectCode, administrativeClass, o
                 || (r.classCode || '').toLowerCase().includes(q));
     }, [allRows, filter, query]);
     const summary = data?.summary;
-    const pageCount = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
+    const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
     const visibleRows = useMemo(
-        () => rows.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE),
-        [rows, page]
+        () => rows.slice((page - 1) * pageSize, page * pageSize),
+        [rows, page, pageSize]
     );
 
     // Đổi bộ lọc / tìm kiếm / dữ liệu → về trang 1.
@@ -173,14 +174,15 @@ const AttendanceWarningsPanel = ({ semester, subjectCode, administrativeClass, o
                         </tbody>
                     </table>
                 </div>
-                {!loading && rows.length > 0 && (
-                    <div className="px-5 py-3 border-t border-platinum-tint flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <PaginationFooter currentPage={page} totalPages={pageCount} totalItems={rows.length}
+                    pageSize={pageSize} visibleCount={visibleRows.length} loading={loading} itemLabel="sinh viên"
+                    onPageChange={setPage} onPageSizeChange={size => { setPageSize(size); setPage(1); }}
+                    legacy={!loading && rows.length > 0 ? (<div className="px-5 py-3 border-t border-platinum-tint flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <span className="text-[11px] text-slate-blue">
-                            Hiển thị {(page - 1) * ROWS_PER_PAGE + 1}–{Math.min(page * ROWS_PER_PAGE, rows.length)} trong {rows.length} sinh viên
+                            Hiển thị {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, rows.length)} trong {rows.length} sinh viên
                         </span>
                         <Pagination currentPage={page} totalPages={pageCount} onPageChange={setPage} />
-                    </div>
-                )}
+                    </div>) : null} />
             </div>
         </div>
     );

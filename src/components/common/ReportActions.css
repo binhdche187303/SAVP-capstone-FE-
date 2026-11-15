@@ -1,0 +1,9 @@
+.camai-report-actions {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    align-items: center;
+    align-self: center;
+    gap: 8px;
+    max-width: 100%;
+}

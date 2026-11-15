@@ -1,3 +1,5 @@
+jest.mock('../../config/featureFlags', () => ({ VISITOR_MOCK_ENABLED: true, REPORT_MOCK_ENABLED: true, ANY_DEMO_DATA: true }));
+
 // src/mocks/visitorReport/exporters.test.js
 import { EMPTY_TEXT, buildFileName, buildExportModel, buildWorkbook, buildReportHtml, runExport } from './exporters';
 import { getReportDefinition } from '../../config/reportDefinitions';

@@ -25,11 +25,11 @@ export const UEL_SYNC_MOCK_ENABLED = process.env.NODE_ENV !== 'production'
     && process.env.REACT_APP_UEL_SYNC_MOCK === 'true';
 /**
  * Lịch họp cá nhân (/…/my-schedule) chạy bằng dữ liệu giả cho tới khi có API lịch VPĐT.
- * Mặc định BẬT ở bản dev; đặt REACT_APP_MEETING_CALENDAR_MOCK=false để gọi API thật /me/schedule.
+ * Chỉ bật minh họa khi REACT_APP_MEETING_CALENDAR_MOCK=true; mặc định dùng API thật /me/schedule.
  * Bản build production luôn tắt.
  */
 export const MEETING_CALENDAR_MOCK_ENABLED = process.env.NODE_ENV !== 'production'
-    && process.env.REACT_APP_MEETING_CALENDAR_MOCK !== 'false';
+    && process.env.REACT_APP_MEETING_CALENDAR_MOCK === 'true';
 /**
  * Đăng ký lịch họp trên SAVP. Đặt false để ẩn nút/menu "Đăng ký họp" (khi lịch họp chỉ lấy từ VPĐT);
  * route và trang BookMeeting luôn giữ nguyên.

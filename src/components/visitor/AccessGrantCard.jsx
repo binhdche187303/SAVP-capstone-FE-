@@ -1,3 +1,4 @@
+import DateInput from '../common/DateInput';
 import { Camera, CameraOff, ChevronDown, DoorOpen, Lock } from 'lucide-react';
 import { inputCls, labelCls } from '../common/uiClasses';
 import { fmtDateTime, toLocalInput, fromLocalInput, ZONE_VISITOR_POLICY_LABELS } from './visitLabels';
@@ -33,8 +34,8 @@ const AccessGrantCard = ({ access, zones = [], editable = false, onChange, showV
                 <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${noCamera(zone) ? 'text-amber-600' : 'text-slate-blue'}`} />
                 <span className="font-semibold">{zone.name}</span>
                 {zone.visitorPolicy === 'restricted' && <Lock className="w-3 h-3 text-red-600" aria-label="Khu hạn chế" />}
-                <span className={`text-[11px] ${noCamera(zone) ? 'text-amber-700' : 'text-slate-blue'}`}>{device}</span>
-                {policyNote && <span className="text-[10px] text-slate-blue italic">· {policyNote}</span>}
+                <span data-ui-text="secondary" className={`text-[11px] ${noCamera(zone) ? 'text-amber-700' : 'text-slate-blue'}`}>{device}</span>
+                {policyNote && <span data-ui-text="secondary" className="text-[10px] text-slate-blue italic">· {policyNote}</span>}
             </>
         );
         if (!editable) return <div key={zone.id} className="flex items-center gap-2 text-xs text-midnight-indigo">{body}</div>;
@@ -57,11 +58,11 @@ const AccessGrantCard = ({ access, zones = [], editable = false, onChange, showV
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                         <label className={labelCls} htmlFor="access-from">Hiệu lực từ</label>
-                        <input id="access-from" type="datetime-local" className={`${inputCls} w-full`} value={toLocalInput(access.validFrom)} onChange={(e) => onChange({ ...access, validFrom: fromLocalInput(e.target.value) })} />
+                        <DateInput id="access-from" type="datetime-local" className={`${inputCls} w-full`} value={toLocalInput(access.validFrom)} onChange={(e) => onChange({ ...access, validFrom: fromLocalInput(e.target.value) })} />
                     </div>
                     <div className="space-y-1">
                         <label className={labelCls} htmlFor="access-to">Hiệu lực đến</label>
-                        <input id="access-to" type="datetime-local" className={`${inputCls} w-full`} value={toLocalInput(access.validTo)} onChange={(e) => onChange({ ...access, validTo: fromLocalInput(e.target.value) })} />
+                        <DateInput id="access-to" type="datetime-local" className={`${inputCls} w-full`} value={toLocalInput(access.validTo)} onChange={(e) => onChange({ ...access, validTo: fromLocalInput(e.target.value) })} />
                     </div>
                 </div>
             ) : access.validFrom && access.validTo ? (
@@ -70,7 +71,7 @@ const AccessGrantCard = ({ access, zones = [], editable = false, onChange, showV
                 </p>
             ) : null}
             <div className="space-y-1.5">
-                <span className={labelCls}>{editable ? 'Khu vực được phép' : 'Khu vực đã cấp'}</span>
+                <span data-ui-text="label" className={labelCls}>{editable ? 'Khu vực được phép' : 'Khu vực đã cấp'}</span>
                 {editable ? (
                     <details className="relative">
                         <summary className={`${inputCls} flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold`}>
@@ -80,7 +81,7 @@ const AccessGrantCard = ({ access, zones = [], editable = false, onChange, showV
                         <div className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-platinum-tint bg-white p-2 shadow-lg space-y-2">
                             {groupsOf(zones).map((g) => (
                                 <div key={g.title} className="space-y-0.5">
-                                    <span className={labelCls}>{g.title}</span>
+                                    <span data-ui-text="label" className={labelCls}>{g.title}</span>
                                     {g.items.map(renderZone)}
                                 </div>
                             ))}
@@ -89,7 +90,7 @@ const AccessGrantCard = ({ access, zones = [], editable = false, onChange, showV
                 ) : selectedZones.length ? selectedZones.map(renderZone) : <p className="text-xs text-slate-blue">Chưa cấp khu vực</p>}
             </div>
             {editable && (
-                <p className="text-[11px] text-slate-blue">
+                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">
                     Camera thấy khách ở khu không được tích sẽ cảnh báo bảo vệ và báo cho người được gặp.
                     {!canManage && zones.some((z) => z.visitorPolicy === 'restricted') && ' Khu có biểu tượng khóa chỉ quản lý khách / an ninh mới cấp được.'}
                 </p>

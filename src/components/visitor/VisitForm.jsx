@@ -1,3 +1,4 @@
+import DateInput from '../common/DateInput';
 import { useState } from 'react';
 import { inputCls, btnPrimary } from '../common/uiClasses';
 import { fromLocalInput } from './visitLabels';
@@ -77,10 +78,10 @@ const VisitForm = ({ mode, lookups = {}, onSubmit, submitting, error }) => {
                     <input id="vf-companions" type="number" min="0" max="20" className={full} value={companions} onChange={(e) => setCompanions(e.target.value)} />
                 </Field>
                 <Field label="Bắt đầu" htmlFor="vf-from" required>
-                    <input id="vf-from" type="datetime-local" className={full} value={schedule.scheduledFrom} onChange={(e) => setSchedule((s) => ({ ...s, scheduledFrom: e.target.value }))} />
+                    <DateInput id="vf-from" type="datetime-local" className={full} value={schedule.scheduledFrom} onChange={(e) => setSchedule((s) => ({ ...s, scheduledFrom: e.target.value }))} />
                 </Field>
                 <Field label="Kết thúc" htmlFor="vf-to" required>
-                    <input id="vf-to" type="datetime-local" className={full} value={schedule.scheduledTo} onChange={(e) => setSchedule((s) => ({ ...s, scheduledTo: e.target.value }))} />
+                    <DateInput id="vf-to" type="datetime-local" className={full} value={schedule.scheduledTo} onChange={(e) => setSchedule((s) => ({ ...s, scheduledTo: e.target.value }))} />
                 </Field>
             </div>
 
@@ -104,7 +105,7 @@ const VisitForm = ({ mode, lookups = {}, onSubmit, submitting, error }) => {
                     </label>
                 </>
             ) : (
-                <p className="text-[11px] text-slate-blue">Khách được mời chưa có ảnh khuôn mặt; bảo vệ sẽ chụp bổ sung khi khách đến.</p>
+                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Khách được mời chưa có ảnh khuôn mặt; bảo vệ sẽ chụp bổ sung khi khách đến.</p>
             )}
 
             {error && <p className="text-xs text-red-600" role="alert">{error}</p>}

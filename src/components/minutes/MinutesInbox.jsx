@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import RefreshButton from '../common/RefreshButton';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, Clock, Eye, FileText, MapPin, PenLine, RefreshCw, RotateCcw, Send, X } from 'lucide-react';
@@ -107,9 +108,9 @@ const MinutesInbox = ({ onOpenMinutes, onCount }) => {
     return (
         <div className="space-y-3">
             <div className="flex justify-end">
-                <button onClick={load} className="flex items-center gap-1.5 text-xs font-bold text-slate-blue hover:text-midnight-indigo">
+                <RefreshButton onClick={load} legacyClassName="flex items-center gap-1.5 text-xs font-bold text-slate-blue hover:text-midnight-indigo">
                     <RefreshCw className="w-3.5 h-3.5" /> Làm mới
-                </button>
+                </RefreshButton>
             </div>
             {items.map((it) => {
                 const st = STAGE[it.stage];
@@ -122,11 +123,11 @@ const MinutesInbox = ({ onOpenMinutes, onCount }) => {
                         <div className="flex flex-col md:flex-row md:items-center gap-3">
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap mb-1">
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
-                                    {it.mine && <span className="text-[10px] font-bold text-action-blue">Đến lượt bạn</span>}
+                                    <span data-ui-text="badge" className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>
+                                    {it.mine && <span data-ui-text="primary" className="text-[10px] font-bold text-action-blue">Đến lượt bạn</span>}
                                 </div>
-                                <p className="text-sm font-bold text-midnight-indigo truncate">{it.title}</p>
-                                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11px] text-slate-blue">
+                                <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo truncate">{it.title}</p>
+                                <div data-ui-text="secondary" className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11px] text-slate-blue">
                                     <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{fmt(it.startTime)}</span>
                                     {it.roomName && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{it.roomName}</span>}
                                     <span>Thư ký: <b>{it.secretaryName || '—'}</b></span>
@@ -263,8 +264,8 @@ const MinutesInbox = ({ onOpenMinutes, onCount }) => {
                     <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-xl">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-platinum-tint">
                             <div className="min-w-0">
-                                <p className="text-sm font-bold text-midnight-indigo truncate">Sửa biên bản · {editing.item.title}</p>
-                                <p className="text-[11px] text-slate-blue">Phiên bản {editing.minutes.versionNo}</p>
+                                <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo truncate">Sửa biên bản · {editing.item.title}</p>
+                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Phiên bản {editing.minutes.versionNo}</p>
                             </div>
                             <button onClick={() => setEditing(null)} className="p-1.5 rounded-lg hover:bg-cloud-mist"><X className="w-4 h-4" /></button>
                         </div>

@@ -73,11 +73,11 @@ const StationRecorder = ({ meetingId, meetingTitle, participants, onUploadSucces
                                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                                 </span>
                             )}
-                            <span className={`font-mono font-bold text-sm tracking-wide ${isPaused ? 'text-amber-600' : 'text-red-600'}`}>
+                            <span data-ui-text="primary" className={`font-mono font-bold text-sm tracking-wide ${isPaused ? 'text-amber-600' : 'text-red-600'}`}>
                                 {formatTime(recordingTime)}
                             </span>
                             {isPaused && (
-                                <span className="text-[9px] font-extrabold text-amber-600 uppercase tracking-wider">Tạm dừng</span>
+                                <span data-ui-text="label" className="text-[9px] font-extrabold text-amber-600 uppercase tracking-wider">Tạm dừng</span>
                             )}
                         </div>
 
@@ -115,7 +115,7 @@ const StationRecorder = ({ meetingId, meetingTitle, participants, onUploadSucces
                             </button>
                         </div>
 
-                        <p className="text-[9px] text-slate-blue font-medium text-center leading-tight">
+                        <p data-ui-text="secondary" className="text-[9px] text-slate-blue font-medium text-center leading-tight">
                             Tạm dừng rồi ghi tiếp vẫn chỉ ra <span className="font-extrabold">một file ghi âm duy nhất</span>.
                         </p>
                     </div>
@@ -124,7 +124,7 @@ const StationRecorder = ({ meetingId, meetingTitle, participants, onUploadSucces
 
             {/* Error Message */}
             {error && (
-                <div className="text-red-500 text-[10px] font-semibold bg-red-50 px-2.5 py-1.5 rounded border border-red-100">
+                <div data-ui-text="badge" className="text-red-500 text-[10px] font-semibold bg-red-50 px-2.5 py-1.5 rounded border border-red-100">
                     {error}
                 </div>
             )}
@@ -135,18 +135,18 @@ const StationRecorder = ({ meetingId, meetingTitle, participants, onUploadSucces
             {LIVE_SPEAKER_TAGGING_ENABLED && isRecording && (
                 <div className="flex flex-col gap-2 border-t border-platinum-tint/60 pt-3">
                     <div className="flex items-center justify-between">
-                        <div className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">
+                        <div data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">
                             Đã đánh dấu: <span className="text-midnight-indigo font-extrabold ml-1">{marksCount}</span>
                         </div>
                         {showToast && (
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 animate-fade-in-up">
+                            <div data-ui-text="primary" className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 animate-fade-in-up">
                                 <Check className="w-3 h-3" /> Đã gán
                             </div>
                         )}
                     </div>
 
                     {!showParticipantSelect ? (
-                        <button
+                        <button data-ui-text="action"
                             onClick={() => setShowParticipantSelect(true)}
                             className="flex items-center justify-center w-full gap-1.5 px-3 py-2 bg-cloud-mist border border-platinum-tint hover:bg-pale-gray text-midnight-indigo rounded-lg text-[11px] font-bold transition-colors"
                         >

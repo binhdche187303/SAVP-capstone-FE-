@@ -1,0 +1,96 @@
+/* The five operational roles share the same controls, including nested tables. */
+.camai-pagination-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    padding: 16px 24px;
+    border-top: 1px solid #D4E0ED;
+    background: #FAFBFD;
+    font-family: inherit;
+    font-size: 14px;
+    min-width: 0;
+}
+.camai-pagination-size {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    flex-wrap: wrap;
+    max-width: 100%;
+    white-space: normal;
+    color: #476788;
+    font-size: 12px;
+    font-weight: 600;
+}
+.camai-pagination-size-select {
+    width: 88px;
+    height: 32px;
+    padding: 4px 8px;
+    border: 1px solid #D4E0ED;
+    border-radius: 8px;
+    background: #FFF;
+    color: #476788;
+    font-family: inherit;
+    font-size: 12px;
+}
+@media (max-width: 639px) {
+    .camai-pagination-footer { padding: 16px; }
+}
+nav[data-pagination="standard"] {
+    min-width: 0;
+    max-width: 100%;
+    gap: 6px;
+    align-items: center;
+    font-family: inherit;
+    color: #476788;
+}
+
+nav[data-pagination="standard"] button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 32px;
+    height: 32px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 20px !important;
+}
+
+nav[data-pagination="standard"] button.w-7 {
+    width: 32px;
+    padding: 0;
+}
+
+nav[data-pagination="standard"] > span {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 20px;
+}
+
+/* Keep text navigation identical in narrow panels and align wrapped controls to the right. */
+.camai-pagination-footer > nav[data-pagination="standard"] {
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+/* Pagination inside a red warning panel shares its background and status color. */
+.camai-pagination-footer[data-pagination-tone="danger"] {
+    background: transparent;
+    border-color: #FECACA;
+    padding: 12px 0 0;
+}
+.camai-pagination-footer[data-pagination-tone="danger"] .text-slate-blue,
+.camai-pagination-footer[data-pagination-tone="danger"] nav { color: #B91C1C; }
+.camai-pagination-footer[data-pagination-tone="danger"] nav button {
+    color: #B91C1C; border-color: #FECACA; background: #FFF5F5;
+}
+.camai-pagination-footer[data-pagination-tone="danger"] nav button[aria-current="page"] {
+    color: #FFF; background: #DC2626; border-color: #DC2626;
+}

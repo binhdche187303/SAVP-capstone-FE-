@@ -1,3 +1,8 @@
+import TableColumns from '../common/TableColumns';
+import ResponsiveTable from '../common/ResponsiveTable';
+import FilterBar, { FilterField } from '../common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../common/PaginationFooter';
+import RefreshButton from '../common/RefreshButton';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Database, LogIn, LogOut, RefreshCw, Search, ShieldQuestion } from 'lucide-react';
 import { getMeetingAccessEvents } from '../../service/managerServices';
@@ -41,6 +46,7 @@ const buildMockEvents = () => {
 };
 
 const MeetingAccessLogTab = ({ meetingId }) => {
+    const [pageSize, setPageSize] = useState(10);
     const [data, setData] = useState({ events: [], roomName: null });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -49,7 +55,7 @@ const MeetingAccessLogTab = ({ meetingId }) => {
     const [directionFilter, setDirectionFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [page, setPage] = useState(1);
-    const pageSize = 5;
+
 
     const refresh = useCallback(async () => {
         setError('');
@@ -112,9 +118,13 @@ const MeetingAccessLogTab = ({ meetingId }) => {
                 <div>
                     <h3 className="text-sm font-bold text-midnight-indigo">Nhật ký ra/vào phòng họp</h3>
                 </div>
-                <button onClick={refresh} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-platinum-tint text-xs font-bold text-slate-blue hover:text-action-blue hover:border-action-blue">
+                <RefreshButton
+                    onClick={refresh}
+                    legacyClassName="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-platinum-tint text-xs font-bold text-slate-blue hover:text-action-blue hover:border-action-blue"
+                    busy={loading}
+                >
                     <RefreshCw className="w-3.5 h-3.5" /> Làm mới
-                </button>
+                </RefreshButton>
                 {process.env.NODE_ENV !== 'production' && (
                     <button
                         onClick={() => setMockEnabled((enabled) => !enabled)}
@@ -126,25 +136,25 @@ const MeetingAccessLogTab = ({ meetingId }) => {
                 )}
             </div>
 
-            {error && <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">{error}</div>}
+            {error && <div data-ui-text="badge" className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">{error}</div>}
 
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-platinum-tint bg-white p-3">
+            <FilterBar variant="card" className="flex flex-wrap items-center gap-2 rounded-xl border border-platinum-tint bg-white p-3">
                 <label className="relative min-w-[180px] flex-1">
                     <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-blue" />
                     <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên người" className="w-full rounded-lg border border-platinum-tint py-2 pl-9 pr-3 text-xs text-midnight-indigo outline-none focus:border-action-blue" />
                 </label>
-                <select value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value)} className="rounded-lg border border-platinum-tint bg-white px-3 py-2 text-xs font-semibold text-slate-blue outline-none focus:border-action-blue">
+                <FilterField label="Hướng di chuyển"><select value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value)} className="rounded-lg border border-platinum-tint bg-white px-3 py-2 text-xs font-semibold text-slate-blue outline-none focus:border-action-blue">
                     <option value="all">Tất cả sự kiện</option>
                     <option value="enter">Vào phòng</option>
                     <option value="leave">Ra khỏi phòng</option>
-                </select>
-                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border border-platinum-tint bg-white px-3 py-2 text-xs font-semibold text-slate-blue outline-none focus:border-action-blue">
+                </select></FilterField>
+                <FilterField label="Trạng thái"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border border-platinum-tint bg-white px-3 py-2 text-xs font-semibold text-slate-blue outline-none focus:border-action-blue">
                     <option value="all">Tất cả trạng thái</option>
                     <option value="verified">Đã xác minh</option>
                     <option value="review">Cần kiểm tra</option>
                     <option value="stranger">Chưa xác định</option>
-                </select>
-            </div>
+                </select></FilterField>
+            </FilterBar>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <SharedStatCard tone="green" label="Đang trong phòng" value={<>{currentPeople.length} <span className="text-xs font-medium">người</span></>} />
@@ -154,7 +164,8 @@ const MeetingAccessLogTab = ({ meetingId }) => {
 
             <div className="border border-platinum-tint rounded-xl overflow-hidden bg-white">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
+                    <ResponsiveTable className="w-full text-left text-xs">
+<TableColumns widths={[17, 29, 12, 18, 14, 10]} />
                         <thead className="bg-cloud-mist text-slate-blue font-bold text-[11px]">
                             <tr><th className="p-3">Thời gian</th><th className="p-3">Người</th><th className="p-3">Sự kiện</th><th className="p-3">Zone / phòng</th><th className="p-3">Camera</th><th className="p-3">Trạng thái</th></tr>
                         </thead>
@@ -167,16 +178,23 @@ const MeetingAccessLogTab = ({ meetingId }) => {
                                     <td className="p-3 font-semibold text-midnight-indigo">{event.fullName || 'Chưa rõ'}</td>
                                     <td className="p-3"><span className={`inline-flex items-center gap-1 font-bold ${entering ? 'text-emerald-700' : 'text-orange-700'}`}>{entering ? <LogIn className="w-3.5 h-3.5" /> : <LogOut className="w-3.5 h-3.5" />}{entering ? 'Vào phòng' : event.direction === 'leave' ? 'Ra khỏi phòng' : 'Ghi nhận'}</span></td>
                                     <td className="p-3 text-slate-blue">{event.zoneName || data.roomName || 'Chưa xác định'}</td>
-                                    <td className="p-3 text-slate-blue">{event.cameraName || event.cameraId || 'Chưa xác định'}{event.cameraGroupName && <div className="text-[10px]">Nhóm: {event.cameraGroupName}</div>}</td>
-                                    <td className="p-3"><span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-bold ${status.className}`}>{event.isStranger ? <ShieldQuestion className="w-3 h-3" /> : event.isUnmatched ? <AlertTriangle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}{status.label}</span></td>
+                                    <td className="p-3 text-slate-blue">{event.cameraName || event.cameraId || 'Chưa xác định'}{event.cameraGroupName && <div data-ui-text="secondary" className="text-[10px]">Nhóm: {event.cameraGroupName}</div>}</td>
+                                    <td className="p-3"><span data-ui-text="badge" className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-bold ${status.className}`}>{event.isStranger ? <ShieldQuestion className="w-3 h-3" /> : event.isUnmatched ? <AlertTriangle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}{status.label}</span></td>
                                 </tr>;
                             })}
                             {!paginatedEvents.length && <tr><td colSpan="6" className="p-8 text-center text-slate-blue">Không có sự kiện phù hợp.</td></tr>}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
-                {filteredEvents.length > 0 && (
-                    <div className="flex items-center justify-between border-t border-platinum-tint px-3 py-2">
+                {<PaginationRegion legacyVisible={filteredEvents.length > 0}><PaginationFooter
+                        currentPage={page}
+                        totalPages={totalPages}
+                        totalItems={filteredEvents.length}
+                        pageSize={pageSize}
+                        onPageChange={setPage}
+                        itemLabel={"sự kiện"}
+                        loading={loading}
+                        legacy={<div className="flex items-center justify-between border-t border-platinum-tint px-3 py-2">
                         <span className="text-[11px] text-slate-blue">Hiển thị {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredEvents.length)} / {filteredEvents.length}</span>
                         <div className="flex items-center gap-1">
                             <button type="button" onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={page === 1} aria-label="Trang trước" className="rounded-md border border-platinum-tint p-1.5 text-slate-blue hover:text-action-blue disabled:cursor-not-allowed disabled:opacity-40">
@@ -187,8 +205,8 @@ const MeetingAccessLogTab = ({ meetingId }) => {
                                 <ChevronRight className="h-3.5 w-3.5" />
                             </button>
                         </div>
-                    </div>
-                )}
+                    </div>}
+                     onPageSizeChange={size => { setPageSize(size); setPage(1); }} /></PaginationRegion>}
             </div>
         </div>
     );

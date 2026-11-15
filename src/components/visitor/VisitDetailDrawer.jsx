@@ -1,3 +1,4 @@
+import DateInput from '../common/DateInput';
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
@@ -19,7 +20,7 @@ import {
 
 const Section = ({ title, children }) => (
     <section className="space-y-2">
-        <h4 className="text-[10px] font-bold text-slate-blue uppercase">{title}</h4>
+        <h4 data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase">{title}</h4>
         {children}
     </section>
 );
@@ -176,7 +177,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                 <div className="rounded-xl border border-action-blue/30 bg-blue-50/40 p-4 space-y-3">
                                     {action === 'access' && (
                                         <>
-                                            <p className="text-xs font-semibold text-midnight-indigo">Chọn cổng và khu vực khách được đi vào</p>
+                                            <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">Chọn cổng và khu vực khách được đi vào</p>
                                             <AccessGrantCard access={access} zones={zones} editable zonesOnly canManage={canGrantRestricted} onChange={setAccess} />
                                         </>
                                     )}
@@ -189,12 +190,12 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                     {action === 'extend' && (
                                         <div className="space-y-1">
                                             <label className={labelCls} htmlFor="visit-extend-to">Hiệu lực mới đến</label>
-                                            <input id="visit-extend-to" type="datetime-local" className={`${inputCls} w-full`} value={extendTo} onChange={(e) => setExtendTo(e.target.value)} />
+                                            <DateInput id="visit-extend-to" type="datetime-local" className={`${inputCls} w-full`} value={extendTo} onChange={(e) => setExtendTo(e.target.value)} />
                                         </div>
                                     )}
                                     {action === 'reassign' && (
                                         <div className="space-y-2">
-                                            <p className="text-xs font-semibold text-midnight-indigo">Người được gặp vắng / chưa phản hồi — chọn người khác duyệt thay.</p>
+                                            <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">Người được gặp vắng / chưa phản hồi — chọn người khác duyệt thay.</p>
                                             <label className={labelCls} htmlFor="visit-reassign-q">Tìm người duyệt mới</label>
                                             <input id="visit-reassign-q" className={`${inputCls} w-full`} placeholder="Tên hoặc phòng ban" value={hostQuery} onChange={(e) => findHosts(e.target.value)} />
                                             <div className="max-h-40 overflow-y-auto space-y-1">
@@ -213,7 +214,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                     {action === 'photo' && <FaceCapture value={photo} onChange={setPhoto} />}
                                     {action === 'close' && (
                                         <div className="space-y-3">
-                                            <p className="text-xs font-semibold text-midnight-indigo">Vì sao đóng lượt mà không có lượt ra tại cổng?</p>
+                                            <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">Vì sao đóng lượt mà không có lượt ra tại cổng?</p>
                                             {Object.entries(CLOSE_REASON_LABELS).map(([value, label]) => (
                                                 <label key={value} className="flex items-center gap-2 text-xs text-midnight-indigo">
                                                     <input type="radio" name="close-reason" checked={closeForm.reason === value} onChange={() => setCloseForm((f) => ({ ...f, reason: value }))} />
@@ -223,7 +224,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
                                             {closeForm.reason === 'left_unrecorded' && (
                                                 <div className="space-y-1">
                                                     <label className={labelCls} htmlFor="visit-close-exit">Giờ ra ước tính</label>
-                                                    <input id="visit-close-exit" type="datetime-local" className={`${inputCls} w-full`} value={closeForm.exitAt} onChange={(e) => setCloseForm((f) => ({ ...f, exitAt: e.target.value }))} />
+                                                    <DateInput id="visit-close-exit" type="datetime-local" className={`${inputCls} w-full`} value={closeForm.exitAt} onChange={(e) => setCloseForm((f) => ({ ...f, exitAt: e.target.value }))} />
                                                 </div>
                                             )}
                                             <div className="space-y-1">

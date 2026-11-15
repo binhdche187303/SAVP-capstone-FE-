@@ -1,7 +1,7 @@
-import {
-    Activity, AlertTriangle, Car, CheckCircle, LogIn,
-    MapPin, RefreshCw, ShieldAlert, Wifi, WifiOff
-} from 'lucide-react';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard from '../../components/common/StatisticCard';
+import RefreshButton from '../../components/common/RefreshButton';
+import { Activity, AlertTriangle, Car, CheckCircle, LogIn, MapPin, ShieldAlert, Wifi, WifiOff } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -49,7 +49,7 @@ const D = {
 
 const GC_BASE = {
     backgroundColor: 'transparent',
-    fontName: 'inherit',
+    fontName: 'Montserrat',
     chartArea: { backgroundColor: 'transparent', width: '88%', height: '72%' },
     hAxis: {
         textStyle: { color: D.axisText, fontSize: 10 },
@@ -377,40 +377,19 @@ const GChartCard = ({ title, sub, delay = 0, accent = D.cyan, loading, empty, em
 
 // ─── KPI Tile ─────────────────────────────────────────────────────────────────
 
-// Màu icon cũ → tone thẻ chung (StatCard). Logic đếm số / hiệu ứng / thanh tiến độ giữ nguyên.
-const toneOfColor = (c) => ({ [D.red]: 'red', [D.amber]: 'amber', [D.green]: 'green', [D.purple]: 'violet', [D.muted2]: 'slate' }[c] || 'neutral');
-
 const KpiTile = ({ icon, label, value, sub, subColor, iconColor = D.cyan, delay, progress }) => {
     const [ref, inView] = useInView(0.2);
     const numericTarget = typeof value === 'number' ? value : null;
-    const counted       = useCountUp(numericTarget, inView);
-    const displayValue  = numericTarget !== null ? counted : value;
-
-    return (
-        <div
-            ref={ref}
-            style={{ transitionDelay: inView ? `${delay}ms` : '0ms' }}
-            className={`h-full transition-all duration-600 ease-out ${inView ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-6 scale-95'}`}
-        >
-            <SharedStatCard icon={icon} label={label} value={<span className="tabular-nums">{displayValue}</span>} tone={toneOfColor(iconColor)} className="h-full">
-                {progress !== undefined && (
-                    <div className="mt-2.5 h-[3px] rounded-full" style={{ background: D.borderSub }}>
-                        <div style={{
-                            height: 3, borderRadius: 99,
-                            width: inView ? `${Math.min(progress, 100)}%` : '0%',
-                            background: `linear-gradient(90deg, ${iconColor}, ${iconColor}70)`,
-                            transition: 'width 1.1s cubic-bezier(.22,1,.36,1)',
-                        }} />
-                    </div>
-                )}
-                {sub && (
-                    <p className={`text-[11px] mt-1 font-medium ${subColor ? '' : 'opacity-70'}`} style={subColor ? { color: subColor } : undefined}>
-                        {sub}
-                    </p>
-                )}
-            </SharedStatCard>
-        </div>
-    );
+    const counted = useCountUp(numericTarget, inView);
+    const tone = iconColor === D.red ? 'danger' : iconColor === D.amber ? 'warning' : iconColor === D.green ? 'success' : 'default';
+    return <div ref={ref} className="h-full min-w-0" style={{ transitionDelay: inView ? `${delay || 0}ms` : '0ms' }}>
+        <StatisticCard extraPosition="footer" icon={icon} label={label} value={numericTarget !== null ? counted : value} tone={tone}
+            helper={sub && <span style={{ color: subColor }}>{sub}</span>}>
+            {progress !== undefined && <div className="h-1 rounded-full bg-cloud-mist overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: inView ? `${Math.min(100, Math.max(0, progress))}%` : '0%', background: iconColor }} />
+            </div>}
+        </StatisticCard>
+    </div>;
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -696,23 +675,11 @@ const DashBoard = () => {
                         </p>
                     </div>
 
-                    <button
+                    <RefreshButton
                         onClick={fetchAll}
                         disabled={loading}
-                        style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 8,
-                            padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                            background: D.blue, color: '#ffffff',
-                            border: 'none',
-                            cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
-                            transition: 'all 0.2s', flexShrink: 0,
-                            boxShadow: `0 2px 8px ${D.blue}40`,
-                        }}
-                    >
-                        <RefreshCw style={{ width: 15, height: 15 }}
-                                   className={loading ? 'animate-spin' : ''} />
-                        Làm mới
-                    </button>
+                        busy={loading}
+                    />
                 </div>
             </ScrollReveal>
 
@@ -732,7 +699,7 @@ const DashBoard = () => {
             )}
 
             {/* ── KPI Tiles ─────────────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <StatisticGrid columns={6} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <KpiTile delay={0}   icon={Wifi}        label="Thiết bị Online"
                     value={loading ? '—' : kpi.devicesOnline}
                     sub={loading ? '' : `/ ${kpi.devicesTotal} thiết bị`}
@@ -759,7 +726,7 @@ const DashBoard = () => {
                     sub={kpi.vehicleHitsToday > 0 ? 'Blocklist / Watchlist' : 'Không có khớp'}
                     iconColor={kpi.vehicleHitsToday > 0 ? D.amber : D.muted2}
                     subColor={kpi.vehicleHitsToday > 0 ? '#B45309' : D.muted} />
-            </div>
+            </StatisticGrid>
 
             {/* ── Hiện diện theo khu vực (2.12) ─────────────────────────────── */}
             <ZonePresenceTable />

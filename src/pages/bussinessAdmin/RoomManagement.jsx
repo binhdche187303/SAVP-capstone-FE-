@@ -1,15 +1,17 @@
-import {
-    AlertCircle, ArrowLeft, Calendar, CheckCircle,
-    ChevronLeft, ChevronRight, Clock, DoorOpen, Edit2, Eye,
-    Home, MapPin, Mic, Monitor, Plus, RefreshCw,
-    Trash2, Users, Video, Wrench, X
-} from 'lucide-react';
+import './RoomManagement.css';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Clock, DoorOpen, Edit2, Eye, Home, MapPin, Mic, Monitor, Plus, Trash2, Users, Video, Wrench, X } from 'lucide-react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
     getRooms,
+    getRoomFilterOptions,
     createRoom,
     updateRoom,
     deleteRoom,
@@ -85,7 +87,7 @@ const STATUS_CONFIG = {
 const getStatus = (room) => room.currentStatus || room.roomStatus || 'available';
 
 const AmenityBadge = ({ active, icon: Icon, label }) => (
-    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${active ? 'bg-blue-50 text-action-blue border-blue-200' : 'bg-gray-50 text-steel-gray border-gray-200 opacity-40'
+    <span data-ui-text="secondary" className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${active ? 'bg-blue-50 text-action-blue border-blue-200' : 'bg-gray-50 text-steel-gray border-gray-200 opacity-40'
         }`}>
         <Icon className="w-2.5 h-2.5" />
         {label}
@@ -120,6 +122,7 @@ const sanitizeRoomCode = (raw) => {
 };
 
 const RoomManagement = ({ readOnly = false }) => {
+    const [LIMIT, setPageLimit] = useState(10);
     const [roomsList, setRoomsList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -130,10 +133,31 @@ const RoomManagement = ({ readOnly = false }) => {
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [locationFilter, setLocationFilter] = useState('');
+    const [filterCatalog, setFilterCatalog] = useState([]);
+    const requestId = useRef(0);
+    const fetchFilterOptions = useCallback(async () => {
+        try {
+            const response = await getRoomFilterOptions();
+            if (response?.success) setFilterCatalog(response.data || []);
+        } catch { /* Room list remains available if lookup loading fails. */ }
+    }, []);
+    useEffect(() => { fetchFilterOptions(); }, [fetchFilterOptions]);
+    const locationOptions = useMemo(() => {
+        const options = new Map();
+        for (const room of filterCatalog) {
+            if (room.siteName) options.set(JSON.stringify({ siteName: room.siteName }), room.siteName);
+            if (room.areaName) {
+                const filter = { ...(room.siteName && { siteName: room.siteName }), areaName: room.areaName };
+                options.set(JSON.stringify(filter), [room.siteName, room.areaName].filter(Boolean).join(' · '));
+            }
+        }
+        return [...options].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'vi', { numeric: true }));
+    }, [filterCatalog]);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
-    const LIMIT = 12;
+
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('create');
@@ -175,6 +199,7 @@ const RoomManagement = ({ readOnly = false }) => {
                 setDetailRoom(prev => ({ ...prev, administrativeStatus: res.data?.administrativeStatus ?? status }));
                 setSuccessMessage('Đã cập nhật trạng thái phòng họp!');
                 fetchRoomsList();
+                fetchFilterOptions();
             } else {
                 setError(res?.error?.message || 'Không thể cập nhật trạng thái phòng.');
             }
@@ -186,6 +211,7 @@ const RoomManagement = ({ readOnly = false }) => {
     };
 
     const fetchRoomsList = useCallback(async () => {
+        const currentRequest = ++requestId.current;
         setLoading(true);
         setError(null);
         try {
@@ -193,9 +219,11 @@ const RoomManagement = ({ readOnly = false }) => {
                 page,
                 limit: LIMIT,
                 ...(search.trim() && { q: search.trim() }),
-                ...(statusFilter && { status: statusFilter })
+                ...(statusFilter && { status: statusFilter }),
+                ...(locationFilter && JSON.parse(locationFilter))
             };
             const res = await getRooms(params);
+            if (currentRequest !== requestId.current) return;
             if (res?.success) {
                 setRoomsList(res.data || []);
                 setTotalPages(res.meta?.totalPages || 1);
@@ -204,14 +232,13 @@ const RoomManagement = ({ readOnly = false }) => {
                 throw new Error(res?.error?.message || 'Không thể tải danh sách phòng.');
             }
         } catch (err) {
-            setError(err?.message || 'Không thể tải danh sách phòng họp.');
-            setRoomsList([]);
+            if (currentRequest === requestId.current) { setError(err?.message || 'Không thể tải danh sách phòng họp.'); setRoomsList([]); }
         } finally {
-            setLoading(false);
+            if (currentRequest === requestId.current) setLoading(false);
         }
-    }, [page, search, statusFilter]);
+    }, [page, search, statusFilter, locationFilter, LIMIT]);
 
-    useEffect(() => { fetchRoomsList(); }, [fetchRoomsList]);
+    useEffect(() => { fetchRoomsList(); return () => { requestId.current += 1; }; }, [fetchRoomsList]);
 
     useEffect(() => {
         if (successMessage) {
@@ -220,8 +247,7 @@ const RoomManagement = ({ readOnly = false }) => {
         }
     }, [successMessage]);
 
-    // Reset page on filter change
-    useEffect(() => { setPage(1); }, [search, statusFilter]);
+
 
     const handleOpenModal = (mode, room = null) => {
         setModalMode(mode);
@@ -278,6 +304,7 @@ const RoomManagement = ({ readOnly = false }) => {
                 setSuccessMessage(modalMode === 'create' ? 'Thêm phòng họp thành công!' : 'Cập nhật phòng họp thành công!');
                 setIsModalOpen(false);
                 fetchRoomsList();
+                fetchFilterOptions();
             } else {
                 setError(res?.error?.message || res?.message || 'Có lỗi xảy ra.');
             }
@@ -321,6 +348,7 @@ const RoomManagement = ({ readOnly = false }) => {
                         if (res?.success) {
                             setSuccessMessage('Đã xoá phòng họp thành công!');
                             fetchRoomsList();
+                fetchFilterOptions();
                         } else {
                             setError(res?.error?.message || 'Không thể xoá phòng họp.');
                         }
@@ -363,14 +391,18 @@ const RoomManagement = ({ readOnly = false }) => {
                                 </p>
                             </div>
                         </div>
-                        <div className="max-h-56 overflow-y-auto rounded-xl border border-platinum-tint divide-y divide-platinum-tint">
-                            {deleteImpactModal.blockingMeetings.map((m) => (
+                        <PaginatedCollection items={deleteImpactModal?.blockingMeetings} itemLabel="cuộc họp">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="max-h-56 overflow-y-auto rounded-xl border border-platinum-tint divide-y divide-platinum-tint">
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((m) => (
                                 <div key={m.id} className="p-3 text-xs">
                                     <p className="font-bold text-midnight-indigo">{m.title}</p>
                                     <p className="text-slate-blue mt-0.5">{formatTimeRange(m.startTime, m.endTime)}</p>
                                 </div>
-                            ))}
+                            ))(camaiRecord, camaiStartIndex + camaiIndex, (deleteImpactModal.blockingMeetings)))}
                         </div>
+)}
+</PaginatedCollection>
                         <div className="flex justify-end">
                             <button
                                 onClick={() => setDeleteImpactModal(null)}
@@ -387,7 +419,7 @@ const RoomManagement = ({ readOnly = false }) => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <DoorOpen className="w-3.5 h-3.5" />
                         Phòng họp
                     </span>
@@ -421,17 +453,21 @@ const RoomManagement = ({ readOnly = false }) => {
 
                 <>
                     {/* Filters */}
-                    <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-1 flex flex-col sm:flex-row gap-3">
-                        <input
+                    <FilterBar variant="card" data-filter-grid className="room-management-filters grid gap-4">
+                        <FilterField label="Tìm kiếm"><input
                             type="text"
-                            placeholder="Tìm kiếm theo tên phòng, mã phòng, toà nhà..."
+                            placeholder="Tên, mã phòng, tòa nhà..." title="Tìm kiếm theo tên phòng, mã phòng, toà nhà"
                             value={search}
-                            onChange={e => setSearch(e.target.value)}
+                            onChange={e => { setSearch(e.target.value); setPage(1); }}
                             className="px-4 py-2 flex-1 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
-                        />
-                        <select
+                        /></FilterField>
+                        <FilterField label="Vị trí"><select value={locationFilter} onChange={e => { setLocationFilter(e.target.value); setPage(1); }}>
+                            <option value="">Tất cả vị trí</option>
+                            {locationOptions.map(location => <option key={location.value} value={location.value}>{location.label}</option>)}
+                        </select></FilterField>
+                        <FilterField label="Trạng thái"><select
                             value={statusFilter}
-                            onChange={e => setStatusFilter(e.target.value)}
+                            onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
                             className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-slate-blue font-medium min-w-[160px]"
                         >
                             <option value="">Tất cả trạng thái</option>
@@ -440,14 +476,12 @@ const RoomManagement = ({ readOnly = false }) => {
                             <option value="reserved">Đã đặt trước</option>
                             <option value="maintenance">Bảo trì</option>
                             <option value="inactive">Ngừng hoạt động</option>
-                        </select>
-                        <button
-                            onClick={() => fetchRoomsList()}
-                            className="inline-flex items-center justify-center px-4 py-2 border border-platinum-tint rounded-xl text-sm font-semibold bg-white text-slate-blue hover:bg-cloud-mist"
-                        >
-                            <RefreshCw className="w-4 h-4 mr-2" /> Tải lại
-                        </button>
-                    </div>
+                        </select></FilterField>
+                        <RefreshButton
+                            onClick={() => { fetchRoomsList(); fetchFilterOptions(); }}
+                            busy={loading}
+                        />
+                    </FilterBar>
 
                     {/* Table */}
                     <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
@@ -464,7 +498,15 @@ const RoomManagement = ({ readOnly = false }) => {
                             </div>
                         ) : (
                             <div className="w-full">
-                                <table className="w-full text-left border-collapse">
+                                <ResponsiveTable className="w-full text-left border-collapse">
+<colgroup>
+<col style={{ width: '23%' }} />
+<col style={{ width: '18%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '20%' }} />
+<col style={{ width: '14%' }} />
+<col style={{ width: '15%' }} />
+</colgroup>
                                     <thead>
                                         <tr className="border-b border-platinum-tint bg-cloud-mist/50">
                                             <th className="py-3 px-3 text-[11px] font-bold text-slate-blue uppercase tracking-wide whitespace-nowrap">Phòng họp</th>
@@ -488,15 +530,15 @@ const RoomManagement = ({ readOnly = false }) => {
                                                                 <Home className="w-3.5 h-3.5 text-action-blue" />
                                                             </div>
                                                             <div>
-                                                                <p className="text-xs font-bold text-midnight-indigo leading-tight whitespace-nowrap">{room.roomName}</p>
+                                                                <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo leading-tight whitespace-nowrap">{room.roomName}</p>
                                                                 <div className="flex items-center gap-1 mt-0.5 whitespace-nowrap">
                                                                     {room.roomCode && (
-                                                                        <span className="text-[9px] font-mono font-bold text-slate-blue bg-cloud-mist px-1.5 py-0.5 rounded border border-platinum-tint shrink-0">
+                                                                        <span data-ui-text="code" className="text-[9px] font-mono font-bold text-slate-blue bg-cloud-mist px-1.5 py-0.5 rounded border border-platinum-tint shrink-0">
                                                                             {room.roomCode}
                                                                         </span>
                                                                     )}
                                                                     {room.roomType && (
-                                                                        <span className="text-[9px] text-steel-gray shrink-0">
+                                                                        <span data-ui-text="secondary" className="text-[9px] text-steel-gray shrink-0">
                                                                             {ROOM_TYPE_LABELS[room.roomType] || room.roomType}
                                                                         </span>
                                                                     )}
@@ -510,7 +552,7 @@ const RoomManagement = ({ readOnly = false }) => {
                                                             <div className="flex items-center gap-1.5 text-xs text-midnight-indigo whitespace-nowrap">
                                                                 <MapPin className="w-3.5 h-3.5 text-steel-gray shrink-0" />
                                                                 <span className="font-semibold">{room.siteName || '—'}</span>
-                                                                {room.areaName && <span className="text-steel-gray text-[11px]">({room.areaName})</span>}
+                                                                {room.areaName && <span data-ui-text="secondary" className="text-steel-gray text-[11px]">({room.areaName})</span>}
                                                             </div>
                                                         ) : (
                                                             <span className="text-xs text-steel-gray/50">—</span>
@@ -518,7 +560,7 @@ const RoomManagement = ({ readOnly = false }) => {
                                                     </td>
                                                     {/* Sức chứa */}
                                                     <td className="py-3 px-3 whitespace-nowrap">
-                                                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-blue whitespace-nowrap">
+                                                        <span data-ui-text="primary" className="inline-flex items-center gap-1 text-xs font-semibold text-slate-blue whitespace-nowrap">
                                                             <Users className="w-3.5 h-3.5 shrink-0" />
                                                             {room.capacity} người
                                                         </span>
@@ -533,7 +575,7 @@ const RoomManagement = ({ readOnly = false }) => {
                                                     </td>
                                                     {/* Trạng thái */}
                                                     <td className="py-3 px-3 whitespace-nowrap">
-                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${sc.cls}`}>
+                                                        <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${sc.cls}`}>
                                                             {sc.label}
                                                         </span>
                                                     </td>
@@ -574,37 +616,20 @@ const RoomManagement = ({ readOnly = false }) => {
                                             );
                                         })}
                                     </tbody>
-                                </table>
+                                </ResponsiveTable>
                             </div>
                         )}
 
                         {/* Pagination */}
-                        {!loading && totalPages > 1 && (
-                            <div className="px-5 py-3.5 border-t border-platinum-tint flex items-center justify-between bg-cloud-mist/30">
-                                <span className="text-xs text-slate-blue">
-                                    Hiển thị {roomsList.length} / {totalItems} phòng
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                    <button
-                                        onClick={() => setPage(p => Math.max(p - 1, 1))}
-                                        disabled={page === 1}
-                                        className="p-1.5 border border-platinum-tint rounded-lg bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-40 transition-colors"
-                                    >
-                                        <ChevronLeft className="w-4 h-4" />
-                                    </button>
-                                    <span className="px-3 py-1 text-xs font-bold text-midnight-indigo">
-                                        {page} / {totalPages}
-                                    </span>
-                                    <button
-                                        onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                                        disabled={page === totalPages}
-                                        className="p-1.5 border border-platinum-tint rounded-lg bg-white text-slate-blue hover:bg-cloud-mist disabled:opacity-40 transition-colors"
-                                    >
-                                        <ChevronRight className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        {<PaginationRegion legacyVisible={!loading && totalPages > 1}><PaginationFooter
+                                currentPage={page}
+                                totalPages={totalPages}
+                                totalItems={totalItems}
+                                pageSize={LIMIT}
+                                onPageChange={setPage}
+                                itemLabel={"phòng"}
+                                loading={loading}
+                             onPageSizeChange={size => { setPageLimit(size); setPage(1); }} /></PaginationRegion>}
                     </div>
                 </>
 
@@ -621,7 +646,7 @@ const RoomManagement = ({ readOnly = false }) => {
 
                         <form onSubmit={handleFormSubmit} className="p-6 space-y-4 overflow-y-auto">
                             {error && (
-                                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
+                                <div data-ui-text="badge" className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
                                     <AlertCircle className="w-4 h-4 shrink-0" />{error}
                                 </div>
                             )}
@@ -638,7 +663,7 @@ const RoomManagement = ({ readOnly = false }) => {
                                     className={`w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-mono focus:outline-none focus:border-action-blue ${modalMode === 'edit' ? 'bg-cloud-mist/60 text-slate-blue cursor-not-allowed' : ''
                                         }`}
                                 />
-                                <p className="text-[10px] text-slate-blue/70 mt-1">
+                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue/70 mt-1">
                                     {modalMode === 'edit'
                                         ? 'Mã phòng không thể thay đổi sau khi tạo.'
                                         : 'Định dạng bắt buộc: RM-XXXX (chữ hoa và số sau dấu gạch ngang). Ví dụ: RM-BE312, RM-AL234.'}
@@ -730,7 +755,7 @@ const RoomManagement = ({ readOnly = false }) => {
                                                 className="w-3.5 h-3.5 accent-action-blue"
                                             />
                                             <Icon className={`w-3.5 h-3.5 ${formData[key] ? 'text-action-blue' : 'text-steel-gray'}`} />
-                                            <span className={`text-xs font-semibold ${formData[key] ? 'text-action-blue' : 'text-slate-blue'}`}>{label}</span>
+                                            <span data-ui-text="label" className={`text-xs font-semibold ${formData[key] ? 'text-action-blue' : 'text-slate-blue'}`}>{label}</span>
                                         </label>
                                     ))}
                                 </div>
@@ -781,7 +806,7 @@ const RoomManagement = ({ readOnly = false }) => {
                                     <DoorOpen className="w-5 h-5 text-action-blue" />
                                     {detailRoom.roomName}
                                 </h3>
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${detailRoom.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
+                                <span data-ui-text="badge" className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${detailRoom.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
                                     }`}>
                                     {detailRoom.isActive ? 'Đang hoạt động' : 'Tạm dừng'}
                                 </span>
@@ -836,7 +861,7 @@ const RoomManagement = ({ readOnly = false }) => {
                                                     <Icon className={`w-4 h-4 ${active ? 'text-action-blue' : 'text-steel-gray opacity-50'}`} />
                                                     <div>
                                                         <p className="font-bold text-midnight-indigo leading-tight">{label}</p>
-                                                        <p className="text-[10px] text-slate-blue mt-0.5">{active ? 'Tích hợp sẵn' : 'Không hỗ trợ'}</p>
+                                                        <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-0.5">{active ? 'Tích hợp sẵn' : 'Không hỗ trợ'}</p>
                                                     </div>
                                                 </div>
                                             );
@@ -855,36 +880,40 @@ const RoomManagement = ({ readOnly = false }) => {
                                 {detailRoom.occupancyStatus?.currentBooking && (
                                     <div className="flex items-start justify-between gap-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50/60">
                                         <div className="min-w-0">
-                                            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-0.5">Đang diễn ra</p>
-                                            <p className="font-bold text-midnight-indigo text-xs truncate">{detailRoom.occupancyStatus.currentBooking.title || 'Cuộc họp'}</p>
-                                            <p className="text-[11px] text-slate-blue mt-0.5">
+                                            <p data-ui-text="label" className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-0.5">Đang diễn ra</p>
+                                            <p data-ui-text="primary" className="font-bold text-midnight-indigo text-xs truncate">{detailRoom.occupancyStatus.currentBooking.title || 'Cuộc họp'}</p>
+                                            <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-0.5">
                                                 {detailRoom.occupancyStatus.currentBooking.hostName ? `Chủ trì: ${detailRoom.occupancyStatus.currentBooking.hostName} · ` : ''}
                                                 {formatTimeRange(detailRoom.occupancyStatus.currentBooking.reservedStartTime, detailRoom.occupancyStatus.currentBooking.reservedEndTime)}
                                             </p>
                                         </div>
-                                        <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${MEETING_STATUS_CONFIG.in_progress.cls}`}>
+                                        <span data-ui-text="badge" className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${MEETING_STATUS_CONFIG.in_progress.cls}`}>
                                             {MEETING_STATUS_CONFIG.in_progress.label}
                                         </span>
                                     </div>
                                 )}
 
                                 {detailRoom.upcomingBookings && detailRoom.upcomingBookings.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {detailRoom.upcomingBookings.map((booking) => (
+                                    <PaginatedCollection items={detailRoom?.upcomingBookings} itemLabel="cuộc họp">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="space-y-2">
+                                        {camaiPageItems.map((camaiRecord, camaiIndex) => ((booking) => (
                                             <div key={booking.bookingId} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-platinum-tint bg-white">
                                                 <div className="min-w-0">
-                                                    <p className="font-bold text-midnight-indigo text-xs truncate">{booking.title || 'Cuộc họp'}</p>
-                                                    <p className="text-[11px] text-slate-blue mt-0.5">
+                                                    <p data-ui-text="primary" className="font-bold text-midnight-indigo text-xs truncate">{booking.title || 'Cuộc họp'}</p>
+                                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-0.5">
                                                         {booking.hostName ? `Chủ trì: ${booking.hostName} · ` : ''}
                                                         {formatTimeRange(booking.reservedStartTime, booking.reservedEndTime)}
                                                     </p>
                                                 </div>
-                                                <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${MEETING_STATUS_CONFIG.scheduled.cls}`}>
+                                                <span data-ui-text="badge" className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${MEETING_STATUS_CONFIG.scheduled.cls}`}>
                                                     {MEETING_STATUS_CONFIG.scheduled.label}
                                                 </span>
                                             </div>
-                                        ))}
+                                        ))(camaiRecord, camaiStartIndex + camaiIndex, (detailRoom.upcomingBookings)))}
                                     </div>
+)}
+</PaginatedCollection>
                                 ) : (
                                     !detailRoom.occupancyStatus?.currentBooking && (
                                         <p className="text-xs text-slate-blue text-center py-4">Chưa có lịch họp nào sắp tới cho phòng này.</p>

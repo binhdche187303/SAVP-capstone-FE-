@@ -1,9 +1,11 @@
-import {
-    AlertTriangle, ArrowUpDown, Briefcase, Building, Calendar,
-    Clock, DoorOpen, Eye, Filter, Camera,
-    LogIn, LogOut, Mail, Phone, RefreshCw, RotateCw,
-    Route, Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users, X, ChevronDown,
-} from 'lucide-react';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ReportActions from '../../components/common/ReportActions';
+import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { AlertTriangle, ArrowUpDown, Briefcase, Building, Calendar, Clock, DoorOpen, Eye, Filter, Camera, LogIn, LogOut, Mail, Phone, RotateCw, Route, Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users, X, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -27,7 +29,7 @@ import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 
 // ─── constants ──────────────────────────────────────────────────────────────
 
-const LOGS_PER_PAGE = 10;
+
 // Các lượt cùng phòng + cùng hướng cách nhau ≤ 3s = camera bắt được nhiều người trong cùng khung hình.
 const GROUP_WINDOW_MS = 3000;
 
@@ -80,204 +82,12 @@ const groupSimultaneous = (sorted) => {
     return groups;
 };
 
-const getPageNumbers =(current, total) => {
-    const delta = 1, pages = [];
-    for (let i = 1; i <= total; i++) {
-        if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) pages.push(i);
-    }
-    const withDots = []; let last = null;
-    pages.forEach(p => {
-        if (last !== null) {
-            if (p - last === 2) withDots.push(last + 1);
-            else if (p - last > 1) withDots.push('…');
-        }
-        withDots.push(p); last = p;
-    });
-    return withDots;
-};
+
 
 const getBookingMeetingId = (booking) =>
     booking?.meetingId || booking?.meeting_id || booking?.meeting?.id || booking?.id || '';
 
-const MOCK_ROOM_USERS = {
-    'u-employee-long': {
-        id: 'u-employee-long',
-        fullName: 'Bùi Văn Long',
-        employeeCode: 'NV003',
-        email: 'long.bui@smartracking.local',
-        phoneNumber: '0901 234 567',
-        department: { departmentName: 'Phòng Công nghệ thông tin' },
-    },
-    'u-teacher-giang': {
-        id: 'u-teacher-giang',
-        fullName: 'Nguyễn Thị Giang',
-        employeeCode: 'GV001',
-        email: 'giang.nt@smartracking.local',
-        phoneNumber: '0902 345 678',
-        department: { departmentName: 'Khoa Công nghệ phần mềm' },
-    },
-    'u-student-sinh': {
-        id: 'u-student-sinh',
-        fullName: 'Lê Minh Sinh',
-        employeeCode: 'SV001',
-        email: 'sinh.lm@student.smartracking.local',
-        phoneNumber: '0903 456 789',
-        department: { departmentName: 'Lớp WEB101' },
-    },
-    'u-student-nam': {
-        id: 'u-student-nam',
-        fullName: 'Nguyễn Hoàng Nam',
-        employeeCode: 'SV002',
-        email: 'nam.nh@student.smartracking.local',
-        phoneNumber: '0904 567 890',
-        department: { departmentName: 'Lớp AI202' },
-    },
-};
-
-// Phòng/người mock dùng id không phải UUID ⇒ không gửi lên BE (BE validate uuid → lỗi toast liên tục).
-const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v || '');
-
-const MOCK_ROOMS = [
-    { id: 'room-a101', roomId: 'room-a101', roomName: 'Phòng họp A101', siteName: 'Tòa nhà A' },
-    { id: 'room-a102', roomId: 'room-a102', roomName: 'Phòng họp A102', siteName: 'Tòa nhà A' },
-    { id: 'room-b201', roomId: 'room-b201', roomName: 'Phòng seminar B201', siteName: 'Tòa nhà B' },
-];
-
-const makeMockSnapshot = (name, subtitle, tone = 'blue') => {
-    const palette = {
-        blue: ['#0f172a', '#0075ff'],
-        green: ['#0f172a', '#059669'],
-        amber: ['#241509', '#d97706'],
-        red: ['#2a0f14', '#dc2626'],
-    }[tone] || ['#0f172a', '#0075ff'];
-    const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
-            <rect width="320" height="180" rx="18" fill="${palette[0]}"/>
-            <rect x="14" y="14" width="292" height="152" rx="14" fill="#111827" stroke="#334155" stroke-width="2"/>
-            <circle cx="160" cy="76" r="28" fill="${palette[1]}"/>
-            <text x="160" y="84" text-anchor="middle" fill="white" font-family="Arial" font-size="22" font-weight="700">${name.slice(0, 1).toUpperCase()}</text>
-            <text x="160" y="126" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="700">${name}</text>
-            <text x="160" y="146" text-anchor="middle" fill="#cbd5e1" font-family="Arial" font-size="12">${subtitle}</text>
-        </svg>`;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-};
-
-const createMockRoomAccessDemo = (date) => {
-    const at = (time) => `${date}T${time}+07:00`;
-    const roomsById = Object.fromEntries(MOCK_ROOMS.map(room => [room.id, room]));
-    const meetingDefs = [
-        {
-            id: 'mt-a101-web',
-            meetingId: 'mt-a101-web',
-            roomId: 'room-a101',
-            title: 'Lập trình Web',
-            reservedStartTime: at('08:00:00.000'),
-            reservedEndTime: at('10:30:00.000'),
-            meeting: { id: 'mt-a101-web', title: 'Lập trình Web' },
-        },
-        {
-            id: 'mt-a101-sync',
-            meetingId: 'mt-a101-sync',
-            roomId: 'room-a101',
-            title: 'IT Weekly Sync',
-            reservedStartTime: at('13:30:00.000'),
-            reservedEndTime: at('15:00:00.000'),
-            meeting: { id: 'mt-a101-sync', title: 'IT Weekly Sync' },
-        },
-        {
-            id: 'mt-a102-ai',
-            meetingId: 'mt-a102-ai',
-            roomId: 'room-a102',
-            title: 'Trí tuệ nhân tạo ứng dụng',
-            reservedStartTime: at('09:00:00.000'),
-            reservedEndTime: at('11:30:00.000'),
-            meeting: { id: 'mt-a102-ai', title: 'Trí tuệ nhân tạo ứng dụng' },
-        },
-        {
-            id: 'mt-b201-seminar',
-            meetingId: 'mt-b201-seminar',
-            roomId: 'room-b201',
-            title: 'Seminar nghiên cứu',
-            reservedStartTime: at('14:00:00.000'),
-            reservedEndTime: at('16:00:00.000'),
-            meeting: { id: 'mt-b201-seminar', title: 'Seminar nghiên cứu' },
-        },
-    ];
-    const eventDefs = [
-        ['mock-a101-001', 'room-a101', 'enter', 'u-teacher-giang', 'Nguyễn Thị Giang', 'mt-a101-web', 'Lập trình Web', at('07:58:20.000'), 0.98, 'matched'],
-        ['mock-a101-002', 'room-a101', 'enter', 'u-student-sinh', 'Lê Minh Sinh', 'mt-a101-web', 'Lập trình Web', at('08:04:11.000'), 0.94, 'matched'],
-        ['mock-a101-003', 'room-a101', 'enter', 'u-student-nam', 'Nguyễn Hoàng Nam', 'mt-a101-web', 'Lập trình Web', at('08:04:13.000'), 0.92, 'matched'],
-        ['mock-a101-004', 'room-a101', 'enter', 'u-employee-long', 'Bùi Văn Long', 'mt-a101-web', 'Lập trình Web', at('08:04:14.000'), 0.89, 'unmatched'],
-        ['mock-a101-005', 'room-a101', 'leave', 'u-student-sinh', 'Lê Minh Sinh', 'mt-a101-web', 'Lập trình Web', at('10:31:40.000'), 0.95, 'matched'],
-        ['mock-a101-006', 'room-a101', 'leave', 'u-teacher-giang', 'Nguyễn Thị Giang', 'mt-a101-web', 'Lập trình Web', at('10:34:05.000'), 0.97, 'matched'],
-        ['mock-a101-007', 'room-a101', 'enter', null, 'Người lạ chưa xác định', 'mt-a101-sync', 'IT Weekly Sync', at('13:42:18.000'), 0.41, 'stranger'],
-        ['mock-a101-008', 'room-a101', 'enter', 'u-employee-long', 'Bùi Văn Long', 'mt-a101-sync', 'IT Weekly Sync', at('13:45:00.000'), 0.96, 'matched'],
-        ['mock-a101-009', 'room-a101', 'leave', 'u-employee-long', 'Bùi Văn Long', 'mt-a101-sync', 'IT Weekly Sync', at('15:04:16.000'), 0.93, 'matched'],
-        ['mock-a102-001', 'room-a102', 'enter', 'u-teacher-giang', 'Nguyễn Thị Giang', 'mt-a102-ai', 'Trí tuệ nhân tạo ứng dụng', at('08:55:40.000'), 0.97, 'matched'],
-        ['mock-a102-002', 'room-a102', 'enter', 'u-student-sinh', 'Lê Minh Sinh', 'mt-a102-ai', 'Trí tuệ nhân tạo ứng dụng', at('09:18:12.000'), 0.91, 'unmatched'],
-        ['mock-a102-003', 'room-a102', 'leave', 'u-student-sinh', 'Lê Minh Sinh', 'mt-a102-ai', 'Trí tuệ nhân tạo ứng dụng', at('11:28:40.000'), 0.93, 'matched'],
-        ['mock-b201-001', 'room-b201', 'enter', 'u-employee-long', 'Bùi Văn Long', 'mt-b201-seminar', 'Seminar nghiên cứu', at('14:02:22.000'), 0.96, 'matched'],
-        ['mock-b201-002', 'room-b201', 'seen', null, 'Khách chưa đăng ký', 'mt-b201-seminar', 'Seminar nghiên cứu', at('14:18:03.000'), 0.38, 'stranger'],
-    ];
-    const events = eventDefs.map(([id, roomId, direction, userId, fullName, meetingId, meetingTitle, eventTime, confidence, status]) => {
-        const room = roomsById[roomId];
-        const tone = status === 'stranger' ? 'red' : status === 'unmatched' ? 'amber' : direction === 'leave' ? 'green' : 'blue';
-        return {
-            id,
-            roomId,
-            roomName: room?.roomName,
-            direction,
-            userId,
-            user: userId ? MOCK_ROOM_USERS[userId] : null,
-            fullName,
-            meetingId,
-            meetingTitle,
-            eventTime,
-            timestamp: eventTime,
-            confidence,
-            similarity: confidence,
-            reliability: confidence,
-            isStranger: status === 'stranger',
-            isUnmatched: status === 'unmatched',
-            snapshotUrl: makeMockSnapshot(fullName, `${room?.roomName || 'Phòng họp'} - ${direction === 'leave' ? 'Ra' : direction === 'enter' ? 'Vào' : 'Thấy'}`, tone),
-        };
-    });
-    return { rooms: MOCK_ROOMS, meetings: meetingDefs, events, usersMap: MOCK_ROOM_USERS };
-};
-
-const createScopedMockRoomAccessDemo = (date, roomId, roomName = 'Phòng họp đang chọn') => {
-    const demo = createMockRoomAccessDemo(date);
-    const baseRoomId = 'room-a101';
-    return {
-        meetings: demo.meetings
-            .filter(m => m.roomId === baseRoomId)
-            .map(m => ({
-                ...m,
-                id: `${roomId}-${m.id}`,
-                meetingId: `${roomId}-${m.meetingId}`,
-                roomId,
-                meeting: { ...(m.meeting || {}), id: `${roomId}-${m.meetingId}` },
-            })),
-        events: demo.events
-            .filter(ev => ev.roomId === baseRoomId)
-            .map(ev => {
-                const meetingId = `${roomId}-${ev.meetingId}`;
-                const tone = ev.isStranger ? 'red' : ev.isUnmatched ? 'amber' : ev.direction === 'leave' ? 'green' : 'blue';
-                return {
-                    ...ev,
-                    id: `${roomId}-${ev.id}`,
-                    roomId,
-                    roomName,
-                    meetingId,
-                    snapshotUrl: makeMockSnapshot(
-                        ev.fullName,
-                        `${roomName} - ${ev.direction === 'leave' ? 'Ra' : ev.direction === 'enter' ? 'Vào' : 'Thấy'}`,
-                        tone
-                    ),
-                };
-            }),
-    };
-};
+const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value || '');
 
 const getSelectedRoomInfo = (rooms, selectedRoomId) => {
     const room = rooms.find(r => (r.id || r.roomId) === selectedRoomId);
@@ -290,32 +100,33 @@ const getSelectedRoomInfo = (rooms, selectedRoomId) => {
 // ─── StatCard ────────────────────────────────────────────────────────────────
 
 const StatCard = ({ icon, label, value, sub, colorCls, alert }) => (
-    <SharedStatCard icon={icon} label={label} value={value} hint={sub} tone={alert ? 'red' : toneOf(colorCls)} />
+    <StatisticCard icon={icon} label={label} value={value} helper={sub} tone={alert ? 'danger' : statisticTone(colorCls)} />
 );
 
 // ─── DirectionBadge ──────────────────────────────────────────────────────────
 
 const DirectionBadge = ({ direction }) => {
     if (direction === 'enter')
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-emerald-700 bg-emerald-50 border-emerald-200"><LogIn className="w-3 h-3" />Vào</span>;
+        return <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-emerald-700 bg-emerald-50 border-emerald-200"><LogIn className="w-3 h-3" />Vào</span>;
     if (direction === 'leave')
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-amber-700 bg-amber-50 border-amber-200"><LogOut className="w-3 h-3" />Ra</span>;
-    return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-slate-600 bg-slate-50 border-slate-200"><Eye className="w-3 h-3" />Thấy</span>;
+        return <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-amber-700 bg-amber-50 border-amber-200"><LogOut className="w-3 h-3" />Ra</span>;
+    return <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-slate-600 bg-slate-50 border-slate-200"><Eye className="w-3 h-3" />Thấy</span>;
 };
 
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
 
 const StatusBadge = ({ status }) => {
     if (status === 'stranger')
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-red-700 bg-red-50 border-red-200"><AlertTriangle className="w-3 h-3" />Người lạ</span>;
+        return <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-red-700 bg-red-50 border-red-200"><AlertTriangle className="w-3 h-3" />Người lạ</span>;
     if (status === 'unmatched')
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-amber-700 bg-amber-50 border-amber-200"><ShieldQuestion className="w-3 h-3" />Chưa khớp</span>;
-    return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-emerald-700 bg-emerald-50 border-emerald-200"><ShieldCheck className="w-3 h-3" />Khớp</span>;
+        return <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-amber-700 bg-amber-50 border-amber-200"><ShieldQuestion className="w-3 h-3" />Chưa khớp</span>;
+    return <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-emerald-700 bg-emerald-50 border-emerald-200"><ShieldCheck className="w-3 h-3" />Khớp</span>;
 };
 
 // ─── main component ───────────────────────────────────────────────────────────
 
 const RoomAccessLogs = () => {
+    const [LOGS_PER_PAGE, setLogsPerPage] = useState(10);
     const [rooms, setRooms]                     = useState([]);
     const [selectedRoomId, setSelectedRoomId]   = useState('');
     const [busyFormat, setBusyFormat]           = useState(null);
@@ -328,6 +139,8 @@ const RoomAccessLogs = () => {
     const [roomsLoading, setRoomsLoading] = useState(true);
     const [logsLoading, setLogsLoading]   = useState(false);
     const [error, setError]               = useState(null);
+    const [roomsError, setRoomsError] = useState(null);
+    const [meetingsError, setMeetingsError] = useState(null);
     const [logsData, setLogsData]         = useState(null);
 
     const [searchInput, setSearchInput]       = useState('');
@@ -382,71 +195,45 @@ const RoomAccessLogs = () => {
     // reset page on filter change
     useEffect(() => { setCurrentPage(1); }, [selectedRoomId, selectedDate, selectedMeetingId, debouncedSearch]);
 
-    // fetch rooms + usersMap once
+    // Read room and user data from the server; an empty response stays empty.
     const fetchRoomsList = useCallback(async () => {
-        setRoomsLoading(true); setError(null);
+        setRoomsLoading(true); setRoomsError(null);
         try {
             const res = await getRooms({ page: 1, limit: 100 });
-            if (res?.success && res.data) {
-                const list = res.data.rooms || res.data || [];
-                const nextRooms = list.length > 0 ? list : createMockRoomAccessDemo(selectedDate).rooms;
-                setRooms(nextRooms);
-                if (nextRooms.length > 0) {
-                    const first = nextRooms[0].id || nextRooms[0].roomId;
-                    setSelectedRoomId(prev => prev || first);
-                }
-            } else throw new Error(res?.message || 'Không thể tải danh sách phòng họp.');
+            if (!res?.success) throw new Error(res?.message || 'Không thể tải danh sách phòng họp.');
+            const data = res.data;
+            const list = Array.isArray(data) ? data : data?.rooms || data?.items || [];
+            setRooms(list);
+            setSelectedRoomId(previous => list.some(room => (room.id || room.roomId) === previous) ? previous : list[0]?.id || list[0]?.roomId || '');
         } catch (err) {
-            const demo = createMockRoomAccessDemo(selectedDate);
-            setRooms(demo.rooms);
-            setSelectedRoomId(prev => prev || demo.rooms[0]?.id || '');
-            setUsersMap(prev => ({ ...demo.usersMap, ...prev }));
-            setError(null);
+            setRooms([]); setSelectedRoomId('');
+            setRoomsError(err?.message || 'Không tải được danh sách phòng họp.');
         } finally { setRoomsLoading(false); }
-    }, [selectedDate]);
+    }, []);
 
     useEffect(() => {
         fetchRoomsList();
-        (async () => {
-            try {
-                const res = await getUsers({ limit: 1000 });
-                if (res?.success && res.data) {
-                    const map = {};
-                    res.data.forEach(u => { map[u.id] = u; });
-                    setUsersMap(prev => ({ ...createMockRoomAccessDemo(selectedDate).usersMap, ...prev, ...map }));
-                }
-            } catch (_) {
-                setUsersMap(prev => ({ ...createMockRoomAccessDemo(selectedDate).usersMap, ...prev }));
-            }
-        })();
-    }, [fetchRoomsList, selectedDate]);
+        getUsers({ limit: 1000 }).then(res => {
+            const users = Array.isArray(res?.data) ? res.data : res?.data?.items || [];
+            setUsersMap(Object.fromEntries(users.map(user => [user.id, user])));
+        }).catch(() => setUsersMap({}));
+    }, [fetchRoomsList]);
 
-    // fetch meetings for room+date
     const fetchMeetings = useCallback(async () => {
+        setMeetingsError(null);
         if (!selectedRoomId || !selectedDate) { setMeetings([]); setSelectedMeetingId(''); return; }
         try {
             const from = `${selectedDate}T00:00:00.000+07:00`;
-            const to   = `${selectedDate}T23:59:59.999+07:00`;
-            const res  = isUuid(selectedRoomId)
-                ? await getRoomBookings({ roomId: selectedRoomId, from, to, limit: 100, sortOrder: 'asc' })
-                : null;
-            const apiMeetings = res?.success && res.data ? res.data : [];
-            const demoMeetings = createMockRoomAccessDemo(selectedDate).meetings.filter(m => m.roomId === selectedRoomId);
-            const scoped = getSelectedRoomInfo(rooms, selectedRoomId);
-            const scopedMeetings = createScopedMockRoomAccessDemo(selectedDate, scoped.id, scoped.name).meetings;
-            setMeetings(apiMeetings.length > 0 ? apiMeetings : demoMeetings);
-            if (apiMeetings.length === 0 && demoMeetings.length === 0) setMeetings(scopedMeetings);
-        } catch (_) {
-            const demoMeetings = createMockRoomAccessDemo(selectedDate).meetings.filter(m => m.roomId === selectedRoomId);
-            if (demoMeetings.length > 0) {
-                setMeetings(demoMeetings);
-            } else {
-                const scoped = getSelectedRoomInfo(rooms, selectedRoomId);
-                setMeetings(createScopedMockRoomAccessDemo(selectedDate, scoped.id, scoped.name).meetings);
-            }
+            const to = `${selectedDate}T23:59:59.999+07:00`;
+            const res = await getRoomBookings({ roomId: selectedRoomId, from, to, limit: 100, sortOrder: 'asc' });
+            if (!res?.success) throw new Error(res?.message || 'Không tải được lịch phòng họp.');
+            setMeetings(Array.isArray(res.data) ? res.data : res.data?.items || res.data?.bookings || []);
+        } catch (err) {
+            setMeetings([]);
+            setMeetingsError(err?.message || 'Không tải được lịch phòng họp.');
         }
         setSelectedMeetingId('');
-    }, [selectedRoomId, selectedDate, rooms]);
+    }, [selectedRoomId, selectedDate]);
 
     useEffect(() => { fetchMeetings(); }, [fetchMeetings]);
 
@@ -455,7 +242,6 @@ const RoomAccessLogs = () => {
         if (!silent) setLogsLoading(true);
         setError(null);
         try {
-            if (!isUuid(selectedRoomId)) throw new Error('mock room');
             const firstRes = await getRoomAccessLog(selectedRoomId, selectedDate, {
                 page: 1, limit: 100,
                 search: debouncedSearch || undefined,
@@ -477,43 +263,15 @@ const RoomAccessLogs = () => {
                             }).catch(() => null)
                         )
                     );
-                    results.forEach(r => { if (r?.success && r.data?.events) allEvents = [...allEvents, ...r.data.events]; });
-                }
-                if (allEvents.length === 0) {
-                    const demo = createMockRoomAccessDemo(selectedDate);
-                    allEvents = demo.events.filter(ev =>
-                        (!selectedRoomId || ev.roomId === selectedRoomId) &&
-                        (!selectedMeetingId || ev.meetingId === selectedMeetingId) &&
-                        (!debouncedSearch || ev.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()))
-                    );
-                    if (allEvents.length === 0 && selectedRoomId) {
-                        const scoped = getSelectedRoomInfo(rooms, selectedRoomId);
-                        allEvents = createScopedMockRoomAccessDemo(selectedDate, scoped.id, scoped.name).events.filter(ev =>
-                            (!selectedMeetingId || ev.meetingId === selectedMeetingId) &&
-                            (!debouncedSearch || ev.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()))
-                        );
-                    }
+                    results.forEach(r => { if (!r?.success || !Array.isArray(r.data?.events)) throw new Error('Chưa tải đủ nhật ký. Vui lòng thử lại.'); allEvents = [...allEvents, ...r.data.events]; });
                 }
                 setLogsData({ ...meta, events: allEvents, totalEvents: allEvents.length, pagination: { ...pagination, total: allEvents.length } });
             } else throw new Error(firstRes?.message || 'Không thể tải nhật ký ra/vào.');
         } catch (err) {
-            const demo = createMockRoomAccessDemo(selectedDate);
-            const demoEvents = demo.events.filter(ev =>
-                (!selectedRoomId || ev.roomId === selectedRoomId) &&
-                (!selectedMeetingId || ev.meetingId === selectedMeetingId) &&
-                (!debouncedSearch || ev.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()))
-            );
-            const scoped = getSelectedRoomInfo(rooms, selectedRoomId);
-            const fallbackEvents = demoEvents.length > 0 || !selectedRoomId
-                ? demoEvents
-                : createScopedMockRoomAccessDemo(selectedDate, scoped.id, scoped.name).events.filter(ev =>
-                    (!selectedMeetingId || ev.meetingId === selectedMeetingId) &&
-                    (!debouncedSearch || ev.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()))
-                );
-            setLogsData({ events: fallbackEvents, totalEvents: fallbackEvents.length, pagination: { total: fallbackEvents.length } });
-            setError(null);
+            setLogsData(null);
+            setError(err?.message || 'Không tải được nhật ký ra/vào phòng.');
         } finally { if (!silent) setLogsLoading(false); }
-    }, [selectedRoomId, selectedDate, debouncedSearch, selectedMeetingId, rooms]);
+    }, [selectedRoomId, selectedDate, debouncedSearch, selectedMeetingId]);
 
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -568,8 +326,8 @@ const RoomAccessLogs = () => {
     const totalItems  = allSorted.length;
     const totalGroups = allGroups.length;
     const totalPages  = Math.max(1, Math.ceil(totalGroups / LOGS_PER_PAGE));
-    const rangeStart  = totalGroups === 0 ? 0 : (currentPage - 1) * LOGS_PER_PAGE + 1;
-    const rangeEnd    = Math.min(currentPage * LOGS_PER_PAGE, totalGroups);
+
+
     const pageGroups  = allGroups.slice((currentPage - 1) * LOGS_PER_PAGE, currentPage * LOGS_PER_PAGE);
     const toggleGroup = (key) => setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -750,7 +508,7 @@ const RoomAccessLogs = () => {
             });
             toast.success(extra.mode === 'standard' ? `Đã tải bản quy chuẩn (${format.toUpperCase()}).` : format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất ${detail.length} lượt ra/vào (${({ xlsx: 'Excel', pdf: 'PDF', docx: 'Word' })[format]}).`);
         } catch (err) {
-            toast.error(err?.message || 'Không xuất được báo cáo.');
+            return { success: false, message: err?.message || 'Không xuất được báo cáo.' };
         } finally {
             setBusyFormat(null);
         }
@@ -789,7 +547,7 @@ const RoomAccessLogs = () => {
                 className={`transition-colors ${rowCls} ${nestedCls}`}
             >
                 <td className="px-6 py-4 text-sm font-bold text-midnight-indigo whitespace-nowrap">{nested ? '' : date}</td>
-                <td className="px-6 py-4 text-[11px] text-slate-blue whitespace-nowrap font-mono">{nested ? '' : time}</td>
+                <td data-ui-text="secondary" className="px-6 py-4 text-[11px] text-slate-blue whitespace-nowrap font-mono">{nested ? '' : time}</td>
 
                 {/* Người */}
                 <td className={nested ? 'pl-12 pr-6 py-3' : 'px-6 py-4'}>
@@ -806,7 +564,7 @@ const RoomAccessLogs = () => {
                             }`}
                         />
                         <div>
-                            <p className={`font-bold text-sm group-hover:text-action-blue transition-colors ${status === 'stranger' ? 'text-red-700' : status === 'unmatched' ? 'text-amber-700' : 'text-midnight-indigo'}`}>
+                            <p data-room-access-person className={`font-bold text-sm group-hover:text-action-blue transition-colors ${status === 'stranger' ? 'text-red-700' : status === 'unmatched' ? 'text-amber-700' : 'text-midnight-indigo'}`}>
                                 {name}
                             </p>
                         </div>
@@ -849,12 +607,12 @@ const RoomAccessLogs = () => {
                         <>
                             <span className="inline-flex items-center gap-1 font-semibold text-midnight-indigo"><Camera className="w-3 h-3 text-slate-400" />{cameraLabel(ev)}</span>
                             {(ev.zoneName || cameraGroupsLabel(ev)) && (
-                                <span className="block text-[10px] text-slate-400">{[ev.zoneName, cameraGroupsLabel(ev)].filter(Boolean).join(' · ')}</span>
+                                <span data-ui-text="secondary" className="block text-[10px] text-slate-400">{[ev.zoneName, cameraGroupsLabel(ev)].filter(Boolean).join(' · ')}</span>
                             )}
                         </>
                     ) : <span className="text-slate-300">—</span>}
                 </td>
-                <td className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-500">{conf}</td>
+                <td data-ui-text="secondary" className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-500">{conf}</td>
 
                 <td className="px-6 py-4 text-xs">
                     {meetingLabel
@@ -881,7 +639,7 @@ const RoomAccessLogs = () => {
                 className={`cursor-pointer transition-colors border-l-4 ${hasStranger ? 'bg-amber-50 hover:bg-amber-100 border-l-amber-500' : 'bg-blue-50/50 hover:bg-blue-50 border-l-action-blue'}`}
             >
                 <td className="px-6 py-4 text-sm font-bold text-midnight-indigo whitespace-nowrap">{date}</td>
-                <td className="px-6 py-4 text-[11px] text-slate-blue whitespace-nowrap font-mono">{time}</td>
+                <td data-ui-text="secondary" className="px-6 py-4 text-[11px] text-slate-blue whitespace-nowrap font-mono">{time}</td>
                 <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                         <div className="flex -space-x-2">
@@ -902,7 +660,7 @@ const RoomAccessLogs = () => {
                 <td className="px-6 py-4 text-center"><DirectionBadge direction={head.direction} /></td>
                 <td className="px-6 py-4 text-center">
                     {hasStranger
-                        ? <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-red-700 bg-red-50 border-red-200"><AlertTriangle className="w-3 h-3" />Có người lạ</span>
+                        ? <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-bold text-red-700 bg-red-50 border-red-200"><AlertTriangle className="w-3 h-3" />Có người lạ</span>
                         : hasUnmatched
                             ? <StatusBadge status="unmatched" />
                             : <StatusBadge status="matched" />}
@@ -919,66 +677,65 @@ const RoomAccessLogs = () => {
     // ── render ──────────────────────────────────────────────────────────────
 
     return (
-        <div className="max-w-[1440px] mx-auto space-y-6 pb-10">
+        <div data-page-surface="wide" className="max-w-[1440px] mx-auto space-y-6 pb-10">
 
             {/* ── Header ── */}
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue">
+                        <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue">
                             <DoorOpen className="w-3.5 h-3.5" /> Phòng họp
                         </span>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-600">
+                        <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-600">
                             <ShieldAlert className="w-3.5 h-3.5" /> An ninh
                         </span>
                     </div>
                     <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Nhật ký ra/vào phòng</h1>
                     <p className="text-slate-blue text-sm mt-1">Đối soát an ninh ra/vào dựa trên API camera nhận diện khuôn mặt</p>
                 </div>
-                <div className="self-start flex flex-col items-end gap-1">
-                    <ExportMenu askMode onExport={handleExport} busyFormat={busyFormat} disabled={logsLoading || allSorted.length === 0} />
-                    <button
-                        onClick={() => fetchLogs()}
-                        disabled={logsLoading}
-                        className="flex items-center gap-2 px-4 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl hover:bg-cloud-mist transition-colors text-sm font-semibold disabled:opacity-50"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${logsLoading ? 'animate-spin' : ''}`} /> Làm mới
-                    </button>
-                    <span className="text-[10px] text-slate-400">Tự động cập nhật mỗi 1s</span>
+                <div className="self-start sm:self-center flex items-center">
+                    <ReportActions>
+                        <ExportMenu askMode initialRange={{ from: selectedDate, to: selectedDate }} filterSummary={[`Phòng: ${getSelectedRoomInfo(rooms, selectedRoomId)?.name || 'Tất cả phòng'}`, debouncedSearch ? `Tìm kiếm: ${debouncedSearch}` : '', directionFilter ? `Hướng: ${directionFilter === 'enter' ? 'Vào' : 'Ra'}` : 'Tất cả hướng', statusFilter ? `Trạng thái: ${{ matched: 'Đã nhận diện', unmatched: 'Chưa khớp', stranger: 'Người lạ' }[statusFilter] || statusFilter}` : 'Tất cả trạng thái']} onExport={handleExport} busyFormat={busyFormat} disabled={logsLoading || allSorted.length === 0} />
+                        <RefreshButton
+                            onClick={() => fetchLogs()}
+                            disabled={logsLoading}
+                            busy={logsLoading}
+                        />
+                    </ReportActions>
                 </div>
             </div>
 
             {/* ── Stat cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard icon={Clock}         label="Tổng lượt ra/vào"      value={totalItems}     sub="Ghi nhận qua camera AI"          colorCls="bg-blue-50 text-action-blue" />
                 <StatCard icon={ShieldCheck}   label="Lượt hợp lệ"           value={matchedCount}   sub="Đúng người, đúng bối cảnh"       colorCls="bg-emerald-50 text-emerald-600" />
                 <StatCard icon={ShieldQuestion} label="Chưa khớp bối cảnh"   value={unmatchedCount} sub="Người quen, sai phòng/giờ"       colorCls={unmatchedCount > 0 ? 'bg-amber-100 text-amber-600' : 'bg-cloud-mist text-slate-400'} alert={false} />
                 <StatCard icon={AlertTriangle} label="Người lạ"              value={strangerCount}  sub={strangerCount > 0 ? 'Cảnh báo bảo mật!' : 'Không có bất thường'} colorCls={strangerCount > 0 ? 'bg-red-100 text-red-600' : 'bg-cloud-mist text-slate-400'} alert={strangerCount > 0} />
-            </div>
+            </StatisticGrid>
 
             {/* ── Error ── */}
             <AnimatePresence>
-                {error && (
+                {(error || roomsError || meetingsError) && (
                     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                         className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                            <span className="font-semibold">{error}</span>
+                            <span className="font-semibold">{error || roomsError || meetingsError}</span>
                         </div>
-                        <button onClick={() => fetchLogs()} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex-shrink-0">Thử lại</button>
+                        <button onClick={() => roomsError ? fetchRoomsList() : meetingsError ? fetchMeetings() : fetchLogs()} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex-shrink-0">Thử lại</button>
                     </motion.div>
                 )}
             </AnimatePresence>
 
             {/* ── Filter panel ── */}
-            <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
+            <FilterBar variant="card" className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
                 <div className="flex items-center gap-2 mb-4 text-sm font-extrabold text-midnight-indigo">
                     <Filter className="w-4 h-4 text-slate-blue" /> Bộ lọc
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div data-filter-grid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
                     {/* Room */}
-                    <div className="space-y-1.5">
+                    <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Phòng họp</label>
                         <div className="relative">
                             <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
@@ -998,7 +755,7 @@ const RoomAccessLogs = () => {
                     </div>
 
                     {/* Date */}
-                    <div className="space-y-1.5">
+                    <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Ngày giám sát</label>
                         <div className="relative">
                             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
@@ -1022,10 +779,10 @@ const RoomAccessLogs = () => {
                                 disabled={!selectedRoomId}
                                 className={`w-full pl-9 pr-8 py-2.5 border rounded-xl text-sm text-left font-semibold outline-none transition-all ${
                                     !selectedRoomId
-                                        ? 'bg-slate-50 border-platinum-tint text-slate-400 cursor-not-allowed'
+                                        ? 'bg-white border-platinum-tint text-slate-400 cursor-not-allowed'
                                         : isMeetingDropdownOpen
                                             ? 'bg-white border-action-blue ring-2 ring-action-blue/20 text-midnight-indigo'
-                                            : 'bg-cloud-mist hover:bg-white border-platinum-tint text-midnight-indigo'
+                                            : 'bg-white hover:bg-white border-platinum-tint text-midnight-indigo'
                                 }`}
                             >
                                 <span className="truncate block">
@@ -1077,13 +834,13 @@ const RoomAccessLogs = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </FilterBar>
 
             {/* ── Log table ── */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
 
                 {/* sub-filter bar */}
-                <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex flex-col md:flex-row items-center gap-3">
+                <FilterBar variant="inline" className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex flex-col md:flex-row items-center gap-3">
                     {/* search */}
                     <div className="relative w-full md:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
@@ -1096,12 +853,12 @@ const RoomAccessLogs = () => {
                         />
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <div data-filter-fields className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                         {/* direction */}
-                        <div className="relative">
+                        <div className="relative flex-1 min-w-[160px]">
                             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-blue pointer-events-none" />
                             <select value={directionFilter} onChange={e => { setDirectionFilter(e.target.value); setCurrentPage(1); }}
-                                className="appearance-none pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none">
+                                className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none">
                                 <option value="">Tất cả hướng</option>
                                 <option value="enter">Vào cửa</option>
                                 <option value="leave">Ra cửa</option>
@@ -1110,10 +867,10 @@ const RoomAccessLogs = () => {
                         </div>
 
                         {/* status */}
-                        <div className="relative">
+                        <div className="relative flex-1 min-w-[160px]">
                             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-blue pointer-events-none" />
                             <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                                className="appearance-none pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none">
+                                className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none">
                                 <option value="">Tất cả trạng thái</option>
                                 <option value="matched">Khớp</option>
                                 <option value="unmatched">Chưa khớp bối cảnh</option>
@@ -1128,11 +885,17 @@ const RoomAccessLogs = () => {
                             {sortOrder === 'desc' ? 'Mới nhất trước ↓' : 'Cũ nhất trước ↑'}
                         </button>
                     </div>
-                </div>
+                </FilterBar>
 
                 {/* table */}
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <ResponsiveTable className="w-full text-left text-sm">
+                        <colgroup>
+                            {(showRoomColumn
+                                ? [8, 7, 22, 11, 7, 10, 11, 6, 6, 12]
+                                : [9, 8, 22, 7, 10, 11, 9, 7, 17]
+                            ).map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+                        </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
                                 <th className="px-6 py-4 text-xs font-extrabold text-slate-blue uppercase tracking-wider">Ngày</th>
@@ -1159,6 +922,7 @@ const RoomAccessLogs = () => {
                                                 <div className="h-3.5 bg-gray-200 rounded w-28" />
                                             </div>
                                         </td>
+                                        {showRoomColumn && <td className="px-6 py-4"><div className="h-3.5 bg-gray-200 rounded w-24" /></td>}
                                         <td className="px-6 py-4 text-center"><div className="h-6 bg-gray-200 rounded-full w-14 mx-auto" /></td>
                                         <td className="px-6 py-4 text-center"><div className="h-6 bg-gray-200 rounded-full w-20 mx-auto" /></td>
                                         <td className="px-6 py-4 text-center"><div className="h-8 w-8 bg-gray-200 rounded mx-auto" /></td>
@@ -1185,35 +949,20 @@ const RoomAccessLogs = () => {
                                 </AnimatePresence>
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
 
                 {/* Pagination */}
-                {!logsLoading && totalItems > 0 && (
-                    <div className="px-6 py-4 bg-cloud-mist/30 border-t border-platinum-tint flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <span className="text-xs font-medium text-slate-blue">
-                            {rangeStart}–{rangeEnd} / {totalGroups} dòng · {totalItems} lượt nhật ký{multiGroupCount > 0 ? ` · ${multiGroupCount} nhóm nhiều người` : ''}
-                        </span>
-                        {totalPages > 1 && (
-                            <div className="flex items-center gap-1.5">
-                                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                                    className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-bold hover:bg-cloud-mist disabled:opacity-40 transition-colors">Trước</button>
-                                {getPageNumbers(currentPage, totalPages).map((p, i) =>
-                                    p === '…' ? (
-                                        <span key={`d${i}`} className="px-1 text-xs text-slate-400">…</span>
-                                    ) : (
-                                        <button key={p} onClick={() => setCurrentPage(p)}
-                                            className={`w-8 h-8 rounded-lg text-xs font-bold border transition-all ${currentPage === p ? 'bg-action-blue text-white border-action-blue' : 'border-platinum-tint hover:bg-cloud-mist text-slate-blue'}`}>
-                                            {p}
-                                        </button>
-                                    )
-                                )}
-                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                                    className="px-3 py-1.5 border border-platinum-tint rounded-lg text-xs font-bold hover:bg-cloud-mist disabled:opacity-40 transition-colors">Sau</button>
-                            </div>
-                        )}
-                    </div>
-                )}
+                {<PaginationRegion legacyVisible={!logsLoading && totalItems > 0}><PaginationFooter
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalGroups}
+                        pageSize={LOGS_PER_PAGE}
+                        onPageChange={setCurrentPage}
+                        itemLabel={"nhóm nhật ký"}
+                        loading={logsLoading}
+                        note={`${totalItems} lượt nhật ký${multiGroupCount > 0 ? ` · ${multiGroupCount} nhóm nhiều người` : ""}`}
+                     onPageSizeChange={size => { setLogsPerPage(size); setCurrentPage(1); }} /></PaginationRegion>}
             </div>
 
             {/* Snapshot modal */}
@@ -1282,7 +1031,7 @@ const RoomAccessLogs = () => {
                                                     className="w-24 h-24 rounded-full text-3xl mb-4 border-4 border-cloud-mist shadow-sm" />
                                             )}
                                             <h4 className="text-xl font-extrabold text-midnight-indigo text-center">{name}</h4>
-                                            {code && <span className="mt-1.5 text-[11px] font-mono text-slate-blue bg-cloud-mist px-2.5 py-0.5 rounded-full border border-platinum-tint">{code}</span>}
+                                            {code && <span data-ui-text="code" className="mt-1.5 text-[11px] font-mono text-slate-blue bg-cloud-mist px-2.5 py-0.5 rounded-full border border-platinum-tint">{code}</span>}
                                         </div>
                                         <div className="space-y-3">
                                             {[
@@ -1295,7 +1044,7 @@ const RoomAccessLogs = () => {
                                                         <Icon className="w-5 h-5" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-[11px] font-semibold text-slate-blue">{label}</p>
+                                                        <p data-ui-text="label" className="text-[11px] font-semibold text-slate-blue">{label}</p>
                                                         <p className="text-sm font-bold text-midnight-indigo truncate">{value}</p>
                                                     </div>
                                                 </div>

@@ -1,6 +1,11 @@
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import './RecordingsFilters.css';
+import PaginationFooter from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
 import {
     AlertCircle, BookOpen, Calendar, CheckCircle, ChevronLeft, ChevronRight,
-    Clock, FileAudio, FileText, FolderOpen, Play, RefreshCw,
+    Clock, FileAudio, FileText, Filter, FolderOpen, Play, RefreshCw,
     Search, User, Video,
 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -11,7 +16,7 @@ import {
     getMyMeetingHistory, getMeetingMediaFiles, getMediaFile, getMeetingMinutesByMeetingId,
 } from '../../service/employeeServices';
 
-const ITEMS_PER_PAGE = 9;
+
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -100,6 +105,7 @@ const Pagination = ({ current, total, onChange }) => {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const EmployeeRecordings = () => {
+    const [ITEMS_PER_PAGE, setItemsPerPage] = useState(12);
     const navigate = useNavigate();
     const basePath = window.location.pathname.split('/')[1];
 
@@ -252,29 +258,30 @@ const EmployeeRecordings = () => {
 
     // ── render ─────────────────────────────────────────────────────────────
     return (
-        <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-6xl mx-auto">
+        <motion.div data-page-surface="wide" variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-6xl mx-auto">
 
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-purple-50 text-purple-700">
+                        <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-purple-50 text-purple-700">
                             <Video className="w-3.5 h-3.5" /> Ghi hình
                         </span>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue">
+                        <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue">
                             <BookOpen className="w-3.5 h-3.5" /> Biên bản
                         </span>
                     </div>
                     <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Bản ghi & Tài liệu cuộc họp</h1>
                     <p className="text-slate-blue text-sm mt-0.5">Xem lại video/audio và tải xuống biên bản các cuộc họp đã diễn ra.</p>
                 </div>
-                <button
+                <RefreshButton
                     onClick={fetchRecordingsData}
                     disabled={loading}
-                    className="self-start flex items-center gap-2 px-4 py-2 border border-platinum-tint bg-white hover:bg-cloud-mist text-slate-blue hover:text-midnight-indigo rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                    legacyClassName="self-start flex items-center gap-2 px-4 py-2 border border-platinum-tint bg-white hover:bg-cloud-mist text-slate-blue hover:text-midnight-indigo rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                    busy={loading}
                 >
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Làm mới
-                </button>
+                </RefreshButton>
             </div>
 
             {/* Alerts */}
@@ -294,68 +301,39 @@ const EmployeeRecordings = () => {
             </AnimatePresence>
 
             {/* Filter panel */}
-            <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Search */}
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Tìm kiếm</label>
+            <FilterBar variant="card" className="recordings-filters">
+                <div className="recordings-filter-main">
+                    <FilterField label="Tìm kiếm">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                            <input
-                                type="text"
-                                placeholder="Tiêu đề, phòng..."
-                                value={searchQuery}
+                            <input type="text" placeholder="Tiêu đề, phòng..." value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 transition-all"
-                            />
+                                className="w-full pl-9 pr-3 py-2.5 border border-platinum-tint rounded-xl text-sm text-midnight-indigo" />
                         </div>
-                    </div>
-
-                    {/* Room filter */}
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Phòng họp</label>
-                        <select
-                            value={selectedRoom}
-                            onChange={e => setSelectedRoom(e.target.value)}
-                            className="w-full px-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 transition-all"
-                        >
+                    </FilterField>
+                    <FilterField label="Phòng họp">
+                        <select value={selectedRoom} onChange={e => setSelectedRoom(e.target.value)}>
                             <option value="">Tất cả phòng</option>
-                            {uniqueRooms.map(rm => <option key={rm} value={rm}>{rm}</option>)}
+                            {uniqueRooms.map(room => <option key={room} value={room}>{room}</option>)}
                         </select>
-                    </div>
-
-                    {/* From date */}
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Từ ngày</label>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                            <input
-                                type="date"
-                                value={startDate}
-                                max={endDate || todayStr}
-                                onChange={handleStartDateChange}
-                                className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 transition-all"
-                            />
-                        </div>
-                    </div>
-
-                    {/* To date */}
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wider">Đến ngày</label>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                            <input
-                                type="date"
-                                value={endDate}
-                                min={startDate || undefined}
-                                max={todayStr}
-                                onChange={handleEndDateChange}
-                                className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 transition-all"
-                            />
-                        </div>
-                    </div>
+                    </FilterField>
                 </div>
-            </div>
+                <div className="recordings-filter-time">
+                    <CalendarRangePresets from={startDate} to={endDate} onChange={range => { setStartDate(range.from); setEndDate(range.to); }} />
+                    <div className="recordings-filter-dates">
+                        <FilterField label="Từ ngày">
+                            <input type="date" value={startDate} max={endDate || todayStr} onChange={handleStartDateChange} />
+                        </FilterField>
+                        <FilterField label="Đến ngày">
+                            <input type="date" value={endDate} min={startDate || undefined} max={todayStr} onChange={handleEndDateChange} />
+                        </FilterField>
+                    </div>
+                    <button type="button" data-filter-action className="recordings-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                        onClick={() => { setSearchQuery(''); setSelectedRoom(''); setStartDate(''); setEndDate(''); setCurrentPage(1); }}>
+                        <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                    </button>
+                </div>
+            </FilterBar>
 
             {/* Count bar */}
             {!loading && filteredRecordings.length > 0 && (
@@ -416,19 +394,19 @@ const EmployeeRecordings = () => {
                                     }`}
                                 >
                                     {/* Top row: room + newest badge + duration */}
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100 whitespace-nowrap">
+                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                        <div className="min-w-0 max-w-full flex items-center gap-1.5 flex-wrap">
+                                            <span data-ui-text="badge" className="max-w-full break-words px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100 whitespace-normal">
                                                 {rec.roomName}
                                             </span>
                                             {isNewest && (
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-action-blue text-white">
+                                                <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-action-blue text-white">
                                                     Mới nhất
                                                 </span>
                                             )}
                                         </div>
                                         {rec.durationMinutes && (
-                                            <span className="text-[11px] font-semibold text-slate-blue whitespace-nowrap flex items-center gap-1 shrink-0">
+                                            <span data-ui-text="primary" className="text-[11px] font-semibold text-slate-blue whitespace-nowrap flex items-center gap-1 shrink-0">
                                                 <Clock className="w-3 h-3" />{rec.durationMinutes} ph
                                             </span>
                                         )}
@@ -499,9 +477,10 @@ const EmployeeRecordings = () => {
                     </motion.div>
 
                     {/* Pagination */}
-                    <Pagination current={currentPage} total={totalPages} onChange={p => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+
                 </>
             )}
+<PaginationFooter currentPage={currentPage} totalPages={totalPages} totalItems={filteredRecordings.length} pageSize={ITEMS_PER_PAGE} itemLabel="bản ghi" onPageChange={p => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} legacy={<Pagination current={currentPage} total={totalPages} onChange={p => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}  onPageSizeChange={size => { setItemsPerPage(size); setCurrentPage(1); }} />
         </motion.div>
     );
 };

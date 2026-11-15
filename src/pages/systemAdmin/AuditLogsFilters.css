@@ -1,0 +1,10 @@
+.camai-filter-bar.audit-log-filters[data-filter-bar] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; container-type: inline-size; }
+.audit-log-filter-main, .audit-log-filter-time, .audit-log-filter-dates { display: grid; align-items: end; min-width: 0; gap: 16px; }
+.audit-log-filter-main { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.audit-log-filter-time { grid-template-columns: minmax(0, 28rem) minmax(0, 1fr) auto; }
+.audit-log-filter-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.audit-log-filters .camai-filter-field { width: 100%; min-width: 0; }
+.audit-log-filter-reset { justify-self: end; white-space: nowrap; }
+.audit-log-filter-count { border-top: 1px solid #e4ecf5; padding-top: 12px; margin: 0; }
+@container (max-width: 1000px) { .audit-log-filter-time { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 600px) { .audit-log-filter-main { grid-template-columns: minmax(0, 1fr); } }

@@ -1,6 +1,14 @@
+import './DocumentArchiveFilters.css';
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
+import TableColumns from '../../components/common/TableColumns';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
 import {
     Archive, Calendar, ChevronLeft, ChevronRight, Clock,
-    Download, FileText, Film, HardDrive,
+    Download, FileText, Filter, Film, HardDrive,
     Mic, Play, RefreshCw, Search, Video, X, XCircle, AlertTriangle,
     CheckCircle, Users, Building2, Briefcase, ClipboardList, ListChecks,
     MapPin, User,
@@ -19,8 +27,8 @@ import ExportMinutesModal from '../../components/minutes/ExportMinutesModal';
 import MinutesInbox from '../../components/minutes/MinutesInbox';
 
 // ─── Constants ───────────────────────────────────────────────
-const MINUTES_LIMIT = 15;
-const MEDIA_LIMIT   = 10;
+
+
 
 const MINUTES_STATUS_MAP = {
     draft:     { label: 'Bản nháp',    cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -66,7 +74,7 @@ const fmtDur = (s) => {
 const StatusBadge = ({ status }) => {
     const { label, cls } = MINUTES_STATUS_MAP[status] || { label: status, cls: 'bg-slate-50 text-slate-600 border-slate-200' };
     return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${cls}`}>
+        <span data-ui-text="badge" className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${cls}`}>
             {label}
         </span>
     );
@@ -84,6 +92,8 @@ const canExportMinutesItem = (item, currentUser, isAdmin) => {
 };
 
 const DocumentArchive = ({ scope = 'all' }) => {
+    const [MINUTES_LIMIT, setMinutesLimit] = useState(10);
+    const [MEDIA_LIMIT, setMediaLimit] = useState(10);
     const isSelfScope = scope === 'self';
     const [activeTab, setActiveTab] = useState('minutes');
     // "Cần xử lý" (trình ký biên bản) — chỉ ở Kho biên bản của tôi; tự mở khi có việc
@@ -173,7 +183,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
         } finally {
             setMinutesLoading(false);
         }
-    }, [mStatus, mSearch, mFrom, mTo]);
+    }, [mStatus, mSearch, mFrom, mTo, MINUTES_LIMIT]);
 
     // Fetch on tab open / filter change
     useEffect(() => {
@@ -320,7 +330,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
         <div className="space-y-6">
             {/* ── Header ── */}
             <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-violet-50 text-violet-700 mb-2">
+                <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-violet-50 text-violet-700 mb-2">
                     <Archive className="w-3.5 h-3.5" />
                     Kho tài liệu
                 </span>
@@ -356,7 +366,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                             <tab.icon className="w-4 h-4" />
                             {tab.label}
                             {tab.badge > 0 && (
-                                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">{tab.badge}</span>
+                                <span data-ui-text="action" className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">{tab.badge}</span>
                             )}
                         </button>
                     ))}
@@ -384,63 +394,47 @@ const DocumentArchive = ({ scope = 'all' }) => {
                         className="space-y-4"
                     >
                         {/* Filters */}
-                        <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-col md:flex-row gap-3">
-                            {/* Search */}
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue/60" />
-                                <input
-                                    type="text"
-                                    placeholder="Tìm tiêu đề biên bản, tên cuộc họp..."
-                                    value={mSearch}
-                                    onChange={e => setMSearch(e.target.value)}
-                                    className="w-full pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo"
-                                />
+                        <FilterBar variant="card" className="minutes-archive-filters">
+                            <div className="minutes-archive-filter-main">
+                                <FilterField label="Tìm biên bản"><div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue/60" />
+                                    <input type="text" placeholder="Tìm tiêu đề biên bản, tên cuộc họp..." value={mSearch}
+                                        onChange={e => setMSearch(e.target.value)}
+                                        className="w-full pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo" />
+                                </div></FilterField>
+                                <FilterField label="Trạng thái biên bản">
+                                    <select value={mStatus} onChange={e => setMStatus(e.target.value)}>
+                                        <option value="">Tất cả trạng thái</option>
+                                        <option value="published">Đã ban hành</option>
+                                        <option value="draft">Bản nháp</option>
+                                        <option value="archived">Lưu trữ</option>
+                                    </select>
+                                </FilterField>
+                                <RefreshButton onClick={() => fetchMinutes(minutesPage)} busy={minutesLoading} title="Tải lại"
+                                    legacyClassName="p-2 border border-platinum-tint rounded-xl text-slate-blue hover:bg-cloud-mist transition-colors" />
                             </div>
-
-                            {/* Status */}
-                            <select
-                                value={mStatus}
-                                onChange={e => setMStatus(e.target.value)}
-                                className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
-                            >
-                                <option value="">Tất cả trạng thái</option>
-                                <option value="published">Đã ban hành</option>
-                                <option value="draft">Bản nháp</option>
-                                <option value="archived">Lưu trữ</option>
-                            </select>
-
-                            {/* Date range */}
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="date"
-                                    value={mFrom}
-                                    onChange={e => setMFrom(e.target.value)}
-                                    className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
-                                />
-                                <span className="text-slate-blue text-xs">→</span>
-                                <input
-                                    type="date"
-                                    value={mTo}
-                                    onChange={e => setMTo(e.target.value)}
-                                    className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
-                                />
+                            <div className="minutes-archive-filter-time">
+                                <CalendarRangePresets from={mFrom} to={mTo} onChange={range => { setMFrom(range.from); setMTo(range.to); setMinutesPage(1); }} />
+                                <div className="minutes-archive-filter-dates">
+                                    <FilterField label="Từ ngày"><input type="date" value={mFrom} onChange={e => setMFrom(e.target.value)} /></FilterField>
+                                    <FilterField label="Đến ngày"><input type="date" value={mTo} onChange={e => setMTo(e.target.value)} /></FilterField>
+                                </div>
+                                <button type="button" data-filter-action className="minutes-archive-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                                    onClick={() => {
+                                        if (!mSearch && !mStatus && !mFrom && !mTo) fetchMinutes(1);
+                                        setMSearch(''); setMStatus(''); setMFrom(''); setMTo(''); setMinutesPage(1);
+                                    }}>
+                                    <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                                </button>
                             </div>
-
-                            <button
-                                onClick={() => fetchMinutes(minutesPage)}
-                                title="Tải lại"
-                                className="p-2 border border-platinum-tint rounded-xl text-slate-blue hover:bg-cloud-mist transition-colors"
-                            >
-                                <RefreshCw className="w-4 h-4" />
-                            </button>
-                        </div>
+                        </FilterBar>
 
                         {/* Minutes table */}
                         <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
                             {minutesLoading ? (
                                 <div className="flex flex-col items-center justify-center py-16">
                                     <div className="w-9 h-9 border-4 border-action-blue border-t-transparent rounded-full animate-spin mb-3" />
-                                    <p className="text-slate-blue text-xs font-semibold">Đang tải biên bản họp...</p>
+                                    <p data-ui-text="primary" className="text-slate-blue text-xs font-semibold">Đang tải biên bản họp...</p>
                                 </div>
                             ) : minutesError ? (
                                 <div className="flex flex-col items-center justify-center py-16 text-center px-6">
@@ -457,7 +451,8 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
+                                    <ResponsiveTable className="w-full text-left border-collapse">
+<TableColumns widths={[38, 16, 23, 13, 10]} />
                                         <thead>
                                             <tr className="border-b border-platinum-tint bg-cloud-mist/40 text-[11px] font-bold text-slate-blue uppercase tracking-wider">
                                                 <th className="px-5 py-3.5">Biên bản / Cuộc họp</th>
@@ -484,7 +479,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                             {fmtDate(min.meeting?.startTime || min.meetingDate)}
                                                         </div>
                                                         {min.issuedAt && (
-                                                            <div className="text-[10px] text-slate-blue/60 mt-0.5">
+                                                            <div data-ui-text="primary" className="text-[10px] text-slate-blue/60 mt-0.5">
                                                                 Ban hành: {fmtDate(min.issuedAt)}
                                                             </div>
                                                         )}
@@ -504,8 +499,8 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                                         </div>
                                                                     )}
                                                                     <div>
-                                                                        <p className="text-xs font-semibold text-midnight-indigo leading-tight">{user.fullName}</p>
-                                                                        {user.jobTitle && <p className="text-[10px] text-slate-blue/70">{user.jobTitle}</p>}
+                                                                        <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo leading-tight">{user.fullName}</p>
+                                                                        {user.jobTitle && <p data-ui-text="secondary" className="text-[10px] text-slate-blue/70">{user.jobTitle}</p>}
                                                                     </div>
                                                                 </div>
                                                             );
@@ -517,7 +512,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                     <td className="px-5 py-4">
                                                         <div className="flex items-center justify-end gap-1.5">
                                                             {/* Chi tiết — mở modal */}
-                                                            <button
+                                                            <button data-ui-text="action"
                                                                 onClick={() => handleOpenDetail(min)}
                                                                 title="Xem chi tiết biên bản"
                                                                 className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-action-blue hover:bg-blue-100 rounded-lg text-[11px] font-bold transition-colors"
@@ -541,13 +536,20 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                 </tr>
                                             ))}
                                         </tbody>
-                                    </table>
+                                    </ResponsiveTable>
                                 </div>
                             )}
 
                             {/* Pagination */}
-                            {!minutesLoading && minutesMeta && minutesMeta.totalPages > 1 && (
-                                <div className="px-5 py-3.5 border-t border-platinum-tint bg-cloud-mist/20 flex items-center justify-between">
+                            {minutesMeta && <PaginationRegion legacyVisible={!minutesLoading && minutesMeta && minutesMeta.totalPages > 1}><PaginationFooter
+                                    currentPage={minutesPage}
+                                    totalPages={minutesMeta.totalPages}
+                                    totalItems={minutesMeta.total}
+                                    pageSize={MINUTES_LIMIT}
+                                    onPageChange={handleMinutesPageChange}
+                                    itemLabel={"biên bản"}
+                                    loading={minutesLoading}
+                                    legacy={<div className="px-5 py-3.5 border-t border-platinum-tint bg-cloud-mist/20 flex items-center justify-between">
                                     <span className="text-[11px] text-slate-blue">
                                         Trang {minutesPage} / {minutesMeta.totalPages} · {minutesMeta.total} biên bản
                                     </span>
@@ -568,8 +570,8 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                             <ChevronRight className="w-4 h-4" />
                                         </button>
                                     </div>
-                                </div>
-                            )}
+                                </div>}
+                                 onPageSizeChange={size => { setMinutesLimit(size); setMinutesPage(1); }} /></PaginationRegion>}
                         </div>
                     </motion.div>
                 )}
@@ -587,8 +589,8 @@ const DocumentArchive = ({ scope = 'all' }) => {
                         className="space-y-4"
                     >
                         {/* Filters */}
-                        <div className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-col md:flex-row gap-3">
-                            <div className="relative flex-1">
+                        <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-col md:flex-row gap-3">
+                            <FilterField label="Tìm bản ghi"><div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue/60" />
                                 <input
                                     type="text"
@@ -597,18 +599,18 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                     onChange={e => { setMediaSearch(e.target.value); setMediaPage(1); }}
                                     className="w-full pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo"
                                 />
-                            </div>
+                            </div></FilterField>
 
-                            <select
+                            <FilterField label="Phòng họp"><select
                                 value={mediaRoom}
                                 onChange={e => { setMediaRoom(e.target.value); setMediaPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
                             >
                                 <option value="">Tất cả phòng</option>
                                 {rooms.map(r => <option key={r.id ?? r.roomId} value={r.id ?? r.roomId}>{r.roomName}</option>)}
-                            </select>
+                            </select></FilterField>
 
-                            <select
+                            <FilterField label="Loại bản ghi"><select
                                 value={mediaType}
                                 onChange={e => { setMediaType(e.target.value); setMediaPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
@@ -616,23 +618,24 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                 <option value="">Video & Âm thanh</option>
                                 <option value="video">Chỉ video</option>
                                 <option value="audio">Chỉ âm thanh</option>
-                            </select>
+                            </select></FilterField>
 
-                            <button
+                            <RefreshButton
                                 onClick={() => { setMediaPage(1); fetchMedia(); }}
+                                busy={mediaLoading}
                                 title="Tải lại"
-                                className="p-2 border border-platinum-tint rounded-xl text-slate-blue hover:bg-cloud-mist transition-colors"
+                                legacyClassName="p-2 border border-platinum-tint rounded-xl text-slate-blue hover:bg-cloud-mist transition-colors"
                             >
                                 <RefreshCw className="w-4 h-4" />
-                            </button>
-                        </div>
+                            </RefreshButton>
+                        </FilterBar>
 
                         {/* Media table */}
                         <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
                             {mediaLoading ? (
                                 <div className="flex flex-col items-center justify-center py-16">
                                     <div className="w-9 h-9 border-4 border-action-blue border-t-transparent rounded-full animate-spin mb-3" />
-                                    <p className="text-slate-blue text-xs font-semibold">Đang tải danh sách media...</p>
+                                    <p data-ui-text="primary" className="text-slate-blue text-xs font-semibold">Đang tải danh sách media...</p>
                                 </div>
                             ) : mediaError ? (
                                 <div className="flex flex-col items-center justify-center py-16 text-center px-6">
@@ -649,7 +652,8 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
+                                    <ResponsiveTable className="w-full text-left border-collapse">
+<TableColumns widths={[10, 30, 17, 17, 10, 8, 8]} />
                                         <thead>
                                             <tr className="border-b border-platinum-tint bg-cloud-mist/40 text-[11px] font-bold text-slate-blue uppercase tracking-wider">
                                                 <th className="px-5 py-3.5">Loại</th>
@@ -669,7 +673,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                 return (
                                                     <tr key={item.id} className="hover:bg-cloud-mist/20 transition-colors">
                                                         <td className="px-5 py-4">
-                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold ${typeInfo.cls}`}>
+                                                            <span data-ui-text="secondary" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold ${typeInfo.cls}`}>
                                                                 <TypeIcon className="w-3.5 h-3.5" />
                                                                 {typeInfo.label}
                                                             </span>
@@ -718,13 +722,20 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                 );
                                             })}
                                         </tbody>
-                                    </table>
+                                    </ResponsiveTable>
                                 </div>
                             )}
 
                             {/* Pagination */}
-                            {!mediaLoading && allMedia.length > 0 && (
-                                <div className="px-5 py-3.5 border-t border-platinum-tint bg-cloud-mist/20 flex items-center justify-between">
+                            {<PaginationRegion legacyVisible={!mediaLoading && allMedia.length > 0}><PaginationFooter
+                                    currentPage={mediaPage}
+                                    totalPages={mediaTotalPages}
+                                    totalItems={allMedia.length}
+                                    pageSize={MEDIA_LIMIT}
+                                    onPageChange={setMediaPage}
+                                    itemLabel={"tệp"}
+                                    loading={mediaLoading}
+                                    legacy={<div className="px-5 py-3.5 border-t border-platinum-tint bg-cloud-mist/20 flex items-center justify-between">
                                     <span className="text-[11px] text-slate-blue">
                                         Trang {mediaPage} / {mediaTotalPages} · {allMedia.length} file
                                     </span>
@@ -745,8 +756,8 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                             <ChevronRight className="w-4 h-4" />
                                         </button>
                                     </div>
-                                </div>
-                            )}
+                                </div>}
+                                 onPageSizeChange={size => { setMediaLimit(size); setMediaPage(1); }} /></PaginationRegion>}
                         </div>
                     </motion.div>
                 )}
@@ -801,7 +812,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
 
                         {/* Footer */}
                         <div className="flex items-center justify-between p-4 border-t border-platinum-tint bg-cloud-mist/10">
-                            <div className="flex items-center gap-4 text-xs font-semibold text-slate-blue">
+                            <div data-ui-text="primary" className="flex items-center gap-4 text-xs font-semibold text-slate-blue">
                                 {previewItem.durationSec != null && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{fmtDur(previewItem.durationSec)}</span>}
                                 {previewItem.size != null && <span className="flex items-center gap-1"><HardDrive className="w-3.5 h-3.5" />{fmtBytes(previewItem.size)}</span>}
                             </div>
@@ -860,7 +871,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                             {detailItem._loading ? (
                                 <div className="flex flex-col items-center justify-center py-16">
                                     <div className="w-9 h-9 border-4 border-action-blue border-t-transparent rounded-full animate-spin mb-3" />
-                                    <p className="text-xs font-semibold text-slate-blue">Đang tải chi tiết biên bản...</p>
+                                    <p data-ui-text="primary" className="text-xs font-semibold text-slate-blue">Đang tải chi tiết biên bản...</p>
                                 </div>
                             ) : (() => {
                                 const d = detailItem._detail || detailItem;
@@ -884,15 +895,15 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                 </div>
                                             )}
                                             <div className="min-w-0">
-                                                <p className="text-[10px] font-bold text-slate-blue/60 uppercase tracking-wide mb-0.5">{label}</p>
-                                                <p className="text-sm font-bold text-midnight-indigo leading-tight">{user.fullName}</p>
-                                                {user.jobTitle && <p className="text-[11px] text-slate-blue mt-0.5">{user.jobTitle}</p>}
+                                                <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue/60 uppercase tracking-wide mb-0.5">{label}</p>
+                                                <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo leading-tight">{user.fullName}</p>
+                                                {user.jobTitle && <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-0.5">{user.jobTitle}</p>}
                                                 {user.department?.departmentName && (
-                                                    <p className="text-[10px] text-slate-blue/60 flex items-center gap-1 mt-0.5">
+                                                    <p data-ui-text="secondary" className="text-[10px] text-slate-blue/60 flex items-center gap-1 mt-0.5">
                                                         <Building2 className="w-3 h-3" />{user.department.departmentName}
                                                     </p>
                                                 )}
-                                                {user.email && <p className="text-[10px] text-slate-blue/60 mt-0.5">{user.email}</p>}
+                                                {user.email && <p data-ui-text="secondary" className="text-[10px] text-slate-blue/60 mt-0.5">{user.email}</p>}
                                             </div>
                                         </div>
                                     );
@@ -902,7 +913,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                     <>
                                         {/* Meeting info */}
                                         <section>
-                                            <p className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2">Thông tin cuộc họp</p>
+                                            <p data-ui-text="label" className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2">Thông tin cuộc họp</p>
                                             <div className="grid grid-cols-2 gap-2 text-xs text-slate-blue">
                                                 {(meeting.startTime || detailItem.meeting?.startTime) && (
                                                     <div className="flex items-center gap-1.5 bg-cloud-mist/50 px-3 py-2 rounded-lg border border-platinum-tint">
@@ -927,7 +938,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
 
                                         {/* Người ban hành / soạn thảo */}
                                         <section>
-                                            <p className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2">Nhân sự biên bản</p>
+                                            <p data-ui-text="label" className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2">Nhân sự biên bản</p>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 <UserCard user={issuedBy} label="Người ban hành" />
                                                 {preparedBy && preparedBy.id !== issuedBy?.id && (
@@ -939,26 +950,30 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                         {/* Decisions */}
                                         {decisions.length > 0 && (
                                             <section>
-                                                <p className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                <p data-ui-text="label" className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                                     <ClipboardList className="w-3.5 h-3.5" /> Quyết định ({decisions.length})
                                                 </p>
-                                                <ul className="space-y-1.5">
-                                                    {decisions.map((dec, i) => (
+                                                <PaginatedCollection items={decisions} itemLabel="quyết định">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="space-y-1.5">
+                                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((dec, i) => (
                                                         <li key={i} className="flex gap-2.5 text-sm text-midnight-indigo bg-cloud-mist/30 px-3 py-2 rounded-lg border border-platinum-tint">
-                                                            <span className="text-action-blue font-bold shrink-0 text-xs mt-0.5">{i + 1}.</span>
+                                                            <span data-ui-text="primary" className="text-action-blue font-bold shrink-0 text-xs mt-0.5">{i + 1}.</span>
                                                             <span>{dec.text}</span>
                                                         </li>
-                                                    ))}
+                                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (decisions)))}
                                                 </ul>
+)}
+</PaginatedCollection>
                                             </section>
                                         )}
 
                                         {/* Nội dung biên bản */}
                                         {bodyHtml && (
                                             <section>
-                                                <p className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2">Nội dung biên bản</p>
+                                                <p data-ui-text="label" className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2">Nội dung biên bản</p>
                                                 {/<[a-z][\s\S]*>/i.test(bodyHtml)
-                                                    ? <div className="prose prose-sm max-w-none text-midnight-indigo bg-cloud-mist/20 border border-platinum-tint rounded-xl p-4" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+                                                    ? <div data-typography-preserve className="prose prose-sm max-w-none text-midnight-indigo bg-cloud-mist/20 border border-platinum-tint rounded-xl p-4" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
                                                     : <div className="text-sm text-midnight-indigo whitespace-pre-wrap bg-cloud-mist/20 border border-platinum-tint rounded-xl p-4">{bodyHtml}</div>}
                                             </section>
                                         )}
@@ -966,7 +981,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                         {/* Action Items */}
                                         {actionItems.length > 0 && (
                                             <section>
-                                                <p className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                <p data-ui-text="label" className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                                     <ListChecks className="w-3.5 h-3.5" /> Việc cần làm ({actionItems.length})
                                                 </p>
                                                 <div className="space-y-2">
@@ -974,7 +989,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                         <div key={i} className="flex gap-3 bg-cloud-mist/30 px-3 py-2.5 rounded-lg border border-platinum-tint">
                                                             <div className="flex-1 min-w-0">
                                                                 <p className="text-sm font-semibold text-midnight-indigo">{item.task}</p>
-                                                                <div className="flex flex-wrap gap-3 mt-1 text-[10px] text-slate-blue">
+                                                                <div data-ui-text="secondary" className="flex flex-wrap gap-3 mt-1 text-[10px] text-slate-blue">
                                                                     {item.owner && <span className="flex items-center gap-1"><User className="w-3 h-3" />{item.owner}</span>}
                                                                     {item.deadline && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDate(item.deadline)}</span>}
                                                                     {item.priority && (
@@ -993,7 +1008,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                         {/* Attendees */}
                                         {attendees.length > 0 && (
                                             <section>
-                                                <p className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                <p data-ui-text="label" className="text-[10px] font-extrabold text-slate-blue/60 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                                     <Users className="w-3.5 h-3.5" /> Người tham dự ({attendees.length})
                                                 </p>
                                                 <div className="flex flex-wrap gap-2">
@@ -1006,9 +1021,9 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                                     {att.fullName?.[0] || '?'}
                                                                 </div>
                                                             )}
-                                                            <span className="text-[11px] font-semibold text-midnight-indigo">{att.fullName}</span>
+                                                            <span data-ui-text="primary" className="text-[11px] font-semibold text-midnight-indigo">{att.fullName}</span>
                                                             {att.attendanceStatus === 'absent' && (
-                                                                <span className="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded">Vắng</span>
+                                                                <span data-ui-text="badge" className="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded">Vắng</span>
                                                             )}
                                                         </div>
                                                     ))}

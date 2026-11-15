@@ -1,3 +1,4 @@
+import StatisticCard from './StatisticCard';
 import { Link } from 'react-router-dom';
 
 // Thẻ số liệu dùng chung cho mọi trang — mẫu gốc: thẻ trạng thái ở trang Cảnh báo an ninh.
@@ -59,9 +60,14 @@ const StatCard = ({
             {children}
         </>
     );
-    if (to) return <Link to={to} className={`no-underline ${cls}`}>{body}</Link>;
-    if (onClick) return <button type="button" onClick={onClick} className={cls}>{body}</button>;
-    return <div className={cls}>{body}</div>;
+    const legacy = to ? <Link to={to} className={`no-underline ${cls}`}>{body}</Link>
+        : onClick ? <button type="button" onClick={onClick} aria-label={typeof label === 'string' ? label : undefined} aria-pressed={active} className={cls}>{body}</button> : <div className={cls}>{body}</div>;
+    const commonTone = { neutral: 'default', red: 'danger', amber: 'warning', green: 'success', violet: 'purple', slate: 'default', blue: 'default' }[tone] || tone;
+    return <StatisticCard aria-label={typeof label === 'string' ? label : undefined} label={label} value={value} helper={hint} icon={Icon} tone={commonTone}
+        onClick={onClick} to={to} selected={active} loading={loading} legacy={legacy}
+        valueProps={valueTestId ? { 'data-testid': valueTestId } : undefined}>
+        {children}
+    </StatisticCard>;
 };
 
 export default StatCard;

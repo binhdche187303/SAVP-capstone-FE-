@@ -1,3 +1,6 @@
+import TableColumns from '../common/TableColumns';
+import PaginatedCollection from '../common/PaginatedCollection';
+import ResponsiveTable from '../common/ResponsiveTable';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -327,14 +330,17 @@ const AddParticipantsModal = ({
                 ].map(({ label, val, color }) => (
                     <div key={label} className="bg-slate-50 rounded-xl p-3 text-center border border-platinum-tint">
                         <p className={`text-2xl font-extrabold ${color}`}>{val ?? 0}</p>
-                        <p className="text-[10px] text-slate-blue mt-0.5 font-semibold uppercase">{label}</p>
+                        <p data-ui-text="label" className="text-[10px] text-slate-blue mt-0.5 font-semibold uppercase">{label}</p>
                     </div>
                 ))}
             </div>
 
             <div className="border border-platinum-tint rounded-xl overflow-hidden">
                 <div className="overflow-x-auto max-h-60">
-                    <table className="w-full text-xs text-left">
+                    <PaginatedCollection items={data?.results || []} itemLabel="kết quả">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-xs text-left">
+<TableColumns widths={[8, 30, 12, 17, 33]} />
                         <thead className="bg-cloud-mist/50 border-b border-platinum-tint sticky top-0">
                             <tr>
                                 <th className="px-3 py-2.5 font-bold text-slate-blue uppercase">Dòng</th>
@@ -345,7 +351,7 @@ const AddParticipantsModal = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-platinum-tint">
-                            {(data.results || []).map((r, i) => {
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((r, i) => {
                                 const cfg = ROW_STATUS_CONFIG[r.status] || ROW_STATUS_CONFIG.unknown;
                                 const reason = r.reason ? (ROW_REASON_TEXT[r.reason] || r.reason) : '—';
                                 return (
@@ -354,14 +360,16 @@ const AddParticipantsModal = ({
                                         <td className="px-3 py-2 max-w-[150px] truncate" title={r.identifier}>{r.identifier || '—'}</td>
                                         <td className="px-3 py-2 text-slate-blue">{ROW_TYPE_TEXT[r.type] || r.type}</td>
                                         <td className="px-3 py-2">
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${cfg.color}`}>{cfg.label}</span>
+                                            <span data-ui-text="badge" className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${cfg.color}`}>{cfg.label}</span>
                                         </td>
                                         <td className="px-3 py-2 text-slate-blue max-w-[220px] truncate" title={reason}>{reason}</td>
                                     </tr>
                                 );
-                            })}
+                            })(camaiRecord, camaiStartIndex + camaiIndex, (data.results || [])))}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                 </div>
             </div>
         </div>
@@ -437,8 +445,8 @@ const AddParticipantsModal = ({
                                                 <div className="flex items-center gap-3">
                                                     <UserAvatar user={u} className="w-8 h-8 rounded-full text-xs font-bold" />
                                                     <div>
-                                                        <p className="text-sm font-bold text-midnight-indigo">{u.fullName || u.full_name}</p>
-                                                        <p className="text-[10px] text-slate-500">{u.email} • {u.employeeCode || u.employee_code || 'N/A'}</p>
+                                                        <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{u.fullName || u.full_name}</p>
+                                                        <p data-ui-text="secondary" className="text-[10px] text-slate-500">{u.email} • {u.employeeCode || u.employee_code || 'N/A'}</p>
                                                     </div>
                                                 </div>
                                                 <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedUserId === u.id ? 'border-action-blue bg-action-blue' : 'border-slate-300'}`}>
@@ -516,7 +524,7 @@ const AddParticipantsModal = ({
                                         />
                                         <Upload className="w-8 h-8 text-slate-400 mb-3" />
                                         {file ? (
-                                            <div className="flex items-center gap-2 text-action-blue font-bold text-sm">
+                                            <div data-ui-text="primary" className="flex items-center gap-2 text-action-blue font-bold text-sm">
                                                 <FileText className="w-4 h-4" />
                                                 {file.name}
                                             </div>

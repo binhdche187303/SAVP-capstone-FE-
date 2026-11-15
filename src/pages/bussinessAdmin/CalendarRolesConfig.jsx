@@ -1,3 +1,5 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarCog, Save, Trash2, Plus, CheckCircle, AlertCircle, Info, Building2, Crown, FileSignature, Pencil, X } from 'lucide-react';
@@ -191,7 +193,7 @@ const CalendarRolesConfig = () => {
                                     </select>
                                 ) : (
                                     <div className="px-3 py-2 rounded-lg bg-cloud-mist/60 border border-platinum-tint">
-                                        <p className="text-sm font-bold text-midnight-indigo">{picked?.fullName}</p>
+                                        <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{picked?.fullName}</p>
                                         <p className="text-xs text-slate-400">{picked?.email}</p>
                                     </div>
                                 )}
@@ -213,7 +215,7 @@ const CalendarRolesConfig = () => {
                             </div>
                         )}
 
-                        {modalError && <p className="text-xs font-medium text-red-600">{modalError}</p>}
+                        {modalError && <p data-ui-text="secondary" className="text-xs font-medium text-red-600">{modalError}</p>}
                     </div>
 
                     <div className="flex justify-end gap-2 px-6 py-4 border-t border-platinum-tint bg-cloud-mist/30">
@@ -237,7 +239,7 @@ const CalendarRolesConfig = () => {
     );
 
     return (
-        <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        <div data-page-surface="wide" className="p-6 space-y-6 max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-blue-50 text-action-blue flex items-center justify-center">
                     <CalendarCog className="w-5 h-5" />
@@ -299,7 +301,15 @@ const CalendarRolesConfig = () => {
                 {leaders.length === 0 ? (
                     <p className="text-sm text-slate-400 italic">Chưa có thành viên Ban Giám hiệu</p>
                 ) : (
-                    <table className="w-full text-sm">
+                    <PaginatedCollection items={leaders} itemLabel="lãnh đạo">
+{(camaiPageItems, camaiStartIndex) => (
+<ResponsiveTable className="w-full text-sm">
+<colgroup>
+<col style={{ width: '30%' }} />
+<col style={{ width: '28%' }} />
+<col style={{ width: '30%' }} />
+<col style={{ width: '12%' }} />
+</colgroup>
                         <thead>
                             <tr className="text-left text-xs text-slate-500 border-b border-platinum-tint">
                                 <th className="py-2 font-semibold">Họ tên</th>
@@ -309,7 +319,7 @@ const CalendarRolesConfig = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {leaders.map((l) => {
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((l) => {
                                 const u = userById.get(l.userId);
                                 return (
                                     <tr
@@ -323,7 +333,7 @@ const CalendarRolesConfig = () => {
                                         </td>
                                         <td className="py-2.5 text-slate-600">{u?.positionTitle || '—'}</td>
                                         <td className="py-2.5">
-                                            <span className="inline-flex px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-bold">{titleLabel(l.leadershipTitle)}</span>
+                                            <span data-ui-text="badge" className="inline-flex px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-bold">{titleLabel(l.leadershipTitle)}</span>
                                         </td>
                                         <td className="py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                                             <button onClick={() => openModal('leader', false, { ...l })} className={`${iconBtn} hover:text-action-blue`} title="Sửa">
@@ -335,9 +345,11 @@ const CalendarRolesConfig = () => {
                                         </td>
                                     </tr>
                                 );
-                            })}
+                            })(camaiRecord, camaiStartIndex + camaiIndex, (leaders)))}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
+)}
+</PaginatedCollection>
                 )}
             </div>
 
@@ -358,24 +370,28 @@ const CalendarRolesConfig = () => {
                 {clerksByDept.length === 0 ? (
                     <p className="text-sm text-slate-400 italic">Chưa gán văn thư cho đơn vị nào</p>
                 ) : (
-                    <div className="grid gap-3 md:grid-cols-2">
-                        {clerksByDept.map(([name, list]) => (
+                    <PaginatedCollection items={clerksByDept} itemLabel="đơn vị">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="grid gap-3 md:grid-cols-2">
+                        {camaiPageItems.map((camaiRecord, camaiIndex) => (([name, list]) => (
                             <div key={name} className="rounded-xl border border-platinum-tint p-3">
                                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">{name}</p>
-                                {list.map((u) => (
+                                {<PaginatedCollection items={list} itemLabel="nhân sự">{(camaiInnerItems, camaiInnerStart) => camaiInnerItems.map((camaiInnerRecord, camaiInnerIndex) => ((u) => (
                                     <div key={u.id} className="flex items-center justify-between py-1.5">
                                         <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-midnight-indigo truncate">{u.fullName}</p>
+                                            <p data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo truncate">{u.fullName}</p>
                                             <p className="text-xs text-slate-400 truncate">{u.email}</p>
                                         </div>
                                         <button onClick={() => setRemoving({ kind: 'clerk', user: u })} className={`${iconBtn} hover:text-red-600 hover:bg-red-50`} title="Gỡ vai trò văn thư">
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
-                                ))}
+                                ))(camaiInnerRecord, camaiInnerStart + camaiInnerIndex, list))}</PaginatedCollection>}
                             </div>
-                        ))}
+                        ))(camaiRecord, camaiStartIndex + camaiIndex, (clerksByDept)))}
                     </div>
+)}
+</PaginatedCollection>
                 )}
             </div>
 

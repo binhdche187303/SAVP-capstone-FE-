@@ -11,7 +11,7 @@ const SimpleModal = ({ isOpen, title, onClose, children, footer, size = 'md' }) 
             <div className={`bg-white rounded-2xl shadow-sm-2 w-full ${WIDTH[size]} max-h-[90vh] flex flex-col`}>
                 <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between">
                     <h3 className="font-bold text-midnight-indigo">{title}</h3>
-                    <button type="button" onClick={onClose} aria-label="Đóng" className="p-1 rounded-lg text-slate-blue hover:bg-cloud-mist">
+                    <button type="button" onClick={onClose} disabled={!onClose} aria-label="Đóng" className="p-1 rounded-lg text-slate-blue hover:bg-cloud-mist">
                         <X className="w-4 h-4" />
                     </button>
                 </div>

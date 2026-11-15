@@ -1,3 +1,12 @@
+import './ClassAttendanceAnalyticsFilters.css';
+import TimeRangeButtons from '../../components/common/TimeRangeButtons';
+import TableColumns from '../../components/common/TableColumns';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import DateInput from '../../components/common/DateInput';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter from '../../components/common/PaginationFooter';
+import ReportExportAction from '../../components/common/ReportExportAction';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronRight, Download, Filter, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -8,12 +17,12 @@ import AttendanceWarningsPanel from './AttendanceWarningsPanel';
 import Pagination from '../../components/common/Pagination';
 
 // Bảng "Danh sách chuyên cần" phân trang theo môn học (mỗi môn là một nút cha của cây).
-const SUBJECTS_PER_PAGE = 10;
+
 
 const RateBar = ({ rate, hasData, strong = false }) => (
     hasData ? (
         <div className="flex items-center gap-2">
-            <div className="w-28 h-2 rounded-full bg-cloud-mist overflow-hidden">
+            <div className="flex-1 min-w-[24px] max-w-[112px] h-2 rounded-full bg-cloud-mist overflow-hidden">
                 <div className={`h-full ${strong ? 'bg-midnight-indigo' : 'bg-action-blue'}`} style={{ width: `${rate}%` }} />
             </div>
             <span className="text-xs font-bold text-slate-blue">{rate}%</span>
@@ -138,8 +147,8 @@ const EMPTY_REPORT = {
     totals: { totalSessions: 0, attended: 0, onTime: 0, late: 0, absent: 0, sessionsHeld: 0, rate: 0 }
 };
 
-const StatCard = ({ label, value, helper, tone }) => (
-    <SharedStatCard label={label} value={value} hint={helper} tone={tone} />
+const StatCard = ({ label, value, helper, tone, ...props }) => (
+    <SharedStatCard label={label} value={value} hint={helper} tone={tone} {...props} />
 );
 
 // Mỗi lớp HP tách thành các dòng con theo lớp hành chính (đã lọc 1 lớp HC thì giữ 1 dòng).
@@ -270,6 +279,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const [tab, setTab] = useState('overview');
     const [classCatalog, setClassCatalog] = useState([]);
     const [apiReport, setApiReport] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
     const [selectedSubjectCode, setSelectedSubjectCode] = useState('all');
     const [selectedAdministrativeClass, setSelectedAdministrativeClass] = useState('all');
@@ -284,9 +294,11 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     // Lớp hành chính của dòng con được bấm — chỉ áp cho modal, không đổi bộ lọc chung.
     const [modalAdminClass, setModalAdminClass] = useState(null);
     const [classPage, setClassPage] = useState(1);
+    const [subjectsPerPage, setSubjectsPerPage] = useState(10);
+    const [cardFilter, setCardFilter] = useState('all');
     useEffect(() => {
         let cancelled = false;
-        fetchClassAttendanceClasses()
+        fetchClassAttendanceClasses({ source: 'uel_api' })
             .then(classes => {
                 if (!cancelled) setClassCatalog(Array.isArray(classes) ? classes : []);
             })
@@ -300,6 +312,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
 
     useEffect(() => {
         let cancelled = false;
+        setLoading(true);
         fetchTeacherClassAttendanceReport({
             classId: 'all',
             subjectCode: selectedSubjectCode,
@@ -307,20 +320,23 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
             semester: selectedSemester,
             mode: rangeMode,
             anchorDate,
+            source: 'uel_api',
             // trend = tỷ lệ có mặt theo tuần cả học kỳ (biểu đồ xu hướng).
             include: 'trend'
         })
             .then(data => {
                 if (cancelled) return;
+                setClassPage(1);
                 setApiReport(data || null);
                 setLoadError('');
             })
             .catch(error => {
                 if (!cancelled) {
+                    setClassPage(1);
                     setApiReport(null);
                     setLoadError(error?.message || 'Không tải được báo cáo chuyên cần.');
                 }
-            });
+            }).finally(() => { if (!cancelled) setLoading(false); });
         return () => {
             cancelled = true;
         };
@@ -356,11 +372,13 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
 
     const report = apiReport?.rows ? { ...EMPTY_REPORT, ...apiReport, totals: { ...EMPTY_REPORT.totals, ...apiReport.totals } } : EMPTY_REPORT;
 
+    const filteredReportRows = useMemo(() => cardFilter === 'all' ? report.rows : report.rows.filter(row => Number(row[cardFilter]) > 0), [report.rows, cardFilter]);
+    const selectCard = key => { setCardFilter(previous => previous === key ? 'all' : key); setClassPage(1); };
     // Cây Môn học → Lớp học phần cho bảng "Danh sách chuyên cần"; phân trang theo môn.
     // Biểu đồ / tổng số vẫn dùng toàn bộ lớp.
-    const subjectGroups = useMemo(() => groupRowsBySubject(report.rows), [report.rows]);
-    const classPageCount = Math.max(1, Math.ceil(subjectGroups.length / SUBJECTS_PER_PAGE));
-    const visibleSubjectGroups = subjectGroups.slice((classPage - 1) * SUBJECTS_PER_PAGE, classPage * SUBJECTS_PER_PAGE);
+    const subjectGroups = useMemo(() => groupRowsBySubject(filteredReportRows), [filteredReportRows]);
+    const classPageCount = Math.max(1, Math.ceil(subjectGroups.length / subjectsPerPage));
+    const visibleSubjectGroups = subjectGroups.slice((classPage - 1) * subjectsPerPage, classPage * subjectsPerPage);
     // Mặc định thu gọn tất cả các môn; lưu những môn người dùng đã mở.
     const [expandedSubjects, setExpandedSubjects] = useState(() => new Set());
     const toggleSubject = (key) => setExpandedSubjects(prev => {
@@ -374,7 +392,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
         setSelectedClass(item);
     };
     // Dữ liệu báo cáo đổi (đổi bộ lọc / khoảng ngày) → về trang 1.
-    useEffect(() => { setClassPage(1); }, [apiReport]);
+
     useEffect(() => { if (classPage > classPageCount) setClassPage(classPageCount); }, [classPage, classPageCount]);
 
     // Cột ngang theo % lượt điểm danh của từng lớp (lớp đông không đè bẹp lớp ít);
@@ -452,7 +470,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     };
 
     return (
-        <div className="p-6 space-y-5 animate-fade-in-up">
+        <div data-page-surface="wide" className="p-6 space-y-5 animate-fade-in-up">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
@@ -462,7 +480,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     <p className="text-xs text-slate-blue mt-0.5">Lọc theo lớp, môn học và khoảng thời gian để xem tỷ lệ chuyên cần</p>
                 </div>
                 {canExport && (
-                    <button
+                    <ReportExportAction format="csv" label="Xuất chuyên cần"
                         type="button"
                         onClick={() => exportSemesterClassAttendanceCsv({
                             classId: 'all',
@@ -477,7 +495,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     >
                         <Download className="w-4 h-4" />
                         Xuất chuyên cần
-                    </button>
+                    </ReportExportAction>
                 )}
             </div>
 
@@ -504,13 +522,13 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                 <div role="alert" className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">{loadError}</div>
             )}
 
-            <div className="bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm">
-            <div className="flex flex-wrap xl:flex-nowrap gap-3 items-end">
-                <div className="flex flex-col gap-1 w-[150px] shrink-0">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Lớp hành chính</label>
+            <FilterBar variant="card" forceStandard className="class-attendance-analytics-filters bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm">
+            <div className="class-attendance-analytics-filter-main">
+                <div className="camai-filter-field" >
+                    <label htmlFor="ca-admin-class" className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Lớp hành chính</label>
                     <div className="relative">
                         <Users className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
-                        <select
+                        <select id="ca-admin-class"
                             value={selectedAdministrativeClass}
                             onChange={(event) => setSelectedAdministrativeClass(event.target.value)}
                             className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
@@ -523,9 +541,9 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Môn học</label>
-                    <select
+                <div className="camai-filter-field" >
+                    <label htmlFor="ca-subject" className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Môn học</label>
+                    <select id="ca-subject"
                         value={selectedSubjectCode}
                         onChange={(event) => setSelectedSubjectCode(event.target.value)}
                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
@@ -537,9 +555,9 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     </select>
                 </div>
 
-                <div className="flex flex-col gap-1 w-[150px] shrink-0">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Học kỳ</label>
-                    <select
+                <div className="camai-filter-field" >
+                    <label htmlFor="ca-semester" className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Học kỳ</label>
+                    <select id="ca-semester"
                         value={selectedSemester}
                         onChange={(event) => setSelectedSemester(event.target.value)}
                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
@@ -551,65 +569,19 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     </select>
                 </div>
 
-                {tab === 'overview' && (<>
-                <div className="flex flex-col gap-1 shrink-0">
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Khoảng thời gian</label>
-                    <div className="flex items-center gap-1 bg-cloud-mist/70 rounded-xl p-1">
-                        {RANGE_OPTIONS.map(option => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                onClick={() => setRangeMode(option.value)}
-                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${rangeMode === option.value ? 'bg-white text-action-blue shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className={`flex flex-col gap-1 w-[140px] shrink-0 ${rangeMode === 'semester' ? 'opacity-40 pointer-events-none' : ''}`} title={rangeMode === 'semester' ? 'Cả học kỳ lấy theo ngày bắt đầu/kết thúc học kỳ' : undefined}>
-                    <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Ngày mốc</label>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            value={dateText}
-                            onChange={handleDateTextChange}
-                            onBlur={normalizeDateText}
-                            placeholder="dd/mm/yyyy"
-                            className="w-full pl-9 pr-9 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20 placeholder:text-steel-gray"
-                        />
-                        <Filter className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
-                        <button
-                            type="button"
-                            onClick={openDatePicker}
-                            title="Chọn ngày"
-                            className="absolute right-2 top-1.5 p-1 rounded-md text-slate-blue hover:text-action-blue hover:bg-cloud-mist"
-                        >
-                            <CalendarDays className="w-4 h-4" />
-                        </button>
-                        <input
-                            ref={datePickerRef}
-                            type="date"
-                            value={anchorDate}
-                            onChange={handleDatePick}
-                            tabIndex={-1}
-                            aria-hidden="true"
-                            className="absolute right-2 bottom-0 w-0 h-0 opacity-0 pointer-events-none"
-                        />
-                    </div>
-                </div>
-                </>)}
-
             </div>
+                {tab === 'overview' && (<div className="class-attendance-analytics-filter-time">
+                <TimeRangeButtons forceButtons label="Khoảng thời gian" value={rangeMode} onChange={setRangeMode} options={RANGE_OPTIONS} />
+
+                <FilterField label="Ngày mốc"><DateInput type="date" value={anchorDate} disabled={rangeMode === 'semester'} onChange={e => e.target.value && setAnchorDate(e.target.value)} /></FilterField>
+                </div>)}
             {tab === 'overview' && report.period && (
                 <p className="mt-3 pt-3 border-t border-platinum-tint/70 text-xs text-slate-blue flex items-center gap-1.5">
                     <CalendarDays className="w-3.5 h-3.5 text-action-blue" />
                     Khoảng thống kê: <span className="font-bold text-midnight-indigo">{formatPeriod(rangeMode, report.period)}</span>
                 </p>
             )}
-            </div>
+            </FilterBar>
 
             {tab === 'warnings' && (
                 <AttendanceWarningsPanel
@@ -621,17 +593,17 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
             )}
 
             {tab === 'overview' && (<>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <StatisticGrid columns={5} className="grid grid-cols-1 md:grid-cols-5 gap-4" role="group" aria-label="Lọc chuyên cần theo thẻ">
                 <StatCard
-                    label="Lượt cần điểm danh"
+                    label="Lượt cần điểm danh" onClick={() => { setCardFilter('all'); setClassPage(1); }} active={cardFilter === 'all'}
                     value={report.totals.totalSessions}
                     helper={`Sĩ số × buổi đã diễn ra (${report.totals.sessionsHeld} buổi)${report.totals.unmarkedSessions ? ` · ${report.totals.unmarkedSessions} buổi chưa điểm danh, không tính` : ''}`}
                 />
-                <StatCard label="Có mặt" value={report.totals.attended} helper={`${report.totals.rate}% số lượt`} tone="green" />
-                <StatCard label="Đúng giờ" value={report.totals.onTime} tone="green" />
-                <StatCard label="Đi muộn" value={report.totals.late} tone="amber" />
-                <StatCard label="Vắng" value={report.totals.absent} helper="Không có lượt quét/điểm danh" tone="red" />
-            </div>
+                <StatCard label="Có mặt" onClick={() => selectCard('attended')} active={cardFilter === 'attended'} value={report.totals.attended} helper={`${report.totals.rate}% số lượt`} tone="green" />
+                <StatCard label="Đúng giờ" onClick={() => selectCard('onTime')} active={cardFilter === 'onTime'} value={report.totals.onTime} tone="green" />
+                <StatCard label="Đi muộn" onClick={() => selectCard('late')} active={cardFilter === 'late'} value={report.totals.late} tone="amber" />
+                <StatCard label="Vắng" onClick={() => selectCard('absent')} active={cardFilter === 'absent'} value={report.totals.absent} helper="Không có lượt quét/điểm danh" tone="red" />
+            </StatisticGrid>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                 <div className="bg-white rounded-2xl border border-platinum-tint p-5 shadow-sm flex flex-col">
@@ -762,7 +734,8 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     </div>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <ResponsiveTable className="w-full text-sm">
+                        <TableColumns widths={[34, 16, 8, 9, 8, 8, 7, 10]} />
                         <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
                             <tr className="text-left whitespace-nowrap">
                                 <th className="px-5 py-3">Môn học / Lớp học phần</th>
@@ -776,8 +749,8 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {report.rows.length === 0 && (
-                                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-blue">Không có lớp học phần nào khớp bộ lọc.</td></tr>
+                            {filteredReportRows.length === 0 && (
+                                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-blue">{loading ? 'Đang tải dữ liệu…' : report.rows.length === 0 ? 'Chưa có lớp học thực tế đã đồng bộ phù hợp với bộ lọc hiện tại.' : 'Không có lớp/môn học phù hợp với bộ lọc hiện tại.'}</td></tr>
                             )}
                             {visibleSubjectGroups.map(group => {
                                 const expanded = expandedSubjects.has(group.key);
@@ -792,16 +765,10 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                                 );
                             })}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
-                {report.rows.length > 0 && (
-                    <div className="px-5 py-3 border-t border-platinum-tint flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <span className="text-[11px] text-slate-blue">
-                            Hiển thị môn {(classPage - 1) * SUBJECTS_PER_PAGE + 1}–{Math.min(classPage * SUBJECTS_PER_PAGE, subjectGroups.length)} trong {subjectGroups.length} môn học · {report.rows.length} lớp học phần
-                        </span>
-                        <Pagination currentPage={classPage} totalPages={classPageCount} onPageChange={setClassPage} />
-                    </div>
-                )}
+                <PaginationFooter currentPage={classPage} totalPages={classPageCount} totalItems={subjectGroups.length} pageSize={subjectsPerPage}
+                    onPageChange={setClassPage} onPageSizeChange={size => { setSubjectsPerPage(size); setClassPage(1); }} itemLabel="môn học" loading={loading} />
             </div>
             </>)}
 

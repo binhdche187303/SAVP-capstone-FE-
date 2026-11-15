@@ -36,7 +36,7 @@ const CreateManualMinutesModal = ({ open, creating, onClose, onSelect }) => {
                 <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex justify-between items-center">
                     <div>
                         <h3 className="font-bold text-midnight-indigo text-sm">Chọn hình thức soạn biên bản</h3>
-                        <p className="text-[10px] text-slate-blue mt-0.5">Áp dụng cho bản thủ công này, không thể đổi lại sau khi tạo.</p>
+                        <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-0.5">Áp dụng cho bản thủ công này, không thể đổi lại sau khi tạo.</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -58,8 +58,8 @@ const CreateManualMinutesModal = ({ open, creating, onClose, onSelect }) => {
                             <div className="w-9 h-9 rounded-xl bg-cloud-mist flex items-center justify-center text-action-blue">
                                 {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Icon className="w-5 h-5" />}
                             </div>
-                            <span className="text-xs font-bold text-midnight-indigo">{title}</span>
-                            <span className="text-[11px] text-slate-blue leading-relaxed">{description}</span>
+                            <span data-ui-text="action" className="text-xs font-bold text-midnight-indigo">{title}</span>
+                            <span data-ui-text="action" className="text-[11px] text-slate-blue leading-relaxed">{description}</span>
                         </button>
                     ))}
                 </div>

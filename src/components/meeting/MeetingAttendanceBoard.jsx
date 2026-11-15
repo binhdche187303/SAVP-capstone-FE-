@@ -1,3 +1,6 @@
+import TableColumns from '../common/TableColumns';
+import PaginationFooter from '../common/PaginationFooter';
+import ResponsiveTable from '../common/ResponsiveTable';
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -49,7 +52,7 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
     const [attendanceData, setAttendanceData] = useState(null);
 
     const [page, setPage] = useState(1);
-    const [pageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(10);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
 
@@ -211,7 +214,7 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
         return (
             <div className="flex flex-col items-center justify-center min-h-[300px]">
                 <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
-                <p className="mt-3 text-slate-blue text-xs font-semibold">Đang tải bảng điểm danh...</p>
+                <p data-ui-text="primary" className="mt-3 text-slate-blue text-xs font-semibold">Đang tải bảng điểm danh...</p>
             </div>
         );
     }
@@ -255,7 +258,7 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
         switch (status) {
             case 'present':
                 return (
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                    <span data-ui-text="badge" className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
                         isLate ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
                     }`}>
                         {isLate ? <AlertCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
@@ -264,38 +267,38 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                 );
             case 'late':
                 return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600">
                         <AlertCircle className="w-3 h-3" />
                         {lateMinutes ? `Đến muộn (${lateMinutes}p)` : 'Đến muộn'}
                     </span>
                 );
             case 'left_early':
                 return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600">
                         <AlertCircle className="w-3 h-3" /> Về sớm
                     </span>
                 );
             case 'pending_review':
                 return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
                         <AlertTriangle className="w-3 h-3" /> Chờ duyệt
                     </span>
                 );
             case 'absent':
                 return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-50 text-red-600">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-50 text-red-600">
                         <XCircle className="w-3 h-3" /> Vắng mặt
                     </span>
                 );
             case 'not_checked_in':
                 return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
                         <Clock className="w-3 h-3" /> Chưa điểm danh
                     </span>
                 );
             default:
                 return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-cloud-mist text-slate-blue">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-cloud-mist text-slate-blue">
                         <Clock className="w-3 h-3" /> {status || 'Không xác định'}
                     </span>
                 );
@@ -362,7 +365,8 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <ResponsiveTable className="w-full text-left border-collapse">
+                        <TableColumns widths={canManage ? [27, 10, 13, 7, 18, 10, 8, 7] : [32, 14, 17, 9, 18, 10]} />
                         <thead>
                             <tr className="border-b border-platinum-tint bg-white text-[10px] font-bold text-slate-blue uppercase tracking-wider whitespace-nowrap">
                                 <th className="px-5 py-3">Người tham dự</th>
@@ -382,13 +386,13 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                                         <div className="flex items-center gap-3">
                                             <UserAvatar user={{ avatarUrl: item.avatarUrl, fullName: item.fullName }} className="w-8 h-8 rounded-full" />
                                             <div>
-                                                <p className="font-bold text-midnight-indigo text-xs">{item.fullName}</p>
-                                                <p className="text-[10px] text-slate-blue">{item.departmentName || 'N/A'} • {item.positionTitle || 'N/A'}</p>
+                                                <p data-ui-text="primary" className="font-bold text-midnight-indigo text-xs">{item.fullName}</p>
+                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{item.departmentName || 'N/A'} • {item.positionTitle || 'N/A'}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-5 py-3 whitespace-nowrap">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                        <span data-ui-text="badge" className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                                             item.participantRole === 'host' ? 'bg-blue-50 text-action-blue' : item.participantRole === 'secretary' ? 'bg-violet-50 text-violet-700' : 'bg-cloud-mist text-slate-blue'
                                         }`}>
                                             {item.participantRole === 'host' ? 'Chủ trì' : item.participantRole === 'secretary' ? 'Thư ký' : 'Thành viên'}
@@ -399,14 +403,14 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                                     </td>
                                     <td className="px-5 py-3 whitespace-nowrap">
                                         {item.penaltyPoints == null ? (
-                                            <span className="text-[11px] text-slate-400">--</span>
+                                            <span data-ui-text="secondary" className="text-[11px] text-slate-400">--</span>
                                         ) : (
                                             <div className="flex flex-col">
                                                 <span className={`text-sm font-black ${item.penaltyPoints < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                                     {item.penaltyPoints > 0 ? `+${item.penaltyPoints}` : item.penaltyPoints}
                                                 </span>
                                                 {item.violationRuleName && (
-                                                    <span className="text-[9px] text-slate-400">{item.violationRuleName}</span>
+                                                    <span data-ui-text="secondary" className="text-[9px] text-slate-400">{item.violationRuleName}</span>
                                                 )}
                                             </div>
                                         )}
@@ -414,24 +418,24 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                                     <td className="px-5 py-3 max-w-[220px]">
                                         {item.excuseStatus ? (
                                             <div className="flex flex-col gap-1">
-                                                <span className={`self-start text-[10px] font-bold px-2 py-0.5 rounded ${EXCUSE_STATUS_MAP[item.excuseStatus]?.cls || ''}`}>
+                                                <span data-ui-text="badge" className={`self-start text-[10px] font-bold px-2 py-0.5 rounded ${EXCUSE_STATUS_MAP[item.excuseStatus]?.cls || ''}`}>
                                                     {EXCUSE_STATUS_MAP[item.excuseStatus]?.label || item.excuseStatus}
                                                 </span>
                                                 {item.excuseReason && (
-                                                    <span className="text-[11px] text-slate-600 break-words" title={item.excuseReason}>"{item.excuseReason}"</span>
+                                                    <span data-ui-text="secondary" className="text-[11px] text-slate-600 break-words" title={item.excuseReason}>"{item.excuseReason}"</span>
                                                 )}
                                                 {item.excuseStatus === 'rejected' && item.excuseReviewNote && (
-                                                    <span className="text-[10px] text-rose-600 break-words">Từ chối: {item.excuseReviewNote}</span>
+                                                    <span data-ui-text="secondary" className="text-[10px] text-rose-600 break-words">Từ chối: {item.excuseReviewNote}</span>
                                                 )}
                                                 {canManage && item.excuseStatus === 'pending' && item.userId !== myUserId && (
                                                     <div className="flex gap-1.5 pt-0.5">
-                                                        <button
+                                                        <button data-ui-text="action"
                                                             onClick={() => setExcuseModal({ mode: 'review', item, approve: true, text: '' })}
                                                             className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-600 text-white hover:bg-emerald-700"
                                                         >
                                                             Duyệt
                                                         </button>
-                                                        <button
+                                                        <button data-ui-text="action"
                                                             onClick={() => setExcuseModal({ mode: 'review', item, approve: false, text: '' })}
                                                             className="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-600 text-white hover:bg-rose-700"
                                                         >
@@ -442,9 +446,9 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                                             </div>
                                         ) : item.userId === myUserId && needsExcuse(item) ? (
                                             meetingEnded ? (
-                                                <span className="text-[10px] text-slate-400 italic">Đã khóa vì cuộc họp đã kết thúc</span>
+                                                <span data-ui-text="secondary" className="text-[10px] text-slate-400 italic">Đã khóa vì cuộc họp đã kết thúc</span>
                                             ) : (
-                                                <button
+                                                <button data-ui-text="action"
                                                     onClick={() => setExcuseModal({ mode: 'submit', item, text: '' })}
                                                     className="px-2 py-1 text-[10px] font-bold rounded-lg border border-action-blue text-action-blue hover:bg-blue-50"
                                                 >
@@ -452,14 +456,14 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                                                 </button>
                                             )
                                         ) : (
-                                            <span className="text-[11px] text-slate-400">--</span>
+                                            <span data-ui-text="secondary" className="text-[11px] text-slate-400">--</span>
                                         )}
                                     </td>
                                     <td className="px-5 py-3 text-[11px] font-medium text-slate-600 whitespace-nowrap">
                                         {item.checkInTime ? (
                                             <div className="flex flex-col">
                                                 <span>{new Date(item.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                <span className="text-[9px] text-slate-400 font-normal">{new Date(item.checkInTime).toLocaleDateString('vi-VN')}</span>
+                                                <span data-ui-text="primary" className="text-[9px] text-slate-400 font-normal">{new Date(item.checkInTime).toLocaleDateString('vi-VN')}</span>
                                             </div>
                                         ) : '--:--'}
                                     </td>
@@ -467,14 +471,14 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                                         <td className="px-5 py-3 whitespace-nowrap">
                                             <div className="flex flex-col gap-0.5">
                                                 {item.checkInMethod && (
-                                                    <span className="text-[10px] font-semibold text-slate-700">
+                                                    <span data-ui-text="primary" className="text-[10px] font-semibold text-slate-700">
                                                         Phương thức: {CHECK_IN_METHOD_MAP[item.checkInMethod] ?? item.checkInMethod}
                                                     </span>
                                                 )}
                                                 {item.attendanceSource && (
-                                                    <span className="text-[10px] text-slate-500">Nguồn: {ATTENDANCE_SOURCE_MAP[item.attendanceSource] ?? item.attendanceSource}</span>
+                                                    <span data-ui-text="secondary" className="text-[10px] text-slate-500">Nguồn: {ATTENDANCE_SOURCE_MAP[item.attendanceSource] ?? item.attendanceSource}</span>
                                                 )}
-                                                {!item.checkInMethod && !item.attendanceSource && <span className="text-[10px] text-slate-400">Không có thông tin</span>}
+                                                {!item.checkInMethod && !item.attendanceSource && <span data-ui-text="secondary" className="text-[10px] text-slate-400">Không có thông tin</span>}
                                             </div>
                                         </td>
                                     )}
@@ -509,9 +513,9 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                                 </tr>
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
-                {/* Pagination placeholder if needed */}
+                <PaginationFooter currentPage={page} totalPages={attendanceData?.meta?.totalPages} totalItems={attendanceData?.meta?.total} visibleCount={items?.length || 0} pageSize={pageSize} loading={loading} onPageChange={setPage} onPageSizeChange={size => { setPageSize(size); setPage(1); }} itemLabel="người tham gia" />
             </div>
 
             {/* Edit Status Modal */}

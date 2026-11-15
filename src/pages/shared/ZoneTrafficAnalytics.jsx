@@ -1,5 +1,12 @@
-import { Activity, Flame, Info, MapPin, RefreshCw, Users } from 'lucide-react';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import './ZoneTrafficAnalytics.css';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ReportActions from '../../components/common/ReportActions';
+import StatisticCard from '../../components/common/StatisticCard';
+import FilterBar from '../../components/common/FilterBar';
+import RefreshButton from '../../components/common/RefreshButton';
+import { Activity, Flame, Info, MapPin, Users } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer
@@ -80,6 +87,25 @@ const ZoneTrafficAnalytics = () => {
     // Chú thích biểu đồ đường: bấm 1 lần để chọn thêm khu (chọn được nhiều khu), bấm lại để bỏ chọn.
     const [focusedZoneIds, setFocusedZoneIds] = useState([]);
     const toggleFocusZone = (zoneId) => setFocusedZoneIds((prev) => (prev.includes(zoneId) ? prev.filter((id) => id !== zoneId) : [...prev, zoneId]));
+    const heatmapRef = useRef(null);
+    const [heatmapColumns, setHeatmapColumns] = useState(8);
+    const [heatmapPage, setHeatmapPage] = useState(0);
+
+    useEffect(() => {
+        const container = heatmapRef.current;
+        if (!container) return undefined;
+        const resize = () => {
+            const width = container.clientWidth - 32;
+            setHeatmapColumns(Math.max(1, Math.floor((width - Math.min(160, width * 0.3)) / 44)));
+        };
+        resize();
+        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize);
+        observer?.observe(container);
+        window.addEventListener('resize', resize);
+        return () => { observer?.disconnect(); window.removeEventListener('resize', resize); };
+    }, []);
+
+    useEffect(() => { setHeatmapPage(0); }, [preset, from, to, building, floor, groupId]);
     const short = isShortPreset(preset);
 
     // Tòa nhà/Tầng chọn từ danh mục khu vực — BE lọc khớp chính xác nên không cho gõ tự do.
@@ -244,6 +270,9 @@ const ZoneTrafficAnalytics = () => {
     }, [matrix, short, preset, lastUpdated]);
 
     const columnLabel = (h) => (short ? fmtHM(h) : `${String(h).padStart(2, '0')}h`);
+    const heatmapPages = Math.max(1, Math.ceil(activeHours.length / heatmapColumns));
+    const safeHeatmapPage = Math.min(heatmapPage, heatmapPages - 1);
+    const visibleHours = activeHours.slice(safeHeatmapPage * heatmapColumns, (safeHeatmapPage + 1) * heatmapColumns);
 
     const busiest = zones[0];
     const totalAvg = zones.length ? round1(zones.reduce((s, z) => s + (Number(z.avgOccupancy) || 0), 0)) : null;
@@ -399,7 +428,7 @@ const ZoneTrafficAnalytics = () => {
             });
             toast.success(extra.mode === 'standard' ? `Đã tải bản quy chuẩn (${format.toUpperCase()}).` : format === 'pdf' ? 'Đã mở bản in — chọn “Lưu thành PDF”.' : `Đã xuất báo cáo ${({ xlsx: 'Excel', pdf: 'PDF', docx: 'Word' })[format]}.`);
         } catch (err) {
-            toast.error(err?.message || 'Không xuất được báo cáo.');
+            return { success: false, message: err?.message || 'Không xuất được báo cáo.' };
         } finally {
             setBusyFormat(null);
         }
@@ -408,82 +437,85 @@ const ZoneTrafficAnalytics = () => {
     const inputCls = 'px-[0.75rem] py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo';
 
     return (
-        <div className="space-y-6 p-6 max-w-7xl mx-auto">
+        <div data-page-surface="wide" className="space-y-6 p-6 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="border-b border-platinum-tint pb-[1.25rem]">
-                <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                    <Activity className="w-6 h-6 text-action-blue" />
-                    Lưu lượng & Bản đồ nhiệt khu vực công cộng
-                </h2>
-                <p className="text-xs text-slate-blue mt-1">
-                    Theo dõi số người tại hành lang, sảnh và khu học tập theo giờ; phát hiện khu vực và khung giờ đông nhất.
-                </p>
+            <div className="zone-traffic-header border-b border-platinum-tint pb-[1.25rem]">
+                <div className="zone-traffic-heading min-w-0 flex-1">
+                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                        <Activity className="w-6 h-6 text-action-blue" />
+                        Lưu lượng & Bản đồ nhiệt khu vực công cộng
+                    </h2>
+                    <p className="text-xs text-slate-blue mt-1">
+                        Theo dõi số người tại hành lang, sảnh và khu học tập theo giờ; phát hiện khu vực và khung giờ đông nhất.
+                    </p>
+                </div>
+                <ReportActions>
+                    <ExportMenu compact askMode initialRange={short ? undefined : { from, to }} filterSummary={[short ? `${SHORT_PRESETS[preset]} phút gần nhất` : `Từ ${from} đến ${to}`, building ? `Tòa nhà: ${building}` : 'Tất cả tòa nhà', floor ? `Tầng: ${floor}` : 'Tất cả tầng', groupId ? `Nhóm camera: ${groups.find(group => group.id === groupId)?.group_name || groupId}` : 'Tất cả nhóm camera']} onExport={handleExport} busyFormat={busyFormat} disabled={loading || !zones.length} />
+                    <RefreshButton
+                        type="button"
+                        onClick={() => fetchData(false)}
+                        busy={loading}
+                    />
+                </ReportActions>
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-white p-[1rem] rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-[1rem] items-end">
-                <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-blue uppercase">Bộ lọc nhanh</label>
-                    <select value={preset} onChange={(e) => handlePreset(e.target.value)} className={`${inputCls} font-semibold`}>
-                        <optgroup label="Vừa qua (tự làm mới)">
-                            <option value="5m">5 phút gần nhất</option>
-                            <option value="10m">10 phút gần nhất</option>
-                            <option value="30m">30 phút gần nhất</option>
-                            <option value="1h">1 giờ gần nhất</option>
-                        </optgroup>
+            <FilterBar variant="card" className="zone-traffic-filters bg-white p-[1rem] rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-[1rem]">
+                <div className="camai-filter-field space-y-1">
+                    <label htmlFor="zone-traffic-preset" className="block text-[10px] font-bold text-slate-blue uppercase">Bộ lọc nhanh</label>
+                    <select id="zone-traffic-preset" value={preset} onChange={event => handlePreset(event.target.value)} className={`${inputCls} font-semibold`}>
+                        <option value="5m">5 phút gần nhất</option>
+                        <option value="10m">10 phút gần nhất</option>
+                        <option value="30m">30 phút gần nhất</option>
+                        <option value="1h">1 giờ gần nhất</option>
                         <option value="day">Hôm nay</option>
                         <option value="week">7 ngày gần nhất</option>
                         <option value="month">30 ngày gần nhất</option>
                         <option value="custom">Tùy chọn khoảng</option>
                     </select>
+                    {short && (
+                        <label className="zone-traffic-auto-refresh flex flex-wrap items-center gap-2 text-xs font-semibold text-midnight-indigo">
+                            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+                            Tự làm mới {AUTO_REFRESH_MS / 1000}s
+                            {lastUpdated && <span className="font-normal text-slate-400">· cập nhật {lastUpdated.toLocaleTimeString('vi-VN')}</span>}
+                        </label>
+                    )}
                 </div>
-                {short && (
-                    <label className="flex items-center gap-2 text-xs font-semibold text-midnight-indigo pb-2">
-                        <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-                        Tự làm mới {AUTO_REFRESH_MS / 1000}s
-                        {lastUpdated && <span className="font-normal text-slate-400">· cập nhật {lastUpdated.toLocaleTimeString('vi-VN')}</span>}
-                    </label>
-                )}
                 {preset === 'custom' && (
                     <>
-                        <div className="space-y-1">
+                        <div className="camai-filter-field space-y-1">
                             <label className="block text-[10px] font-bold text-slate-blue uppercase">Từ ngày</label>
                             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputCls} />
                         </div>
-                        <div className="space-y-1">
+                        <div className="camai-filter-field space-y-1">
                             <label className="block text-[10px] font-bold text-slate-blue uppercase">Đến ngày</label>
                             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls} />
                         </div>
                     </>
                 )}
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tòa nhà</label>
                     <select value={building} onChange={(e) => handleBuildingChange(e.target.value)} className={inputCls}>
                         <option value="">Tất cả tòa nhà</option>
                         {buildingOptions.map((b) => <option key={b} value={b}>{b}</option>)}
                     </select>
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tầng</label>
                     <select value={floor} onChange={(e) => setFloor(e.target.value)} className={inputCls}>
                         <option value="">Tất cả tầng</option>
                         {floorOptions.map((f) => <option key={f} value={f}>Tầng {f}</option>)}
                     </select>
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Nhóm camera</label>
                     <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className={inputCls}>
                         <option value="">Tất cả camera</option>
                         {groups.map((g) => <option key={g.id} value={g.id}>{g.group_name}</option>)}
                     </select>
                 </div>
-                <div className="ml-auto flex items-center gap-2">
-                    <button type="button" onClick={() => fetchData(false)} className="inline-flex items-center gap-1.5 px-[0.75rem] py-2 rounded-xl border border-platinum-tint text-xs font-semibold text-midnight-indigo hover:bg-cloud-mist">
-                        <RefreshCw className="w-3.5 h-3.5" />Làm mới
-                    </button>
-                    <ExportMenu compact askMode onExport={handleExport} busyFormat={busyFormat} disabled={loading || !zones.length} />
-                </div>
-            </div>
+
+            </FilterBar>
 
             {error && (
                 <div className="p-[1rem] bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-start text-sm">
@@ -493,12 +525,12 @@ const ZoneTrafficAnalytics = () => {
             )}
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1rem]">
+            <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-[1rem]">
                 <SummaryCard label="Khu vực có dữ liệu" value={zones.length} icon={MapPin} loading={loading} />
                 <SummaryCard label="Tổng số người TB" value={totalAvg ?? '—'} sub="Cộng TB các khu" icon={Users} loading={loading} />
-                <SummaryCard label="Khu đông nhất" value={busiest?.zoneName || '—'} sub={busiest ? `Đỉnh ${busiest.peakOccupancy} người` : null} icon={Flame} loading={loading} small tone="red" />
-                <SummaryCard label="Giờ cao điểm" value={peakHour || '—'} sub="Toàn khuôn viên" icon={Activity} loading={loading} tone="amber" />
-            </div>
+                <SummaryCard label="Khu đông nhất" value={busiest?.zoneName || '—'} sub={busiest ? `Đỉnh ${busiest.peakOccupancy} người` : null} icon={Flame} loading={loading} small />
+                <SummaryCard label="Giờ cao điểm" value={peakHour || '—'} sub="Toàn khuôn viên" icon={Activity} loading={loading} />
+            </StatisticGrid>
 
             {/* Heatmap matrix */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
@@ -506,7 +538,7 @@ const ZoneTrafficAnalytics = () => {
                     <h3 className="font-bold text-midnight-indigo text-sm">
                         {short ? `Bản đồ nhiệt theo khu vực × phút (${SHORT_PRESETS[preset]} phút gần nhất)` : 'Bản đồ nhiệt theo khu vực × giờ trong ngày'}
                     </h3>
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-blue font-semibold">
+                    <div data-ui-text="primary" className="flex items-center gap-1.5 text-[10px] text-slate-blue font-semibold">
                         Thưa
                         {[0.1, 0.3, 0.5, 0.7, 0.9].map((r) => (
                             <span key={r} className="w-5 h-3 rounded" style={{ backgroundColor: densityColor(r) }} />
@@ -514,31 +546,34 @@ const ZoneTrafficAnalytics = () => {
                         Đông
                     </div>
                 </div>
-                <div className="overflow-x-auto p-[1rem]">
+                <PaginatedCollection items={zones} itemLabel="khu vực">
+{(camaiPageItems, camaiStartIndex) => (
+<div ref={heatmapRef} className="min-w-0 p-[1rem]">
                     {loading ? (
                         <div className="h-40 bg-slate-50 animate-pulse rounded-xl" />
                     ) : zones.length ? (
-                        <table className="border-separate" style={{ borderSpacing: 3 }}>
+                        <table className="w-full table-fixed border-separate" style={{ borderSpacing: 3 }}>
+                            <colgroup><col style={{ width: '30%', maxWidth: 160 }} />{visibleHours.map(h => <col key={h} />)}</colgroup>
                             <thead>
                                 <tr>
-                                    <th className="text-left text-[10px] font-bold text-slate-blue uppercase pr-[0.75rem] min-w-[160px]">Khu vực</th>
-                                    {activeHours.map((h) => (
+                                    <th className="text-left text-[10px] font-bold text-slate-blue uppercase pr-[0.75rem]">Khu vực</th>
+                                    {visibleHours.map((h) => (
                                         <th key={h} className={`text-[10px] font-semibold text-slate-blue text-center ${short ? 'w-12' : 'w-9'}`}>{columnLabel(h)}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {zones.map((z) => (
+                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((z) => (
                                     <tr key={z.zoneId}>
-                                        <td className="text-xs font-bold text-midnight-indigo pr-[0.75rem] whitespace-nowrap">
+                                        <td className="text-xs font-bold text-midnight-indigo pr-[0.75rem] whitespace-normal break-words">
                                             {z.zoneName}
                                             {(z.building || z.floor) && (
-                                                <span className="block text-[10px] font-medium text-slate-400">
+                                                <span data-ui-text="secondary" className="block text-[10px] font-medium text-slate-400">
                                                     {[z.building, z.floor && `Tầng ${z.floor}`].filter(Boolean).join(' · ')}
                                                 </span>
                                             )}
                                         </td>
-                                        {activeHours.map((h) => {
+                                        {visibleHours.map((h) => {
                                             const v = matrix.values[z.zoneId]?.[h];
                                             const ratio = v == null || matrix.max === 0 ? null : v / matrix.max;
                                             return (
@@ -553,13 +588,24 @@ const ZoneTrafficAnalytics = () => {
                                             );
                                         })}
                                     </tr>
-                                ))}
+                                ))(camaiRecord, camaiStartIndex + camaiIndex, (zones)))}
                             </tbody>
                         </table>
                     ) : (
                         <p className="py-10 text-center text-xs text-slate-400">Không có dữ liệu đếm người trong khoảng thời gian này</p>
                     )}
                 </div>
+)}
+</PaginatedCollection>
+                {!loading && zones.length > 0 && heatmapPages > 1 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-4 text-xs text-slate-blue" aria-label="Các mốc thời gian bản đồ nhiệt">
+                        <span>{columnLabel(visibleHours[0])} – {columnLabel(visibleHours[visibleHours.length - 1])} · {safeHeatmapPage + 1}/{heatmapPages}</span>
+                        <div className="flex flex-wrap gap-2">
+                            <button type="button" className="rounded-lg border border-platinum-tint bg-white px-3 py-2 disabled:opacity-40" disabled={safeHeatmapPage === 0} onClick={() => setHeatmapPage(safeHeatmapPage - 1)}>Mốc trước</button>
+                            <button type="button" className="rounded-lg border border-platinum-tint bg-white px-3 py-2 disabled:opacity-40" disabled={safeHeatmapPage === heatmapPages - 1} onClick={() => setHeatmapPage(safeHeatmapPage + 1)}>Mốc sau</button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -650,8 +696,8 @@ const ZoneTrafficAnalytics = () => {
                                 return (
                                     <div key={z.zoneId} className="px-[1.25rem] py-[0.75rem] space-y-1.5">
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="text-xs font-bold text-midnight-indigo truncate">{z.zoneName}</span>
-                                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${lbl.cls}`}>{lbl.text}</span>
+                                            <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo truncate">{z.zoneName}</span>
+                                            <span data-ui-text="badge" className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${lbl.cls}`}>{lbl.text}</span>
                                         </div>
                                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                             <div
@@ -659,7 +705,7 @@ const ZoneTrafficAnalytics = () => {
                                                 style={{ width: `${Math.round((z.relativeDensity || 0) * 100)}%`, backgroundColor: densityColor(z.relativeDensity) }}
                                             />
                                         </div>
-                                        <p className="text-[10px] text-slate-blue">
+                                        <p data-ui-text="secondary" className="text-[10px] text-slate-blue">
                                             TB {round1(z.avgOccupancy)} · Đỉnh {z.peakOccupancy} người lúc {fmtDateTime(z.peakAt)}
                                         </p>
                                     </div>
@@ -675,15 +721,26 @@ const ZoneTrafficAnalytics = () => {
     );
 };
 
-const SummaryCard = ({ label, value, sub, icon, loading, small, tone }) => (
-    <SharedStatCard
-        icon={icon}
-        tone={tone}
-        label={label}
-        value={small ? <span className="block truncate text-xl" title={typeof value === 'string' ? value : undefined}>{value}</span> : value}
-        hint={sub}
-        loading={loading}
-    />
+const LegacySummaryCard = ({ label, value, sub, icon: Icon, loading, small }) => (
+    <div className="bg-white p-[1.25rem] rounded-2xl border border-platinum-tint shadow-sm space-y-2">
+        <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider flex items-center gap-1.5">
+            {Icon && <Icon className="w-3.5 h-3.5" />}
+            {label}
+        </span>
+        {loading ? (
+            <div className="h-7 bg-slate-100 animate-pulse rounded-lg" />
+        ) : (
+            <div>
+                <span className={`${small ? 'text-base' : 'text-2xl'} font-black text-midnight-indigo block truncate`}>{value}</span>
+                {sub && <span className="text-xs text-slate-blue font-medium">{sub}</span>}
+            </div>
+        )}
+    </div>
+);
+
+const SummaryCard = (props) => (
+    <StatisticCard label={props.label} value={props.value} helper={props.sub} icon={props.icon}
+        loading={props.loading} compactValue={props.small} legacy={<LegacySummaryCard {...props} />} />
 );
 
 export default ZoneTrafficAnalytics;

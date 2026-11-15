@@ -1,7 +1,9 @@
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import { Settings, Camera, GraduationCap, Plus, Trash2, Pencil, X } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import Pagination from '../../components/common/Pagination';
+
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 import { getSystemConfigs, updateSystemConfig, getChannelMaps, updateChannelMap, getRooms, getZones, getNoShowConfig, updateNoShowConfig, getSecurityAlertsConfig, updateSecurityAlertsConfig } from '../../service/sysAdminServices';
@@ -32,6 +34,7 @@ import {
  * — không còn gộp chung với nút "Lưu cấu hình" toàn trang.
  */
 const SystemSettings = () => {
+    const [CHANNELS_PER_PAGE, setChannelsPerPage] = useState(10);
     // Tab State
     const [activeTab, setActiveTab] = useState('workspace'); // workspace | camera (recording/system tạm ẩn)
 
@@ -68,9 +71,11 @@ const SystemSettings = () => {
     const [securityAlertsConfig, setSecurityAlertsConfig] = useState({ autoResolveTimeoutMinutes: 15 });
     const [dbSecurityAlertsConfig, setDbSecurityAlertsConfig] = useState({ autoResolveTimeoutMinutes: 15 });
     const [classAttendanceClasses, setClassAttendanceClasses] = useState([]);
+    const [classAttendanceLoading, setClassAttendanceLoading] = useState(true);
+    const [classAttendanceLoadError, setClassAttendanceLoadError] = useState(null);
     const classAttendanceTargets = useMemo(
-        () => classAttendanceClasses.flatMap(item => (item.administrativeClasses?.length ? item.administrativeClasses : ['Chưa cập nhật']).map(className => ({
-            value: `${item.id}::${className}`,
+        () => classAttendanceClasses.flatMap(item => (item.administrativeClasses?.length ? item.administrativeClasses : [undefined]).map(className => ({
+            value: `${item.id}::${className || ''}`,
             classId: item.id,
             className,
             item
@@ -226,10 +231,15 @@ const SystemSettings = () => {
             }
 
             try {
-                const apiClasses = await fetchClassAttendanceClasses();
+                setClassAttendanceLoading(true);
+                setClassAttendanceLoadError(null);
+                const apiClasses = await fetchClassAttendanceClasses({ source: 'uel_api' });
                 setClassAttendanceClasses(Array.isArray(apiClasses) ? apiClasses : []);
             } catch (classErr) {
-                console.error('Không thể tải danh sách lớp học:', classErr);
+                setClassAttendanceClasses([]);
+                setClassAttendanceLoadError('Không tải được danh sách lớp đã đồng bộ. Vui lòng thử làm mới trang.');
+            } finally {
+                setClassAttendanceLoading(false);
             }
 
             // Channel maps là nguồn dữ liệu bắt buộc cho tab Camera & Cảm biến
@@ -277,9 +287,11 @@ const SystemSettings = () => {
         const target = selectedAttendanceTarget;
         if (!target) return undefined;
 
+        let cancelled = false;
         setClassAttendanceConfig(getClassAttendanceSettings(target.classId, target.className));
         fetchClassAttendanceSettings(target.classId, target.className)
             .then(settings => {
+                if (cancelled) return;
                 const nextSettings = { ...DEFAULT_CLASS_ATTENDANCE_SETTINGS, ...settings };
                 setClassAttendanceConfig(nextSettings);
                 saveClassAttendanceSettings(nextSettings, target.classId, target.className);
@@ -287,7 +299,7 @@ const SystemSettings = () => {
             .catch(attendanceErr => {
                 console.error('Không thể tải cấu hình điểm danh lớp học:', attendanceErr);
             });
-        return undefined;
+        return () => { cancelled = true; };
     }, [selectedAttendanceTarget, selectedClassAttendanceClassId]);
 
     // Auto-hide alert messages
@@ -331,6 +343,10 @@ const SystemSettings = () => {
     };
 
     const handleSaveClassAttendanceConfig = async () => {
+        if (!selectedAttendanceTarget || classAttendanceLoading) {
+            setError('Chưa có lớp học đã đồng bộ để lưu cấu hình.');
+            return;
+        }
         if (Number(classAttendanceConfig.lateThresholdMinutes) < 0) {
             setError('Ngưỡng đi muộn không được âm.');
             return;
@@ -558,7 +574,7 @@ const SystemSettings = () => {
             }));
     })();
 
-    const CHANNELS_PER_PAGE = 8;
+
     const totalChannelPages = Math.max(1, Math.ceil(channelRows.length / CHANNELS_PER_PAGE));
     const safeChannelPage = Math.min(channelPage, totalChannelPages);
     const paginatedChannelRows = channelRows.slice(
@@ -781,11 +797,11 @@ const SystemSettings = () => {
             onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
             onCancel={() => setConfirm(null)}
         />
-        <div className="space-y-6 animate-fade-in-up max-w-5xl mx-auto">
+        <div data-page-surface="wide" className="space-y-6 animate-fade-in-up max-w-5xl mx-auto">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <Settings className="w-3.5 h-3.5" />
                         Hệ thống
                     </span>
@@ -836,7 +852,7 @@ const SystemSettings = () => {
 
             {/* Navigation Tabs — "Ghi hình & Riêng tư" và "Tham số hệ thống" tạm ẩn theo PLAN FE
                 gửi Nam 2026-08-06 (không xóa code, chỉ bỏ nút chuyển tab). */}
-            <div className="border-b border-platinum-tint flex gap-2 overflow-x-auto">
+            <div className="border-b border-platinum-tint flex flex-wrap gap-2">
                 <button
                     onClick={() => setActiveTab('workspace')}
                     className={`whitespace-nowrap px-4 py-2.5 text-sm font-bold border-b-2 transition-all ${
@@ -916,16 +932,16 @@ const SystemSettings = () => {
                                     <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
                                         <label className="block text-xs font-bold text-slate-blue uppercase">Ngưỡng phát hiện vắng mặt</label>
                                         <span className="text-xs text-steel-gray mt-1 block flex-1">Thời gian không check-in kể từ giờ họp trước khi bị đánh dấu no-show (phút).</span>
-                                        <div className="mt-3 relative">
+                                        <div className="mt-3 flex min-w-0 items-center gap-[12px]">
                                             <input
                                                 type="number"
                                                 min="1"
                                                 max="1440"
                                                 value={noShowConfig.thresholdMinutes}
                                                 onChange={(e) => handleNoShowChange('thresholdMinutes', Number(e.target.value))}
-                                                className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                                className="w-0 flex-1 min-w-0 px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                             />
-                                            <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">phút</span>
+                                            <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">phút</span>
                                         </div>
                                     </div>
 
@@ -933,16 +949,16 @@ const SystemSettings = () => {
                                     <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
                                         <label className="block text-xs font-bold text-slate-blue uppercase">Trễ gửi cảnh báo</label>
                                         <span className="text-xs text-steel-gray mt-1 block flex-1">Sau khi đã tính No-Show, trễ thêm bấy nhiêu phút thì gửi cảnh báo (0 = gửi ngay khi đạt ngưỡng).</span>
-                                        <div className="mt-3 relative">
+                                        <div className="mt-3 flex min-w-0 items-center gap-[12px]">
                                             <input
                                                 type="number"
                                                 min="0"
                                                 max="60"
                                                 value={noShowConfig.warningGraceMinutes}
                                                 onChange={(e) => handleNoShowChange('warningGraceMinutes', Number(e.target.value))}
-                                                className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                                className="w-0 flex-1 min-w-0 px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                             />
-                                            <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">phút</span>
+                                            <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">phút</span>
                                         </div>
                                     </div>
 
@@ -950,16 +966,16 @@ const SystemSettings = () => {
                                     <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
                                         <label className="block text-xs font-bold text-slate-blue uppercase">Thời gian chờ phản hồi</label>
                                         <span className="text-xs text-steel-gray mt-1 block flex-1">Thời gian cho phép Host xác nhận trước khi nhả phòng (phút). <span className="italic">Cần đủ dài để người tổ chức có cơ hội thực sự phản hồi cảnh báo trước khi phòng bị thu hồi.</span></span>
-                                        <div className="mt-3 relative">
+                                        <div className="mt-3 flex min-w-0 items-center gap-[12px]">
                                             <input
                                                 type="number"
                                                 min="1"
                                                 max="1440"
                                                 value={noShowConfig.autoReleaseGraceMinutes}
                                                 onChange={(e) => handleNoShowChange('autoReleaseGraceMinutes', Number(e.target.value))}
-                                                className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                                className="w-0 flex-1 min-w-0 px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                             />
-                                            <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">phút</span>
+                                            <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">phút</span>
                                         </div>
                                     </div>
 
@@ -967,16 +983,16 @@ const SystemSettings = () => {
                                     <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
                                         <label className="block text-xs font-bold text-slate-blue uppercase">Thời gian có mặt tối thiểu để xác nhận tham dự</label>
                                         <span className="text-xs text-steel-gray mt-1 block flex-1">Số giây cảm biến phát hiện có mặt liên tục trước khi hệ thống xác nhận check-in.</span>
-                                        <div className="mt-3 relative">
+                                        <div className="mt-3 flex min-w-0 items-center gap-[12px]">
                                             <input
                                                 type="number"
                                                 min="1"
                                                 max="300"
                                                 value={noShowConfig.presenceConfirmSeconds}
                                                 onChange={(e) => handleNoShowChange('presenceConfirmSeconds', Number(e.target.value))}
-                                                className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                                className="w-0 flex-1 min-w-0 px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                             />
-                                            <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">giây</span>
+                                            <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">giây</span>
                                         </div>
                                     </div>
 
@@ -984,16 +1000,16 @@ const SystemSettings = () => {
                                     <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
                                         <label className="block text-xs font-bold text-slate-blue uppercase">Độ trễ chấp nhận nhiễu cảm biến</label>
                                         <span className="text-xs text-steel-gray mt-1 block flex-1">Khoảng thời gian cảm biến mất tín hiệu ngắn được coi là nhiễu và không làm gián đoạn xác nhận có mặt (giây).</span>
-                                        <div className="mt-3 relative">
+                                        <div className="mt-3 flex min-w-0 items-center gap-[12px]">
                                             <input
                                                 type="number"
                                                 min="0"
                                                 max="60"
                                                 value={noShowConfig.presenceNoiseToleranceSeconds}
                                                 onChange={(e) => handleNoShowChange('presenceNoiseToleranceSeconds', Number(e.target.value))}
-                                                className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                                className="w-0 flex-1 min-w-0 px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                             />
-                                            <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">giây</span>
+                                            <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">giây</span>
                                         </div>
                                     </div>
 
@@ -1002,16 +1018,16 @@ const SystemSettings = () => {
                                     <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
                                         <label className="block text-xs font-bold text-slate-blue uppercase">Thời gian gia hạn khi bấm "Tôi vẫn đến"</label>
                                         <span className="text-xs text-steel-gray mt-1 block flex-1">Khi host/organizer xác nhận "Tôi vẫn đến" (trong app hoặc qua link email), phòng được giữ thêm bấy nhiêu phút trước khi hệ thống xét lại.</span>
-                                        <div className="mt-3 relative">
+                                        <div className="mt-3 flex min-w-0 items-center gap-[12px]">
                                             <input
                                                 type="number"
                                                 min="1"
                                                 max="1440"
                                                 value={noShowConfig.confirmExtensionMinutes}
                                                 onChange={(e) => handleNoShowChange('confirmExtensionMinutes', Number(e.target.value))}
-                                                className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                                className="w-0 flex-1 min-w-0 px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                             />
-                                            <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">phút</span>
+                                            <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">phút</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1037,16 +1053,16 @@ const SystemSettings = () => {
                                         <span className="text-xs text-steel-gray mt-0.5 block">
                                             Nếu một cảnh báo không xảy ra lại trong khoảng thời gian này, hệ thống coi là đã kết thúc và tự động đóng — lần vi phạm tiếp theo sẽ tạo cảnh báo mới thay vì gộp vào cảnh báo cũ.
                                         </span>
-                                        <div className="mt-3 relative">
+                                        <div className="mt-3 flex min-w-0 items-center gap-[12px]">
                                             <input
                                                 type="number"
                                                 min="1"
                                                 max="1440"
                                                 value={securityAlertsConfig.autoResolveTimeoutMinutes}
                                                 onChange={(e) => handleSecurityAlertsChange(Number(e.target.value))}
-                                                className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                                className="w-0 flex-1 min-w-0 px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                             />
-                                            <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">phút</span>
+                                            <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">phút</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1076,15 +1092,19 @@ const SystemSettings = () => {
                                     </span>
                                     <select
                                         value={selectedClassAttendanceClassId}
+                                        disabled={classAttendanceLoading || !classAttendanceTargets.length}
                                         onChange={(e) => setSelectedClassAttendanceClassId(e.target.value)}
                                         className="mt-3 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
                                     >
+                                        {!classAttendanceTargets.length && <option value="">{classAttendanceLoading ? 'Đang tải lớp học…' : 'Chưa có lớp học đã đồng bộ'}</option>}
                                         {classAttendanceTargets.map(target => (
                                             <option key={target.value} value={target.value}>
-                                                {target.item.subjectCode || target.item.code} - {target.item.subject} - Lớp {target.className} ({target.item.room})
+                                                {target.item.code} - {target.item.subject}{target.className ? ` - Lớp ${target.className}` : ''}{target.item.room ? ` (${target.item.room})` : ''}
                                             </option>
                                         ))}
                                     </select>
+                                    {classAttendanceLoadError && <p role="alert" className="mt-2 text-sm text-red-700">{classAttendanceLoadError}</p>}
+                                    {!classAttendanceLoading && !classAttendanceLoadError && !classAttendanceTargets.length && <p className="mt-2 text-sm text-slate-blue">Chưa có lớp học phần từ UEL. Vui lòng đồng bộ lớp học phần; đồng bộ thêm đăng ký học phần và lịch học để có danh sách sinh viên, phòng và giờ học.</p>}
                                 </div>
 
                                 <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
@@ -1095,6 +1115,7 @@ const SystemSettings = () => {
                                     <input
                                         type="time"
                                         value={classAttendanceConfig.classStartTime}
+                                        disabled={!selectedAttendanceTarget || classAttendanceLoading || saving}
                                         onChange={(e) => handleClassAttendanceChange('classStartTime', e.target.value)}
                                         className="mt-3 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                     />
@@ -1104,16 +1125,17 @@ const SystemSettings = () => {
                                     <span className="text-xs text-steel-gray mt-1 block flex-1">
                                         Số phút cho phép sau giờ bắt đầu trước khi đánh dấu sinh viên đi muộn.
                                     </span>
-                                    <div className="mt-3 relative">
+                                    <div className="mt-3 flex min-w-0 items-center gap-[12px]">
                                         <input
                                             type="number"
                                             min="0"
                                             max="120"
                                             value={classAttendanceConfig.lateThresholdMinutes}
+                                        disabled={!selectedAttendanceTarget || classAttendanceLoading || saving}
                                             onChange={(e) => handleClassAttendanceChange('lateThresholdMinutes', Number(e.target.value))}
-                                            className="w-full px-3 pr-16 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                            className="w-0 flex-1 min-w-0 px-3 pr-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                         />
-                                        <span className="absolute right-9 top-2 text-xs text-slate-blue font-semibold pointer-events-none">phút</span>
+                                        <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">phút</span>
                                     </div>
                                 </div>
                                 <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
@@ -1121,16 +1143,17 @@ const SystemSettings = () => {
                                     <span className="text-xs text-steel-gray mt-1 block flex-1">
                                         Khoảng cách giữa mỗi lần camera FaceID tự kiểm tra sinh viên trong lớp.
                                     </span>
-                                    <div className="mt-3 relative">
+                                    <div className="mt-3 flex min-w-0 items-center gap-[12px]">
                                         <input
                                             type="number"
                                             min="2"
                                             max="60"
                                             value={classAttendanceConfig.autoScanIntervalSeconds}
+                                        disabled={!selectedAttendanceTarget || classAttendanceLoading || saving}
                                             onChange={(e) => handleClassAttendanceChange('autoScanIntervalSeconds', Number(e.target.value))}
-                                            className="w-full px-3 pr-16 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                            className="w-0 flex-1 min-w-0 px-3 pr-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                         />
-                                        <span className="absolute right-9 top-2 text-xs text-slate-blue font-semibold pointer-events-none">giây</span>
+                                        <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">giây</span>
                                     </div>
                                 </div>
                             </div>
@@ -1139,7 +1162,8 @@ const SystemSettings = () => {
                                 <button
                                     type="button"
                                     onClick={handleSaveClassAttendanceConfig}
-                                    className="px-4 py-2 bg-action-blue text-white hover:bg-glacier-blue rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
+                                    disabled={!selectedAttendanceTarget || classAttendanceLoading || saving}
+                                    className="px-4 py-2 bg-action-blue text-white hover:bg-glacier-blue rounded-xl text-sm font-semibold shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Lưu cấu hình lớp học
                                 </button>
@@ -1185,7 +1209,7 @@ const SystemSettings = () => {
                                             onChange={(e) => handleChange('recording_retention_days', Number(e.target.value))}
                                             className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                         />
-                                        <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">ngày</span>
+                                        <span data-ui-text="primary" className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">ngày</span>
                                     </div>
                                 </div>
 
@@ -1250,16 +1274,16 @@ const SystemSettings = () => {
                                             <span className="text-xs text-slate-blue">Thời gian tối đa cuộc họp có thể tiếp tục sau khi hết giờ dự kiến trước khi tự động đóng lại.</span>
                                         </div>
                                     </div>
-                                    <div className="relative mt-2 max-w-[200px]">
+                                    <div className="mt-2 max-w-[200px] flex min-w-0 items-center gap-[12px]">
                                         <input
                                             type="number"
                                             min="1"
                                             max="60"
                                             value={configs.overrun_grace_minutes}
                                             onChange={(e) => handleChange('overrun_grace_minutes', Number(e.target.value))}
-                                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
+                                            className="w-0 flex-1 min-w-0 px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue"
                                         />
-                                        <span className="absolute right-3 top-2 text-xs text-slate-blue font-semibold">phút</span>
+                                        <span data-ui-text="primary" className="w-9 shrink-0 whitespace-nowrap text-xs text-slate-blue font-semibold pointer-events-none">phút</span>
                                     </div>
                                 </div>
                             </div>
@@ -1331,7 +1355,13 @@ const SystemSettings = () => {
                                 ) : (
                                     <div className="bg-white border border-platinum-tint rounded-xl overflow-hidden">
                                         <div className="overflow-x-auto">
-                                            <table className="w-full text-left text-sm">
+                                            <ResponsiveTable className="w-full text-left text-sm">
+<colgroup>
+<col style={{ width: '17%' }} />
+<col style={{ width: '18%' }} />
+<col style={{ width: '57%' }} />
+<col style={{ width: '8%' }} />
+</colgroup>
                                                 <thead className="bg-cloud-mist/50 border-b border-platinum-tint">
                                                     <tr>
                                                         <th className="px-3 py-2.5 font-bold text-[11px] text-slate-blue uppercase tracking-wider w-24 text-center">ID Kênh</th>
@@ -1345,7 +1375,7 @@ const SystemSettings = () => {
                                                         <tr key={row.id} className="hover:bg-cloud-mist/30 transition-colors">
                                                             <td className="px-3 py-2.5 font-mono text-xs font-semibold text-midnight-indigo text-center">{row.id}</td>
                                                             <td className="px-3 py-2.5 text-center">
-                                                                <span className={`inline-flex px-2 py-1 rounded-full text-[11px] font-bold ${row.role === 'conflict' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-action-blue'}`}>
+                                                                <span data-ui-text="badge" className={`inline-flex px-2 py-1 rounded-full text-[11px] font-bold ${row.role === 'conflict' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-action-blue'}`}>
                                                                     {ROLE_LABELS[row.role] || row.role}
                                                                 </span>
                                                             </td>
@@ -1372,21 +1402,17 @@ const SystemSettings = () => {
                                                         </tr>
                                                     ))}
                                                 </tbody>
-                                            </table>
+                                            </ResponsiveTable>
                                         </div>
 
-                                        {totalChannelPages > 1 && (
-                                            <div className="px-4 py-3 bg-cloud-mist/30 border-t border-platinum-tint flex items-center justify-between">
-                                                <span className="text-xs font-medium text-slate-blue">
-                                                    Trang {safeChannelPage} / {totalChannelPages} (Tổng {channelRows.length} kênh)
-                                                </span>
-                                                <Pagination 
-                                                    currentPage={safeChannelPage} 
-                                                    totalPages={totalChannelPages} 
-                                                    onPageChange={setChannelPage} 
-                                                />
-                                            </div>
-                                        )}
+                                        {<PaginationRegion legacyVisible={totalChannelPages > 1}><PaginationFooter
+                                                currentPage={safeChannelPage}
+                                                totalPages={totalChannelPages}
+                                                totalItems={channelRows.length}
+                                                pageSize={CHANNELS_PER_PAGE}
+                                                onPageChange={setChannelPage}
+                                                itemLabel={"kênh"}
+                                             onPageSizeChange={size => { setChannelsPerPage(size); setChannelPage(1); }} /></PaginationRegion>}
                                     </div>
                                 )}
                             </div>
@@ -1420,7 +1446,7 @@ const SystemSettings = () => {
                     <div className="px-6 py-5 space-y-4 overflow-y-auto">
                         {/* Lỗi inline trong modal */}
                         {error && (
-                            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+                            <div data-ui-text="badge" className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
                                 {error}
                             </div>
                         )}

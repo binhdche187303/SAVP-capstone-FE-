@@ -1,3 +1,7 @@
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import FilterBar from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
 import { AlertTriangle, Bell, BellRing, CheckCircle, Clock, Edit3, Eye, Filter, Mail, Plus, Power, PowerOff, RefreshCw, ShieldAlert, Trash2, Users, X } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
@@ -292,27 +296,25 @@ const AlertRules = () => {
             {/* HEADER */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-platinum-tint">
                 <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                         <BellRing className="w-3.5 h-3.5" />
                         Cảnh báo
                     </span>
                     <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight flex items-center">
                         <ShieldAlert className="w-7 h-7 mr-3 text-action-blue" />
-                        Cấu hình Luật Cảnh báo
+                        Quy tắc cảnh báo
                     </h1>
                     <p className="text-slate-blue text-sm mt-1 ml-10">
                         Định nghĩa các điều kiện tự động kích hoạt cảnh báo an ninh.
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
+                    <RefreshButton
                         onClick={() => fetchRules()}
                         disabled={loading}
-                        className="inline-flex items-center justify-center p-2.5 text-slate-blue bg-cloud-mist/50 rounded-xl hover:bg-cloud-mist transition-colors"
                         title="Làm mới"
-                    >
-                        <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
+                        busy={loading}
+                    />
                     <button
                         onClick={openCreateModal}
                         className="inline-flex items-center px-4 py-2 bg-action-blue text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-glacier-blue transition-all"
@@ -332,8 +334,8 @@ const AlertRules = () => {
             )}
 
             {/* FILTERS */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-platinum-tint grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="relative">
+            <FilterBar data-filter-grid variant="card" className="bg-white p-4 rounded-2xl shadow-sm border border-platinum-tint grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại sự kiện</label>
                     <select 
                         value={filters.alert_type} 
@@ -351,7 +353,7 @@ const AlertRules = () => {
                         <option value="device_error">Lỗi thiết bị</option>
                     </select>
                 </div>
-                <div className="relative">
+                <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Khu vực áp dụng</label>
                     <select 
                         value={filters.zone_id} 
@@ -364,7 +366,7 @@ const AlertRules = () => {
                         ))}
                     </select>
                 </div>
-                <div className="relative">
+                <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Trạng thái</label>
                     <select 
                         value={filters.enabled} 
@@ -377,19 +379,27 @@ const AlertRules = () => {
                     </select>
                 </div>
                 <div className="relative flex items-end">
-                    <button 
+                    <button data-filter-action
                         onClick={() => setFilters({ page: 1, limit: 20, alert_type: '', zone_id: '', enabled: '' })}
                         className="w-full px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
                     >
                         <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
                     </button>
                 </div>
-            </div>
+            </FilterBar>
 
             {/* TABLE */}
             <div className="flex-1 bg-white rounded-2xl shadow-sm border border-platinum-tint overflow-hidden flex flex-col min-h-0">
                 <div className="flex-1 overflow-auto">
-                    <table className="w-full text-left border-collapse">
+                    <ResponsiveTable className="w-full text-left border-collapse">
+<colgroup>
+<col style={{ width: '24%' }} />
+<col style={{ width: '18%' }} />
+<col style={{ width: '24%' }} />
+<col style={{ width: '14%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '9%' }} />
+</colgroup>
                         <thead className="bg-cloud-mist/30 sticky top-0 z-10 border-b border-platinum-tint">
                             <tr>
                                 <th className="p-4 text-xs font-bold text-slate-blue uppercase tracking-wider">Sự kiện kích hoạt</th>
@@ -430,21 +440,21 @@ const AlertRules = () => {
                                                 {rule.alert_type === 'crowd' && rule.threshold && (
                                                     <div className="flex items-center gap-1.5 text-midnight-indigo">
                                                         <Users className="w-3.5 h-3.5 text-slate-blue" />
-                                                        <span className="text-slate-blue text-[11px]">Ngưỡng:</span> 
-                                                        <span className="font-bold text-[11px]">{rule.threshold} người</span>
+                                                        <span data-ui-text="secondary" className="text-slate-blue text-[11px]">Ngưỡng:</span>
+                                                        <span data-ui-text="primary" className="font-bold text-[11px]">{rule.threshold} người</span>
                                                     </div>
                                                 )}
                                                 {rule.restricted_hours_json ? (
                                                     <div className="flex items-center gap-1.5 bg-blue-50/50 px-2.5 py-1 rounded-md border border-blue-100/50 w-fit">
                                                         <Clock className="w-3.5 h-3.5 text-action-blue" />
-                                                        <span className="text-[11px] font-bold text-action-blue tracking-wide">
+                                                        <span data-ui-text="primary" className="text-[11px] font-bold text-action-blue tracking-wide">
                                                             {rule.restricted_hours_json.allowFrom || rule.restricted_hours_json.allow_from} - {rule.restricted_hours_json.allowTo || rule.restricted_hours_json.allow_to}
                                                         </span>
                                                     </div>
                                                 ) : (
                                                     <div className="flex items-center gap-1.5 text-slate-500">
                                                         <Clock className="w-3.5 h-3.5 opacity-60" />
-                                                        <span className="text-[11px] font-medium italic">Hoạt động 24/7</span>
+                                                        <span data-ui-text="secondary" className="text-[11px] font-medium italic">Hoạt động 24/7</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -452,7 +462,7 @@ const AlertRules = () => {
                                         <td className="p-4">
                                             <div className="flex gap-1 flex-wrap">
                                                 {rule.channels?.map(ch => (
-                                                    <span key={ch} className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
+                                                    <span data-ui-text="badge" key={ch} className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase">
                                                         {ch.replace('_', ' ')}
                                                     </span>
                                                 ))}
@@ -487,32 +497,19 @@ const AlertRules = () => {
                                 ))
                             )}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
 
                 {/* PAGINATION */}
-                {meta && meta.totalPages > 1 && (
-                    <div className="p-4 border-t border-platinum-tint bg-cloud-mist/30 flex items-center justify-between text-sm">
-                        <span className="text-slate-blue font-medium">Hiển thị {rules.length} / {meta.total} bản ghi</span>
-                        <div className="flex gap-2">
-                            <button 
-                                disabled={filters.page <= 1} 
-                                onClick={() => handleFilterChange('page', filters.page - 1)}
-                                className="px-3 py-1.5 bg-white border border-platinum-tint rounded-lg font-medium text-slate-blue hover:bg-cloud-mist disabled:opacity-50"
-                            >
-                                Trước
-                            </button>
-                            <span className="px-3 py-1.5 font-bold text-midnight-indigo">Trang {filters.page} / {meta.totalPages}</span>
-                            <button 
-                                disabled={filters.page >= meta.totalPages} 
-                                onClick={() => handleFilterChange('page', filters.page + 1)}
-                                className="px-3 py-1.5 bg-white border border-platinum-tint rounded-lg font-medium text-slate-blue hover:bg-cloud-mist disabled:opacity-50"
-                            >
-                                Sau
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {meta && <PaginationRegion legacyVisible={meta && meta.totalPages > 1}><PaginationFooter
+                        currentPage={filters.page}
+                        totalPages={meta.totalPages}
+                        totalItems={meta.total}
+                        pageSize={filters.limit}
+                        onPageChange={(p) => handleFilterChange('page', p)}
+                        itemLabel={"quy tắc"}
+                        loading={loading}
+                     onPageSizeChange={size => { setFilters(previous => ({ ...previous, limit: size, page: 1 })); }} /></PaginationRegion>}
             </div>
 
             {/* CREATE / EDIT MODAL */}
@@ -583,7 +580,7 @@ const AlertRules = () => {
                                     </select>
                                     {formErrors.zone_id && <p className="text-red-500 text-xs mt-1.5">{formErrors.zone_id}</p>}
                                     {formData.alert_type === 'intrusion' && (
-                                        <p className="text-[10px] text-slate-400 mt-1.5">
+                                        <p data-ui-text="secondary" className="text-[10px] text-slate-400 mt-1.5">
                                             Chỉ hiển thị khu vực loại hành lang, sảnh, bãi đỗ xe — phòng họp và cổng ra vào không áp dụng cho cảnh báo xâm nhập.
                                         </p>
                                     )}
@@ -612,7 +609,7 @@ const AlertRules = () => {
                                             {formErrors.allow_to && <p className="text-red-500 text-xs mt-1.5">{formErrors.allow_to}</p>}
                                         </div>
                                     </div>
-                                    <p className="text-[10px] text-slate-400 mt-1.5">Để trống để áp dụng cảnh báo 24/7.</p>
+                                    <p data-ui-text="secondary" className="text-[10px] text-slate-400 mt-1.5">Để trống để áp dụng cảnh báo 24/7.</p>
                                 </div>
 
                                 <div>

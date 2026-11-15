@@ -147,7 +147,7 @@ const ShareMinutesModal = ({ minutesId, open, onClose }) => {
                         </div>
                         <div>
                             <h3 className="font-bold text-midnight-indigo text-sm">Chia sẻ biên bản</h3>
-                            <p className="text-[10px] text-slate-blue mt-0.5">Chia sẻ quyền xem biên bản cho nhân sự khác</p>
+                            <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-0.5">Chia sẻ quyền xem biên bản cho nhân sự khác</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
@@ -181,8 +181,8 @@ const ShareMinutesModal = ({ minutesId, open, onClose }) => {
                                 <div className="flex items-center gap-3">
                                     <UserAvatar user={selectedUser} className="w-8 h-8 rounded-full" />
                                     <div>
-                                        <span className="text-xs font-bold text-midnight-indigo block">{selectedUser.fullName || selectedUser.full_name}</span>
-                                        <span className="text-[10px] text-slate-blue">{selectedUser.email}</span>
+                                        <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo block">{selectedUser.fullName || selectedUser.full_name}</span>
+                                        <span data-ui-text="secondary" className="text-[10px] text-slate-blue">{selectedUser.email}</span>
                                     </div>
                                 </div>
                                 <button 
@@ -221,8 +221,8 @@ const ShareMinutesModal = ({ minutesId, open, onClose }) => {
                                     >
                                         <UserAvatar user={u} className="w-7 h-7 rounded-full font-bold text-[10px]" />
                                         <div className="truncate">
-                                            <span className="text-xs font-bold text-midnight-indigo block truncate">{u.fullName || u.full_name}</span>
-                                            <span className="text-[9.5px] text-slate-blue block truncate">{u.email}</span>
+                                            <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo block truncate">{u.fullName || u.full_name}</span>
+                                            <span data-ui-text="secondary" className="text-[9.5px] text-slate-blue block truncate">{u.email}</span>
                                         </div>
                                     </div>
                                 ))}
@@ -248,12 +248,12 @@ const ShareMinutesModal = ({ minutesId, open, onClose }) => {
                         {loadingShares ? (
                             <div className="flex items-center justify-center py-6 text-slate-blue gap-2">
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                <span className="text-[11px] font-medium">Đang tải danh sách...</span>
+                                <span data-ui-text="secondary" className="text-[11px] font-medium">Đang tải danh sách...</span>
                             </div>
                         ) : shares.length === 0 ? (
                             <div className="text-center py-6 text-slate-400 flex flex-col items-center gap-1.5">
                                 <Mail className="w-7 h-7 text-platinum-tint" />
-                                <span className="text-[11px]">Chưa chia sẻ cho ai ngoài các thành viên phòng họp.</span>
+                                <span data-ui-text="secondary" className="text-[11px]">Chưa chia sẻ cho ai ngoài các thành viên phòng họp.</span>
                             </div>
                         ) : (
                             <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
@@ -269,8 +269,8 @@ const ShareMinutesModal = ({ minutesId, open, onClose }) => {
                                             <div className="flex items-center gap-2.5 truncate">
                                                 <UserAvatar user={u} name={uName} className="w-7.5 h-7.5 rounded-full shrink-0 font-bold text-[10px]" />
                                                 <div className="truncate">
-                                                    <span className="text-xs font-bold text-midnight-indigo block truncate">{uName}</span>
-                                                    <span className="text-[9.5px] text-slate-blue block truncate">{uEmail}</span>
+                                                    <span data-ui-text="primary" className="text-xs font-bold text-midnight-indigo block truncate">{uName}</span>
+                                                    <span data-ui-text="secondary" className="text-[9.5px] text-slate-blue block truncate">{uEmail}</span>
                                                 </div>
                                             </div>
                                             <button

@@ -1,37 +1,49 @@
+import './ReportRunsFilters.css';
+import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
+import ResponsiveTable from '../../../components/common/ResponsiveTable';
+import FilterBar from '../../../components/common/FilterBar';
+import PaginationFooter from '../../../components/common/PaginationFooter';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Download, History, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Download, Filter, History, RotateCcw } from 'lucide-react';
 import { listScheduleRuns, listSchedules, retryScheduleRun, downloadRunFile } from '../../../service/reportCenterService';
 import { formatDateTime } from '../../../utils/reportFormat';
 import toast from '../../../utils/toast';
 import useAreaBase from '../../../hooks/useAreaBase';
-import Pagination from '../../../components/common/Pagination';
+
 import { FORMAT_LABELS } from '../../../components/report/scheduleLabels';
 import { pageCls, cardCls, inputCls, labelCls, thCls, tdCls, errorBoxCls } from '../../../components/common/uiClasses';
 
 // S11 (2.13): lịch sử các lần gửi báo cáo (theo lịch và gửi thử).
-const PAGE_SIZE = 10;
+
 const dmy = (ymd) => String(ymd || '').split('-').reverse().join('/');
 
 const ReportRuns = () => {
+    const [PAGE_SIZE, setPageSize] = useState(10);
     const base = useAreaBase();
     const [searchParams] = useSearchParams();
     const [schedules, setSchedules] = useState([]);
     const [filters, setFilters] = useState({ scheduleId: searchParams.get('scheduleId') || '', status: '', from: '', to: '' });
     const [page, setPage] = useState(1);
     const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [busyId, setBusyId] = useState(null);
 
     const load = useCallback(async () => {
-        const res = await listScheduleRuns({ ...filters, page, limit: PAGE_SIZE });
-        if (res?.success) {
-            setData(res.data);
-            setError(null);
-        } else {
-            setError(res?.message || 'Không tải được lịch sử gửi');
+        setLoading(true);
+        try {
+            const res = await listScheduleRuns({ ...filters, page, limit: PAGE_SIZE });
+            if (res?.success) {
+                setData(res.data);
+                setError(null);
+            } else {
+                setError(res?.message || 'Không tải được lịch sử gửi');
+            }
+        } finally {
+            setLoading(false);
         }
-    }, [filters, page]);
+    }, [filters, page, PAGE_SIZE]);
 
     useEffect(() => { load(); }, [load]);
     useEffect(() => {
@@ -61,27 +73,28 @@ const ReportRuns = () => {
     const items = data?.items || [];
 
     return (
-        <div className={pageCls}>
+        <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5">
                 <Link to={`${base}/report-schedules`} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-blue hover:text-action-blue mb-2">
                     <ArrowLeft className="w-3.5 h-3.5" /> Lịch gửi báo cáo
                 </Link>
-                <h2 className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                     <History className="w-6 h-6 text-action-blue" />
                     Lịch sử gửi báo cáo
                 </h2>
                 <p className="text-xs text-slate-blue mt-1">Từng lần hệ thống tạo và gửi báo cáo: kết quả, người nhận, file đính kèm.</p>
             </div>
 
-            <div className={`${cardCls} p-4 flex flex-wrap gap-4 items-end`}>
-                <div className="space-y-1">
+            <FilterBar variant="card" className="report-runs-filters">
+                <div className="report-runs-filter-main">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="rr-schedule">Lịch gửi</label>
-                    <select id="rr-schedule" className={`${inputCls} max-w-[260px]`} value={filters.scheduleId} onChange={(e) => change({ scheduleId: e.target.value })}>
+                    <select id="rr-schedule" className={inputCls} value={filters.scheduleId} onChange={(e) => change({ scheduleId: e.target.value })}>
                         <option value="">Tất cả</option>
                         {schedules.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="rr-status">Trạng thái</label>
                     <select id="rr-status" className={inputCls} value={filters.status} onChange={(e) => change({ status: e.target.value })}>
                         <option value="">Tất cả</option>
@@ -89,21 +102,46 @@ const ReportRuns = () => {
                         <option value="failed">Thất bại</option>
                     </select>
                 </div>
-                <div className="space-y-1">
+                </div>
+                <div className="report-runs-filter-time">
+                <CalendarRangePresets from={filters.from} to={filters.to} onChange={range => { change(range); }} />
+                <div className="report-runs-filter-dates">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="rr-from">Từ ngày</label>
                     <input id="rr-from" type="date" className={inputCls} value={filters.from} onChange={(e) => change({ from: e.target.value })} />
                 </div>
-                <div className="space-y-1">
+                <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="rr-to">Đến ngày</label>
                     <input id="rr-to" type="date" className={inputCls} value={filters.to} onChange={(e) => change({ to: e.target.value })} />
                 </div>
-            </div>
+                </div>
+                <button type="button" data-filter-action
+                    className="report-runs-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
+                    onClick={() => {
+                        setFilters({ scheduleId: '', status: '', from: '', to: '' });
+                        setPage(1);
+                    }}>
+                    <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                </button>
+                </div>
+            </FilterBar>
 
             {error && <div className={errorBoxCls}>{error}</div>}
 
             <div className={`${cardCls} overflow-hidden`}>
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <ResponsiveTable className="w-full">
+<colgroup>
+<col style={{ width: '12%' }} />
+<col style={{ width: '14%' }} />
+<col style={{ width: '14%' }} />
+<col style={{ width: '13%' }} />
+<col style={{ width: '7%' }} />
+<col style={{ width: '15%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '6%' }} />
+<col style={{ width: '8%' }} />
+</colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
                                 {['Thời điểm chạy', 'Lịch gửi', 'Báo cáo', 'Kỳ dữ liệu', 'Loại', 'Người nhận', 'Trạng thái', 'File', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
@@ -122,12 +160,12 @@ const ReportRuns = () => {
                                     <td className={tdCls}>{run.recipientCount} người</td>
                                     <td className={`${tdCls} whitespace-normal`}>
                                         {run.status === 'success' ? (
-                                            <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-green-700 bg-green-50">Thành công</span>
+                                            <span data-ui-text="badge" className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-green-700 bg-green-50">Thành công</span>
                                         ) : (
                                             <div className="space-y-1">
-                                                <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-red-700 bg-red-50">Thất bại</span>
-                                                <p className="text-[11px] text-red-700">{run.error}</p>
-                                                {run.retriedByRunId && <p className="text-[11px] font-semibold text-slate-blue">Đã gửi lại</p>}
+                                                <span data-ui-text="badge" className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-red-700 bg-red-50">Thất bại</span>
+                                                <p data-ui-text="secondary" className="text-[11px] text-red-700">{run.error}</p>
+                                                {run.retriedByRunId && <p data-ui-text="primary" className="text-[11px] font-semibold text-slate-blue">Đã gửi lại</p>}
                                             </div>
                                         )}
                                     </td>
@@ -135,7 +173,7 @@ const ReportRuns = () => {
                                         {run.status === 'success' ? (
                                             <span className="flex gap-1">
                                                 {run.formats.map((format) => (
-                                                    <button key={format} type="button" onClick={() => download(run, format)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-platinum-tint text-[11px] font-semibold text-midnight-indigo hover:bg-cloud-mist">
+                                                    <button data-ui-text="action" key={format} type="button" onClick={() => download(run, format)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-platinum-tint text-[11px] font-semibold text-midnight-indigo hover:bg-cloud-mist">
                                                         <Download className="w-3 h-3" /> {FORMAT_LABELS[format]}
                                                     </button>
                                                 ))}
@@ -152,12 +190,17 @@ const ReportRuns = () => {
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
-                <div className="px-4 py-3 border-t border-platinum-tint flex items-center justify-between">
-                    <span className="text-xs text-slate-blue">{data ? `${data.total} lần chạy` : ''}</span>
-                    <Pagination currentPage={page} totalPages={Math.ceil((data?.total || 0) / PAGE_SIZE)} onPageChange={setPage} />
-                </div>
+                <PaginationFooter
+                    loading={loading}
+                    currentPage={page}
+                    totalPages={Math.ceil((data?.total || 0) / PAGE_SIZE)}
+                    totalItems={data?.total || 0}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setPage}
+                    itemLabel={"lần chạy"}
+                 onPageSizeChange={size => { setPageSize(size); setPage(1); }} />
             </div>
         </div>
     );

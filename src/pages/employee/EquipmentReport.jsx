@@ -1,3 +1,5 @@
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import StatisticGrid from '../../components/common/StatisticGrid';
 import {
     Activity, AlertTriangle, ArrowLeft, ArrowUpDown, CheckCircle2, ChevronRight, Cpu, MapPin,
     Mic, Monitor, Package, RefreshCw, Search, Speaker, Video, WifiOff, Wrench, X,
@@ -340,8 +342,10 @@ const EquipmentReport = () => {
                             <p className="text-sm font-medium text-slate-blue">Bạn chưa có cuộc họp nào gắn với phòng gần đây.</p>
                         </div>
                     ) : (
-                        <ul className="bg-white rounded-xl border border-platinum-tint divide-y divide-platinum-tint overflow-hidden">
-                            {visibleRooms.map((entry) => {
+                        <PaginatedCollection items={visibleRooms} itemLabel="phòng họp">
+{(camaiPageItems, camaiStartIndex) => (
+<ul className="bg-white rounded-xl border border-platinum-tint divide-y divide-platinum-tint overflow-hidden">
+                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((entry) => {
                                 const lastDate = formatDate(meetingTime(entry.lastMeeting));
                                 return (
                                     <li key={entry.room.id}>
@@ -368,11 +372,13 @@ const EquipmentReport = () => {
                                         </button>
                                     </li>
                                 );
-                            })}
+                            })(camaiRecord, camaiStartIndex + camaiIndex, (visibleRooms)))}
                             {visibleRooms.length === 0 && (
                                 <li className="px-4 py-10 text-center text-sm text-slate-blue">Không có phòng khớp "{roomQuery.trim()}".</li>
                             )}
                         </ul>
+)}
+</PaginatedCollection>
                     )}
                 </>
             ) : (
@@ -391,7 +397,7 @@ const EquipmentReport = () => {
                     ) : (
                         <>
                             {/* 4 thẻ chính theo tình trạng — chỉ tô màu cảnh báo khi thật sự có sự cố */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                                 <StatCard
                                     label="Tất cả thiết bị"
                                     value={healthCounts.all}
@@ -428,7 +434,7 @@ const EquipmentReport = () => {
                                     active={healthFilter === 'offline'}
                                     onClick={() => setHealthFilter((v) => (v === 'offline' ? 'all' : 'offline'))}
                                 />
-                            </div>
+                            </StatisticGrid>
 
                             {/* Loại thiết bị → chip lọc, mỗi loại 1 icon riêng */}
                             <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Lọc theo loại thiết bị">
@@ -494,8 +500,10 @@ const EquipmentReport = () => {
                                     <button type="button" onClick={clearEquipmentFilters} className="font-semibold text-action-blue hover:underline">Xóa bộ lọc</button>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                                    {filteredEquipment.map((eq) => {
+                                <PaginatedCollection items={filteredEquipment} itemLabel="thiết bị" initialPageSize={12}>
+{(camaiPageItems, camaiStartIndex) => (
+<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                    {camaiPageItems.map((camaiRecord, camaiIndex) => ((eq) => {
                                         const badge = getHealthBadge(eq.healthStatus);
                                         const meta = typeMeta(eq.equipmentType);
                                         const Icon = meta.icon;
@@ -526,8 +534,10 @@ const EquipmentReport = () => {
                                                 </div>
                                             </div>
                                         );
-                                    })}
+                                    })(camaiRecord, camaiStartIndex + camaiIndex, (filteredEquipment)))}
                                 </div>
+)}
+</PaginatedCollection>
                             )}
                         </>
                     )}

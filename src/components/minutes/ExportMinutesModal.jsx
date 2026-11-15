@@ -143,7 +143,7 @@ const ExportMinutesModal = ({ minutesId, open, onClose }) => {
                                         >
                                             <span className="text-2xl">{cfg.icon}</span>
                                             <span className={`text-sm font-bold ${format === val ? 'text-action-blue' : 'text-midnight-indigo'}`}>{cfg.label}</span>
-                                            <span className="text-[10px] text-slate-blue">{cfg.desc}</span>
+                                            <span data-ui-text="action" className="text-[10px] text-slate-blue">{cfg.desc}</span>
                                         </button>
                                     ))}
                                 </div>

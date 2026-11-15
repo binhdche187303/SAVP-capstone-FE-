@@ -185,7 +185,7 @@ const TemplateCanvas = ({ layout, definition, assetUrls, selected, onSelect, dra
     };
 
     return (
-        <div ref={fit.outer} style={fit.scale < 1 ? { height: fit.height, overflow: 'hidden' } : undefined}>
+        <div ref={fit.outer} data-typography-preserve style={fit.scale < 1 ? { height: fit.height, overflow: 'hidden' } : undefined}>
         <div
             ref={fit.inner}
             className="space-y-6"
@@ -214,6 +214,11 @@ const TemplateCanvas = ({ layout, definition, assetUrls, selected, onSelect, dra
                 )}
 
                 <div className="relative z-10 space-y-3">
+                    {L.logo.enabled && L.logo.position === 'top-left' && (
+                        <div className="flex justify-start">
+                            <Region {...sel('logo')} label="Logo">{logo}</Region>
+                        </div>
+                    )}
                     <Region {...sel('header')} label="Đầu văn bản (quốc hiệu, cơ quan, số, địa danh)">
                         <div className="flex gap-2 text-[13px] leading-snug">
                             <div className="text-center" style={{ width: '45%' }}>

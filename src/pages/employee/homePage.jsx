@@ -1,5 +1,12 @@
-import { AlertCircle, ArrowRight, Award, BarChart2, BookOpen, Calendar, Car, CheckCircle, Clock, LogIn, PlusCircle, ShieldAlert, TrendingUp, User, Video } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
+import PersonalAttendancePoints, { usePersonalAttendancePoints } from './PersonalAttendancePoints';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import CalendarRangePresets, { calendarRange } from '../../components/common/CalendarRangePresets';
+import './PersonalStatistics.css';
+import PaginatedCollection from '../../components/common/PaginatedCollection';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import StatisticCard from '../../components/common/StatisticCard';
+import { AlertCircle, ArrowRight, BarChart2, Award, Calendar, CheckCircle, Clock, PlusCircle, ShieldAlert, TrendingUp, User, Video } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Label } from 'recharts';
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -7,7 +14,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardBanner from '../../components/common/DashboardBanner';
 import { getEmployeeSummary } from '../../service/campusService';
 import { getMySchedule, getMyAttendanceStats } from '../../service/employeeServices';
-import SharedStatCard from '../../components/common/StatCard';
 import { MEETING_BOOKING_ENABLED } from '../../config/featureFlags';
 
 const PIE_COLORS = ['#22c55e', '#f59e0b', '#ef4444'];
@@ -31,7 +37,7 @@ const itemVariants = {
     show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100 } }
 };
 
-const EmployeeHomePage = () => {
+const EmployeeHomePage = ({ view = 'overview' }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [successToast, setSuccessToast] = useState('');
@@ -52,25 +58,32 @@ const EmployeeHomePage = () => {
         }
     }, [successToast]);
 
-    const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'analytics'
+    const activeTab = view;
 
     // Overview states
     const [upcomingMeetings, setUpcomingMeetings] = useState([]);
+    const [upcomingCount, setUpcomingCount] = useState(null);
+    const [scheduleLoading, setScheduleLoading] = useState(true);
+    const [scheduleError, setScheduleError] = useState(false);
 
     // Campus summary (CDB-RS-001: GET /campus-dashboard/employee-summary)
     const [campusSummary, setCampusSummary] = useState(null);
     const [campusSummaryLoading, setCampusSummaryLoading] = useState(true);
 
     // Analytics tab state
-    const [analyticsPreset, setAnalyticsPreset] = useState('month');
+    const [analyticsRange, setAnalyticsRange] = useState(() => calendarRange('month'));
+    const analyticsRangeError = !analyticsRange.from || !analyticsRange.to
+        ? 'Vui lòng chọn đủ từ ngày và đến ngày.'
+        : analyticsRange.from > analyticsRange.to ? 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.' : null;
     const [analyticsData, setAnalyticsData] = useState(null);
     // Bắt đầu ở trạng thái loading để tab thống kê không nhấp nháy khoảng trắng trước khi fetch xong.
     const [analyticsLoading, setAnalyticsLoading] = useState(true);
     const [analyticsError, setAnalyticsError] = useState(null);
+    const pointsReport = usePersonalAttendancePoints(analyticsRange.from, analyticsRange.to, activeTab === 'analytics' && !analyticsRangeError);
 
 
 
-    // Load campus dashboard summary (gate access, vehicle status, meetings today)
+    // Load the number of meetings today.
     useEffect(() => {
         let isMounted = true;
         setCampusSummaryLoading(true);
@@ -154,15 +167,21 @@ const EmployeeHomePage = () => {
 
                     const now = new Date();
                     const upcoming = mapped
-                        .filter(m => new Date(m.startTime) >= now)
-                        .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
-                        .slice(0, 5);
+                        .filter(m => new Date(m.startTime) >= now && new Date(m.startTime) <= nextWeek)
+                        .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
-                    setUpcomingMeetings(upcoming);
+                    setUpcomingCount(upcoming.length);
+                    setUpcomingMeetings(upcoming.slice(0, 5));
+                } else if (isMounted) {
+                    setScheduleError(true);
                 }
             })
             .catch(err => {
                 console.error("Failed to fetch upcoming meetings", err);
+                if (isMounted) setScheduleError(true);
+            })
+            .finally(() => {
+                if (isMounted) setScheduleLoading(false);
             });
 
         return () => { isMounted = false; };
@@ -170,11 +189,11 @@ const EmployeeHomePage = () => {
 
     // Lazy-load analytics khi chuyển sang tab analytics
     useEffect(() => {
-        if (activeTab !== 'analytics') return;
+        if (activeTab !== 'analytics' || analyticsRangeError) return;
         let isMounted = true;
         setAnalyticsLoading(true);
         setAnalyticsError(null);
-        getMyAttendanceStats({ preset: analyticsPreset })
+        getMyAttendanceStats({ preset: 'custom', from: analyticsRange.from, to: analyticsRange.to })
             .then(res => {
                 if (!isMounted) return;
                 if (res?.success && res.data) {
@@ -209,22 +228,16 @@ const EmployeeHomePage = () => {
             })
             .finally(() => { if (isMounted) setAnalyticsLoading(false); });
         return () => { isMounted = false; };
-    }, [activeTab, analyticsPreset]);
+    }, [activeTab, analyticsRange.from, analyticsRange.to, analyticsRangeError]);
 
     // Derived analytics values
-    const rateDiff = useMemo(() => {
-        const avg = analyticsData?.departmentAvg?.onTimeRate;
-        if (avg == null || analyticsData?.onTimeRate == null) return null;
-        return Math.round((analyticsData.onTimeRate - avg) * 10) / 10;
-    }, [analyticsData]);
-
     const analyticsPieData = useMemo(() => {
         if (!analyticsData) return [];
         return [
-            { name: 'Đúng giờ', value: analyticsData.onTimeCount ?? 0 },
-            { name: 'Đi muộn', value: analyticsData.lateCount ?? 0 },
-            { name: 'Vắng mặt', value: analyticsData.absentCount ?? 0 },
-        ].filter(d => d.value > 0);
+            { name: 'Đúng giờ', value: analyticsData.onTimeCount ?? 0, color: PIE_COLORS[0] },
+            { name: 'Đi muộn', value: analyticsData.lateCount ?? 0, color: PIE_COLORS[1] },
+            { name: 'Vắng mặt', value: analyticsData.absentCount ?? 0, color: PIE_COLORS[2] },
+        ];
     }, [analyticsData]);
 
     return (
@@ -251,33 +264,10 @@ const EmployeeHomePage = () => {
 
             {/* Banner Greeting */}
             <motion.div variants={itemVariants}>
-                <DashboardBanner roleName="Employee" />
-            </motion.div>
-
-            {/* Custom Tab Selector */}
-            <motion.div variants={itemVariants} className="flex justify-between items-center border-b border-platinum-tint pb-px">
-                <div className="flex gap-1 bg-white p-1.5 rounded-xl border border-platinum-tint/80 shadow-sm">
-                    <button
-                        onClick={() => setActiveTab('overview')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${activeTab === 'overview'
-                            ? 'bg-action-blue text-white shadow-sm'
-                            : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50'
-                            }`}
-                    >
-                        <Calendar className="w-4 h-4" />
-                        Lịch họp & Lối tắt
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('analytics')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${activeTab === 'analytics'
-                            ? 'bg-action-blue text-white shadow-sm'
-                            : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50'
-                            }`}
-                    >
-                        <BarChart2 className="w-4 h-4" />
-                        Thống kê cá nhân
-                    </button>
-                </div>
+                {activeTab === 'analytics' ? <div className="personal-stats-header">
+                    <h1 data-page-title className="text-midnight-indigo">Thống kê cá nhân</h1>
+                    <p data-page-description className="text-slate-blue">Theo dõi việc tham dự, đi muộn và vắng mặt trong các cuộc họp bắt buộc của bạn.</p>
+                </div> : <DashboardBanner roleName="Employee" />}
             </motion.div>
 
             <AnimatePresence mode="wait">
@@ -291,56 +281,30 @@ const EmployeeHomePage = () => {
                         className="space-y-8"
                     >
                         {/* Quick Status Bar */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <SharedStatCard
+                        <StatisticGrid columns={3} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Card: Họp trong ngày */}
+                            <StatisticCard label="Họp trong ngày" value={campusSummaryLoading ? '—' : (campusSummary?.meetingsToday ?? 0)} icon={Clock} helper="cuộc họp" />
+
+                            <StatisticCard
+                                label="Họp trong 7 ngày tới"
+                                value={scheduleError ? '—' : upcomingCount}
+                                loading={scheduleLoading}
+                                icon={Calendar}
+                                helper={scheduleError ? 'Chưa tải được lịch họp' : 'cuộc họp sắp bắt đầu'}
+                                to="/employee/schedule"
+                            />
+                            <StatisticCard
+                                label="Cuộc họp kế tiếp"
+                                compactValue
+                                loading={scheduleLoading}
                                 icon={Clock}
-                                label="Họp trong ngày"
-                                value={campusSummaryLoading ? '—' : (campusSummary?.meetingsToday ?? 0)}
-                                hint="cuộc họp"
+                                value={scheduleError ? 'Chưa tải được lịch họp' : upcomingMeetings[0]?.title || 'Chưa có lịch họp'}
+                                helper={upcomingMeetings[0]
+                                    ? `${new Date(upcomingMeetings[0].startTime).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} · ${toVNTime(upcomingMeetings[0].startTime)} · ${upcomingMeetings[0].room}`
+                                    : 'Trong 7 ngày tới'}
+                                to={upcomingMeetings[0]?.id ? `/employee/meeting/${upcomingMeetings[0].id}` : '/employee/schedule'}
                             />
-                            <SharedStatCard
-                                icon={LogIn}
-                                tone="green"
-                                label="Vào cổng hôm nay"
-                                value={campusSummaryLoading ? '—' : (() => {
-                                    const g = campusSummary?.gateAccessToday;
-                                    if (g == null) return 0;
-                                    if (typeof g === 'number') return g;
-                                    if (Array.isArray(g)) return g.length;
-                                    if (typeof g === 'object') return g.count ?? g.total ?? g.value ?? 1;
-                                    return 0;
-                                })()}
-                                hint="lượt"
-                            />
-                            <SharedStatCard
-                                icon={Car}
-                                tone="violet"
-                                label="Phương tiện"
-                                value={campusSummaryLoading ? '—' : campusSummary?.vehicleStatus ? (
-                                    <span className="block font-mono truncate">{campusSummary.vehicleStatus.plateNumber}</span>
-                                ) : (
-                                    <span className="block text-xl">Chưa đăng ký</span>
-                                )}
-                            >
-                                {!campusSummaryLoading && (campusSummary?.vehicleStatus ? (
-                                    <span className={`mt-1 inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                        campusSummary.vehicleStatus.status === 'active'
-                                            ? 'bg-emerald-100 text-emerald-700'
-                                            : 'bg-gray-100 text-gray-500'
-                                    }`}>
-                                        {campusSummary.vehicleStatus.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
-                                    </span>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate('/employee/my-vehicles')}
-                                        className="mt-1 text-[11px] font-bold hover:underline leading-none"
-                                    >
-                                        Đăng ký ngay →
-                                    </button>
-                                ))}
-                            </SharedStatCard>
-                        </div>
+                        </StatisticGrid>
 
                         {/* Quick Shortcuts */}
                         <div className="space-y-4">
@@ -360,7 +324,7 @@ const EmployeeHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Đăng ký họp</h3>
                                     <p className="text-xs text-blue-100 mb-4">Lên lịch cuộc họp mới và đặt phòng họp theo kế hoạch.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Tạo lịch họp ngay <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -377,7 +341,7 @@ const EmployeeHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Lịch họp cá nhân</h3>
                                     <p className="text-xs text-indigo-100 mb-4">Theo dõi và quản lý lịch trình các cuộc họp cá nhân của bạn.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Xem lịch trình <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -393,7 +357,7 @@ const EmployeeHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Đăng ký khuôn mặt</h3>
                                     <p className="text-xs text-emerald-100 mb-4">Cập nhật dữ liệu khuôn mặt phục vụ điểm danh thông minh bằng Camera AI.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Đăng ký ngay <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -409,7 +373,7 @@ const EmployeeHomePage = () => {
                                     </div>
                                     <h3 className="font-bold text-base mb-1">Bản ghi & Tài liệu</h3>
                                     <p className="text-xs text-amber-100 mb-4">Tra cứu video ghi âm, ghi hình và tài liệu tóm tắt cuộc họp.</p>
-                                    <div className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
+                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
                                         Xem bản ghi <ArrowRight className="w-4 h-4" />
                                     </div>
                                 </div>
@@ -424,7 +388,7 @@ const EmployeeHomePage = () => {
                                         <h2 className="text-base font-bold text-midnight-indigo">Cuộc họp sắp tới</h2>
                                         <p className="text-xs text-slate-blue">Các lịch họp được lên lịch sắp tới của bạn</p>
                                     </div>
-                                    <span 
+                                    <span data-ui-text="primary"
                                         onClick={() => navigate('/employee/schedule')}
                                         className="text-xs font-bold text-action-blue hover:underline cursor-pointer"
                                     >
@@ -432,9 +396,11 @@ const EmployeeHomePage = () => {
                                     </span>
                                 </div>
 
-                                <div className="space-y-4">
+                                <PaginatedCollection items={upcomingMeetings} itemLabel="cuộc họp">
+{(camaiPageItems, camaiStartIndex) => (
+<div className="space-y-4">
                                     {upcomingMeetings.length > 0 ? (
-                                        upcomingMeetings.map(meet => (
+                                        camaiPageItems.map((camaiRecord, camaiIndex) => (meet => (
                                             <div
                                                 key={meet.id}
                                                 onClick={() => navigate(`/employee/meeting/${meet.id}`)}
@@ -442,31 +408,31 @@ const EmployeeHomePage = () => {
                                             >
                                                 <div className="space-y-1.5">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-action-blue">
+                                                        <span data-ui-text="badge" className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-action-blue">
                                                             {meet.room}
                                                         </span>
                                                         {meet.status === 'pending_approval' && (
-                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">
+                                                            <span data-ui-text="badge" className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">
                                                                 Chờ duyệt
                                                             </span>
                                                         )}
                                                         {meet.status === 'draft' && (
-                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">
+                                                            <span data-ui-text="badge" className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">
                                                                 Bản nháp
                                                             </span>
                                                         )}
                                                         {meet.status === 'in_progress' && (
-                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
+                                                            <span data-ui-text="badge" className="text-[11px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
                                                                 Đang diễn ra
                                                             </span>
                                                         )}
                                                         {meet.recordingEnabled && (
-                                                            <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-red-50 text-red-600 flex items-center gap-1">
+                                                            <span data-ui-text="badge" className="text-[11px] font-bold px-2 py-0.5 rounded bg-red-50 text-red-600 flex items-center gap-1">
                                                                 <Video className="w-3 h-3" /> Ghi hình
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <h4 className="font-bold text-midnight-indigo text-sm sm:text-base">
+                                                    <h4 data-ui-text="primary" className="font-bold text-midnight-indigo text-sm sm:text-base">
                                                         {meet.title}
                                                     </h4>
                                                     <div className="flex items-center gap-4 text-xs text-slate-blue font-medium">
@@ -481,7 +447,7 @@ const EmployeeHomePage = () => {
                                                     consent theo participant ở BE, bấm chỉ set local state rồi mất khi
                                                     reload. Bật lại khi có endpoint thật. */}
                                             </div>
-                                        ))
+                                        ))(camaiRecord, camaiStartIndex + camaiIndex, (upcomingMeetings)))
                                     ) : (
                                         <div className="py-12 flex flex-col items-center justify-center text-center bg-cloud-mist/30 rounded-xl border border-dashed border-outline-gray/60">
                                             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
@@ -494,6 +460,8 @@ const EmployeeHomePage = () => {
                                         </div>
                                     )}
                                 </div>
+)}
+</PaginatedCollection>
                             </div>
 
                             <div className="bg-gradient-to-br from-indigo-900 to-purple-950 p-6 rounded-2xl text-white shadow-sm flex flex-col justify-between">
@@ -511,7 +479,7 @@ const EmployeeHomePage = () => {
                                         <li>Bản ghi hình cuộc họp được tự động xóa sau 90 ngày.</li>
                                     </ul>
                                 </div>
-                                <div className="pt-4 border-t border-white/10 mt-6 text-[10px] text-indigo-300 font-mono">
+                                <div data-ui-text="secondary" className="pt-4 border-t border-white/10 mt-6 text-[10px] text-indigo-300 font-mono">
                                     Quy định bảo vệ dữ liệu cá nhân VN áp dụng
                                 </div>
                             </div>
@@ -526,37 +494,37 @@ const EmployeeHomePage = () => {
                         transition={{ duration: 0.2 }}
                         className="space-y-5"
                     >
-                        {/* Preset filter */}
-                        <div className="flex items-center gap-2">
-                            {[
-                                { key: 'week', label: 'Tuần này' },
-                                { key: 'month', label: 'Tháng này' },
-                                { key: 'quarter', label: 'Quý này' },
-                            ].map(opt => (
-                                <button
-                                    key={opt.key}
-                                    onClick={() => setAnalyticsPreset(opt.key)}
-                                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                                        analyticsPreset === opt.key
-                                            ? 'bg-action-blue text-white shadow-sm'
-                                            : 'bg-white border border-platinum-tint text-slate-blue hover:border-action-blue/50'
-                                    }`}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </div>
+                        <FilterBar variant="card" className="personal-stats-filters">
+                            <CalendarRangePresets from={analyticsRange.from} to={analyticsRange.to} onChange={setAnalyticsRange} />
+                            <FilterField label="Từ ngày"><input type="date" value={analyticsRange.from} max={analyticsRange.to || undefined}
+                                onChange={e => setAnalyticsRange(prev => ({ ...prev, from: e.target.value }))} /></FilterField>
+                            <FilterField label="Đến ngày"><input type="date" value={analyticsRange.to} min={analyticsRange.from || undefined}
+                                onChange={e => setAnalyticsRange(prev => ({ ...prev, to: e.target.value }))} /></FilterField>
+                        </FilterBar>
+                        {analyticsRangeError && <p role="alert" className="text-sm text-red-600">{analyticsRangeError}</p>}
 
-                        {analyticsLoading ? (
+                        {!analyticsRangeError && <div className="space-y-4">
+                            <div className="personal-stats-section-heading">
+                                <h2>Tổng quan tham dự</h2>
+                                <p data-ui-text="secondary">Số liệu trong khoảng thời gian đang chọn.</p>
+                            </div>
+                            <StatisticGrid columns={4}>
+                                <StatisticCard label="Cuộc họp đã tham gia" icon={Calendar} loading={analyticsLoading}
+                                    value={analyticsData ? analyticsData.onTimeCount + analyticsData.lateCount : '—'}
+                                    helper={analyticsData ? `Trên ${analyticsData.totalRequired} cuộc họp bắt buộc` : 'Chưa tải được dữ liệu tham dự'} />
+                                <StatisticCard label="Tổng điểm chuyên cần" icon={Award} loading={pointsReport.loading}
+                                    value={pointsReport.data?.summary?.totalPoints ?? '—'}
+                                    tone={pointsReport.data?.summary?.totalPoints < 0 ? 'danger' : 'default'}
+                                    helper={pointsReport.error ? 'Chưa tải được điểm' : 'Theo quy định chuyên cần cuộc họp'} />
+                                <StatisticCard label="Lần đi muộn" icon={Clock} loading={analyticsLoading}
+                                    value={analyticsData?.lateCount ?? '—'} tone="warning" />
+                                <StatisticCard label="Lần vắng mặt" icon={User} loading={analyticsLoading}
+                                    value={analyticsData?.absentCount ?? '—'} tone="danger" />
+                            </StatisticGrid>
+                        </div>}
+
+                        {analyticsRangeError ? null : analyticsLoading ? (
                             <div className="space-y-5">
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {[...Array(4)].map((_, i) => (
-                                        <div key={i} className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm animate-pulse">
-                                            <div className="h-2.5 w-24 bg-slate-100 rounded mb-3" />
-                                            <div className="h-7 w-16 bg-slate-100 rounded" />
-                                        </div>
-                                    ))}
-                                </div>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                                     <div className="bg-white rounded-2xl border border-platinum-tint h-64 animate-pulse" />
                                     <div className="bg-white rounded-2xl border border-platinum-tint h-64 animate-pulse" />
@@ -585,111 +553,64 @@ const EmployeeHomePage = () => {
                             </div>
                         ) : analyticsData ? (
                             <div className="space-y-5">
-                                {/* Ngưỡng “đúng giờ” của trang này (graceMinutes) khác với báo cáo cấp
-                                    phòng ban, nên phải nói rõ để người dùng không tưởng số liệu bị sai. */}
                                 {analyticsData.graceMinutes != null && (
-                                    <p className="text-[11px] text-slate-blue bg-cloud-mist/60 border border-platinum-tint rounded-xl px-3 py-2">
-                                        Cách tính: được xem là <b>đúng giờ</b> nếu điểm danh muộn không quá{' '}
-                                        <b>{analyticsData.graceMinutes} phút</b> so với giờ bắt đầu cuộc họp.
-                                        {analyticsData.period && (
-                                            <> · Kỳ thống kê: {analyticsData.period.from} → {analyticsData.period.to}</>
-                                        )}
+                                    <p data-ui-text="secondary" className="personal-stats-method">
+                                        Tỷ lệ đúng giờ tính theo thời gian điểm danh, cho phép muộn tối đa {analyticsData.graceMinutes} phút.
+                                        Điểm chuyên cần bên dưới được tính theo quy định và kết quả điểm danh đã ghi nhận.
                                     </p>
                                 )}
-
-                                {/* Row 1 — 4 KPI cards */}
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <SharedStatCard label="Tỷ lệ đúng giờ" value={`${analyticsData.onTimeRate ?? 0}%`} tone="green">
-                                        {rateDiff !== null && (
-                                            <p className={`text-[11px] font-semibold mt-1 ${rateDiff >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                                {rateDiff >= 0 ? '▲' : '▼'} {Math.abs(rateDiff)}% so với trung bình phòng ban
-                                            </p>
-                                        )}
-                                    </SharedStatCard>
-                                    <SharedStatCard label="Tổng lượt bắt buộc" value={analyticsData.totalRequired ?? 0} />
-                                    <SharedStatCard label="Lần đi muộn" value={analyticsData.lateCount ?? 0} tone={(analyticsData.lateCount ?? 0) > 0 ? 'amber' : 'neutral'} />
-                                    <SharedStatCard label="Lần vắng mặt" value={analyticsData.absentCount ?? 0} tone={(analyticsData.absentCount ?? 0) > 0 ? 'red' : 'neutral'} />
-                                </div>
-
-                                {/* Row 2 — Pie + Recent late */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                                    {/* Pie chart */}
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-3">
-                                        <h3 className="text-sm font-bold text-midnight-indigo">Phân bố trạng thái chuyên cần</h3>
-                                        {analyticsPieData.length === 0 ? (
-                                            <p className="text-xs text-slate-blue italic text-center py-8">Không có dữ liệu</p>
-                                        ) : (
-                                            <ResponsiveContainer width="100%" height={220}>
-                                                <PieChart>
-                                                    <Pie data={analyticsPieData} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={5} dataKey="value">
-                                                        {analyticsPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                                                    </Pie>
-                                                    <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                                                    <Legend wrapperStyle={{ fontSize: 10 }} />
-                                                </PieChart>
-                                            </ResponsiveContainer>
-                                        )}
-                                    </div>
-
-                                    {/* 5 lần đi muộn gần nhất */}
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-3">
-                                        <h3 className="text-sm font-bold text-midnight-indigo flex items-center gap-2">
-                                            <Clock className="w-4 h-4 text-amber-500" />
-                                            5 lần đi muộn gần nhất
-                                        </h3>
-                                        {!analyticsData.recentLate?.length ? (
-                                            <div className="flex flex-col items-center justify-center h-40 text-center gap-2">
-                                                <CheckCircle className="w-8 h-8 text-emerald-400" />
-                                                <p className="text-xs text-slate-blue">Không có lần đi muộn nào trong kỳ này</p>
-                                            </div>
-                                        ) : (
-                                            <div className="divide-y divide-platinum-tint">
-                                                {analyticsData.recentLate.slice(0, 5).map((item, i) => (
-                                                    <div key={i} className="flex items-center justify-between gap-3 py-2.5">
-                                                        <div className="min-w-0">
-                                                            <p className="text-xs font-bold text-midnight-indigo truncate">{item.meetingTitle}</p>
-                                                            <p className="text-[10px] text-slate-blue font-mono mt-0.5">
-                                                                {toVNTime(item.scheduledTime)} → {toVNTime(item.checkinTime)}
-                                                            </p>
-                                                        </div>
-                                                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 whitespace-nowrap">
-                                                            +{item.lateMinutes} phút
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Row 3 — Trend bar chart (full width) */}
-                                {analyticsData.trend?.length > 0 && (
-                                    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-3">
+                                <div className="personal-stats-charts">
+                                    <section className="personal-stats-chart">
+                                        <h3>Kết quả tham dự của bạn</h3>
+                                        <p data-ui-text="secondary">Số lượt đúng giờ, đi muộn và vắng mặt trong khoảng đã chọn.</p>
+                                        <ResponsiveContainer width="100%" height={220} minWidth={0} debounce={100}>
+                                            <PieChart>
+                                                <Pie isAnimationActive={false} data={analyticsPieData} cx="50%" cy="50%" innerRadius={60} outerRadius={85}
+                                                    paddingAngle={analyticsPieData.filter(item => item.value > 0).length > 1 ? 2 : 0} dataKey="value" stroke="none">
+                                                    {analyticsPieData.map(item => <Cell key={item.name} fill={item.color} />)}
+                                                    <Label position="center" value={`${analyticsData.totalRequired} lượt họp`} style={{ fill: '#0B3558', fontSize: 16, fontWeight: 600 }} />
+                                                </Pie>
+                                                <Tooltip formatter={(value, name) => [`${value} lượt`, name]} contentStyle={{ fontSize: 14, borderRadius: 8 }} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                        <div className="personal-stats-legend">
+                                            {analyticsPieData.map(item => <div key={item.name}>
+                                                <span><i style={{ background: item.color }} />{item.name}</span>
+                                                <strong>{item.value} lượt · {analyticsData.totalRequired ? Math.round(item.value / analyticsData.totalRequired * 100) : 0}%</strong>
+                                            </div>)}
+                                        </div>
+                                    </section>
+                                {/* Weekly attendance within the selected range */}
+                                {analyticsData.trend?.length > 0 ? (
+                                    <section className="personal-stats-chart">
                                         <h3 className="text-sm font-bold text-midnight-indigo flex items-center gap-2">
                                             <TrendingUp className="w-4 h-4 text-action-blue" />
-                                            Xu hướng chuyên cần theo kỳ
+                                            Chuyên cần của bạn theo tuần
                                         </h3>
-                                        <ResponsiveContainer width="100%" height={200}>
-                                            <BarChart data={analyticsData.trend} margin={{ left: -15, right: 8, top: 4, bottom: 0 }}>
+                                        <p data-ui-text="secondary">Mỗi cột là một tuần, chỉ tính các cuộc họp trong khoảng đã chọn.</p>
+                                        <ResponsiveContainer width="100%" height={280} minWidth={0} debounce={100}>
+                                            <BarChart data={analyticsData.trend} margin={{ left: 0, right: 16, top: 16, bottom: 8 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                                 <XAxis
                                                     dataKey="period"
                                                     tickFormatter={(v) => { try { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; } catch { return v; } }}
-                                                    tick={{ fontSize: 9, fill: '#64748b' }}
+                                                    tick={{ fontSize: 12, fill: '#64748b' }}
                                                 />
-                                                <YAxis tick={{ fontSize: 9, fill: '#64748b' }} allowDecimals={false} />
-                                                <Tooltip
-                                                    labelFormatter={(l) => { try { return new Date(l).toLocaleDateString('vi-VN'); } catch { return l; } }}
-                                                    contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                                                <YAxis tick={{ fontSize: 12, fill: '#64748b' }} allowDecimals={false} label={{ value: 'Lượt họp', angle: -90, position: 'insideLeft', fontSize: 12, fill: '#64748b' }} />
+                                                <Tooltip formatter={(value, name) => [`${value} lượt`, name]}
+                                                    labelFormatter={(l) => { try { return `Tuần bắt đầu ${new Date(l).toLocaleDateString('vi-VN')}`; } catch { return l; } }}
+                                                    contentStyle={{ fontSize: 14, borderRadius: 8, border: '1px solid #e2e8f0' }}
                                                 />
-                                                <Legend wrapperStyle={{ fontSize: 10 }} />
-                                                <Bar dataKey="onTimeCount" name="Đúng giờ" stackId="a" fill="#22c55e" />
-                                                <Bar dataKey="lateCount" name="Đi muộn" stackId="a" fill="#f59e0b" />
-                                                <Bar dataKey="absentCount" name="Vắng mặt" stackId="a" fill="#ef4444" radius={[3, 3, 0, 0]} />
+                                                <Legend wrapperStyle={{ fontSize: 12 }} />
+                                                <Bar isAnimationActive={false} dataKey="onTimeCount" name="Đúng giờ" stackId="a" fill="#22c55e" />
+                                                <Bar isAnimationActive={false} dataKey="lateCount" name="Đi muộn" stackId="a" fill="#f59e0b" />
+                                                <Bar isAnimationActive={false} dataKey="absentCount" name="Vắng mặt" stackId="a" fill="#ef4444" radius={[3, 3, 0, 0]} />
                                             </BarChart>
                                         </ResponsiveContainer>
-                                    </div>
-                                )}
+                                    </section>
+                                ) : <section className="personal-stats-chart"><h3>Chuyên cần của bạn theo tuần</h3><p data-ui-text="body">Chưa có dữ liệu theo tuần trong khoảng đã chọn.</p></section>}
+                                </div>
+
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center min-h-[360px] bg-white rounded-2xl border border-platinum-tint shadow-sm p-10 text-center">
@@ -698,6 +619,7 @@ const EmployeeHomePage = () => {
                                 <p className="text-xs text-slate-blue max-w-xs leading-relaxed">Chọn một kỳ khác hoặc quay lại sau khi bạn đã tham dự cuộc họp.</p>
                             </div>
                         )}
+                        {!analyticsRangeError && <PersonalAttendancePoints from={analyticsRange.from} to={analyticsRange.to} report={pointsReport} />}
                     </motion.div>
                 )}
             </AnimatePresence>

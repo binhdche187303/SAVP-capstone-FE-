@@ -1,8 +1,17 @@
-import { Car, Download, Search, Calendar as CalendarIcon, X, Mail, Phone, Briefcase, Loader2, LogIn, LogOut, RefreshCw } from 'lucide-react';
+import CalendarRangePresets, { calendarRange } from '../../components/common/CalendarRangePresets';
+import './ANPRManagement.css';
+import StatisticCard from '../../components/common/StatisticCard';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import ResponsiveTable from '../../components/common/ResponsiveTable';
+import ReportActions from '../../components/common/ReportActions';
+import ReportExportButton from '../../components/common/ReportExportButton';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
+import RefreshButton from '../../components/common/RefreshButton';
+import { Car, Download, Search, X, Mail, Phone, Briefcase, Loader2, LogIn, LogOut, CheckCircle2, AlertTriangle, Filter } from 'lucide-react';
 import toast from '../../utils/toast';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
 import {
@@ -14,10 +23,11 @@ import {
 } from '../../service/anprService';
 import { getUsers } from '../../service/employeeServices'; // Để lấy danh sách nhân viên
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
-import ExportReportModal from '../../components/common/ExportReportModal';
+import ExportModeDialog from '../../components/report/ExportModeDialog';
+import { exportAnprHistoryReport } from '../../utils/anprReportExport';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import UserAvatar from '../../components/common/UserAvatar';
-import Pagination from '../../components/common/Pagination';
+
 import { getDevices, getZones } from '../../service/sysAdminServices';
 
 const ANPR_HISTORY_REFRESH_MS = 5000;
@@ -31,9 +41,11 @@ const getVehicleTypeLabel = (type) => {
     return type || 'Chưa rõ';
 };
 
-// guardMode: bảo vệ trực cổng — chỉ xem luồng xe vào ra; xử lý xe lạ/xe kiểm soát ở trang Cảnh báo an ninh.
+// Shared gate-control workspace for administrators and guards.
 const ANPRManagement = ({ guardMode = false }) => {
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     const [activeTab, setActiveTab] = useState('history'); // 'history', 'register', 'unknown'
+    useEffect(() => { if (guardMode) setActiveTab('history'); }, [guardMode]);
     const [loading, setLoading] = useState(false);
     const [isExportOpen, setIsExportOpen] = useState(false);
 
@@ -51,12 +63,17 @@ const ANPRManagement = ({ guardMode = false }) => {
     const [historyList, setHistoryList] = useState([]);
     const [historyTotal, setHistoryTotal] = useState(0);
     const [filterMatchState, setFilterMatchState] = useState('ALL');
+    const [recognitionCounts, setRecognitionCounts] = useState({ ALL: null, matched: null, unmatched: null });
+    const selectRecognitionFilter = value => {
+        setFilterMatchState(value);
+        setHistoryPage(1);
+    };
     const [filterCamera, setFilterCamera] = useState('');
     const [filterZone, setFilterZone] = useState('');
     const [filterVehicleType, setFilterVehicleType] = useState('');
     const [cameraOptions, setCameraOptions] = useState([]);
     const [zoneOptions, setZoneOptions] = useState([]);
-    
+
     useEffect(() => {
         let cancelled = false;
 
@@ -118,10 +135,20 @@ const ANPRManagement = ({ guardMode = false }) => {
     const [startDate, endDate] = dateRange;
     const [searchKeyword, setSearchKeyword] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const clearHistoryFilters = () => {
+        setSearchKeyword('');
+        setDebouncedSearch('');
+        setFilterMatchState('ALL');
+        setFilterCamera('');
+        setFilterZone('');
+        setFilterVehicleType('');
+        setDateRange([null, null]);
+        setHistoryPage(1);
+    };
     const [mockPlate, setMockPlate] = useState('30A-123.45');
     const [mockVehicleType, setMockVehicleType] = useState('CAR');
     const [mockLoading, setMockLoading] = useState(false);
-    const itemsPerPage = 10;
+
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -159,10 +186,30 @@ const ANPRManagement = ({ guardMode = false }) => {
                 end.setHours(23, 59, 59, 999);
                 params.to = end.toISOString();
             }
-            const res = await getAdminVehicleHistory(params);
+            // Guard cards show totals across the current date/search/camera scope,
+            // rather than counting only the rows on the displayed page.
+            const summaryStates = guardMode ? ['ALL', 'matched', 'unmatched'].filter(state => state !== filterMatchState) : [];
+            const summaryParams = { ...params, page: 1, limit: 1 };
+            delete summaryParams.matchState;
+            const [res, ...summaries] = await Promise.all([
+                getAdminVehicleHistory(params),
+                ...summaryStates.map(state => getAdminVehicleHistory({
+                    ...summaryParams,
+                    ...(state === 'ALL' ? {} : { matchState: state }),
+                })),
+            ]);
             if (res?.success) {
                 setHistoryList(res.data);
                 setHistoryTotal(res.meta?.total || 0);
+                if (guardMode) {
+                    setRecognitionCounts(previous => {
+                        const next = { ...previous, [filterMatchState]: res.meta?.total ?? 0 };
+                        summaryStates.forEach((state, index) => {
+                            if (summaries[index]?.success) next[state] = summaries[index].meta?.total ?? 0;
+                        });
+                        return next;
+                    });
+                }
             } else {
                 setHistoryList([]);
                 setHistoryTotal(0);
@@ -260,15 +307,15 @@ const ANPRManagement = ({ guardMode = false }) => {
     // ============================================
     useEffect(() => {
         if (activeTab === 'history') fetchHistory(true);
-    }, [activeTab, filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate, historyPage]);
+    }, [guardMode, activeTab, filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate, historyPage, itemsPerPage]);
 
     useEffect(() => {
-        if (activeTab === 'unknown') fetchUnknown();
-    }, [activeTab, unknownPage]);
+        if (!guardMode && activeTab === 'unknown') fetchUnknown();
+    }, [guardMode, activeTab, unknownPage, itemsPerPage]);
 
     useEffect(() => {
-        if (activeTab === 'register') fetchUsers();
-    }, [activeTab]);
+        if (!guardMode && activeTab === 'register') fetchUsers();
+    }, [guardMode, activeTab]);
 
     useEffect(() => {
         // Auto-refresh logic for Dashboard (history/unknown)
@@ -277,11 +324,12 @@ const ANPRManagement = ({ guardMode = false }) => {
             interval = setInterval(() => {
                 if (document.hidden) return;
                 if (activeTab === 'history') fetchHistory();
-                if (activeTab === 'unknown') fetchUnknown();
+                if (!guardMode && activeTab === 'unknown') fetchUnknown();
             }, ANPR_HISTORY_REFRESH_MS);
         }
         return () => clearInterval(interval);
     }, [
+        guardMode,
         activeTab,
         filterMatchState,
         filterCamera,
@@ -292,25 +340,38 @@ const ANPRManagement = ({ guardMode = false }) => {
         endDate,
         historyPage,
         unknownPage,
+        itemsPerPage,
     ]);
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6 animate-fade-in-up pb-10">
+        <div data-page-surface="wide" className="max-w-6xl mx-auto space-y-6 animate-fade-in-up pb-10">
             <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
                     <Car className="w-3.5 h-3.5" />
                     Biển số
                 </span>
                 <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Kiểm soát ra vào cổng</h1>
                 <p className="text-slate-blue text-sm mt-1">
                     {guardMode
-                        ? 'Theo dõi xe vào ra theo thời gian thực. Xe lạ / xe trong danh sách kiểm soát được xử lý (Cho qua / Chặn) tại mục Cảnh báo an ninh.'
+                        ? 'Theo dõi lượt xe ra vào và lọc theo kết quả nhận diện biển số.'
                         : 'Theo dõi lịch sử vào ra, quản lý biển lạ và đăng ký phương tiện cho nhân sự.'}
                 </p>
             </div>
 
-            {/* TABS NAVIGATION */}
-            {!guardMode && (
+            {/* Guard cards filter the history table; administrators retain their tabs. */}
+            {guardMode ? (
+                <StatisticGrid columns={3}>
+                    <StatisticCard label="Tất cả lượt xe" aria-label="Tất cả lượt xe" icon={Car}
+                        value={recognitionCounts.ALL} selected={filterMatchState === 'ALL'}
+                        onClick={() => selectRecognitionFilter('ALL')} />
+                    <StatisticCard label="Khớp dữ liệu" aria-label="Khớp dữ liệu" icon={CheckCircle2} tone="success"
+                        value={recognitionCounts.matched} selected={filterMatchState === 'matched'}
+                        onClick={() => selectRecognitionFilter(filterMatchState === 'matched' ? 'ALL' : 'matched')} />
+                    <StatisticCard label="Biển lạ" aria-label="Biển lạ" icon={AlertTriangle} tone="danger"
+                        value={recognitionCounts.unmatched} selected={filterMatchState === 'unmatched'}
+                        onClick={() => selectRecognitionFilter(filterMatchState === 'unmatched' ? 'ALL' : 'unmatched')} />
+                </StatisticGrid>
+            ) : (
             <div className="flex bg-white rounded-2xl border border-platinum-tint p-1 shadow-sm-2">
                 <button
                     onClick={() => setActiveTab('history')}
@@ -348,112 +409,121 @@ const ANPRManagement = ({ guardMode = false }) => {
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
 
-                            <button
-                                onClick={() => fetchHistory()}
-                                disabled={loading}
-                                className="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors disabled:opacity-60"
-                            >
-                                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Làm mới
-                            </button>
-                            <button
-                                onClick={() => setIsExportOpen(true)}
-                                className="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors"
-                            >
-                                <Download className="w-4 h-4" /> Xuất báo cáo
-                            </button>
+                            <ReportActions>
+                                {!guardMode && <ReportExportButton label="Xuất báo cáo"
+                                    onClick={() => setIsExportOpen(true)}
+                                    legacyClassName="inline-flex items-center gap-2 px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-semibold transition-colors"
+                                >
+                                    <Download className="w-4 h-4" /> Xuất báo cáo
+                                </ReportExportButton>}
+                                <RefreshButton
+                                    onClick={() => fetchHistory()}
+                                    disabled={loading}
+                                    busy={loading}
+                                />
+                            </ReportActions>
                         </div>
                     </div>
 
                     {/* Filter bar */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-cloud-mist/50 p-4 rounded-xl border border-platinum-tint">
-                        {/* Search */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                            <input
-                                type="text"
-                                placeholder="Tìm theo biển số..."
-                                value={searchKeyword}
-                                onChange={(e) => setSearchKeyword(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-platinum-tint text-sm text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white transition-all"
-                            />
+                    <FilterBar data-filter-grid variant="card" className="anpr-history-filters grid gap-4">
+                        <div className="anpr-history-filter-main">
+                            {/* Search */}
+                            <FilterField label="Tìm kiếm"><div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
+                                <input
+                                    type="text"
+                                    placeholder="Tìm theo biển số"
+                                    value={searchKeyword}
+                                    onChange={(e) => setSearchKeyword(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-platinum-tint text-sm text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white transition-all"
+                                />
+                            </div></FilterField>
+
+                            {/* Match state */}
+                            <FilterField label="Kết quả nhận diện"><select
+                                value={filterMatchState}
+                                onChange={(e) => selectRecognitionFilter(e.target.value)}
+                                className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white transition-all"
+                            >
+                                <option value="ALL">Tất cả trạng thái</option>
+                                <option value="matched">Khớp dữ liệu</option>
+                                <option value="unmatched">Biển lạ</option>
+                            </select></FilterField>
+
+                            <FilterField label="Camera"><select
+                                value={filterCamera}
+                                onChange={(e) => setFilterCamera(e.target.value)}
+                                className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
+                            >
+                                <option value="">Tất cả camera</option>
+                                {cameraOptions.map((camera) => {
+                                    const name = camera.deviceName || camera.device_name;
+                                    return <option key={camera.id || name} value={name}>{name}</option>;
+                                })}
+                            </select></FilterField>
+
+                            <FilterField label="Khu vực"><select
+                                value={filterZone}
+                                onChange={(e) => setFilterZone(e.target.value)}
+                                className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
+                            >
+                                <option value="">Tất cả khu vực</option>
+                                {zoneOptions.map((zone) => (
+                                    <option key={zone.id} value={zone.id}>{zone.zoneName || zone.zone_name || zone.name}</option>
+                                ))}
+                            </select></FilterField>
+
+                            <FilterField label="Loại phương tiện"><select
+                                value={filterVehicleType}
+                                onChange={(e) => setFilterVehicleType(e.target.value)}
+                                className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo bg-white outline-none"
+                            >
+                                <option value="">Tất cả loại xe</option>
+                                <option value="car">Ô tô</option>
+                                <option value="motorbike">Xe máy</option>
+                                <option value="motorcycle">Xe máy</option>
+                                <option value="truck">Xe tải</option>
+                                <option value="bus">Xe buýt</option>
+                            </select></FilterField>
                         </div>
-
-                        {/* Date range */}
-                        <div className="relative">
-                            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue z-10 pointer-events-none" />
-                            <DatePicker
-                                selectsRange
-                                startDate={startDate}
-                                endDate={endDate}
-                                onChange={(update) => setDateRange(update)}
-                                placeholderText="Khoảng ngày..."
-                                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-platinum-tint text-sm text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white"
-                                dateFormat="dd/MM/yyyy"
-                                isClearable
-                            />
+                        <div className="anpr-history-filter-time">
+                            <CalendarRangePresets from={startDate ? calendarRange('day', startDate).from : ''}
+                                to={endDate ? calendarRange('day', endDate).from : ''}
+                                onChange={range => { setDateRange([new Date(`${range.from}T00:00:00`), new Date(`${range.to}T00:00:00`)]); setHistoryPage(1); }} />
+                            <div className="anpr-history-filter-dates">
+                                <FilterField label="Từ ngày">
+                                    <input type="date" value={startDate ? calendarRange('day', startDate).from : ''}
+                                        max={endDate ? calendarRange('day', endDate).from : undefined}
+                                        onChange={event => { const value = event.target.value; setDateRange(current => [value ? new Date(`${value}T00:00:00`) : null, current[1]]); setHistoryPage(1); }} />
+                                </FilterField>
+                                <FilterField label="Đến ngày">
+                                    <input type="date" value={endDate ? calendarRange('day', endDate).from : ''}
+                                        min={startDate ? calendarRange('day', startDate).from : undefined}
+                                        onChange={event => { const value = event.target.value; setDateRange(current => [current[0], value ? new Date(`${value}T00:00:00`) : null]); setHistoryPage(1); }} />
+                                </FilterField>
+                            </div>
+                            <div className="anpr-history-reset">
+                                <button type="button" data-filter-action onClick={clearHistoryFilters}
+                                    className="w-full px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors">
+                                    <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                                </button>
+                            </div>
                         </div>
-
-                        {/* Match state */}
-                        <select
-                            value={filterMatchState}
-                            onChange={(e) => setFilterMatchState(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold text-midnight-indigo focus:border-action-blue focus:ring-2 focus:ring-action-blue/20 outline-none bg-white transition-all"
-                        >
-                            <option value="ALL">Tất cả trạng thái</option>
-                            <option value="matched">Khớp dữ liệu</option>
-                            <option value="unmatched">Biển lạ</option>
-                        </select>
-
-                        <select
-                            value={filterCamera}
-                            onChange={(e) => setFilterCamera(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold bg-white"
-                        >
-                            <option value="">Tất cả camera</option>
-                            {cameraOptions.map((camera) => {
-                                const name = camera.deviceName || camera.device_name;
-                                return <option key={camera.id || name} value={name}>{name}</option>;
-                            })}
-                        </select>
-
-                        <select
-                            value={filterZone}
-                            onChange={(e) => setFilterZone(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold bg-white"
-                        >
-                            <option value="">Tất cả khu vực</option>
-                            {zoneOptions.map((zone) => (
-                                <option key={zone.id} value={zone.id}>
-                                    {zone.zoneName || zone.zone_name || zone.name}
-                                </option>
-                            ))}
-                        </select>
-
-                        <select
-                            value={filterVehicleType}
-                            onChange={(e) => setFilterVehicleType(e.target.value)}
-                            className="px-3 py-2.5 rounded-xl border border-platinum-tint text-sm font-semibold bg-white"
-                        >
-                            <option value="">Tất cả loại xe</option>
-                            <option value="car">Ô tô</option>
-                            <option value="motorbike">Xe máy</option>
-                            <option value="truck">Xe tải</option>
-                            <option value="bus">Xe buýt</option>
-                        </select>
-                    </div>
+                    </FilterBar>
 
                     {/* Table */}
-                    <div className="overflow-hidden rounded-xl border border-platinum-tint">
-                        <table className="w-full table-fixed text-left border-collapse">
+                    <div className="overflow-x-auto rounded-xl border border-platinum-tint">
+                        <ResponsiveTable className="w-full min-w-[1100px] table-fixed text-left border-collapse">
                             <colgroup>
-                                <col className="w-[13%]" />
-                                <col className="w-[9%]" />
-                                <col className="w-[16%]" />
+                                <col className="w-[11%]" />
+                                <col className="w-[7%]" />
+                                <col className="w-[15%]" />
                                 <col className="w-[14%]" />
-                                <col className="w-[11%]" />
-                                <col className="w-[11%]" />
-                                <col className="w-[16%]" />
                                 <col className="w-[9%]" />
+                                <col className="w-[11%]" />
+                                <col className="w-[23%]" />
+                                <col className="w-[10%]" />
                             </colgroup>
                             <thead>
                                 <tr className="bg-cloud-mist border-b border-platinum-tint">
@@ -486,7 +556,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                     <p className="text-sm font-semibold text-midnight-indigo">
                                                         {evtDate ? evtDate.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—'}
                                                     </p>
-                                                    <p className="text-xs text-slate-blue mt-0.5 font-mono">
+                                                    <p data-ui-text="secondary" className="text-xs text-slate-blue mt-0.5 font-mono">
                                                         {evtDate ? evtDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : '—'}
                                                     </p>
                                                 </td>
@@ -494,15 +564,15 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                 {/* Hướng */}
                                                 <td className="py-3 px-2 text-center break-words">
                                                     {isEnter ? (
-                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                        <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                             ↓ Vào
                                                         </span>
                                                     ) : isLeave ? (
-                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                        <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                                             ↑ Ra
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-50 text-slate-500 border border-slate-200">
+                                                        <span data-ui-text="badge" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-50 text-slate-500 border border-slate-200">
                                                             — Thấy
                                                         </span>
                                                     )}
@@ -511,8 +581,8 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                 {/* Camera */}
                                                 <td className="py-3 px-2 text-center break-words">
                                                     <div className="flex flex-col gap-0.5">
-                                                        <span className="text-xs font-semibold text-slate-blue">{item.cameraName || 'Chưa xác định'}</span>
-                                                        <span className="text-[11px] text-slate-blue">{item.zoneName || 'Chưa xác định'}</span>
+                                                        <span data-ui-text="primary" className="text-xs font-semibold text-slate-blue">{item.cameraName || 'Chưa xác định'}</span>
+                                                        <span data-ui-text="secondary" className="text-[11px] text-slate-blue">{item.zoneName || 'Chưa xác định'}</span>
                                                     </div>
                                                 </td>
 
@@ -523,7 +593,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                             {item.plateNumber}
                                                         </span>
                                                         {item.isBlacklisted && (
-                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
+                                                            <span data-ui-text="badge" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
                                                                 ⚠ Danh sách đen
                                                             </span>
                                                         )}
@@ -532,7 +602,7 @@ const ANPRManagement = ({ guardMode = false }) => {
 
                                                 {/* Loại xe */}
                                                 <td className="py-3 px-2 text-center break-words">
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-50 text-slate-blue border border-platinum-tint">
+                                                    <span data-ui-text="badge" className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-50 text-slate-blue border border-platinum-tint">
                                                         {getVehicleTypeLabel(item.vehicleType || item.vehicle_type)}
                                                     </span>
                                                 </td>
@@ -540,9 +610,9 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                 {/* Đối soát */}
                                                 <td className="py-3 px-2 text-center break-words">
                                                     {item.matchState === 'matched' ? (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Khớp</span>
+                                                        <span data-ui-text="badge" className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Khớp</span>
                                                     ) : (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">Biển lạ</span>
+                                                        <span data-ui-text="badge" className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">Biển lạ</span>
                                                     )}
                                                 </td>
 
@@ -558,12 +628,12 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                                 name={item.owner.fullName}
                                                                 className="w-8 h-8 rounded-full text-xs shadow-sm border border-platinum-tint group-hover:border-action-blue flex-shrink-0"
                                                             />
-                                                            <span className="min-w-0 text-xs font-semibold text-action-blue group-hover:text-blue-700 whitespace-nowrap" title={item.owner.fullName}>
+                                                            <span data-ui-text="primary" className="min-w-0 text-xs font-semibold text-action-blue group-hover:text-blue-700 whitespace-normal break-words" title={item.owner.fullName}>
                                                                 {item.owner.fullName}
                                                             </span>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs text-slate-400 font-medium px-2">Không xác định</span>
+                                                        <span data-ui-text="secondary" className="text-xs text-slate-400 font-medium px-2">Không xác định</span>
                                                     )}
                                                 </td>
 
@@ -582,29 +652,24 @@ const ANPRManagement = ({ guardMode = false }) => {
                                     })
                                 )}
                             </tbody>
-                        </table>
+                        </ResponsiveTable>
                     </div>
 
                     {/* Pagination */}
-                    <div className="flex justify-between items-center pt-2">
-                        <span className="text-[11px] text-slate-blue font-semibold">
-                            {historyTotal > 0
-                                ? `Hiển thị ${(historyPage - 1) * itemsPerPage + 1}–${Math.min(historyPage * itemsPerPage, historyTotal)} / ${historyTotal} lượt quét`
-                                : 'Không có dữ liệu'}
-                        </span>
-                        {!loading && Math.ceil(historyTotal / itemsPerPage) > 1 && (
-                            <Pagination
-                                currentPage={historyPage}
-                                totalPages={Math.ceil(historyTotal / itemsPerPage)}
-                                onPageChange={setHistoryPage}
-                            />
-                        )}
-                    </div>
+                    <PaginationFooter
+                        currentPage={historyPage}
+                        totalPages={Math.ceil(historyTotal / itemsPerPage)}
+                        totalItems={historyTotal}
+                        pageSize={itemsPerPage}
+                        onPageChange={setHistoryPage}
+                        itemLabel={"lượt quét"}
+                        loading={loading}
+                     onPageSizeChange={size => { setItemsPerPage(size); setHistoryPage(1); setUnknownPage(1); }} />
                 </div>
             )}
 
             {/* TAB CONTENT: UNKNOWN VEHICLES */}
-            {activeTab === 'unknown' && (
+            {!guardMode && activeTab === 'unknown' && (
                 <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 p-6 space-y-6 animate-fade-in">
                     <div>
                         <h2 className="text-lg font-bold text-midnight-indigo">Danh sách biển số lạ</h2>
@@ -628,12 +693,12 @@ const ANPRManagement = ({ guardMode = false }) => {
                                         <div className="flex items-center flex-wrap gap-2">
                                             <span className="font-bold text-midnight-indigo border border-steel-gray px-2 py-0.5 rounded bg-white font-mono text-sm shadow-sm">{item.plateNumber}</span>
                                             {item.isBlacklisted && (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200" title="Chỉ hiện cho lượt đầu tiên trong 5 phút">
+                                                <span data-ui-text="badge" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200" title="Chỉ hiện cho lượt đầu tiên trong 5 phút">
                                                     ⚠️ Danh sách đen
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-xs font-semibold text-slate-blue mt-2">Phát hiện lúc:</p>
+                                        <p data-ui-text="primary" className="text-xs font-semibold text-slate-blue mt-2">Phát hiện lúc:</p>
                                         <p className="text-sm font-bold text-midnight-indigo">{new Date(item.eventTime).toLocaleString('vi-VN')}</p>
                                         <div className="mt-1 space-y-0.5 text-xs text-slate-blue">
                                             <p><span className="font-semibold">Khu vực/cổng:</span> {item.zoneName || 'Chưa xác định'}</p>
@@ -654,27 +719,23 @@ const ANPRManagement = ({ guardMode = false }) => {
                     </div>
 
                     {/* Pagination Unknown */}
-                    {!loading && Math.ceil(unknownTotal / itemsPerPage) > 1 && (
-                        <div className="flex justify-between items-center pt-4 mt-2 border-t border-platinum-tint/50">
-                            <span className="text-[11px] text-slate-blue">
-                                Hiển thị {(unknownPage - 1) * itemsPerPage + 1} - {Math.min(unknownPage * itemsPerPage, unknownTotal)} trong tổng số {unknownTotal} biển lạ
-                            </span>
-                            <Pagination 
-                                currentPage={unknownPage} 
-                                totalPages={Math.ceil(unknownTotal / itemsPerPage)} 
-                                onPageChange={setUnknownPage} 
-                            />
-                        </div>
-                    )}
+                    {<PaginationRegion legacyVisible={!loading && Math.ceil(unknownTotal / itemsPerPage) > 1}><PaginationFooter
+                            currentPage={unknownPage}
+                            totalPages={Math.ceil(unknownTotal / itemsPerPage)}
+                            totalItems={unknownTotal}
+                            pageSize={itemsPerPage}
+                            onPageChange={setUnknownPage}
+                            itemLabel={"biển lạ"}
+                         onPageSizeChange={size => { setItemsPerPage(size); setHistoryPage(1); setUnknownPage(1); }} /></PaginationRegion>}
                 </div>
             )}
 
             {/* TAB CONTENT: REGISTER */}
-            {activeTab === 'register' && (
+            {!guardMode && activeTab === 'register' && (
                 <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 p-8 animate-fade-in max-w-2xl mx-auto">
                     <div className="mb-6">
                         <h2 className="text-lg font-bold text-midnight-indigo">Đăng ký xe cho nhân viên</h2>
-                        <p className="text-xs text-slate-blue mt-1">Dùng quyền Admin để chủ động cấp phép phương tiện cho người dùng vào hệ thống.</p>
+                        <p className="text-xs text-slate-blue mt-1">Đăng ký phương tiện cho nhân viên để đối chiếu khi xe ra vào cổng.</p>
                     </div>
 
                     <form onSubmit={handleRegisterVehicle} className="space-y-5">
@@ -684,7 +745,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                 required
                                 value={selectedUser}
                                 onChange={(e) => setSelectedUser(e.target.value)}
-                                className="w-full px-4 py-2.5 rounded-xl border border-platinum-tint focus:border-action-blue focus:ring-1 focus:ring-action-blue text-sm outline-none"
+                                className="w-full bg-white px-4 py-2.5 rounded-xl border border-platinum-tint focus:border-action-blue focus:ring-1 focus:ring-action-blue text-sm outline-none"
                             >
                                 <option value="" disabled>-- Nhấn để chọn nhân viên --</option>
                                 {users.map(u => (
@@ -778,14 +839,14 @@ const ANPRManagement = ({ guardMode = false }) => {
                                     className="w-24 h-24 rounded-full text-3xl mb-4 border-4 border-cloud-mist shadow-sm"
                                 />
                                 <h4 className="text-xl font-bold text-midnight-indigo text-center">{selectedOwner.fullName || 'Không có tên'}</h4>
-                                
+
                                 <div className="w-full mt-6 space-y-4">
                                     <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
                                         <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-action-blue shadow-sm">
                                             <Briefcase className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="text-xs font-semibold text-slate-blue">Phòng ban</p>
+                                            <p data-ui-text="primary" className="text-xs font-semibold text-slate-blue">Phòng ban</p>
                                             <p className="text-sm font-bold text-midnight-indigo">{selectedOwner.department || 'Chưa cập nhật'}</p>
                                         </div>
                                     </div>
@@ -794,7 +855,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                             <Mail className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="text-xs font-semibold text-slate-blue">Email</p>
+                                            <p data-ui-text="secondary" className="text-xs font-semibold text-slate-blue">Email</p>
                                             <p className="text-sm font-bold text-midnight-indigo">{selectedOwner.email || 'Chưa cập nhật'}</p>
                                         </div>
                                     </div>
@@ -803,7 +864,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                             <Phone className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="text-xs font-semibold text-slate-blue">Số điện thoại</p>
+                                            <p data-ui-text="primary" className="text-xs font-semibold text-slate-blue">Số điện thoại</p>
                                             <p className="text-sm font-bold text-midnight-indigo">{selectedOwner.phoneNumber || 'Chưa cập nhật'}</p>
                                         </div>
                                     </div>
@@ -815,13 +876,17 @@ const ANPRManagement = ({ guardMode = false }) => {
                 document.body
             )}
 
-            <ExportReportModal
-                isOpen={isExportOpen}
-                onClose={() => setIsExportOpen(false)}
-                endpoint="/reports/vehicle/exports"
-                formats={['xlsx', 'pdf']}
-                title="Xuất báo cáo phương tiện"
-            />
+            <ExportModeDialog isOpen={isExportOpen} onClose={() => setIsExportOpen(false)}
+                title="Xuất báo cáo phương tiện" pdfPrint formats={['xlsx', 'pdf', 'docx']} reportType="vehicle"
+                initialRange={{ from: startDate ? `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}` : '', to: endDate ? `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}` : '' }}
+                editableRange={!startDate || !endDate}
+                filterSummary={[debouncedSearch ? `Tìm kiếm: ${debouncedSearch}` : 'Tất cả biển số', filterCamera ? `Camera: ${filterCamera}` : 'Tất cả camera', filterZone ? `Khu vực: ${zoneOptions.find(zone => zone.id === filterZone)?.zoneName || zoneOptions.find(zone => zone.id === filterZone)?.name || 'Khu vực đã chọn'}` : 'Tất cả khu vực', filterVehicleType ? `Loại xe: ${getVehicleTypeLabel(filterVehicleType)}` : 'Tất cả loại xe', filterMatchState !== 'ALL' ? `Kết quả nhận diện: ${(filterMatchState === 'matched' ? 'Khớp' : 'Biển lạ')}` : 'Tất cả kết quả nhận diện']}
+                onConfirm={async (extra, options) => {
+                    await exportAnprHistoryReport({ format: options.format, standard: extra, range: options.range,
+                        filters: { ...(filterMatchState !== 'ALL' ? { matchState: filterMatchState } : {}), ...(filterCamera ? { cameraName: filterCamera } : {}), ...(filterZone ? { zoneId: filterZone } : {}), ...(filterVehicleType ? { vehicleType: filterVehicleType } : {}), ...(debouncedSearch ? { plateNumber: debouncedSearch, ownerName: debouncedSearch } : {}) },
+                        filterSummary: [filterCamera ? `Camera: ${filterCamera}` : 'Tất cả camera', filterMatchState !== 'ALL' ? `Đối soát: ${filterMatchState === 'matched' ? 'Khớp' : 'Biển lạ'}` : 'Tất cả trạng thái đối soát'] });
+                    setIsExportOpen(false);
+                }} />
         </div>
     );
 };

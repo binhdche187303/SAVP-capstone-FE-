@@ -1,0 +1,14 @@
+.zone-traffic-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.zone-traffic-header .zone-traffic-heading { flex: 1 1 30rem; }
+.camai-filter-bar.zone-traffic-filters[data-filter-bar] { align-items: start; }
+.zone-traffic-filters .zone-traffic-auto-refresh {
+    margin-top: 8px;
+    min-width: 0;
+    line-height: 18px;
+}

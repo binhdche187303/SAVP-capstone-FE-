@@ -1,3 +1,6 @@
+import TableColumns from '../common/TableColumns';
+import PaginationFooter from '../common/PaginationFooter';
+import ResponsiveTable from '../common/ResponsiveTable';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
@@ -28,7 +31,8 @@ const RealtimeRoomMonitor = () => {
     const [noShowHasMore, setNoShowHasMore] = useState(false);
     const [noShowTableError, setNoShowTableError] = useState(null);
     const noShowPageRef = useRef(1);
-    const NO_SHOW_LIMIT = 10;
+    const [NO_SHOW_LIMIT, setNoShowLimit] = useState(10);
+    const [noShowTotal, setNoShowTotal] = useState(undefined);
 
     // Modal state for No-Show handling
     const [selectedNoShow, setSelectedNoShow] = useState(null);
@@ -68,14 +72,15 @@ const RealtimeRoomMonitor = () => {
                 setAllNoShows(items);
 
                 // Tính hasMore và totalPages từ meta (nhiều field name khác nhau)
-                const pag = res.data?.meta ?? res.data?.pagination ?? {};
-                const total = pag.total ?? pag.totalItems ?? pag.totalCount ?? 0;
+                const pag = res.data?.meta ?? res.data?.pagination ?? res.meta ?? {};
+                const total = pag.total ?? pag.totalItems ?? pag.totalCount;
+                setNoShowTotal(total == null || !Number.isFinite(Number(total)) ? undefined : Number(total));
                 const tp = pag.totalPages ?? pag.total_pages
                     ?? (total > 0 ? Math.ceil(total / NO_SHOW_LIMIT) : 0);
                 setNoShowTotalPages(tp > 0 ? tp : 1);
                 // Fallback: nếu không có meta, dùng heuristic — nếu trả đủ limit thì còn trang sau
                 setNoShowHasMore(
-                    tp > targetPage || items.length >= NO_SHOW_LIMIT
+                    tp > 0 ? tp > targetPage : items.length >= NO_SHOW_LIMIT
                 );
             } else {
                 setNoShowTableError(res?.message || 'Không thể tải danh sách vi phạm.');
@@ -86,7 +91,7 @@ const RealtimeRoomMonitor = () => {
         } finally {
             setIsNoShowsLoading(false);
         }
-    }, []);
+    }, [NO_SHOW_LIMIT]);
 
     const changeNoShowPage = useCallback((newPage) => {
         noShowPageRef.current = newPage;
@@ -388,7 +393,8 @@ const RealtimeRoomMonitor = () => {
                 )}
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <ResponsiveTable className="w-full text-left text-sm">
+<TableColumns widths={[18, 26, 18, 14, 10, 14]} />
                         <thead className="bg-cloud-mist/50 text-slate-blue text-xs uppercase">
                             <tr>
                                 <th className="px-4 py-3 font-semibold whitespace-nowrap">Mã Case</th>
@@ -461,34 +467,12 @@ const RealtimeRoomMonitor = () => {
                                 );
                             })}
                         </tbody>
-                    </table>
+                    </ResponsiveTable>
                 </div>
 
-                {/* Pagination — luôn hiển thị khi có data */}
-                {(allNoShows.length > 0 || noShowPage > 1) && (
-                    <div className="px-4 py-3 border-t border-outline-gray bg-cloud-mist/20 flex items-center justify-between text-xs text-slate-blue">
-                        <span>
-                            Trang <span className="font-bold text-midnight-indigo">{noShowPage}</span>
-                            {noShowTotalPages > 1 && <> / {noShowTotalPages}</>}
-                        </span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => changeNoShowPage(noShowPage - 1)}
-                                disabled={noShowPage <= 1 || isNoShowsLoading}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg font-semibold bg-white hover:bg-cloud-mist disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                ← Trước
-                            </button>
-                            <button
-                                onClick={() => changeNoShowPage(noShowPage + 1)}
-                                disabled={(!noShowHasMore && noShowPage >= noShowTotalPages) || isNoShowsLoading}
-                                className="px-3 py-1.5 border border-platinum-tint rounded-lg font-semibold bg-white hover:bg-cloud-mist disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Sau →
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {/* Phân trang danh sách vi phạm */}
+                <PaginationFooter currentPage={noShowPage} totalPages={Number.isFinite(noShowTotal) ? noShowTotalPages : undefined} totalItems={noShowTotal} pageSize={NO_SHOW_LIMIT} itemLabel="trường hợp" onPageChange={changeNoShowPage} onPageSizeChange={size => { setNoShowLimit(size); noShowPageRef.current = 1; setNoShowPage(1); }} loading={isNoShowsLoading} hasNextPage={noShowHasMore} visibleCount={allNoShows.length} />
+
             </div>
 
             {/* ─────────── No-Show Detail Modal ─────────── */}

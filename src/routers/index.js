@@ -763,6 +763,10 @@ export const router = [
                 element: <EmployeeHomePage />
             },
             {
+                path: 'personal-statistics',
+                element: <EmployeeHomePage view="analytics" />
+            },
+            {
                 path: 'book',
                 element: <BookMeeting />
             },

@@ -255,7 +255,7 @@ GET /meetings/:id/transcription
                             {SECTIONS.map((section) => (
                                 <div key={section.id} className="mb-2">
                                     {section.type === 'link' ? (
-                                        <button
+                                        <button data-ui-text="primary"
                                             onClick={() => handleTabClick(section.id)}
                                             className={`w-full text-left py-1.5 text-base transition-colors ${
                                                 activeTab === section.id 
@@ -278,7 +278,7 @@ GET /meetings/:id/transcription
                                             <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedGroups[section.id] ? 'max-h-40 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
                                                 <div className="flex flex-col space-y-2.5 pl-3">
                                                     {section.children.map(child => (
-                                                        <button
+                                                        <button data-ui-text="primary"
                                                             key={child.id}
                                                             onClick={() => handleTabClick(child.id)}
                                                             className={`w-full text-left text-sm transition-colors ${
