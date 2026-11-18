@@ -14,6 +14,11 @@ const stripHtml = (html) => {
     return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
 };
 
+/** Thông báo tính vào số trên chuông: chưa đọc và không phải mức thấp. */
+const countsOnBell = (item) => item.source === 'notification'
+    && !item.isRead
+    && String(item.priority || '').toLowerCase() !== 'low';
+
 const SEVERITY_DOT = {
     critical: 'bg-red-600',
     high: 'bg-orange-500',
@@ -24,8 +29,8 @@ const SEVERITY_DOT = {
 /**
  * Gộp GET /notifications + GET /security-alerts (status=new) ở phía client — BE dứt khoát
  * không xây "unified notification feed" (xem Plan.md mục 2.B), nên FE tự gộp 2 API sẵn có.
- * Badge số đếm CHỈ tính security alerts mới, vì /notifications chưa có field is-read thật từ BE
- * (xem src/pages/systemAdmin/Notifications.jsx — read luôn hardcode false phía client).
+ * Badge = security alerts mới + số thông báo chưa đọc thật từ BE (meta.unread, bỏ mức thấp),
+ * trừ các thông báo đã xem qua ở dropdown.
  */
 const NotificationBell = ({
     basePath,
@@ -86,8 +91,14 @@ const NotificationBell = ({
                     // payloadJson.kind tĩnh nữa (bug cũ: reload trang lại hiện nút dù đã bấm).
                     noShowLiveStatus: item.noShowLiveStatus ?? null,
                     noShowSnoozeUntil: item.noShowSnoozeUntil ?? null,
+                    isRead: !!item.isRead,
+                    priority: item.priority,
                 }))
                 : [];
+            // Số chưa đọc thật từ BE (meta.unread — đã bỏ thông báo mức thấp như xe lạ thông thường).
+            const serverUnread = (notiRes.status === 'fulfilled' && notiRes.value?.success)
+                ? notiRes.value.meta?.unread
+                : undefined;
 
             const alertItems = (alertsRes.status === 'fulfilled' && alertsRes.value?.success)
                 ? (alertsRes.value.data || []).map((item) => ({
@@ -116,7 +127,10 @@ const NotificationBell = ({
                     return [];
                 }
             })();
-            const unreadNotisCount = notiItems.filter(item => !readIds.includes(item.id)).length;
+            const unreadNotisCount = typeof serverUnread === 'number'
+                // Trừ các thông báo chưa đọc đã xem qua ở dropdown (đánh dấu khi mở chuông).
+                ? Math.max(0, serverUnread - notiItems.filter(item => countsOnBell(item) && readIds.includes(item.id)).length)
+                : notiItems.filter(item => !readIds.includes(item.id)).length;
 
             setFeedItems(merged);
             setUnreadCount(alertsTotal + unreadNotisCount);
@@ -136,6 +150,7 @@ const NotificationBell = ({
     // không cần load lại trang, cộng thêm banner góc màn hình (NotificationBanner ở App.js).
     useEffect(() => {
         const unsubscribe = subscribeToNotificationUpdates((item) => {
+            const lowPriority = String(item.priority || '').toLowerCase() === 'low';
             const feedItem = {
                 id: `noti-${item.id}`,
                 source: 'notification',
@@ -143,10 +158,15 @@ const NotificationBell = ({
                 body: item.content,
                 timestamp: item.createdAt,
                 payloadJson: item.payloadJson ?? null,
+                isRead: false,
+                priority: item.priority,
             };
             setFeedItems((prev) => (
                 prev.some((it) => it.id === feedItem.id) ? prev : [feedItem, ...prev].slice(0, 8)
             ));
+            // Mức thấp (vd. xe lạ thông thường, có thể hàng trăm lượt/ngày): chỉ vào danh sách,
+            // không tăng số trên chuông, không bật banner.
+            if (lowPriority) return;
             setUnreadCount((prev) => prev + 1);
             emitNotificationBanner({
                 id: feedItem.id,
@@ -174,7 +194,7 @@ const NotificationBell = ({
             try {
                 const readIds = JSON.parse(localStorage.getItem('readNotificationIds') || '[]');
                 const notiIdsToMark = feedItems
-                    .filter(item => item.source === 'notification' && !readIds.includes(item.id))
+                    .filter(item => countsOnBell(item) && !readIds.includes(item.id))
                     .map(item => item.id);
                 if (notiIdsToMark.length > 0) {
                     localStorage.setItem('readNotificationIds', JSON.stringify([...readIds, ...notiIdsToMark]));

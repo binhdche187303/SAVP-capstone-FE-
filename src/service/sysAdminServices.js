@@ -441,6 +441,20 @@ export const markNotificationRead = async (notificationId) => {
 };
 
 /**
+ * Thông báo gom nhóm theo loại + ngày (giờ VN) — GET /notifications/groups.
+ * Nhận cùng bộ lọc với getNotifications: isRead, type (nhiều loại cách dấu phẩy), from, to, search.
+ */
+export const getNotificationGroups = async (params = {}, options = {}) => {
+    const query = buildQuery(params);
+    return await get(`/notifications/groups${query}`, options);
+};
+
+/** Đánh dấu đã đọc cả nhóm (loại + ngày) — PATCH /notifications/read-group. */
+export const markNotificationGroupRead = async (type, day) => {
+    return await patch('/notifications/read-group', { type, day });
+};
+
+/**
  * UC-NOTI-03: Đánh dấu tất cả thông báo đã đọc — PATCH /notifications/read-all
  */
 export const markAllNotificationsRead = async () => {
