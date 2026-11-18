@@ -199,7 +199,7 @@ const CalendarRolesConfig = () => {
                                 )}
                                 {picked && isNew && (
                                     <p className="mt-1.5 text-xs text-slate-blue">
-                                        Chức vụ hồ sơ: {picked.positionTitle || '—'}
+                                        Chức vụ hồ sơ: {picked.positionTitle || 'Chưa cung cấp'}
                                         {kind === 'clerk' && <> · Là văn thư của: <b>{picked.departmentName}</b></>}
                                     </p>
                                 )}
@@ -328,10 +328,10 @@ const CalendarRolesConfig = () => {
                                         className="border-b border-platinum-tint/60 last:border-0 cursor-pointer hover:bg-cloud-mist/50"
                                     >
                                         <td className="py-2.5">
-                                            <p className="font-bold text-midnight-indigo">{u?.fullName || '—'}</p>
+                                            <p className="font-bold text-midnight-indigo">{u?.fullName || 'Chưa cung cấp'}</p>
                                             <p className="text-xs text-slate-400">{u?.email}</p>
                                         </td>
-                                        <td className="py-2.5 text-slate-600">{u?.positionTitle || '—'}</td>
+                                        <td className="py-2.5 text-slate-600">{u?.positionTitle || 'Chưa cung cấp'}</td>
                                         <td className="py-2.5">
                                             <span data-ui-text="badge" className="inline-flex px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-bold">{titleLabel(l.leadershipTitle)}</span>
                                         </td>

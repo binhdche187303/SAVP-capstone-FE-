@@ -471,7 +471,7 @@ const UserProfileModal = ({ user, onClose }) => {
                     
                     <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-blue font-semibold">Phòng ban:</span>
-                        <span className="font-bold text-midnight-indigo">{user.departmentName || 'Chưa cập nhật'}</span>
+                        <span className="font-bold text-midnight-indigo">{user.departmentName || 'Chưa cung cấp'}</span>
                     </div>
 
                     {user.email && (

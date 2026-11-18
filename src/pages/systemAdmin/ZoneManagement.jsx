@@ -1251,11 +1251,11 @@ const ZoneManagement = () => {
                                     </div>
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
                                         <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Tòa nhà</p>
-                                        <p className="text-sm font-semibold text-midnight-indigo">{selectedZone.building || '—'}</p>
+                                        <p className="text-sm font-semibold text-midnight-indigo">{selectedZone.building || 'Chưa cung cấp'}</p>
                                     </div>
                                     <div className="bg-cloud-mist/40 rounded-xl p-3">
                                         <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Tầng</p>
-                                        <p className="text-sm font-semibold text-midnight-indigo">{selectedZone.floor || '—'}</p>
+                                        <p className="text-sm font-semibold text-midnight-indigo">{selectedZone.floor || 'Chưa cung cấp'}</p>
                                     </div>
                                 </div>
                                 {selectedZone.description && (

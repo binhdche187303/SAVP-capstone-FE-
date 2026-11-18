@@ -91,7 +91,7 @@ const ZonePopup = ({ zone, alertsLink }) => (
     <div className="min-w-[240px] text-sm">
         <div className="font-semibold text-gray-800">{zone.zoneName}</div>
         <div className="text-xs text-gray-500 mb-2">
-            {zone.zoneCode} · {zone.building || '—'}{zone.floor ? ` · Tầng ${zone.floor}` : ''}
+            {zone.zoneCode} · {zone.building || 'Chưa cung cấp'}{zone.floor ? ` · Tầng ${zone.floor}` : ''}
         </div>
         <div className="flex items-center gap-1 text-xs mb-2">
             <Users className="w-3.5 h-3.5 text-gray-500" />
@@ -344,7 +344,7 @@ const CampusMap = () => {
                                         )}
                                     </div>
                                     <div className="text-xs text-gray-500 mt-0.5">
-                                        {z.building || '—'}{z.floor ? ` · Tầng ${z.floor}` : ''} · {z.cameraStatus.online}/{z.cameras.length} camera online
+                                        {z.building || 'Chưa cung cấp'}{z.floor ? ` · Tầng ${z.floor}` : ''} · {z.cameraStatus.online}/{z.cameras.length} camera online
                                     </div>
                                     {!z.coordinates && <div className="text-xs text-amber-600 mt-0.5">Chưa đặt vị trí</div>}
                                 </li>

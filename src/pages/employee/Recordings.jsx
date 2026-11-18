@@ -166,8 +166,8 @@ const EmployeeRecordings = () => {
                     return {
                         meetingId: mid,
                         meetingTitle:      meeting.title || meeting.subject || 'Cuộc họp không có tiêu đề',
-                        roomName:          meeting.room?.roomName || meeting.roomName || meeting.room?.name || '—',
-                        hostName:          meeting.organizerName || meeting.organizer?.fullName || '—',
+                        roomName:          meeting.room?.roomName || meeting.roomName || meeting.room?.name || 'Chưa cung cấp',
+                        hostName:          meeting.organizerName || meeting.organizer?.fullName || 'Chưa cung cấp',
                         startTime:         meeting.startTime || meeting.scheduledStart || null,
                         durationMinutes:   meeting.durationMinutes || null,
                         mediaFiles,

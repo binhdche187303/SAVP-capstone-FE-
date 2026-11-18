@@ -182,7 +182,7 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p data-ui-text="secondary" className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Email</p>
-                                            <p className="text-midnight-indigo font-medium truncate">{detail?.email || 'Không có thông tin'}</p>
+                                            <p className="text-midnight-indigo font-medium truncate">{detail?.email || 'Chưa cung cấp'}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm">
@@ -191,7 +191,7 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Số điện thoại</p>
-                                            <p className="text-midnight-indigo font-medium">{detail?.phoneNumber || 'Không có thông tin'}</p>
+                                            <p className="text-midnight-indigo font-medium">{detail?.phoneNumber || 'Chưa cung cấp'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -216,7 +216,7 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p data-ui-text="label" className="text-[10px] font-bold text-slate-blue/70 uppercase tracking-wider mb-0.5">Mã nhân viên</p>
-                                                <p className="text-midnight-indigo font-medium">{detail?.employeeCode || 'Không có thông tin'}</p>
+                                                <p className="text-midnight-indigo font-medium">{detail?.employeeCode || 'Chưa cung cấp'}</p>
                                             </div>
                                         </div>
                                     </div>

@@ -130,7 +130,7 @@ const MinutesInbox = ({ onOpenMinutes, onCount }) => {
                                 <div data-ui-text="secondary" className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11px] text-slate-blue">
                                     <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{fmt(it.startTime)}</span>
                                     {it.roomName && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{it.roomName}</span>}
-                                    <span>Thư ký: <b>{it.secretaryName || '—'}</b></span>
+                                    <span>Thư ký: <b>{it.secretaryName || 'Chưa cung cấp'}</b></span>
                                     <span>Người ký: <b>{it.signerName || it.hostName}</b></span>
                                 </div>
                                 {it.stage === 'returned' && it.note && (

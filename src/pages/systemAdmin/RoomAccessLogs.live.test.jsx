@@ -33,3 +33,10 @@ test('a connection failure is shown instead of replacing the response with demo 
     expect(await screen.findByText('Chưa kết nối camera')).toBeInTheDocument();
     expect(screen.queryByText('Bùi Văn Long')).not.toBeInTheDocument();
 });
+test('cột camera chỉ ghi vị trí (Thang máy), không ghi tên thiết bị cầu nối', async () => {
+    getRoomAccessLog.mockResolvedValue({ success: true, data: { events: [{ id: 'bridge-event', roomId: room.id, roomName: room.roomName, fullName: 'Người qua thang máy', eventTime: new Date().toISOString(), direction: 'seen', status: 'matched', deviceName: 'HGVision Camera API Bridge', deviceCode: 'IVSS-BRIDGE', zoneName: 'Thang máy' }], pagination: { total: 1 } } });
+    view();
+    expect(await screen.findByText('Người qua thang máy')).toBeInTheDocument();
+    expect(screen.getByText('Thang máy')).toBeInTheDocument();
+    expect(screen.queryByText('HGVision Camera API Bridge')).not.toBeInTheDocument();
+});

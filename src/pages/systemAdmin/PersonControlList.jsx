@@ -430,7 +430,7 @@ const PersonControlList = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-xs text-slate-blue max-w-xs truncate text-left" title={person.reason || ''}>
-                                                {person.reason || '-'}
+                                                {person.reason || 'Chưa cung cấp'}
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center">

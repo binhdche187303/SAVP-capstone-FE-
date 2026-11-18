@@ -440,7 +440,7 @@ const AlertRules = () => {
                                             <p className="text-sm font-bold text-midnight-indigo uppercase">{getAlertTypeLabel(rule.alert_type)}</p>
                                         </td>
                                         <td className="p-4 text-sm text-midnight-indigo font-medium">
-                                            {rule.zone_id ? (zones.find(z => z.id === rule.zone_id)?.zone_name || 'N/A') : <span className="text-slate-blue italic">Toàn hệ thống</span>}
+                                            {rule.zone_id ? (zones.find(z => z.id === rule.zone_id)?.zone_name || 'Chưa cung cấp') : <span className="text-slate-blue italic">Toàn hệ thống</span>}
                                         </td>
                                         <td className="p-4 text-sm">
                                             <div className="flex flex-col gap-1.5">

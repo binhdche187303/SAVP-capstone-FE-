@@ -751,7 +751,7 @@ const CameraLayout = () => {
                 <p data-ui-text="secondary" className="text-[11px] text-slate-blue">
                   IP:{" "}
                   <span className="font-mono text-midnight-indigo">
-                    {selected.device.ip_address || "—"}
+                    {selected.device.ip_address || "Chưa cung cấp"}
                   </span>
                 </p>
                 {editMode && (

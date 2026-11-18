@@ -432,7 +432,7 @@ const ManagerHomePage = () => {
                     if (deptId) {
                         const deptRes = await getDepartmentById(deptId);
                         if (deptRes?.success && deptRes.data) {
-                            setDepartmentName(deptRes.data.departmentName || '—');
+                            setDepartmentName(deptRes.data.departmentName || 'Chưa cung cấp');
                             setDepartmentMemberCount(deptRes.data.memberCount ?? null);
                         }
                     } else if (user.leadershipTitle) {
@@ -759,7 +759,7 @@ const ManagerHomePage = () => {
                                                             {req.meeting?.title || 'Cuộc họp phòng ban'}
                                                         </td>
                                                         <td className="p-4 text-slate-blue font-medium">{req.requestedBy?.fullName || 'Nhân viên'}</td>
-                                                        <td className="p-4 font-medium text-midnight-indigo">{req.targetRoom?.roomName || '—'}</td>
+                                                        <td className="p-4 font-medium text-midnight-indigo">{req.targetRoom?.roomName || 'Chưa cung cấp'}</td>
                                                         <td className="p-4 text-xs text-slate-blue font-medium">
                                                             {formatRequestTime(req)}
                                                         </td>

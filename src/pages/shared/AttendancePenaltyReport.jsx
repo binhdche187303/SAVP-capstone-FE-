@@ -512,7 +512,7 @@ const AttendancePenaltyReport = () => {
                                         <tr key={r.userId} onClick={() => openDetail(r)} className="hover:bg-cloud-mist/30 cursor-pointer">
                                             <td className="px-4 py-3">
                                                 <p data-ui-text="primary" className="font-bold text-xs text-midnight-indigo">{r.fullName}</p>
-                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{r.departmentName || 'N/A'}{r.positionTitle ? ` • ${r.positionTitle}` : ''}</p>
+                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{r.departmentName || 'Chưa cung cấp'}{r.positionTitle ? ` • ${r.positionTitle}` : ''}</p>
                                             </td>
                                             <td className="px-3 py-3 text-center text-xs font-bold">{r.totalMeetings}</td>
                                             <td className="px-3 py-3 text-center text-xs">{r.present}</td>

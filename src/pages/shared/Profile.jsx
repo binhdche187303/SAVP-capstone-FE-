@@ -26,7 +26,7 @@ const formatStudentClass = (studentProfile, profile) => {
     if (firstClass?.code && firstClass?.name) return `${firstClass.code} - ${firstClass.name}`;
     if (firstClass?.code) return firstClass.code;
     if (firstClass?.name) return firstClass.name;
-    return "Chưa có";
+    return "Chưa cung cấp";
 };
 
 const formatHomeroomTeacher = (studentProfile, profile) => {
@@ -37,7 +37,7 @@ const formatHomeroomTeacher = (studentProfile, profile) => {
         || profile?.advisor?.fullName
         || profile?.academicAdvisor?.fullName
         || firstLecturer
-        || "Chưa có giáo viên chủ nhiệm";
+        || "Chưa cung cấp";
 };
 
 const Profile = () => {
@@ -304,7 +304,7 @@ const Profile = () => {
     const orgLabel = isStudentProfile ? "Lớp hành chính" : "Phòng ban";
     const orgValue = isStudentProfile
         ? formatStudentClass(studentProfile, profile)
-        : (profile?.department?.departmentName || profile?.department?.name || "Chưa có");
+        : (profile?.department?.departmentName || profile?.department?.name || "Chưa cung cấp");
     const managementOrgLabel = isStudentProfile ? "Lớp hành chính" : "Bộ phận trực thuộc";
     const managerLabel = isStudentProfile ? "Giáo viên chủ nhiệm" : "Quản lý trực tiếp";
     const managerValue = isStudentProfile
@@ -312,8 +312,8 @@ const Profile = () => {
         : (profile?.directManager?.fullName || "Không có quản lý");
     const titleLabel = isStudentProfile ? "Ngành / Khóa" : "Chức vụ";
     const titleValue = isStudentProfile
-        ? [studentProfile?.major || profile?.major, studentProfile?.cohort || profile?.cohort].filter(Boolean).join(" - ") || "Chưa có"
-        : (profile?.positionTitle || "Chưa có");
+        ? [studentProfile?.major || profile?.major, studentProfile?.cohort || profile?.cohort].filter(Boolean).join(" - ") || "Chưa cung cấp"
+        : (profile?.positionTitle || "Chưa cung cấp");
 
     if (loading) {
         return (

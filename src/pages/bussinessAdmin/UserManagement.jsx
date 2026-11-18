@@ -1045,7 +1045,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                 </td>
                                                 <td className="py-4 px-6 text-sm text-slate-blue whitespace-nowrap">
                                                     {isStudentList
-                                                        ? (user.studentCode || user.employeeCode || 'Chưa có')
+                                                        ? (user.studentCode || user.employeeCode || 'Chưa cung cấp')
                                                         : (user.phoneNumber || user.phone || 'Chưa cung cấp')}
                                                 </td>
                                                 <td className="py-4 px-6 text-sm text-midnight-indigo font-medium whitespace-nowrap">
@@ -1822,7 +1822,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                             || selectedUserDetail.studentProfile?.classSections?.find(item => item?.lecturerName)?.lecturerName
                                                             || selectedUserDetail.classSections?.find(item => item?.lecturerName)?.lecturerName
                                                             || 'Chưa phân công'
-                                                        : selectedUserDetail.directManager?.fullName || 'Không có'}
+                                                        : selectedUserDetail.directManager?.fullName || 'Chưa cung cấp'}
                                                 </span>
                                             </div>
                                         </div>

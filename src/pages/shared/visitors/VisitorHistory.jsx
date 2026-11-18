@@ -217,7 +217,7 @@ const VisitorHistory = () => {
                                     <td data-label="Khách" className={historyTdCls}>
                                         <button data-ui-text="primary" type="button" title={visit.visitor.fullName} aria-label={`Xem các lượt của ${visit.visitor.fullName}`} className="font-semibold text-action-blue hover:underline" onClick={() => openProfile(visit)}>{visit.visitor.fullName}</button>
                                     </td>
-                                    <td data-label="Đơn vị công tác" title={visit.visitor.organization} className={historyTdCls}>{visit.visitor.organization || '—'}</td>
+                                    <td data-label="Đơn vị công tác" title={visit.visitor.organization} className={historyTdCls}>{visit.visitor.organization || 'Chưa cung cấp'}</td>
                                     <td data-label="Người gặp / Đơn vị tiếp" className={historyTdCls}>
                                         <p className="font-semibold">{visit.hostName}</p>
                                         <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{visit.departmentName}</p>
@@ -261,7 +261,7 @@ const VisitorHistory = () => {
                             </div>
                             <div className="rounded-xl bg-cloud-mist p-3">
                                 <p className="text-slate-blue">Đơn vị công tác</p>
-                                <p className="text-sm font-bold text-midnight-indigo">{profile.visitor.organization || '—'}</p>
+                                <p className="text-sm font-bold text-midnight-indigo">{profile.visitor.organization || 'Chưa cung cấp'}</p>
                             </div>
                         </div>
                         <PaginatedCollection items={profile?.visits} itemLabel="lượt khách">

@@ -1209,7 +1209,7 @@ const EmployeeMeetingDetail = () => {
                             <div className="truncate">
                                 <span data-ui-text="label" className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Phòng họp / Cơ sở</span>
                                 <span data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo block truncate">
-                                    {meeting.room?.room_name || meeting.room?.roomName || 'N/A'} {meeting.room?.site_name || meeting.room?.siteName ? `(${meeting.room?.site_name || meeting.room?.siteName})` : ''}
+                                    {meeting.room?.room_name || meeting.room?.roomName || 'Chưa cung cấp'} {meeting.room?.site_name || meeting.room?.siteName ? `(${meeting.room?.site_name || meeting.room?.siteName})` : ''}
                                 </span>
                             </div>
                         </div>
@@ -1594,7 +1594,7 @@ const EmployeeMeetingDetail = () => {
                                                 >
                                                     <div className="min-w-0">
                                                         <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo truncate">{p.fullName || 'Không tên'}</p>
-                                                        <p data-ui-text="action" className="text-[10px] text-slate-blue truncate">{p.departmentName || '—'}</p>
+                                                        <p data-ui-text="action" className="text-[10px] text-slate-blue truncate">{p.departmentName || 'Chưa cung cấp'}</p>
                                                     </div>
                                                     <div className="flex items-center gap-3 shrink-0">
                                                         <span data-ui-text="action" className="text-[10px] font-semibold text-midnight-indigo">{formatPresenceDuration(p.durationMs)}</span>

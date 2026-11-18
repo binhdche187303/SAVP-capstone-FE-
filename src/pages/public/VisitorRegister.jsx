@@ -332,7 +332,7 @@ const VisitorRegister = () => {
                         <div className="flex-1">
                             <SummaryRow label="Khách">{form.visitor.fullName}</SummaryRow>
                             <SummaryRow label="Liên hệ">{form.visitor.phone} · {form.visitor.email}</SummaryRow>
-                            <SummaryRow label="Đơn vị công tác">{form.visitor.organization || '—'}</SummaryRow>
+                            <SummaryRow label="Đơn vị công tác">{form.visitor.organization || 'Chưa cung cấp'}</SummaryRow>
                             <SummaryRow label="Người cần gặp">{form.host?.fullName} — {form.host?.departmentName}</SummaryRow>
                             <SummaryRow label="Mục đích">{form.purpose}</SummaryRow>
                             <SummaryRow label="Thời gian">{fmtTimeRange(fromLocalInput(form.schedule.scheduledFrom), fromLocalInput(form.schedule.scheduledTo))}</SummaryRow>

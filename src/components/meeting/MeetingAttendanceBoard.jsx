@@ -385,7 +385,7 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
                                             <UserAvatar user={{ avatarUrl: item.avatarUrl, fullName: item.fullName }} className="w-8 h-8 rounded-full" />
                                             <div>
                                                 <p data-ui-text="primary" className="font-bold text-midnight-indigo text-xs">{item.fullName}</p>
-                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{item.departmentName || 'N/A'} • {item.positionTitle || 'N/A'}</p>
+                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{item.departmentName || 'Chưa cung cấp'} • {item.positionTitle || 'Chưa cung cấp'}</p>
                                             </div>
                                         </div>
                                     </td>

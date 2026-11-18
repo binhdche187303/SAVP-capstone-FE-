@@ -618,7 +618,7 @@ const AuditLogs = () => {
                                                 {ENTITY_TRANSLATIONS[log.entityType || log.entity] || (log.entityType || log.entity)}
                                             </td>
                                             <td data-ui-text="primary" className="py-4 px-6 whitespace-nowrap text-slate-blue text-sm">
-                                                {log.ipAddress || '-'}
+                                                {log.ipAddress || 'Chưa cung cấp'}
                                             </td>
                                             <td className="py-4 px-6">
                                                 <span data-ui-text="badge" className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(log.severity || log.status)}`}>
@@ -702,7 +702,7 @@ const AuditLogs = () => {
                                 </div>
                                 <div className="bg-cloud-mist/40 rounded-xl p-3.5 border border-platinum-tint/60">
                                     <span data-ui-text="label" className="block text-[10px] font-bold text-slate-blue uppercase tracking-wider mb-1">Địa chỉ IP thao tác</span>
-                                    <span data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{selectedLog.ipAddress || '—'}</span>
+                                    <span data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{selectedLog.ipAddress || 'Chưa cung cấp'}</span>
                                 </div>
                             </div>
 

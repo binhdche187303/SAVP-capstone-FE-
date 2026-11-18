@@ -771,9 +771,9 @@ const BiometricSubmissionsReview = () => {
                             {(() => {
                                 const d    = userDetail || selectedUser;
                                 const name = d.fullName || d.full_name || 'Không có tên';
-                                const email = d.email || 'Chưa cập nhật';
-                                const phone = d.phoneNumber || d.phone_number || d.phone || 'Chưa cập nhật';
-                                const dept  = d.department?.departmentName || d.department || d.departmentName || d.department?.name || 'Chưa cập nhật';
+                                const email = d.email || 'Chưa cung cấp';
+                                const phone = d.phoneNumber || d.phone_number || d.phone || 'Chưa cung cấp';
+                                const dept  = d.department?.departmentName || d.department || d.departmentName || d.department?.name || 'Chưa cung cấp';
                                 const code  = d.employeeCode || d.employee_code;
                                 return (
                                     <div className="p-6 overflow-y-auto">

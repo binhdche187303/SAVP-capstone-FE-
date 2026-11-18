@@ -501,7 +501,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                             {min.title || 'Biên bản chưa đặt tiêu đề'}
                                                         </p>
                                                         <p className="text-xs text-slate-blue mt-0.5 line-clamp-1">
-                                                            {min.meeting?.title || min.meetingTitle || '—'}
+                                                            {min.meeting?.title || min.meetingTitle || 'Chưa cung cấp'}
                                                         </p>
                                                     </td>
                                                     <td className="px-5 py-4 text-xs text-slate-blue whitespace-nowrap">
@@ -713,9 +713,9 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                         </td>
                                                         <td className="px-5 py-4">
                                                             <p className="font-semibold text-midnight-indigo line-clamp-1">{item.meetingTitle}</p>
-                                                            <p className="text-xs text-slate-blue mt-0.5">{item.organizer || '—'}</p>
+                                                            <p className="text-xs text-slate-blue mt-0.5">{item.organizer || 'Chưa cung cấp'}</p>
                                                         </td>
-                                                        <td className="px-5 py-4 text-xs text-slate-blue">{item.roomName || '—'}</td>
+                                                        <td className="px-5 py-4 text-xs text-slate-blue">{item.roomName || 'Chưa cung cấp'}</td>
                                                         <td className="px-5 py-4 text-xs text-slate-blue whitespace-nowrap">
                                                             <div className="flex items-center gap-1.5">
                                                                 <Clock className="w-3.5 h-3.5 shrink-0" />
@@ -888,7 +888,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                     {detailItem.title || 'Biên bản chưa đặt tiêu đề'}
                                 </h2>
                                 <p className="text-xs text-slate-blue mt-1 line-clamp-1">
-                                    {detailItem.meeting?.title || detailItem.meetingTitle || '—'}
+                                    {detailItem.meeting?.title || detailItem.meetingTitle || 'Chưa cung cấp'}
                                 </p>
                             </div>
                             <button

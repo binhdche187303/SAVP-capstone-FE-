@@ -566,7 +566,7 @@ const RoomManagement = ({ readOnly = false }) => {
                                                         {(room.siteName || room.areaName) ? (
                                                             <div className="flex items-center gap-1.5 text-xs text-midnight-indigo whitespace-nowrap">
                                                                 <MapPin className="w-3.5 h-3.5 text-steel-gray shrink-0" />
-                                                                <span className="font-semibold">{room.siteName || '—'}</span>
+                                                                <span className="font-semibold">{room.siteName || 'Chưa cung cấp'}</span>
                                                                 {room.areaName && <span data-ui-text="secondary" className="text-steel-gray text-[11px]">({room.areaName})</span>}
                                                             </div>
                                                         ) : (
@@ -845,12 +845,12 @@ const RoomManagement = ({ readOnly = false }) => {
                                     <h4 className="text-xs font-extrabold text-midnight-indigo uppercase tracking-wider border-b border-platinum-tint pb-2">Thông tin phòng</h4>
                                     {[
                                         { label: 'Tên phòng', value: detailRoom.roomName },
-                                        { label: 'Mã phòng họp', value: detailRoom.roomCode || '—' },
+                                        { label: 'Mã phòng họp', value: detailRoom.roomCode || 'Chưa cung cấp' },
                                         { label: 'Loại phòng', value: ROOM_TYPE_LABELS[detailRoom.roomType] || detailRoom.roomType },
                                         { label: 'Sức chứa tối đa', value: detailRoom.capacity ? `${detailRoom.capacity} người` : '—' },
-                                        { label: 'Tòa nhà / Cơ sở', value: detailRoom.siteName || '—' },
-                                        { label: 'Tầng / Khu vực', value: detailRoom.areaName || '—' },
-                                        { label: 'Vị trí chi tiết', value: detailRoom.locationDescription || '—' },
+                                        { label: 'Tòa nhà / Cơ sở', value: detailRoom.siteName || 'Chưa cung cấp' },
+                                        { label: 'Tầng / Khu vực', value: detailRoom.areaName || 'Chưa cung cấp' },
+                                        { label: 'Vị trí chi tiết', value: detailRoom.locationDescription || 'Chưa cung cấp' },
                                         { label: 'Trạng thái hành chính', value: ADMIN_STATUS_LABELS[detailRoom.administrativeStatus] || detailRoom.administrativeStatus || '—' }
                                     ].map(({ label, value }) => (
                                         <div key={label} className="flex justify-between text-xs">

@@ -196,7 +196,7 @@ const MyVehicles = () => {
                                             </span>
                                         </td>
                                         <td className="py-4 px-6 text-sm text-slate-blue max-w-xs truncate">
-                                            {vehicle.note || '-'}
+                                            {vehicle.note || 'Chưa cung cấp'}
                                         </td>
                                         <td className="py-4 px-6 text-right space-x-2">
                                             <button 

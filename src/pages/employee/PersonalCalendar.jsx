@@ -75,7 +75,7 @@ const PersonalCalendar = () => {
     const mapEventToMeeting = (dto) => ({
         id: dto.meetingId || dto.id,
         title: dto.title || dto.meetingCode || 'Cuộc họp',
-        room: { roomName: dto.room?.roomName || dto.roomName || 'N/A', location: dto.room?.location || dto.roomLocation || dto.location },
+        room: { roomName: dto.room?.roomName || dto.roomName || 'Chưa cung cấp', location: dto.room?.location || dto.roomLocation || dto.location },
         startTime: dto.startTime || dto.start_time,
         endTime: dto.endTime || dto.end_time,
         myRole: dto.userRole || dto.user_role,
@@ -585,7 +585,7 @@ const PersonalCalendar = () => {
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
                                                     <MapPin className="w-3.5 h-3.5 text-slate-blue" />
-                                                    <span className="truncate">{meet.room?.roomName || 'N/A'}</span>
+                                                    <span className="truncate">{meet.room?.roomName || 'Chưa cung cấp'}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
                                                     <User className="w-3.5 h-3.5 text-slate-blue" />

@@ -28,7 +28,7 @@ const Section = ({ title, children }) => (
 const Row = ({ label, children }) => (
     <div className="flex justify-between gap-4 text-xs">
         <span className="text-slate-blue">{label}</span>
-        <span className="font-semibold text-midnight-indigo text-right">{children || '—'}</span>
+        <span className="font-semibold text-midnight-indigo text-right">{children || 'Chưa cung cấp'}</span>
     </div>
 );
 

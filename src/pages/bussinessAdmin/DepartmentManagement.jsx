@@ -129,6 +129,13 @@ const DepartmentManagement = () => {
         staffCount: d.staffCount ?? Math.max(0, (d.memberCount ?? 0) - (d.studentCount ?? 0)),
     });
 
+    // Tên đơn vị cấp trên (cây đơn vị UEL) — thay cho cột mô tả / ngày tạo vốn không có dữ liệu.
+    const parentNameOf = (dept) => {
+        if (!dept?.parentDepartmentId) return '';
+        const parent = [...allActiveDepartments, ...departmentsList].find(d => d.id === dept.parentDepartmentId);
+        return parent?.name || '';
+    };
+
     const memberCountLabel = (dept) => (dept.studentCount
         ? `${dept.staffCount || 0} cán bộ · ${dept.studentCount} SV`
         : `${dept.staffCount || 0} cán bộ`);
@@ -648,7 +655,7 @@ const DepartmentManagement = () => {
                     </span>
                     <input
                         type="text"
-                        placeholder="Tên phòng ban, mô tả..." title="Tìm kiếm theo Tên phòng ban hoặc Mô tả"
+                        placeholder="Tên hoặc mã phòng ban..." title="Tìm kiếm theo tên hoặc mã phòng ban"
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                         className="pl-10 pr-4 py-2 w-full border border-platinum-tint rounded-xl text-sm text-midnight-indigo placeholder:text-steel-gray focus:outline-none focus:border-action-blue"
@@ -667,27 +674,25 @@ const DepartmentManagement = () => {
                     <div className="overflow-x-auto">
                         <ResponsiveTable className="w-full text-left border-collapse">
 <colgroup>
-<col style={{ width: '24%' }} />
-<col style={{ width: '27%' }} />
-<col style={{ width: '11%' }} />
+<col style={{ width: '34%' }} />
+<col style={{ width: '28%' }} />
+<col style={{ width: '16%' }} />
 <col style={{ width: '12%' }} />
-<col style={{ width: '13%' }} />
-<col style={{ width: '13%' }} />
+<col style={{ width: '10%' }} />
 </colgroup>
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/50">
                                     <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Phòng ban</th>
-                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Mô tả chi tiết</th>
+                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Trực thuộc</th>
                                     <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Thành viên</th>
                                     <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Trạng thái</th>
-                                    <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase">Ngày tạo lập</th>
                                     <th className="align-middle py-4 px-6 text-xs font-bold text-slate-blue uppercase text-right">Hành động</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {departmentsList.length === 0 ? (
                                     <tr>
-                                        <td colSpan="6" className="py-12 text-center text-slate-blue text-sm">
+                                        <td colSpan="5" className="py-12 text-center text-slate-blue text-sm">
                                             Không tìm thấy phòng ban nào phù hợp.
                                         </td>
                                     </tr>
@@ -709,8 +714,8 @@ const DepartmentManagement = () => {
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="align-middle py-4 px-6 text-sm text-slate-blue max-w-sm truncate">
-                                                {dept.description || 'Không có mô tả'}
+                                            <td className="align-middle py-4 px-6 text-sm text-slate-blue truncate">
+                                                {parentNameOf(dept) || 'Chưa cung cấp'}
                                             </td>
                                             <td className="align-middle py-4 px-6 text-sm text-midnight-indigo font-semibold">
                                                 <button
@@ -729,9 +734,6 @@ const DepartmentManagement = () => {
                                                     <span className={`w-1.5 h-1.5 rounded-full ${dept.isActive !== false ? 'bg-green-500' : 'bg-slate-400'}`} />
                                                     {dept.isActive !== false ? 'Hoạt động' : 'Vô hiệu hóa'}
                                                 </span>
-                                            </td>
-                                            <td className="align-middle py-4 px-6 text-sm text-slate-blue">
-                                                {dept.createdAt ? new Date(dept.createdAt).toLocaleDateString('vi-VN') : '---'}
                                             </td>
                                             <td className="align-middle py-4 px-6 text-right">
                                                 <div className="flex items-center justify-end gap-2">
@@ -955,7 +957,9 @@ const DepartmentManagement = () => {
                             <div>
                                 <h3 className="font-bold text-midnight-indigo text-base">Thành viên phòng ban: {selectedDept.name}</h3>
                                 <p className="text-xs text-slate-blue mt-0.5">Mã đơn vị: <span className="font-mono font-bold">{selectedDept.departmentCode || '—'}</span></p>
-                                <p className="text-xs text-slate-blue mt-0.5">{selectedDept.description || 'Không có mô tả chi tiết'}</p>
+                                {(selectedDept.description || parentNameOf(selectedDept)) && (
+                                    <p className="text-xs text-slate-blue mt-0.5">{selectedDept.description || `Trực thuộc ${parentNameOf(selectedDept)}`}</p>
+                                )}
                             </div>
                             <div className="flex items-center gap-3">
                                 <button
@@ -1483,7 +1487,7 @@ const DepartmentManagement = () => {
                                             </div>
                                             <div>
                                                 <span className="text-slate-blue block text-xs">Quản lý trực tiếp:</span>
-                                                <span className="font-semibold text-midnight-indigo">{selectedUserDetail.directManager?.fullName || 'Không có'}</span>
+                                                <span className="font-semibold text-midnight-indigo">{selectedUserDetail.directManager?.fullName || 'Chưa cung cấp'}</span>
                                             </div>
                                         </div>
                                     </div>

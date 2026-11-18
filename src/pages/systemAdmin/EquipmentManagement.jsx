@@ -634,13 +634,13 @@ const EquipmentManagement = () => {
                                                 </div>
                                                 <div>
                                                     <p data-ui-text="primary" className="font-semibold text-sm text-midnight-indigo">{eq.equipmentName}</p>
-                                                    <p className="text-xs text-slate-blue line-clamp-1">{eq.brand || 'N/A'} - {eq.model || 'N/A'}</p>
+                                                    <p className="text-xs text-slate-blue line-clamp-1">{eq.brand || 'Chưa cung cấp'} - {eq.model || 'Chưa cung cấp'}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="p-4 whitespace-nowrap">
                                             <p className="text-sm font-medium text-midnight-indigo">{eq.equipmentCode}</p>
-                                            <p className="text-xs text-slate-blue">SN: {eq.serialNumber || 'N/A'}</p>
+                                            <p className="text-xs text-slate-blue">SN: {eq.serialNumber || 'Chưa cung cấp'}</p>
                                         </td>
                                         <td className="p-4 text-sm whitespace-nowrap">
                                             <span className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-semibold ${typeMeta.badge}`}>

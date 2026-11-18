@@ -576,7 +576,7 @@ const RoomUsageAnalytics = () => {
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl">
                                         <div>
                                             <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase">Vị trí</span>
-                                            <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo mt-0.5">{roomDetail.room?.areaName || '—'}</p>
+                                            <p data-ui-text="primary" className="text-xs font-bold text-midnight-indigo mt-0.5">{roomDetail.room?.areaName || 'Chưa cung cấp'}</p>
                                         </div>
                                         <div>
                                             <span data-ui-text="label" className="text-[10px] font-bold text-slate-blue uppercase">Sức chứa</span>

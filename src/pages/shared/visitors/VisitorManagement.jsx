@@ -198,7 +198,7 @@ const VisitorManagement = () => {
                                             <VisitorAvatar visitor={visit.visitor} size={36} />
                                             <div>
                                                 <p className="font-semibold">{visit.visitor.fullName}</p>
-                                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{visit.visitor.organization || '—'}{visit.visitor.hasPhoto ? '' : ' · Chưa có ảnh'}</p>
+                                                <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{visit.visitor.organization || 'Chưa cung cấp'}{visit.visitor.hasPhoto ? '' : ' · Chưa có ảnh'}</p>
                                             </div>
                                         </div>
                                     </td>

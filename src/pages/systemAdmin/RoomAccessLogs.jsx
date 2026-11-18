@@ -39,6 +39,9 @@ const GROUP_WINDOW_MS = 3000;
 // Họp 20/10: mọi log camera phải nói rõ camera nào / khu vực nào / nhóm nào.
 const cameraLabel = (ev) => ev.deviceName || ev.deviceCode || null;
 const cameraGroupsLabel = (ev) => (Array.isArray(ev.groupNames) && ev.groupNames.length ? ev.groupNames.join(', ') : '');
+// Hiển thị vị trí camera (khu vực / nhóm, ví dụ "Thang máy"). Tên thiết bị (vd. cầu nối
+// "HGVision Camera API Bridge") chỉ dùng khi không có vị trí; vẫn có trong tooltip và file xuất.
+const cameraPlaceLabel = (ev) => [ev.zoneName, cameraGroupsLabel(ev)].filter(Boolean).join(' · ') || cameraLabel(ev) || null;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -415,7 +418,7 @@ const RoomAccessLogs = () => {
                 if (t && !cur.first) cur.first = t;
                 if (t) cur.last = t;
                 if (ev.direction === 'enter' || ev.direction === 'leave') cur.lastDir = ev.direction;
-                const cam = cameraLabel(ev);
+                const cam = cameraPlaceLabel(ev);
                 if (cam) cur.cams.add(cam);
                 byPerson.set(key, cur);
             });
@@ -623,14 +626,9 @@ const RoomAccessLogs = () => {
                     )}
                 </td>
 
-                <td className="px-6 py-4 text-xs min-w-[14rem]" title={cameraGroupsLabel(ev) ? `Nhóm: ${cameraGroupsLabel(ev)}` : undefined}>
-                    {cameraLabel(ev) ? (
-                        <>
-                            <span className="inline-flex items-center gap-1 font-semibold text-midnight-indigo"><Camera className="w-3 h-3 text-slate-400" />{cameraLabel(ev)}</span>
-                            {(ev.zoneName || cameraGroupsLabel(ev)) && (
-                                <span data-ui-text="secondary" className="block text-[10px] text-slate-400">{[ev.zoneName, cameraGroupsLabel(ev)].filter(Boolean).join(' · ')}</span>
-                            )}
-                        </>
+                <td className="px-6 py-4 text-xs min-w-[10rem]" title={cameraLabel(ev) ? `Thiết bị: ${cameraLabel(ev)}` : undefined}>
+                    {cameraPlaceLabel(ev) ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-midnight-indigo"><Camera className="w-3 h-3 shrink-0 text-slate-400" />{cameraPlaceLabel(ev)}</span>
                     ) : <span className="text-slate-300">—</span>}
                 </td>
                 <td data-ui-text="secondary" className="px-6 py-4 text-center font-mono text-xs font-bold text-slate-500">{conf}</td>
@@ -1032,9 +1030,9 @@ const RoomAccessLogs = () => {
                             {(() => {
                                 const d    = userDetail || selectedUser;
                                 const name = d.fullName || d.full_name || 'Không có tên';
-                                const email = d.email || 'Chưa cập nhật';
-                                const phone = d.phoneNumber || d.phone_number || d.phone || 'Chưa cập nhật';
-                                const dept  = d.department?.departmentName || d.department || d.departmentName || 'Chưa cập nhật';
+                                const email = d.email || 'Chưa cung cấp';
+                                const phone = d.phoneNumber || d.phone_number || d.phone || 'Chưa cung cấp';
+                                const dept  = d.department?.departmentName || d.department || d.departmentName || 'Chưa cung cấp';
                                 const code  = d.employeeCode || d.employee_code;
                                 return (
                                     <div className="p-6 overflow-y-auto">

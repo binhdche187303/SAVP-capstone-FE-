@@ -947,7 +947,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                         <p className="font-bold text-midnight-indigo leading-tight">{row.name}</p>
                                         <p className="text-xs text-slate-blue">{row.code}</p>
                                     </td>
-                                    <td className="px-4 py-2.5 text-xs text-slate-blue">{row.administrativeClass || '—'}</td>
+                                    <td className="px-4 py-2.5 text-xs text-slate-blue">{row.administrativeClass || 'Chưa cung cấp'}</td>
                                     <td className={`px-4 py-2.5 text-xs font-semibold tabular-nums ${row.checkInAt ? 'text-midnight-indigo' : 'text-steel-gray'}`}>{row.checkInText}</td>
                                     <td className={`px-4 py-2.5 text-xs font-semibold tabular-nums ${row.checkOutAt ? 'text-midnight-indigo' : 'text-steel-gray'}`}>{row.checkOutText}</td>
                                     <td className="px-4 py-2.5">
@@ -1020,7 +1020,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                                 </span>
                                                 {(event.actorName || cameraText) && <p className="text-[11px] text-slate-blue mt-0.5">{event.actorName || cameraText}</p>}
                                             </td>
-                                            <td className="px-4 py-2.5 text-xs text-slate-blue">{event.reason || '—'}</td>
+                                            <td className="px-4 py-2.5 text-xs text-slate-blue">{event.reason || 'Chưa cung cấp'}</td>
                                         </tr>
                                     );
                                 })}

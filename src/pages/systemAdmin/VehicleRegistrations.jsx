@@ -349,7 +349,7 @@ const VehicleRegistrations = () => {
                                     {registrations.map((reg, idx) => {
                                         const owner        = reg.owner;
                                         const ownerName    = owner?.fullName || owner?.full_name || 'Không rõ';
-                                        const ownerEmail   = owner?.email || '—';
+                                        const ownerEmail   = owner?.email || 'Chưa cung cấp';
                                         const ownerId      = owner?.userId || owner?.user_id || owner?.id;
                                         const resolvedUser = (ownerId && usersMap[ownerId]) || normaliseOwner(owner);
                                         const vm           = getVehicleMeta(reg.vehicle_type);
@@ -481,9 +481,9 @@ const VehicleRegistrations = () => {
                             {(() => {
                                 const d    = ownerDetail || selectedOwner;
                                 const name = d.fullName || d.full_name || 'Không có tên';
-                                const email = d.email || selectedOwner.email || 'Chưa cập nhật';
-                                const phone = d.phoneNumber || d.phone_number || d.phone || selectedOwner.phoneNumber || 'Chưa cập nhật';
-                                const dept  = d.department?.departmentName || d.department || d.departmentName || selectedOwner.department || 'Chưa cập nhật';
+                                const email = d.email || selectedOwner.email || 'Chưa cung cấp';
+                                const phone = d.phoneNumber || d.phone_number || d.phone || selectedOwner.phoneNumber || 'Chưa cung cấp';
+                                const dept  = d.department?.departmentName || d.department || d.departmentName || selectedOwner.department || 'Chưa cung cấp';
                                 const code  = d.employeeCode || d.employee_code || selectedOwner.employeeCode;
                                 return (
                                     <div className="p-6 overflow-y-auto">

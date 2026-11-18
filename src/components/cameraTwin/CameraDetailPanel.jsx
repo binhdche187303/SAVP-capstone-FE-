@@ -45,7 +45,7 @@ const CameraDetailPanel = ({ device, state, where, angle, onClose, onHistory }) 
         {where?.spot && <Row label="Vị trí lắp">{where.spot}</Row>}
         <Row label="Loại thiết bị">{TYPE_LABEL[device.device_type] || device.device_type}</Row>
         <Row label="Hướng quan sát">{angle == null ? "—" : `${Math.round(angle)}°`}</Row>
-        <Row label="IP">{device.ip_address || "—"}</Row>
+        <Row label="IP">{device.ip_address || "Chưa cung cấp"}</Row>
       </div>
 
       <div data-ui-text="badge" className="mt-3 flex aspect-video flex-col items-center justify-center gap-1 rounded-lg bg-slate-100 text-center text-[11px] text-slate-500">

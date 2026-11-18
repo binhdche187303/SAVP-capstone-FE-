@@ -157,7 +157,7 @@ const AttendanceWarningsPanel = ({ semester, subjectCode, administrativeClass, o
                                         <p className="font-bold text-midnight-indigo">{r.name}</p>
                                         <p className="text-xs font-mono text-slate-blue">{r.code}</p>
                                     </td>
-                                    <td className="px-4 py-3 text-xs text-slate-blue whitespace-nowrap">{r.administrativeClass || '—'}</td>
+                                    <td className="px-4 py-3 text-xs text-slate-blue whitespace-nowrap">{r.administrativeClass || 'Chưa cung cấp'}</td>
                                     <td className="px-4 py-3 min-w-[220px]">
                                         <p className="text-xs font-semibold text-midnight-indigo">{r.subject}</p>
                                         <p className="text-[11px] text-slate-blue">

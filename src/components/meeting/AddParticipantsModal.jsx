@@ -354,7 +354,7 @@ const AddParticipantsModal = ({
                                 return (
                                     <tr key={i} className="hover:bg-slate-50">
                                         <td className="px-3 py-2 font-mono">{r.row}</td>
-                                        <td className="px-3 py-2 max-w-[150px] truncate" title={r.identifier}>{r.identifier || '—'}</td>
+                                        <td className="px-3 py-2 max-w-[150px] truncate" title={r.identifier}>{r.identifier || 'Chưa cung cấp'}</td>
                                         <td className="px-3 py-2 text-slate-blue">{ROW_TYPE_TEXT[r.type] || r.type}</td>
                                         <td className="px-3 py-2">
                                             <span data-ui-text="badge" className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${cfg.color}`}>{cfg.label}</span>
@@ -443,7 +443,7 @@ const AddParticipantsModal = ({
                                                     <UserAvatar user={u} className="w-8 h-8 rounded-full text-xs font-bold" />
                                                     <div>
                                                         <p data-ui-text="primary" className="text-sm font-bold text-midnight-indigo">{u.fullName || u.full_name}</p>
-                                                        <p data-ui-text="secondary" className="text-[10px] text-slate-500">{u.email} • {u.employeeCode || u.employee_code || 'N/A'}</p>
+                                                        <p data-ui-text="secondary" className="text-[10px] text-slate-500">{u.email} • {u.employeeCode || u.employee_code || 'Chưa cung cấp'}</p>
                                                     </div>
                                                 </div>
                                                 <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedUserId === u.id ? 'border-action-blue bg-action-blue' : 'border-slate-300'}`}>

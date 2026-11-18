@@ -72,7 +72,7 @@ const EmployeeFaceRegistration = () => {
                 setCurrentUser(userObj);
                 getUserById(userObj.id).then(res => {
                     if (res?.success && res.data) {
-                        setEmployeeCode(res.data.employeeCode || res.data.studentCode || res.data.username || '--');
+                        setEmployeeCode(res.data.employeeCode || res.data.studentCode || res.data.username || 'Chưa cung cấp');
                         // Lấy cờ văn thư mới nhất để tiêu đề hiển thị đúng chức vụ.
                         setCurrentUser(prev => ({ ...prev, isUnitClerk: res.data.isUnitClerk ?? prev?.isUnitClerk ?? false }));
                     }

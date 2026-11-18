@@ -112,7 +112,7 @@ const ValidationTable = ({ rows, errorMap }) => {
                         <span data-ui-text="code" className="shrink-0 font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded text-[10px] font-mono">
                             Dòng {err.row}
                         </span>
-                        <span data-ui-text="secondary" className="flex-1 text-slate-blue font-mono truncate text-[10px]">{err.email || '—'}</span>
+                        <span data-ui-text="secondary" className="flex-1 text-slate-blue font-mono truncate text-[10px]">{err.email || 'Chưa cung cấp'}</span>
                         <span className="text-red-700 font-medium text-right">
                             {errorMap[err.reason] || err.reason || 'Lỗi không xác định'}
                         </span>

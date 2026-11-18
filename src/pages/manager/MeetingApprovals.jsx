@@ -150,7 +150,7 @@ const ConflictMeetingCard = ({ meeting, compact = false }) => (
             </span>
             <span className="inline-flex items-center gap-1.5">
                 <Users className="w-3 h-3 shrink-0 opacity-70" />
-                Chủ trì: {meeting.hostName || 'Không rõ'}
+                Chủ trì: {meeting.hostName || 'Chưa cung cấp'}
             </span>
             <span className="inline-flex items-center gap-1.5 font-bold">
                 <UserX className="w-3 h-3 shrink-0 opacity-70" />
@@ -326,7 +326,7 @@ const ParticipantConflictPanel = ({ info }) => {
                                         )}
                                     </div>
                                     <p data-ui-text="secondary" className="text-[10px] text-slate-blue truncate">
-                                        {[r.employeeCode, r.departmentName, r.email].filter(Boolean).join(' · ') || '—'}
+                                        {[r.employeeCode, r.departmentName, r.email].filter(Boolean).join(' · ') || 'Chưa cung cấp'}
                                     </p>
                                     <p data-ui-text="secondary" className="text-[10px] text-amber-700 truncate">
                                         Bận ở: <strong>{r.meeting.meetingTitle || 'Cuộc họp khác'}</strong>{' '}
@@ -815,7 +815,7 @@ const MeetingApprovals = () => {
                                                     <Info className="w-3.5 h-3.5 text-slate-blue" />
                                                 </div>
                                                 <div>
-                                                    <span className="font-semibold text-midnight-indigo block">{req.targetRoom?.roomName || 'N/A'}</span>
+                                                    <span className="font-semibold text-midnight-indigo block">{req.targetRoom?.roomName || 'Chưa cung cấp'}</span>
                                                     <span data-ui-text="secondary" className="text-[10px] opacity-80">{req.targetRoom?.siteName || 'Khu vực'}</span>
                                                 </div>
                                             </div>
@@ -961,7 +961,7 @@ const MeetingApprovals = () => {
 
                                             {/* Room */}
                                             <td className="p-4 font-medium text-midnight-indigo whitespace-nowrap">
-                                                {req.targetRoom?.roomName || 'N/A'}
+                                                {req.targetRoom?.roomName || 'Chưa cung cấp'}
                                                 <span data-ui-text="secondary" className="block text-[10px] text-slate-blue font-normal">{req.targetRoom?.siteName || 'Khu vực'}</span>
                                             </td>
 

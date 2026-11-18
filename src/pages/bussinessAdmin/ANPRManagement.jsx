@@ -1030,7 +1030,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                         </div>
                                         <div>
                                             <p data-ui-text="primary" className="text-xs font-semibold text-slate-blue">Phòng ban</p>
-                                            <p className="text-sm font-bold text-midnight-indigo">{selectedOwner.department || 'Chưa cập nhật'}</p>
+                                            <p className="text-sm font-bold text-midnight-indigo">{selectedOwner.department || 'Chưa cung cấp'}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -1039,7 +1039,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                         </div>
                                         <div>
                                             <p data-ui-text="secondary" className="text-xs font-semibold text-slate-blue">Email</p>
-                                            <p className="text-sm font-bold text-midnight-indigo">{selectedOwner.email || 'Chưa cập nhật'}</p>
+                                            <p className="text-sm font-bold text-midnight-indigo">{selectedOwner.email || 'Chưa cung cấp'}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -1048,7 +1048,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                         </div>
                                         <div>
                                             <p data-ui-text="primary" className="text-xs font-semibold text-slate-blue">Số điện thoại</p>
-                                            <p className="text-sm font-bold text-midnight-indigo">{selectedOwner.phoneNumber || 'Chưa cập nhật'}</p>
+                                            <p className="text-sm font-bold text-midnight-indigo">{selectedOwner.phoneNumber || 'Chưa cung cấp'}</p>
                                         </div>
                                     </div>
                                 </div>

@@ -1044,7 +1044,7 @@ const ManagerMeetingDetail = () => {
                             <div className="truncate">
                                 <span className="block text-[10px] uppercase font-bold text-slate-blue tracking-wider">Phòng họp / Cơ sở</span>
                                 <span className="text-xs font-semibold text-midnight-indigo block truncate">
-                                    {meeting.room?.room_name || meeting.room?.roomName || 'N/A'} {meeting.room?.site_name || meeting.room?.siteName ? `(${meeting.room?.site_name || meeting.room?.siteName})` : ''}
+                                    {meeting.room?.room_name || meeting.room?.roomName || 'Chưa cung cấp'} {meeting.room?.site_name || meeting.room?.siteName ? `(${meeting.room?.site_name || meeting.room?.siteName})` : ''}
                                 </span>
                             </div>
                         </div>

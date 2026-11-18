@@ -543,8 +543,8 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                                     (minutes.mainContent?.actionItems || []).map((item, idx) => (
                                         <tr key={idx} className="border-b border-platinum-tint hover:bg-cloud-mist/30 transition-colors">
                                             <td className="p-3 text-xs text-midnight-indigo font-medium">{item.task}</td>
-                                            <td className="p-3 text-xs text-slate-600">{item.owner || '-'}</td>
-                                            <td data-ui-text="primary" className="p-3 text-[11px] text-slate-blue font-mono">{item.deadline || '-'}</td>
+                                            <td className="p-3 text-xs text-slate-600">{item.owner || 'Chưa cung cấp'}</td>
+                                            <td data-ui-text="primary" className="p-3 text-[11px] text-slate-blue font-mono">{item.deadline || 'Chưa cung cấp'}</td>
                                             {minutes.isAiGenerated && (
                                                 <td className="p-3">{getConfidenceBadge(item.confidence)}</td>
                                             )}

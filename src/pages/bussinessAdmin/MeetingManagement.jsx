@@ -439,7 +439,7 @@ const MeetingManagement = () => {
                                                 </div>
                                             </td>
                                             <td className="py-4 px-6 text-sm text-midnight-indigo font-medium">
-                                                {m.organizerName || m.organizer || '—'}
+                                                {m.organizerName || m.organizer || 'Chưa cung cấp'}
                                             </td>
                                             <td className="py-4 px-6">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${(STATUS_BADGE[m.status] || STATUS_BADGE.cancelled).className}`}>
