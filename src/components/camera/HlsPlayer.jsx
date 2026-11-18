@@ -28,7 +28,8 @@ const HlsPlayer = ({ src, muted = true, controls = false, className = '', title 
 
         let retryTimer;
         const hls = new Hls({
-            lowLatencyMode: true,
+            // Tắt LL-HLS: proxy BE không chuyển tham số chặn _HLS_msn/_HLS_part.
+            lowLatencyMode: false,
             liveSyncDurationCount: 3,
             manifestLoadingMaxRetry: 2,
             xhrSetup: (xhr) => {
@@ -53,6 +54,7 @@ const HlsPlayer = ({ src, muted = true, controls = false, className = '', title 
                 code === 403 ? 'Bạn chưa được cấp quyền xem camera.'
                     : code === 404 ? 'Camera chưa có luồng trực tiếp.'
                         : code === 503 ? 'Không kết nối được máy chủ camera.'
+                            : code === 502 ? 'Máy chủ camera không trả luồng video — đang thử lại…'
                             : 'Mất luồng video — đang thử lại…',
             );
             if (code !== 403) {
