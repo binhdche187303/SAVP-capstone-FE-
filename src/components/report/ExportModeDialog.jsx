@@ -127,7 +127,7 @@ const ExportModeDialog = ({ isOpen, format, formats, reportType, onClose, onConf
             footer={(
                 <>
                     <button type="button" className={btnGhost} onClick={onClose} disabled={pending}>{downloadInfo ? 'Đóng' : 'Hủy'}</button>
-                    {downloadInfo ? <a className={btnPrimary} href={downloadInfo.downloadUrl} target="_blank" rel="noreferrer">Tải file</a> : <button type="button" className={btnPrimary} onClick={confirm} disabled={pending || (standardSupported && mode === 'standard' && !template)}>{pending ? 'Đang xuất…' : 'Xuất file'}</button>}
+                    {downloadInfo ? <a className={btnPrimary} href={downloadInfo.downloadUrl} target="_blank" rel="noreferrer">Tải file</a> : <button type="button" className={btnPrimary} onClick={confirm} disabled={pending || (standardSupported && mode === 'standard' && !template)}>{pending ? 'Đang xuất...' : 'Xuất file'}</button>}
                 </>
             )}
         >
@@ -164,7 +164,7 @@ const ExportModeDialog = ({ isOpen, format, formats, reportType, onClose, onConf
                     <p className="text-sm text-slate-blue">Khoảng ngày đang áp dụng: <strong>{(range.from || '').split('-').reverse().join('/')} — {(range.to || '').split('-').reverse().join('/')}</strong></p>
                 ))}
                 {pdfPrint && selectedFormat === 'pdf' && mode === 'normal' && <p className="text-xs text-slate-blue">Bản thường PDF mở cửa sổ in để lưu thành PDF; bản quy chuẩn tải file PDF.</p>}
-                {pending && <p role="status" className="text-sm text-action-blue">Đang tạo và chuẩn bị tải file báo cáo…</p>}
+                {pending && <p role="status" className="text-sm text-action-blue">Đang tạo và chuẩn bị tải file báo cáo...</p>}
                 {!standardSupported && <p className="text-xs text-slate-blue">{selectedFormat === 'csv' ? 'CSV chỉ hỗ trợ bản thường.' : 'Loại dữ liệu này chưa hỗ trợ bản quy chuẩn.'}</p>}
                 <div className="grid sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Kiểu bản xuất">
                     <label className={optionCls(mode === 'normal', pending)}>
@@ -183,7 +183,7 @@ const ExportModeDialog = ({ isOpen, format, formats, reportType, onClose, onConf
                     </label>
                 </div>
 
-                {standardSupported && templates === null && <p className="text-xs text-slate-blue">Đang tải danh sách mẫu…</p>}
+                {standardSupported && templates === null && <p className="text-xs text-slate-blue">Đang tải danh sách mẫu...</p>}
                 {standardSupported && templates !== null && !hasTemplates && (
                     <p data-ui-text="badge" className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
                         {loadError || 'Chưa có mẫu quy chuẩn cho báo cáo này.'}{' '}

@@ -1,3 +1,6 @@
+import { clientFacetCounts } from '../../hooks/useFilterCounts';
+import { matchesFilter } from '../../utils/filterSelection';
+import FilterMultiSelect from '../common/FilterMultiSelect';
 import TableColumns from '../common/TableColumns';
 import ResponsiveTable from '../common/ResponsiveTable';
 import FilterBar, { FilterField } from '../common/FilterBar';
@@ -92,10 +95,20 @@ const MeetingAccessLogTab = ({ meetingId }) => {
         const normalizedSearch = search.trim().toLocaleLowerCase('vi-VN');
         return events.filter((event) => {
             const matchesSearch = !normalizedSearch || (event.fullName || 'Chưa rõ').toLocaleLowerCase('vi-VN').includes(normalizedSearch);
-            const matchesDirection = directionFilter === 'all' || event.direction === directionFilter;
+            const matchesDirection = matchesFilter(directionFilter, event.direction);
             const eventStatusKey = event.isStranger ? 'stranger' : event.isUnmatched ? 'review' : 'verified';
-            const matchesStatus = statusFilter === 'all' || eventStatusKey === statusFilter;
+            const matchesStatus = matchesFilter(statusFilter, eventStatusKey);
             return matchesSearch && matchesDirection && matchesStatus;
+        });
+    }, [directionFilter, events, search, statusFilter]);
+
+    // Số đếm cạnh lựa chọn ô Hướng / Trạng thái (đếm tại chỗ, mỗi ô theo các bộ lọc khác).
+    const eventFilterCounts = useMemo(() => {
+        const normalizedSearch = search.trim().toLocaleLowerCase('vi-VN');
+        const searched = events.filter((event) => !normalizedSearch || (event.fullName || 'Chưa rõ').toLocaleLowerCase('vi-VN').includes(normalizedSearch));
+        return clientFacetCounts(searched, {
+            direction: { selected: directionFilter, get: (event) => event.direction },
+            status: { selected: statusFilter, get: (event) => (event.isStranger ? 'stranger' : event.isUnmatched ? 'review' : 'verified') },
         });
     }, [directionFilter, events, search, statusFilter]);
 
@@ -143,17 +156,17 @@ const MeetingAccessLogTab = ({ meetingId }) => {
                     <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-blue" />
                     <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên người" className="w-full rounded-lg border border-platinum-tint py-2 pl-9 pr-3 text-xs text-midnight-indigo outline-none focus:border-action-blue" />
                 </label>
-                <FilterField label="Hướng di chuyển"><select value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value)} className="rounded-lg border border-platinum-tint bg-white px-3 py-2 text-xs font-semibold text-slate-blue outline-none focus:border-action-blue">
+                <FilterField label="Hướng di chuyển"><FilterMultiSelect singleSelect counts={eventFilterCounts.direction} value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value)} className="rounded-lg border border-platinum-tint bg-white px-3 py-2 text-xs font-semibold text-slate-blue outline-none focus:border-action-blue">
                     <option value="all">Tất cả sự kiện</option>
                     <option value="enter">Vào phòng</option>
                     <option value="leave">Ra khỏi phòng</option>
-                </select></FilterField>
-                <FilterField label="Trạng thái"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border border-platinum-tint bg-white px-3 py-2 text-xs font-semibold text-slate-blue outline-none focus:border-action-blue">
+                </FilterMultiSelect></FilterField>
+                <FilterField label="Trạng thái"><FilterMultiSelect counts={eventFilterCounts.status} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border border-platinum-tint bg-white px-3 py-2 text-xs font-semibold text-slate-blue outline-none focus:border-action-blue">
                     <option value="all">Tất cả trạng thái</option>
                     <option value="verified">Đã xác minh</option>
                     <option value="review">Cần kiểm tra</option>
                     <option value="stranger">Chưa xác định</option>
-                </select></FilterField>
+                </FilterMultiSelect></FilterField>
             </FilterBar>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

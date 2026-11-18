@@ -6,7 +6,7 @@
  *
  *  1. Đặt file vào:  public/models/tracking.glb
  *
- *  2. Xoá toàn bộ phần "PROCEDURAL GEOMETRY" bên dưới.
+ *  2. Xóa toàn bộ phần "PROCEDURAL GEOMETRY" bên dưới.
  *
  *  3. Thay bằng đoạn code sau:
  *
@@ -53,7 +53,7 @@ const useLerpColor = (targetHex, speed = 0.06) => {
 };
 
 // ── PROCEDURAL GEOMETRY ───────────────────────────────────────────────────────
-// Xoá phần này và thay bằng GLB model khi sẵn sàng (xem hướng dẫn ở trên).
+// Xóa phần này và thay bằng GLB model khi sẵn sàng (xem hướng dẫn ở trên).
 const TrackingProcedural = ({ accentHex, meshHex, emissiveHex }) => {
     const ring1 = useRef();
     const ring2 = useRef();

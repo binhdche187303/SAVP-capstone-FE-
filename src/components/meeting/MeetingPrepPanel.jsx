@@ -24,7 +24,7 @@ const WEEKDAY_LABEL = { 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 7:
 
 /**
  * Nộp báo cáo trước họp (UEL 12), trình ký biên bản (UEL 13) và thông tin chuỗi lặp (UEL 16)
- * trên trang chi tiết. `onSeries` báo chuỗi lặp cho trang cha để hỏi phạm vi khi sửa / huỷ.
+ * trên trang chi tiết. `onSeries` báo chuỗi lặp cho trang cha để hỏi phạm vi khi sửa / hủy.
  */
 const MeetingPrepPanel = ({ meetingId, onSeries, onOpenMeeting }) => {
     const [prep, setPrep] = useState(null);

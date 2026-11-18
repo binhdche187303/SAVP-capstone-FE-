@@ -1,4 +1,5 @@
 import StatisticGrid from '../../components/common/StatisticGrid';
+import './SystemDashboardCards.css';
 import StatisticCard from '../../components/common/StatisticCard';
 import RefreshButton from '../../components/common/RefreshButton';
 import { Activity, AlertTriangle, Car, CheckCircle, LogIn, MapPin, ShieldAlert, Wifi, WifiOff } from 'lucide-react';
@@ -377,14 +378,14 @@ const GChartCard = ({ title, sub, delay = 0, accent = D.cyan, loading, empty, em
 
 // ─── KPI Tile ─────────────────────────────────────────────────────────────────
 
-const KpiTile = ({ icon, label, value, sub, subColor, iconColor = D.cyan, delay, progress }) => {
+const KpiTile = ({ icon, label, value, sub, subColor, iconColor = D.cyan, delay, progress, className = '' }) => {
     const [ref, inView] = useInView(0.2);
     const numericTarget = typeof value === 'number' ? value : null;
     const counted = useCountUp(numericTarget, inView);
     const tone = iconColor === D.red ? 'danger' : iconColor === D.amber ? 'warning' : iconColor === D.green ? 'success' : 'default';
-    return <div ref={ref} className="h-full min-w-0" style={{ transitionDelay: inView ? `${delay || 0}ms` : '0ms' }}>
+    return <div ref={ref} className={`h-full min-w-0 ${className}`} style={{ transitionDelay: inView ? `${delay || 0}ms` : '0ms' }}>
         <StatisticCard extraPosition="footer" icon={icon} label={label} value={numericTarget !== null ? counted : value} tone={tone}
-            helper={sub && <span style={{ color: subColor }}>{sub}</span>}>
+            helper={sub && <span className="font-semibold" style={{ color: subColor }}>{sub}</span>}>
             {progress !== undefined && <div className="h-1 rounded-full bg-cloud-mist overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: inView ? `${Math.min(100, Math.max(0, progress))}%` : '0%', background: iconColor }} />
             </div>}
@@ -714,7 +715,7 @@ const DashBoard = () => {
                     sub={loading ? '' : kpi.alertsNew > 0 ? 'Cần xử lý ngay' : 'Không có mới'}
                     iconColor={kpi.alertsNew > 0 ? D.red : D.green}
                     subColor={kpi.alertsNew > 0 ? '#DC2626' : '#059669'} />
-                <KpiTile delay={180} icon={LogIn}        label="Lượt ra/vào hôm nay"
+                <KpiTile delay={180} icon={LogIn}        label="Lượt ra/vào hôm nay" className="system-gate-traffic-kpi"
                     value={loading ? '—' : kpi.gateTrafficToday}
                     sub="Qua tất cả cổng" iconColor={D.cyan} />
                 <KpiTile delay={240} icon={MapPin}       label="Khu vực giám sát"

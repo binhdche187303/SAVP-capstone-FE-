@@ -1,5 +1,9 @@
+import PageHeading from '../../components/common/PageHeading';
+import { filterValues } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import { buildSecurityAlertQuery } from '../../utils/securityAlertFilters';
+import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
 import '../../components/security/AlertFilters.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
@@ -10,7 +14,7 @@ import StatisticCard, { statisticTone } from '../../components/common/StatisticC
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, CheckCircle, CheckSquare, Clock, Download, Edit3, Eye, Filter, RefreshCw, Search, Shield, ShieldAlert, Image as ImageIcon, Users, Car, Tag, User, AlertCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, CheckSquare, Clock, Download, Edit3, Eye, Filter, RefreshCw, Search, Shield, ShieldAlert, Image as ImageIcon, Users, Car, Tag, User, AlertCircle, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -110,7 +114,7 @@ const AlertImagesStack = ({ alert, onClick }) => {
     }
 
     return (
-        <div 
+        <div
             onClick={(e) => {
                 e.stopPropagation();
                 if (onClick) onClick();
@@ -119,7 +123,7 @@ const AlertImagesStack = ({ alert, onClick }) => {
         >
             {/* Third photo (bottom-most) */}
             {ids.length > 2 && (
-                <div 
+                <div
                     className="absolute inset-0 rounded-lg shadow-sm transition-all duration-300 group-hover:-translate-y-2 group-hover:translate-x-2 group-hover:rotate-[6deg]"
                     style={{
                         transform: 'translate(8px, -8px) rotate(4deg)',
@@ -135,7 +139,7 @@ const AlertImagesStack = ({ alert, onClick }) => {
             )}
 
             {/* Second photo (middle) */}
-            <div 
+            <div
                 className="absolute inset-0 rounded-lg shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:rotate-[3deg]"
                 style={{
                     transform: 'translate(4px, -4px) rotate(-3deg)',
@@ -150,7 +154,7 @@ const AlertImagesStack = ({ alert, onClick }) => {
             </div>
 
             {/* Top photo (main) */}
-            <div 
+            <div
                 className="absolute inset-0 bg-white rounded-lg shadow-md transition-all duration-300 group-hover:-translate-y-0.5 group-hover:rotate-0 z-30 overflow-hidden"
             >
                 <ThumbnailImage
@@ -273,6 +277,16 @@ const SecurityAlerts = () => {
     useEffect(() => {
         fetchZones();
     }, []);
+
+    // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
+    const alertTotal = useCallback(
+        (f) => getSecurityAlerts({ ...buildSecurityAlertQuery(f), page: 1, limit: 1 }).then(totalOf),
+        [],
+    );
+    const statusCounts = useFacetCounts(filters, 'status', ['open', 'new', 'acknowledged', 'resolved'], alertTotal);
+    const typeCounts = useFacetCounts(filters, 'alert_type', ['stranger', 'crowd', 'intrusion', 'person_watchlist_match', 'unknown_vehicle', 'vehicle_unauthorized', 'vehicle_control_match', 'device_error', 'device_maintenance'], alertTotal);
+    const severityCounts = useFacetCounts(filters, 'severity', ['critical', 'urgent', 'high', 'medium', 'low'], alertTotal);
+    const zoneCounts = useFacetCounts(filters, 'zone_id', zones.map(z => z.id), alertTotal);
 
     useEffect(() => {
         fetchAlerts(filters);
@@ -494,15 +508,10 @@ const SecurityAlerts = () => {
             {/* HEADER */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-platinum-tint">
                 <div>
-                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-                        <ShieldAlert className="w-3.5 h-3.5" />
-                        An ninh
-                    </span>
-                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight flex items-center">
-                        <ShieldAlert className="w-7 h-7 mr-3 text-red-500" />
+                    <PageHeading as="h1" badge="An ninh" icon={<ShieldAlert className="w-7 h-7 mr-3 text-red-500" />} className="text-2xl font-bold text-midnight-indigo tracking-tight flex items-center">
                         Trung tâm Cảnh báo An ninh
-                    </h1>
-                    <p className="text-slate-blue text-sm mt-1 ml-10">
+                    </PageHeading>
+                    <p data-page-description className="text-slate-blue text-sm mt-1">
                         Giám sát và xử lý các sự kiện an ninh, bất thường trong hệ thống.
                     </p>
                 </div>
@@ -568,7 +577,7 @@ const SecurityAlerts = () => {
             <FilterBar data-filter-grid variant="card" className="security-alert-filters bg-white p-4 rounded-2xl shadow-sm border border-platinum-tint grid gap-4">
                 <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Trạng thái</label>
-                    <select
+                    <FilterMultiSelect counts={statusCounts}
                         value={filters.status}
                         onChange={(e) => handleFilterChange('status', e.target.value)}
                         className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
@@ -578,11 +587,11 @@ const SecurityAlerts = () => {
                         <option value="new">Mới</option>
                         <option value="acknowledged">Đã tiếp nhận</option>
                         <option value="resolved">Đã xử lý</option>
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại cảnh báo</label>
-                    <select
+                    <FilterMultiSelect counts={typeCounts}
                         value={filters.alert_type}
                         onChange={(e) => handleFilterChange('alert_type', e.target.value)}
                         className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
@@ -597,23 +606,24 @@ const SecurityAlerts = () => {
                         <option value="vehicle_control_match">Biển số theo dõi</option>
                         <option value="device_error">Lỗi thiết bị</option>
                         <option value="device_maintenance">Camera cần bảo trì</option>
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field relative">
                     <label htmlFor="security-alert-severity" className="block text-xs font-bold text-slate-blue uppercase mb-1">Mức độ</label>
-                    <select id="security-alert-severity" value={filters.severity} onChange={e => handleFilterChange('severity', e.target.value)} className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue">
+                    <FilterMultiSelect id="security-alert-severity" counts={severityCounts} value={filters.severity} onChange={e => handleFilterChange('severity', e.target.value)} className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue">
                         <option value="">Tất cả mức độ</option>
                         <option value="critical">Nghiêm trọng</option>
                         <option value="urgent">Khẩn cấp</option>
                         <option value="high">Cao</option>
                         <option value="medium">Trung bình</option>
                         <option value="low">Thấp</option>
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field relative">
                     <label htmlFor="security-alert-location" className="block text-xs font-bold text-slate-blue uppercase mb-1">Vị trí</label>
-                    <select
+                    <FilterMultiSelect
                         id="security-alert-location"
+                        counts={zoneCounts}
                         value={filters.zone_id}
                         onChange={(e) => handleFilterChange('zone_id', e.target.value)}
                         className="w-full bg-white px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
@@ -622,7 +632,7 @@ const SecurityAlerts = () => {
                         {zones.map(z => (
                             <option key={z.id} value={z.id}>{[z.zone_name, z.building, z.floor ? (/^(tầng|tang)/i.test(String(z.floor)) ? z.floor : `Tầng ${z.floor}`) : ''].filter(Boolean).join(' · ')}</option>
                         ))}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="security-alert-time-filters">
                     <CalendarRangePresets from={filters.from} to={filters.to} onChange={range => { setFilters(previous => ({ ...previous, ...range, page: 1 })); setSelectedIds([]); }} />
@@ -677,7 +687,7 @@ const SecurityAlerts = () => {
                             {loading && alerts.length === 0 ? (
                                 <tr>
                                     <td colSpan="8" className="p-8 text-center text-slate-blue">
-                                        <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3" />
+                                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" />
                                         Đang tải dữ liệu...
                                     </td>
                                 </tr>
@@ -989,7 +999,7 @@ const SecurityAlerts = () => {
                             <div className="flex justify-end gap-3 pt-4 border-t border-platinum-tint">
                                 <button type="button" onClick={() => setResolveModal({ open: false, alert: null })} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-platinum-tint rounded-xl hover:bg-slate-50 transition-colors">Hủy bỏ</button>
                                 <button type="submit" disabled={actionLoading} className="px-5 py-2.5 text-sm font-semibold text-white bg-action-blue rounded-xl hover:bg-glacier-blue transition-colors flex items-center disabled:opacity-70">
-                                    {actionLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                                    {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
                                     Đóng cảnh báo
                                 </button>
                             </div>
@@ -1217,8 +1227,8 @@ const SecurityAlerts = () => {
                                                         {Math.round(occ.confidence * 100)}%
                                                     </span>
                                                     <div className="w-12 bg-slate-200 h-1 rounded-full overflow-hidden shrink-0">
-                                                        <div 
-                                                            className={`h-full ${occ.confidence >= 0.8 ? 'bg-green-500' : 'bg-amber-500'}`} 
+                                                        <div
+                                                            className={`h-full ${occ.confidence >= 0.8 ? 'bg-green-500' : 'bg-amber-500'}`}
                                                             style={{ width: `${Math.min(Math.max(occ.confidence * 100, 0), 100)}%` }}
                                                         />
                                                     </div>
@@ -1263,7 +1273,7 @@ const SecurityAlerts = () => {
                 endpoint="/reports/security-alert/exports"
                 range={{ from: filters.from, to: filters.to }}
                 filters={{ status: filters.status, alertType: filters.alert_type, zoneId: filters.zone_id, severity: filters.severity }}
-                filterSummary={[filters.status ? `Trạng thái: ${{ new: 'Mới', acknowledged: 'Đã tiếp nhận', resolved: 'Đã xử lý' }[filters.status] || 'Đã chọn'}` : 'Tất cả trạng thái', filters.alert_type ? `Loại cảnh báo: ${getAlertTypeLabel(filters.alert_type)}` : 'Tất cả loại cảnh báo', filters.severity ? `Mức độ: ${getSeverityMeta(filters.severity).label}` : 'Tất cả mức độ', filters.zone_id ? `Vị trí: ${zones.find(zone => zone.id === filters.zone_id)?.zone_name || 'Đã chọn'}` : 'Toàn hệ thống']}
+                filterSummary={[filters.status ? `Trạng thái: ${filterValues(filters.status).map(value => ({ open: 'Đang mở', new: 'Mới', acknowledged: 'Đã tiếp nhận', resolved: 'Đã xử lý' }[value] || value)).join(', ')}` : 'Tất cả trạng thái', filters.alert_type ? `Loại cảnh báo: ${getAlertTypeLabel(filters.alert_type)}` : 'Tất cả loại cảnh báo', filters.severity ? `Mức độ: ${filterValues(filters.severity).map(value => getSeverityMeta(value).label).join(', ')}` : 'Tất cả mức độ', filters.zone_id ? `Vị trí: ${filterValues(filters.zone_id).map(value => zones.find(zone => zone.id === value)?.zone_name || 'Đã chọn').join(', ')}` : 'Toàn hệ thống']}
                 formats={['xlsx', 'pdf']}
                 title="Xuất báo cáo sự kiện an ninh"
             />

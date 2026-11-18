@@ -29,20 +29,20 @@ const Button = ({ standard, label = 'Xuất báo cáo', busy = false, disabled, 
             disabled={disabled || loading} aria-busy={loading || undefined}
             data-report-export className={`camai-report-export-button${fullWidth ? ' camai-report-export-full' : ''}${alignEnd ? ' camai-report-export-end' : ''}`}>
             {loading ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : <Download aria-hidden="true" />}
-            <span>{loading ? 'Đang xuất…' : label}</span>
+            <span>{loading ? 'Đang xuất...' : label}</span>
             {menu && <ChevronDown aria-hidden="true" />}
         </button>
     );
 };
 
-const RoutedButton = props => {
+const RoutedButton = ({ forceStandard = false, ...props }) => {
     const { pathname } = useLocation();
-    return <Button {...props} standard={STANDARD_AREAS.has(pathname.split('/')[1])} />;
+    return <Button {...props} standard={forceStandard || STANDARD_AREAS.has(pathname.split('/')[1])} />;
 };
 
-const ReportExportButton = props => {
+const ReportExportButton = ({ forceStandard = false, ...props }) => {
     const inRouter = useInRouterContext();
-    return inRouter ? <RoutedButton {...props} /> : <Button {...props} standard />;
+    return inRouter ? <RoutedButton {...props} forceStandard={forceStandard} /> : <Button {...props} standard />;
 };
 
 export default ReportExportButton;

@@ -1,12 +1,6 @@
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import RefreshButton from '../../components/common/RefreshButton';
-import {
-    AlertTriangle, Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
-    ClipboardList, Clock, Cpu, Download, ExternalLink, Eye, FileText, Film, Loader, Mail, Mic, MicOff,
-    MonitorUp, Play, Plus, RefreshCw, Shield, Smile,
-    StickyNote, Timer, UserCheck, UserX, Users, Video as VideoIcon, VideoOff,
-    VolumeX, X, Edit2, MessageSquare, List
-} from 'lucide-react';
+import { AlertTriangle, Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardList, Clock, Cpu, Download, ExternalLink, Eye, FileText, Film, Loader, Mail, Mic, MicOff, MonitorUp, Play, Plus, RefreshCw, Shield, Smile, StickyNote, Timer, UserCheck, UserX, Users, Video as VideoIcon, VideoOff, VolumeX, X, Edit2, MessageSquare, List, Loader2 } from 'lucide-react';
 import { IoMic, IoMicOff, IoHandLeft, IoVolumeHigh, IoHappy, IoTime, IoCall, IoArrowBack } from 'react-icons/io5';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { renderAsync as renderDocxAsync } from 'docx-preview';
@@ -1275,7 +1269,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                 {
                     direction: autoFaceScanDirection,
                     snapshotImageBase64,
-                    cameraName: 'Camera phong hop'
+                    cameraName: 'Camera phòng họp'
                 }
             );
             if (!res?.success) {
@@ -1390,7 +1384,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
     if (loading || !meetingState) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-cloud-mist">
-                <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                 <p className="mt-4 text-slate-blue text-sm font-semibold">Đang nạp dữ liệu phòng họp...</p>
             </div>
         );
@@ -2032,7 +2026,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
             {isLobbyReady && meetingState.status === 'scheduled' && (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 z-10">
                     <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-platinum-tint shadow-sm-2 space-y-6">
-                        <div className="w-14 h-14 border-4 border-action-blue border-t-transparent rounded-full animate-spin mx-auto" />
+                        <Loader2 className="w-14 h-14 mx-auto text-action-blue animate-spin" />
                         <div className="text-center space-y-1.5">
                             <h2 className="text-lg font-extrabold text-midnight-indigo">Chờ chủ tọa bắt đầu...</h2>
                             <p className="text-xs text-slate-blue leading-relaxed">
@@ -2694,7 +2688,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                     className="ml-2 shrink-0 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-[9px] font-extrabold flex items-center gap-1 transition-all"
                                                                 >
                                                                     {manualCheckInLoading === p.id ? (
-                                                                        <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                                                        <Loader2 className="w-3 h-3 text-white animate-spin" />
                                                                     ) : (
                                                                         <><UserCheck className="w-3 h-3" /> Điểm danh</>
                                                                     )}
@@ -2818,7 +2812,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                     className="w-full py-1.5 bg-action-blue text-white rounded-lg text-[10px] font-extrabold hover:bg-glacier-blue disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
                                                 >
                                                     {liveTagSubmitting ? (
-                                                        <><span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Đang gắn...</>
+                                                        <><Loader2 className="w-3 h-3 text-white animate-spin" /> Đang gắn...</>
                                                     ) : (
                                                         <><UserCheck className="w-3 h-3" /> Gắn thẻ người nói</>
                                                     )}
@@ -3291,7 +3285,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                     title="Hủy điểm danh"
                                                                 >
                                                                     {manualCheckInLoading === p.id
-                                                                        ? <span className="w-3.5 h-3.5 border-2 border-slate-blue/30 border-t-slate-blue rounded-full animate-spin block" />
+                                                                        ? <Loader2 className="w-3.5 h-3.5 block text-slate-blue animate-spin" />
                                                                         : <UserX className="w-3.5 h-3.5" />
                                                                     }
                                                                 </button>
@@ -3302,7 +3296,7 @@ const InMeetingRoom = ({ isPublic = false }) => {
                                                                     className="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-[9px] font-bold flex items-center gap-1 transition-all"
                                                                 >
                                                                     {manualCheckInLoading === p.id
-                                                                        ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                        ? <Loader2 className="w-3 h-3 text-white animate-spin" />
                                                                         : <><UserCheck className="w-3 h-3" /> Điểm</>
                                                                     }
                                                                 </button>

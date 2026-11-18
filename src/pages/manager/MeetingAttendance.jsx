@@ -1,8 +1,9 @@
+import PageHeading from '../../components/common/PageHeading';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Activity, AlertTriangle, ArrowLeft, Calendar, Clock, Search, Users, MapPin, ArrowRight } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowLeft, Calendar, Clock, Search, Users, MapPin, ArrowRight, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { getMeetings } from '../../service/businessAdminServices';
 import MeetingPresenceIVSS from '../../components/meeting/MeetingPresenceIVSS';
@@ -135,11 +136,10 @@ const MeetingAttendance = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-action-blue" />
+                    <PageHeading as="h1" badge="Chuyên cần" icon={<Activity className="w-5 h-5 text-action-blue" />} className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
                         Chuyên cần phòng ban
-                    </h1>
-                    <p className="text-xs text-slate-blue mt-0.5">Xem thời lượng tham dự thực tế của nhân viên theo từng cuộc họp</p>
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-0.5">Xem thời lượng tham dự thực tế của nhân viên theo từng cuộc họp</p>
                 </div>
             </div>
 
@@ -206,7 +206,7 @@ const MeetingAttendance = () => {
 
                 {loading ? (
                     <div className="p-8 flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                        <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                         <span data-ui-text="primary" className="text-xs text-slate-blue font-semibold">Đang tải danh sách cuộc họp...</span>
                     </div>
                 ) : error ? (

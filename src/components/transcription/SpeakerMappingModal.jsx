@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, AlertCircle, CheckCircle, Headphones } from 'lucide-react';
+import { X, Play, AlertCircle, CheckCircle, Headphones, Loader2 } from 'lucide-react';
 import { getTranscriptSpeakers, updateSpeakerMappings } from '../../service/transcriptionServices';
 import { getMeetingById as getMeetingEmployee, getMeetingMediaFiles as getMediaEmp, getMediaFile as getFileEmp } from '../../service/employeeServices';
 import { getMeetingById as getMeetingManager, getMeetingMediaFiles as getMediaMgr, getMediaFile as getFileMgr } from '../../service/managerServices';
@@ -167,7 +167,7 @@ const SpeakerMappingModal = ({ isOpen, onClose, transcriptId, meetingId, onMappi
                     <div className="flex-1 overflow-y-auto p-6">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-12">
-                                <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                 <p className="text-sm font-semibold text-slate-blue mt-4">Đang phân tích các cụm giọng nói...</p>
                             </div>
                         ) : resultData ? (
@@ -289,7 +289,7 @@ const SpeakerMappingModal = ({ isOpen, onClose, transcriptId, meetingId, onMappi
                                 className="px-5 py-2 bg-action-blue text-white rounded-xl text-xs font-bold shadow-md shadow-action-blue/20 hover:bg-glacier-blue transition-colors flex items-center gap-2 disabled:opacity-50"
                             >
                                 {saving ? (
-                                    <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Đang lưu...</>
+                                    <><Loader2 className="w-3.5 h-3.5 text-white animate-spin" /> Đang lưu...</>
                                 ) : (
                                     <>Lưu tất cả</>
                                 )}

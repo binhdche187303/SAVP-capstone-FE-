@@ -1,10 +1,12 @@
+import { totalOf, useProbeCounts } from '../../hooks/useFilterCounts';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import ReportExportAction from '../../components/common/ReportExportAction';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import './AuditLogsFilters.css';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
-import { Activity, Filter } from 'lucide-react';
+import { Activity, Filter, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -256,6 +258,23 @@ const AuditLogs = () => {
         }
     }, [selectedAction, selectedEntity, selectedSeverity, startDate, endDate, searchParams]);
 
+    // Số đếm cạnh lựa chọn ô "Mức độ" (đếm theo các bộ lọc khác). Ô "Loại hành động" đã có số từ API riêng.
+    const severityBaseKey = JSON.stringify({ searchParams, selectedAction, selectedEntity, startDate, endDate });
+    const severityCounts = useProbeCounts(
+        ['info', 'warning', 'error', 'critical'],
+        (value) => getAuditLogs({
+            ...searchParams,
+            action: selectedAction || undefined,
+            entity: selectedEntity || undefined,
+            severity: value || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+            page: 1,
+            limit: 1,
+        }).then(totalOf),
+        severityBaseKey,
+    );
+
     useEffect(() => {
         fetchLogs(1, meta.limit);
         return () => { fetchVersion.current += 1; };
@@ -464,19 +483,19 @@ const AuditLogs = () => {
                             onChange={event => setSearch(event.target.value)} />
                     </FilterField>
                     <FilterField label="Loại hành động">
-                        <select value={selectedAction} onChange={event => setSelectedAction(event.target.value)}>
+                        <FilterMultiSelect value={selectedAction} onChange={event => setSelectedAction(event.target.value)}>
                             <option value="">Tất cả hành động</option>
                             {actionTypes.map(action => <option key={action.actionType} value={action.actionType}>{formatActionName(action.actionType)} ({action.count})</option>)}
-                        </select>
+                        </FilterMultiSelect>
                     </FilterField>
                     <FilterField label="Mức độ">
-                        <select value={selectedSeverity} onChange={event => setSelectedSeverity(event.target.value)}>
+                        <FilterMultiSelect counts={severityCounts} value={selectedSeverity} onChange={event => setSelectedSeverity(event.target.value)}>
                             <option value="">Tất cả mức độ</option>
                             <option value="info">Thành công (Info)</option>
                             <option value="warning">Cảnh báo (Warning)</option>
                             <option value="error">Thất bại (Error)</option>
                             <option value="critical">Nghiêm trọng (Critical)</option>
-                        </select>
+                        </FilterMultiSelect>
                     </FilterField>
                 </div>
                 <div className="audit-log-filter-time">
@@ -509,7 +528,7 @@ const AuditLogs = () => {
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
                 {loading && logsList.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20">
-                        <div className="w-10 h-10 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin"></div>
+                        <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                         <p className="text-slate-blue text-sm mt-4">Đang tải lịch sử nhật ký hệ thống...</p>
                     </div>
                 ) : (
@@ -756,7 +775,7 @@ const AuditLogs = () => {
 
                         {actorDetailLoading || !selectedActorUser ? (
                             <div className="p-12 flex flex-col items-center justify-center">
-                                <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                 <p className="mt-4 text-slate-blue text-sm">Đang tải thông tin tài khoản...</p>
                             </div>
                         ) : (

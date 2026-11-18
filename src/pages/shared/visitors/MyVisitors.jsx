@@ -1,9 +1,13 @@
+import { countBy } from '../../../hooks/useFilterCounts';
+import PageHeading from '../../../components/common/PageHeading';
+import FilterMultiSelect from '../../../components/common/FilterMultiSelect';
+import { filterValues, matchesFilter } from '../../../utils/filterSelection';
 import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
 import PaginatedCollection from '../../../components/common/PaginatedCollection';
 import FilterBar from '../../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../../components/common/PaginationFooter';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, Link2, UserCheck, UserPlus } from 'lucide-react';
+import { Bell, Filter, Link2, UserCheck, UserPlus, Loader2 } from 'lucide-react';
 import {
     getMyVisits, getMyNotifications, markMyNotificationsRead, rejectVisit, createVisit, getVisitorLookups,
 } from '../../../service/visitorService';
@@ -85,41 +89,7 @@ const Pager = ({ page, total, onChange, pageSize, onPageSizeChange }) => {
     );
 };
 
-const StatusFilter = ({ value, onChange }) => {
-    const [open, setOpen] = useState(false);
-    const selected = VISIT_STATUS_OPTIONS.find(([option]) => option === value) || VISIT_STATUS_OPTIONS[0];
-    return (
-        <div className="relative min-w-[190px]">
-            <button
-                id="my-visitors-status"
-                type="button"
-                className={`${inputCls} w-full flex items-center justify-between gap-3 text-xs font-semibold text-left`}
-                aria-haspopup="listbox"
-                aria-expanded={open}
-                onClick={() => setOpen((current) => !current)}
-            >
-                <span className="truncate">{selected[1]}</span>
-                <span data-ui-text="action" className="text-[10px] text-slate-blue">▾</span>
-            </button>
-            {open && (
-                <div className="absolute left-0 top-full z-30 mt-1 min-w-[220px] overflow-hidden rounded-xl border border-platinum-tint bg-white p-1 shadow-lg" role="listbox" aria-label="Trạng thái">
-                    {VISIT_STATUS_OPTIONS.map(([option, label]) => (
-                        <button
-                            key={option || 'all'}
-                            type="button"
-                            role="option"
-                            aria-selected={option === value}
-                            className={`block w-full whitespace-nowrap rounded-lg px-3 py-2 text-left text-xs leading-5 font-sans ${option === value ? 'bg-blue-50 font-semibold text-action-blue' : 'text-midnight-indigo hover:bg-cloud-mist'}`}
-                            onClick={() => { onChange(option); setOpen(false); }}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
+const StatusFilter = ({ value, onChange, counts }) => <FilterMultiSelect id="my-visitors-status" counts={counts} value={value} onChange={event => onChange(event.target.value)}>{VISIT_STATUS_OPTIONS.map(([option, label]) => <option key={option} value={option}>{label}</option>)}</FilterMultiSelect>;
 
 const Block = ({ title, countId, count, empty, footer, children }) => (
     <div className={`${cardCls} overflow-hidden`}>
@@ -234,7 +204,7 @@ const MyVisitors = () => {
             ].filter(Boolean).join(' ').toLocaleLowerCase('vi-VN');
             const day = localDateKey(visit.scheduledFrom);
             return (!q || haystack.includes(q))
-                && (!filter.status || visit.status === filter.status || (filter.status === 'checked_in' && visit.status === 'must_leave'))
+                && (matchesFilter(filter.status, visit.status) || (filterValues(filter.status).includes('checked_in') && visit.status === 'must_leave'))
                 && (!filter.from || day >= filter.from)
                 && (!filter.to || day <= filter.to);
         };
@@ -244,6 +214,21 @@ const MyVisitors = () => {
             past: visits.past.filter(matches),
         };
     }, [visits, filter]);
+
+    // Số đếm cạnh lựa chọn ô Trạng thái: đếm trên cả 3 nhóm theo từ khoá + khoảng ngày (không áp trạng thái).
+    // "Đang trong khuôn viên" gồm cả khách "Phải rời khuôn viên" (giống quy tắc lọc ở trên).
+    const statusCounts = useMemo(() => {
+        if (!visits) return undefined;
+        const q = filter.q.trim().toLocaleLowerCase('vi-VN');
+        const scoped = [...visits.pending, ...visits.upcoming, ...visits.past].filter((visit) => {
+            const haystack = [visit.visitor.fullName, visit.code, visit.visitor.phone, visit.visitor.email, visit.visitor.organization, visit.purpose]
+                .filter(Boolean).join(' ').toLocaleLowerCase('vi-VN');
+            const day = localDateKey(visit.scheduledFrom);
+            return (!q || haystack.includes(q)) && (!filter.from || day >= filter.from) && (!filter.to || day <= filter.to);
+        });
+        const counts = countBy(scoped, (visit) => visit.status);
+        return { ...counts, checked_in: (counts.checked_in || 0) + (counts.must_leave || 0) };
+    }, [visits, filter.q, filter.from, filter.to]);
 
     const clearFilter = () => {
         setFilter({ q: '', status: '', from: '', to: '' });
@@ -273,11 +258,10 @@ const MyVisitors = () => {
         <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <UserCheck className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Khách" icon={<UserCheck className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Khách của tôi
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">Duyệt khách xin gặp bạn, mời khách đến làm việc và nhận thông báo khi khách đến cổng.</p>
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">Duyệt khách xin gặp bạn, mời khách đến làm việc và nhận thông báo khi khách đến cổng.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <button type="button" className={btnGhost} onClick={copyInviteLink}>
@@ -302,7 +286,7 @@ const MyVisitors = () => {
                     <p>Khách chưa có ảnh khuôn mặt, bảo vệ sẽ chụp khi khách đến.</p>
                 </div>
             )}
-            <FilterBar variant="card" className={`${cardCls} p-4 flex flex-wrap items-end gap-3 font-sans`}>
+            <FilterBar forceStandard variant="card" className={`${cardCls} p-4 flex flex-wrap items-end gap-3 font-sans`}>
                 <div className="camai-filter-field">
                     <label htmlFor="my-visitors-search" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Tìm kiếm</label>
                     <input
@@ -315,7 +299,7 @@ const MyVisitors = () => {
                 </div>
                 <div className="camai-filter-field">
                     <label htmlFor="my-visitors-status" className="block text-[10px] font-bold text-slate-blue uppercase mb-1.5">Trạng thái</label>
-                    <StatusFilter value={filter.status} onChange={(status) => updateFilter({ status })} />
+                    <StatusFilter value={filter.status} counts={statusCounts} onChange={(status) => updateFilter({ status })} />
                 </div>
 
                 <div className="camai-filter-period-row">
@@ -330,11 +314,11 @@ const MyVisitors = () => {
                             <input id="my-visitors-to" type="date" className={`${inputCls} text-sm font-semibold`} value={filter.to} onChange={(e) => updateFilter({ to: e.target.value })} />
                         </div>
                     </div>
-                    <button data-filter-action type="button" className={btnGhost} onClick={clearFilter} disabled={!filter.q && !filter.status && !filter.from && !filter.to}>Xóa lọc</button>
+                    <button data-filter-action type="button" className={btnGhost} onClick={clearFilter} disabled={!filter.q && !filter.status && !filter.from && !filter.to}><Filter className="w-4 h-4" aria-hidden="true" /> Xóa bộ lọc</button>
                 </div>
             </FilterBar>
             {error && <div className={errorBoxCls}>{error}</div>}
-            {!error && !visits && <div className="flex items-center justify-center h-64"><div className={spinnerCls} /></div>}
+            {!error && !visits && <div className="flex items-center justify-center h-64"><Loader2 className={spinnerCls} /></div>}
 
             {visits && (
                 <div className="grid lg:grid-cols-3 gap-6 items-start">

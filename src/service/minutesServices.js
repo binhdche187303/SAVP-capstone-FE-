@@ -71,7 +71,7 @@ export const updateMeetingMinutes = async (minutesId, payload) => {
 };
 
 /**
- * Xoá biên bản cuộc họp nháp
+ * Xóa biên bản cuộc họp nháp
  * @param {string} minutesId 
  */
 export const deleteMeetingMinutes = async (minutesId) => {

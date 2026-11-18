@@ -101,7 +101,7 @@ const ReturningVisitorPanel = ({ onBackToNew, onVerified }) => {
                     <div className="flex justify-between gap-3">
                         <button type="button" className={btnGhost} onClick={onBackToNew}>Đăng ký lần đầu</button>
                         <button type="submit" className={btnPrimary} disabled={loading || !contact.trim()}>
-                            {loading ? 'Đang kiểm tra…' : 'Gửi xác thực qua Zalo OA'}
+                            {loading ? 'Đang kiểm tra...' : 'Gửi xác thực qua Zalo OA'}
                         </button>
                     </div>
                 </form>
@@ -126,7 +126,7 @@ const ReturningVisitorPanel = ({ onBackToNew, onVerified }) => {
                     <div className="flex justify-between gap-3">
                         <button type="button" className={btnGhost} onClick={() => { setRequest(null); setCode(''); setError(null); }}>Đổi thông tin</button>
                         <button type="submit" className={btnPrimary} disabled={loading || code.length !== 6}>
-                            {loading ? 'Đang xác thực…' : 'Xác thực và tiếp tục'}
+                            {loading ? 'Đang xác thực...' : 'Xác thực và tiếp tục'}
                         </button>
                     </div>
                 </form>
@@ -347,7 +347,7 @@ const VisitorRegister = () => {
                     <button type="button" className={btnGhost} onClick={goBack} disabled={step === 0 || submitting}>Quay lại</button>
                     {step < STEPS.length - 1
                         ? <button type="button" className={btnPrimary} onClick={goNext}>Tiếp tục</button>
-                        : <button type="button" className={btnPrimary} onClick={submit} disabled={submitting}>{submitting ? 'Đang gửi…' : 'Gửi đăng ký'}</button>}
+                        : <button type="button" className={btnPrimary} onClick={submit} disabled={submitting}>{submitting ? 'Đang gửi...' : 'Gửi đăng ký'}</button>}
                 </div>
             </div>
 

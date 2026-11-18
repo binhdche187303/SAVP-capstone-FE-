@@ -6,7 +6,7 @@
  *
  *  1. Đặt file vào:  public/models/fleet.glb
  *
- *  2. Xoá toàn bộ phần "PROCEDURAL GEOMETRY" bên dưới.
+ *  2. Xóa toàn bộ phần "PROCEDURAL GEOMETRY" bên dưới.
  *
  *  3. Thay bằng đoạn code sau:
  *

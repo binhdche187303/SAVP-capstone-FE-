@@ -1,3 +1,6 @@
+import PageHeading from '../../components/common/PageHeading';
+import { matchesFilter, filterValues } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import './ZoneTrafficAnalytics.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -124,15 +127,15 @@ const ZoneTrafficAnalytics = () => {
     );
     const floorOptions = useMemo(
         () => [...new Set(
-            zoneCatalog.filter((z) => !building || z.building === building).map((z) => z.floor).filter(Boolean)
+            zoneCatalog.filter((z) => matchesFilter(building, z.building)).map((z) => z.floor).filter(Boolean)
         )].sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })),
         [zoneCatalog, building]
     );
 
     const handleBuildingChange = (value) => {
         setBuilding(value);
-        const floorsOfBuilding = zoneCatalog.filter((z) => !value || z.building === value).map((z) => z.floor);
-        if (floor && !floorsOfBuilding.includes(floor)) setFloor('');
+        const floorsOfBuilding = zoneCatalog.filter((z) => matchesFilter(value, z.building)).map((z) => z.floor);
+        if (floor && !filterValues(floor).every(item => floorsOfBuilding.includes(item))) setFloor('');
     };
 
     const handlePreset = (value) => {
@@ -441,11 +444,10 @@ const ZoneTrafficAnalytics = () => {
             {/* Header */}
             <div className="zone-traffic-header border-b border-platinum-tint pb-[1.25rem]">
                 <div className="zone-traffic-heading min-w-0 flex-1">
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <Activity className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Khuôn viên" icon={<Activity className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Lưu lượng & Bản đồ nhiệt khu vực công cộng
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">
                         Theo dõi số người tại hành lang, sảnh và khu học tập theo giờ; phát hiện khu vực và khung giờ đông nhất.
                     </p>
                 </div>
@@ -495,24 +497,24 @@ const ZoneTrafficAnalytics = () => {
                 )}
                 <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tòa nhà</label>
-                    <select value={building} onChange={(e) => handleBuildingChange(e.target.value)} className={inputCls}>
+                    <FilterMultiSelect value={building} onChange={(e) => handleBuildingChange(e.target.value)} className={inputCls}>
                         <option value="">Tất cả tòa nhà</option>
                         {buildingOptions.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tầng</label>
-                    <select value={floor} onChange={(e) => setFloor(e.target.value)} className={inputCls}>
+                    <FilterMultiSelect value={floor} onChange={(e) => setFloor(e.target.value)} className={inputCls}>
                         <option value="">Tất cả tầng</option>
                         {floorOptions.map((f) => <option key={f} value={f}>Tầng {f}</option>)}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Nhóm camera</label>
-                    <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className={inputCls}>
+                    <FilterMultiSelect value={groupId} onChange={(e) => setGroupId(e.target.value)} className={inputCls}>
                         <option value="">Tất cả camera</option>
                         {groups.map((g) => <option key={g.id} value={g.id}>{g.group_name}</option>)}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
 
             </FilterBar>

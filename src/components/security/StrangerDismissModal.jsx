@@ -77,7 +77,7 @@ const StrangerDismissModal = ({ stranger, onClose, onDone }) => {
 
                 <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-xs text-slate-blue">
                     {sightings === null
-                        ? 'Đang tải các lượt xuất hiện…'
+                        ? 'Đang tải các lượt xuất hiện...'
                         : sightings.length === 0
                             ? 'Không còn lượt nào ở trạng thái chờ xử lý.'
                             : <>Sẽ đóng <b className="text-midnight-indigo">{sightings.length} lượt</b> (gần nhất {fmtDateTime(sightings[0].time)}).</>}
@@ -103,10 +103,10 @@ const StrangerDismissModal = ({ stranger, onClose, onDone }) => {
 
                 {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
                 <div className="flex justify-end gap-2">
-                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-blue hover:bg-slate-100">Huỷ</button>
+                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-blue hover:bg-slate-100">Hủy</button>
                     <button type="submit" disabled={!canSubmit}
                         className="px-4 py-2 rounded-xl bg-midnight-indigo hover:bg-slate-800 text-white text-sm font-bold disabled:opacity-50 inline-flex items-center gap-2">
-                        <ShieldOff className="w-4 h-4" />{saving ? 'Đang lưu…' : 'Đóng cảnh báo'}
+                        <ShieldOff className="w-4 h-4" />{saving ? 'Đang lưu...' : 'Đóng cảnh báo'}
                     </button>
                 </div>
             </form>

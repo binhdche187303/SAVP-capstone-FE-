@@ -54,7 +54,7 @@ const PersonalAttendancePoints = ({ from, to, report }) => {
             <Link to="/employee/attendance-points" className="text-sm font-semibold text-action-blue hover:underline">Xem chi tiết điểm</Link>
         </div>
         <p data-ui-text="secondary">Theo dõi điểm của từng ngày có cuộc họp trong khoảng thời gian đã chọn.</p>
-        {result.loading ? <div role="status" className="personal-points-chart-empty text-slate-blue">Đang tải biểu đồ điểm…</div>
+        {result.loading ? <div role="status" className="personal-points-chart-empty text-slate-blue">Đang tải biểu đồ điểm...</div>
             : result.error ? <p role="alert" className="text-sm text-red-600">Chưa tải được điểm chuyên cần. Bạn có thể xem tại báo cáo điểm hoặc tải lại trang.</p> : <>
             {chartData.length ? <div className="personal-points-line-chart" role="img"
                 aria-label={`Điểm theo ngày: ${chartData.map(item => `${formatChartDay(item.day)}: ${item.points} điểm`).join('; ')}`}>

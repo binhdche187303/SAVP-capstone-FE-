@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-    ArrowDown, ArrowLeft, ArrowUp, Eye, EyeOff, FileSpreadsheet, FileText, FileType2, GripVertical, Lock, Plus, Save, Trash2,
-} from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Eye, EyeOff, FileSpreadsheet, FileText, FileType2, GripVertical, Lock, Plus, Save, Trash2, Loader2 } from 'lucide-react';
 import { REPORT_DEFINITIONS, REPORT_TYPES, getReportDefinition } from '../../../config/reportDefinitions';
 import { createTemplate, getTemplate, getTemplateDefaults, previewTemplate, updateTemplate } from '../../../service/reportTemplateService';
 import toast from '../../../utils/toast';
@@ -150,7 +148,7 @@ const ReportTemplateEditor = () => {
             </div>
         );
     }
-    if (!form) return <div className="flex items-center justify-center h-64"><div className={spinnerCls} /></div>;
+    if (!form) return <div className="flex items-center justify-center h-64"><Loader2 className={spinnerCls} /></div>;
 
     const fixedRow = (key, label, toggle) => (
         <OutlineRow key={key} label={label} locked active={selected === key} onSelect={() => setSelected(key)} toggle={toggle} muted={toggle && !toggle.on} />
@@ -183,10 +181,10 @@ const ReportTemplateEditor = () => {
                 </label>
                 <div className="flex items-center gap-2 ml-auto">
                     {dirty && <span data-ui-text="badge" className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">Chưa lưu</span>}
-                    <button type="button" className={btnGhost} disabled={Boolean(previewing)} onClick={() => preview('pdf')}><FileText className="w-4 h-4" /> {previewing === 'pdf' ? 'Đang dựng…' : 'Xem thử PDF'}</button>
+                    <button type="button" className={btnGhost} disabled={Boolean(previewing)} onClick={() => preview('pdf')}><FileText className="w-4 h-4" /> {previewing === 'pdf' ? 'Đang dựng...' : 'Xem thử PDF'}</button>
                     <button type="button" className={`${btnGhost} !px-3`} disabled={Boolean(previewing)} onClick={() => preview('docx')} title="Tải bản xem thử Word"><FileType2 className="w-4 h-4" /> Word</button>
                     <button type="button" className={`${btnGhost} !px-3`} disabled={Boolean(previewing)} onClick={() => preview('xlsx')} title="Tải bản xem thử Excel"><FileSpreadsheet className="w-4 h-4" /> Excel</button>
-                    <button type="button" className={btnPrimary} disabled={saving || (!dirty && !isNew)} onClick={save}><Save className="w-4 h-4" /> {saving ? 'Đang lưu…' : 'Lưu mẫu'}</button>
+                    <button type="button" className={btnPrimary} disabled={saving || (!dirty && !isNew)} onClick={save}><Save className="w-4 h-4" /> {saving ? 'Đang lưu...' : 'Lưu mẫu'}</button>
                 </div>
             </div>
 

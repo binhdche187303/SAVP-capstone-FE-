@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BrainCircuit, AlertTriangle, RefreshCw } from 'lucide-react';
+import { BrainCircuit, AlertTriangle } from 'lucide-react';
 import { getBackgroundJob } from '../../service/minutesServices';
 
 const AiGeneratorProgress = ({ jobId, onComplete, onError }) => {

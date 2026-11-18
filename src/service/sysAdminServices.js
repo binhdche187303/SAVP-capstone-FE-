@@ -587,7 +587,9 @@ export const deleteVehicleControl = async (id) => {
 };
 
 export const getAdminVehicleRegistrations = async (params = {}) => {
-    const query = buildQuery(params);
+    // BE nhận `vehicle_type` (snake_case); `vehicleType` sẽ bị whitelist bỏ qua.
+    const { vehicleType, ...rest } = params;
+    const query = buildQuery(vehicleType !== undefined ? { ...rest, vehicle_type: vehicleType } : rest);
     return await get(`/anpr/admin/vehicle-registrations${query}`);
 };
 
@@ -651,6 +653,7 @@ export const updateEarlyVacancyConfig = async (data) => {
 // BE hỗ trợ phân trang + search server-side (xem BE_Plan_RoomAccessLog.md mục 1):
 // page, limit, date, search (lọc theo tên người dùng).
 export const getRoomAccessLog = async (roomId, date, params = {}) => {
+    if (Array.isArray(roomId)) return await get(`/ivss/access-log${buildQuery({ date, ...params, roomIds: roomId })}`);
     const query = buildQuery({ date, ...params });
     if (!roomId || roomId === 'all') {
         return await get(`/ivss/access-log${query}`);

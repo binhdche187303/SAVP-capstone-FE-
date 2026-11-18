@@ -1,3 +1,4 @@
+import { changeFilter } from '../../testUtils/filterSelection';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import RoomManagement from './RoomManagement';
@@ -14,21 +15,22 @@ const rooms = [
 test('one location field filters by building or by a specific floor across the whole list', async () => {
     getRoomFilterOptions.mockResolvedValue({ success: true, data: rooms });
     getRooms.mockImplementation(async params => {
-        const data = rooms.filter(room => (!params.siteName || room.siteName === params.siteName)
-            && (!params.areaName || room.areaName === params.areaName));
+        const data = rooms.filter(room => !params.locations || params.locations.some(raw => { const location = JSON.parse(raw); return (!location.siteName || room.siteName === location.siteName) && (!location.areaName || room.areaName === location.areaName); }));
         return { success: true, data, meta: { total: data.length, totalPages: 1 } };
     });
     render(<MemoryRouter initialEntries={['/business-admin/rooms']}><RoomManagement /></MemoryRouter>);
     await screen.findByText('Phòng A1');
+    fireEvent.click(screen.getByLabelText('Vị trí'));
     await screen.findByRole('option', { name: 'Tòa nhà A · Tầng 2' });
-    fireEvent.change(screen.getByLabelText('Vị trí'), { target: { value: JSON.stringify({ siteName: 'Tòa nhà A', areaName: 'Tầng 2' }) } });
-    await waitFor(() => expect(getRooms).toHaveBeenCalledWith({ siteName: 'Tòa nhà A', areaName: 'Tầng 2', page: 1, limit: 10 }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    changeFilter(screen.getByLabelText('Vị trí'), { target: { value: JSON.stringify({ siteName: 'Tòa nhà A', areaName: 'Tầng 2' }) } });
+    await waitFor(() => expect(getRooms).toHaveBeenCalledWith({ locations: [JSON.stringify({ siteName: 'Tòa nhà A', areaName: 'Tầng 2' })], page: 1, limit: 10 }));
     await screen.findByText('Phòng A2');
     await waitFor(() => expect(screen.queryByText('Phòng A1')).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Vị trí'), { target: { value: JSON.stringify({ siteName: 'Tòa nhà A' }) } });
+    changeFilter(screen.getByLabelText('Vị trí'), { target: { value: JSON.stringify({ siteName: 'Tòa nhà A' }) } });
     await screen.findByText('Phòng A1');
     expect(screen.queryByText('Phòng B1')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Vị trí'), { target: { value: '' } });
+    changeFilter(screen.getByLabelText('Vị trí'), { target: { value: '' } });
     await screen.findByText('Phòng B1');
     expect(screen.queryByLabelText('Sức chứa')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Loại phòng')).not.toBeInTheDocument();

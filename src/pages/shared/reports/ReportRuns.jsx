@@ -1,3 +1,6 @@
+import { totalOf, useFacetCounts } from '../../../hooks/useFilterCounts';
+import PageHeading from '../../../components/common/PageHeading';
+import FilterMultiSelect from '../../../components/common/FilterMultiSelect';
 import './ReportRunsFilters.css';
 import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
 import ResponsiveTable from '../../../components/common/ResponsiveTable';
@@ -29,6 +32,11 @@ const ReportRuns = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [busyId, setBusyId] = useState(null);
+
+    // Số đếm cạnh lựa chọn ô "Lịch gửi" / "Trạng thái" (mỗi ô đếm theo các bộ lọc khác).
+    const runTotal = (f) => listScheduleRuns({ ...f, page: 1, limit: 1 }).then(totalOf);
+    const scheduleCounts = useFacetCounts(filters, 'scheduleId', schedules.map((s) => s.id), runTotal);
+    const runStatusCounts = useFacetCounts(filters, 'status', ['success', 'failed'], runTotal);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -78,29 +86,28 @@ const ReportRuns = () => {
                 <Link to={`${base}/report-schedules`} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-blue hover:text-action-blue mb-2">
                     <ArrowLeft className="w-3.5 h-3.5" /> Lịch gửi báo cáo
                 </Link>
-                <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                    <History className="w-6 h-6 text-action-blue" />
+                <PageHeading badge="Báo cáo" icon={<History className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                     Lịch sử gửi báo cáo
-                </h2>
-                <p className="text-xs text-slate-blue mt-1">Từng lần hệ thống tạo và gửi báo cáo: kết quả, người nhận, file đính kèm.</p>
+                </PageHeading>
+                <p data-page-description className="text-xs text-slate-blue mt-1">Từng lần hệ thống tạo và gửi báo cáo: kết quả, người nhận, file đính kèm.</p>
             </div>
 
             <FilterBar variant="card" className="report-runs-filters">
                 <div className="report-runs-filter-main">
                 <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="rr-schedule">Lịch gửi</label>
-                    <select id="rr-schedule" className={inputCls} value={filters.scheduleId} onChange={(e) => change({ scheduleId: e.target.value })}>
+                    <FilterMultiSelect id="rr-schedule" counts={scheduleCounts} className={inputCls} value={filters.scheduleId} onChange={(e) => change({ scheduleId: e.target.value })}>
                         <option value="">Tất cả</option>
                         {schedules.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="rr-status">Trạng thái</label>
-                    <select id="rr-status" className={inputCls} value={filters.status} onChange={(e) => change({ status: e.target.value })}>
+                    <FilterMultiSelect singleSelect id="rr-status" counts={runStatusCounts} className={inputCls} value={filters.status} onChange={(e) => change({ status: e.target.value })}>
                         <option value="">Tất cả</option>
                         <option value="success">Thành công</option>
                         <option value="failed">Thất bại</option>
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 </div>
                 <div className="report-runs-filter-time">
@@ -149,7 +156,7 @@ const ReportRuns = () => {
                         </thead>
                         <tbody>
                             {items.length === 0 ? (
-                                <tr><td colSpan={9} className="px-4 py-10 text-center text-xs text-slate-blue">{data ? 'Không có lần chạy nào phù hợp' : 'Đang tải dữ liệu…'}</td></tr>
+                                <tr><td colSpan={9} className="px-4 py-10 text-center text-xs text-slate-blue">{data ? 'Không có lần chạy nào phù hợp' : 'Đang tải dữ liệu...'}</td></tr>
                             ) : items.map((run) => (
                                 <tr key={run.id} className="border-b border-pale-gray last:border-0 align-top">
                                     <td className={tdCls}>{formatDateTime(run.ranAt)}</td>

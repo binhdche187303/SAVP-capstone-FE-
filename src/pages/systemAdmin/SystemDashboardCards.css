@@ -1,0 +1,8 @@
+.system-gate-traffic-kpi .camai-stat-heading {
+    gap: 6px;
+}
+
+.system-gate-traffic-kpi .camai-stat-label {
+    white-space: nowrap;
+    overflow-wrap: normal;
+}

@@ -11,4 +11,5 @@ export const btnDanger = 'inline-flex items-center justify-center gap-2 bg-red-6
 export const thCls = 'px-4 py-3 text-left text-[10px] font-bold text-slate-blue uppercase whitespace-nowrap';
 export const tdCls = 'px-4 py-3 text-xs text-midnight-indigo whitespace-nowrap';
 export const errorBoxCls = 'p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-sm';
-export const spinnerCls = 'w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin';
+// Dùng với <Loader2 className={spinnerCls} /> (lucide) — biểu tượng đang tải chung.
+export const spinnerCls = 'w-8 h-8 text-action-blue animate-spin';

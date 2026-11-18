@@ -100,7 +100,7 @@ const MinutesTabContent = ({ meetingId, isHost, isSecretary = false, transcriptS
         fetchState();
     }, [fetchState]);
 
-    // Trình ký / ký duyệt ở khung "Trình ký biên bản" ⇒ quyền sửa/xoá/ban hành đổi theo.
+    // Trình ký / ký duyệt ở khung "Trình ký biên bản" ⇒ quyền sửa/xóa/ban hành đổi theo.
     useEffect(() => {
         const onChanged = (e) => { if (e.detail?.meetingId === meetingId) fetchState(); };
         window.addEventListener('meeting-signoff-changed', onChanged);

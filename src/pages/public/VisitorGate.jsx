@@ -157,7 +157,7 @@ const VisitorGate = () => {
                             <div className={`w-56 h-72 rounded-[40%] border-4 ${scanning ? 'border-sky-300 animate-pulse' : 'border-white/50'}`} />
                         </div>
                     )}
-                    {scanning && <p className="absolute bottom-6 left-0 right-0 text-center text-sm font-semibold">Đang nhận diện khuôn mặt…</p>}
+                    {scanning && <p className="absolute bottom-6 left-0 right-0 text-center text-sm font-semibold">Đang nhận diện khuôn mặt...</p>}
 
                     {view && (
                         <div className={`absolute inset-0 ${view.cls} flex flex-col items-center justify-center text-center gap-4 p-8`} role="status">

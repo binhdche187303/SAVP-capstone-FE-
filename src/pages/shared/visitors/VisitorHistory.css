@@ -14,6 +14,14 @@
     max-width: 100%;
 }
 
+/* Short table headings must stay on one line even though long content may wrap. */
+.visitor-history-table.visitor-history-table th .visitor-history-nowrap {
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: keep-all !important;
+}
+
 /* Keep each status/reason intact; separate badges may flow onto another row. */
 .visitor-history-table.visitor-history-table td [data-ui-text="badge"] {
     white-space: nowrap !important;

@@ -1,10 +1,7 @@
+import useConfirm from '../../hooks/useConfirm';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    Search, FileText, CheckCircle, AlertTriangle,
-    RefreshCw, Edit3, Save, X, Loader2, Users, Trash2,
-    Play, Pause
-} from 'lucide-react';
+import { Search, FileText, CheckCircle, AlertTriangle, Edit3, Save, X, Loader2, Users, Trash2, Play, Pause } from 'lucide-react';
 import toast from '../../utils/toast';
 import SpeakerMappingModal from './SpeakerMappingModal';
 import {
@@ -16,6 +13,7 @@ import {
 } from '../../service/transcriptionServices';
 
 const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
+    const [confirm, confirmDialog] = useConfirm();
     const [status, setStatus] = useState('loading'); // loading, processing, ready, error, empty
     const [transcript, setTranscript] = useState(null);
     const [jobs, setJobs] = useState([]);
@@ -244,7 +242,7 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
 
     const handleDeleteTranscript = async () => {
         if (!transcript || isDeleting) return;
-        if (!window.confirm('Xóa nội dung transcript này? Thao tác không thể hoàn tác.')) return;
+        if (!(await confirm({ message: 'Xóa nội dung transcript này? Thao tác không thể hoàn tác.', confirmLabel: 'Xóa' }))) return;
 
         setIsDeleting(true);
         try {
@@ -553,6 +551,7 @@ const TranscriptViewer = ({ meetingId, isHost, mediaFiles }) => {
                     fetchTranscript(); // Refresh to show new names
                 }}
             />
+        {confirmDialog}
         </div>
     );
 };

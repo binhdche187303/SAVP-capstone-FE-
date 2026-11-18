@@ -6,6 +6,7 @@ import {
     getStrangerCandidateMeetings, getStrangerSightings, getUsers, reviewStrangerEvents,
 } from '../../service/businessAdminServices';
 import { manualAttendanceCheckIn } from '../../service/managerServices';
+import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 
 /**
  * Hậu kiểm AI nhận sai (họp 20/10): người có thẩm quyền xác nhận "các lần xuất hiện này là ai"
@@ -24,6 +25,7 @@ const StrangerReviewModal = ({ stranger, onClose, onDone }) => {
     const [picked, setPicked] = useState(new Set());
     const [query, setQuery] = useState('');
     const [users, setUsers] = useState([]);
+    const [searchingUsers, setSearchingUsers] = useState(false);
     const [user, setUser] = useState(null);
     const [meetings, setMeetings] = useState([]);
     const [meetingId, setMeetingId] = useState('');
@@ -44,14 +46,18 @@ const StrangerReviewModal = ({ stranger, onClose, onDone }) => {
             .catch(() => setMeetings([]));
     }, [stranger]);
 
+    const debouncedQuery = useDebouncedValue(query);
     useEffect(() => {
-        const t = setTimeout(() => {
-            getUsers({ search: query || undefined, limit: 8 })
-                .then((res) => setUsers(res?.data || []))
-                .catch(() => setUsers([]));
-        }, 300);
-        return () => clearTimeout(t);
-    }, [query]);
+        let cancelled = false;
+        setSearchingUsers(true);
+        getUsers({ search: debouncedQuery.trim() || undefined, limit: 8 })
+            .then((res) => { if (!cancelled) setUsers(res?.data || []); })
+            .catch(() => { if (!cancelled) setUsers([]); })
+            .finally(() => { if (!cancelled) setSearchingUsers(false); });
+        return () => { cancelled = true; };
+    }, [debouncedQuery]);
+    // Lọc ngay danh sách đang có trong lúc chờ BE trả kết quả cho từ khoá mới.
+    const visibleUsers = useInstantFilter(users, query, query !== debouncedQuery || searchingUsers);
 
     const pickedList = useMemo(() => sightings.filter((x) => picked.has(x.eventId)), [sightings, picked]);
     const togglePick = (id) => setPicked((prev) => {
@@ -144,8 +150,8 @@ const StrangerReviewModal = ({ stranger, onClose, onDone }) => {
                                     className={`${inputCls} w-full pl-9`} />
                             </div>
                             <ul className="max-h-40 overflow-y-auto divide-y border border-platinum-tint rounded-xl">
-                                {users.length === 0 && <li className="px-3 py-3 text-sm text-slate-400">Không tìm thấy người dùng.</li>}
-                                {users.map((u) => (
+                                {visibleUsers.length === 0 && <li className="px-3 py-3 text-sm text-slate-400">{searchingUsers || query !== debouncedQuery ? 'Đang tìm...' : 'Không tìm thấy người dùng.'}</li>}
+                                {visibleUsers.map((u) => (
                                     <li key={u.id}>
                                         <button type="button" onClick={() => setUser(u)} className="w-full text-left px-3 py-2 text-sm hover:bg-cloud-mist">
                                             <span className="font-semibold text-midnight-indigo">{u.fullName}</span>
@@ -177,10 +183,10 @@ const StrangerReviewModal = ({ stranger, onClose, onDone }) => {
 
                 {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
                 <div className="flex justify-end gap-2">
-                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-blue hover:bg-slate-100">Huỷ</button>
+                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-blue hover:bg-slate-100">Hủy</button>
                     <button type="submit" disabled={saving || !user || picked.size === 0}
                         className="px-4 py-2 rounded-xl bg-action-blue hover:bg-blue-700 text-white text-sm font-bold disabled:opacity-50">
-                        {saving ? 'Đang lưu…' : 'Xác nhận'}
+                        {saving ? 'Đang lưu...' : 'Xác nhận'}
                     </button>
                 </div>
             </form>

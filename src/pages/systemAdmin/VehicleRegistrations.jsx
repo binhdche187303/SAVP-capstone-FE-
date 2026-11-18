@@ -1,10 +1,12 @@
+import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, Briefcase, Car, CheckCircle2, Filter, Mail, Phone, Search, User, Users, X, XCircle, ChevronDown } from 'lucide-react';
+import { AlertTriangle, Briefcase, Car, CheckCircle2, Filter, Mail, Phone, Search, User, Users, X, XCircle, ChevronDown, Loader2 } from 'lucide-react';
 import { FaBicycle, FaCar, FaMotorcycle } from 'react-icons/fa';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -23,9 +25,9 @@ import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 // ─── helpers ───────────────────────────────────────────────────────────────
 
 const VEHICLE_META = {
-    CAR:       { label: 'Ô tô',   Icon: FaCar,        colorCls: 'text-blue-700 bg-blue-50 border-blue-200',          plateCls: 'bg-white border-blue-600 text-blue-900' },
-    MOTORBIKE: { label: 'Xe máy', Icon: FaMotorcycle, colorCls: 'text-amber-700 bg-amber-50 border-amber-200',       plateCls: 'bg-yellow-50 border-yellow-500 text-yellow-900' },
-    BICYCLE:   { label: 'Xe đạp', Icon: FaBicycle,    colorCls: 'text-emerald-700 bg-emerald-50 border-emerald-200', plateCls: 'bg-white border-slate-400 text-slate-800' },
+    car:       { label: 'Ô tô',   Icon: FaCar,        colorCls: 'text-blue-700 bg-blue-50 border-blue-200',          plateCls: 'bg-white border-blue-600 text-blue-900' },
+    motorbike: { label: 'Xe máy', Icon: FaMotorcycle, colorCls: 'text-amber-700 bg-amber-50 border-amber-200',       plateCls: 'bg-yellow-50 border-yellow-500 text-yellow-900' },
+    bicycle:   { label: 'Xe đạp', Icon: FaBicycle,    colorCls: 'text-emerald-700 bg-emerald-50 border-emerald-200', plateCls: 'bg-white border-slate-400 text-slate-800' },
 };
 
 const STATUS_META = {
@@ -33,7 +35,8 @@ const STATUS_META = {
     disabled: { label: 'Vô hiệu',   cls: 'text-red-700 bg-red-50 border-red-200',             dot: 'bg-red-500' },
 };
 
-const getVehicleMeta  = (type)   => VEHICLE_META[type]   || { label: 'Khác', Icon: FaCar, colorCls: 'text-slate-700 bg-slate-50 border-slate-200', plateCls: 'bg-white border-slate-400 text-slate-800' };
+// DB lưu chữ thường (car/motorbike); 'motorcycle' là tên khác của xe máy.
+const getVehicleMeta  = (type)   => VEHICLE_META[String(type || '').toLowerCase() === 'motorcycle' ? 'motorbike' : String(type || '').toLowerCase()] || { label: 'Khác', Icon: FaCar, colorCls: 'text-slate-700 bg-slate-50 border-slate-200', plateCls: 'bg-white border-slate-400 text-slate-800' };
 const getStatusMeta   = (status) => STATUS_META[(status || '').toLowerCase()] || { label: status, cls: 'text-slate-600 bg-slate-50 border-slate-200', dot: 'bg-slate-400' };
 
 const normaliseOwner = (owner) => {
@@ -157,6 +160,14 @@ const VehicleRegistrations = () => {
     // bấm "Sau"/số trang nào cũng bị kéo về trang 1. Chỉ ép page=1 khi đổi filter KHÁC
     // page — đổi chính page thì giữ nguyên giá trị mới. Mirror fix đã áp dụng ở
     // SecurityAlerts.jsx.
+    // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
+    const countTotal = useCallback(
+        (f) => getAdminVehicleRegistrations(Object.fromEntries(Object.entries({ ...f, page: 1, limit: 1 }).filter(([, v]) => v !== '' && v != null))).then(totalOf),
+        [],
+    );
+    const statusCounts = useFacetCounts(filters, 'status', ['active', 'disabled'], countTotal);
+    const vehicleTypeCounts = useFacetCounts(filters, 'vehicleType', ['car', 'motorbike', 'bicycle'], countTotal);
+
     const handleFilterChange = (key, value) => setFilters(prev => ({ ...prev, [key]: value, ...(key !== 'page' ? { page: 1 } : {}) }));
 
     // ── render ──────────────────────────────────────────────────────────────
@@ -247,7 +258,7 @@ const VehicleRegistrations = () => {
                     {/* status filter */}
                     <FilterField label="Trạng thái"><div className="relative">
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                        <select
+                        <FilterMultiSelect singleSelect counts={statusCounts}
                             value={filters.status}
                             onChange={(e) => handleFilterChange('status', e.target.value)}
                             className="w-full appearance-none pl-3 pr-9 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all cursor-pointer"
@@ -255,22 +266,22 @@ const VehicleRegistrations = () => {
                             <option value="">Tất cả trạng thái</option>
                             <option value="active">Hoạt động</option>
                             <option value="disabled">Vô hiệu</option>
-                        </select>
+                        </FilterMultiSelect>
                     </div></FilterField>
 
                     {/* vehicle type filter */}
                     <FilterField label="Loại phương tiện"><div className="relative">
                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                        <select
+                        <FilterMultiSelect counts={vehicleTypeCounts}
                             value={filters.vehicleType}
                             onChange={(e) => handleFilterChange('vehicleType', e.target.value)}
                             className="w-full appearance-none pl-3 pr-9 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all cursor-pointer"
                         >
                             <option value="">Tất cả loại xe</option>
-                            <option value="CAR">🚗 Ô tô</option>
-                            <option value="MOTORBIKE">🏍️ Xe máy</option>
-                            <option value="BICYCLE">🚲 Xe đạp</option>
-                        </select>
+                            <option value="car">Ô tô</option>
+                            <option value="motorbike">Xe máy</option>
+                            <option value="bicycle">Xe đạp</option>
+                        </FilterMultiSelect>
                     </div></FilterField>
                 </div>
             </FilterBar>
@@ -412,7 +423,7 @@ const VehicleRegistrations = () => {
 
                                                 {/* Trạng thái */}
                                                 <td className="px-6 py-4 text-center">
-                                                    <span data-ui-text="secondary" className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold ${sm.cls}`}>
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-extrabold ${sm.cls}`}>
                                                         <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
                                                         {sm.label}
                                                     </span>
@@ -479,7 +490,7 @@ const VehicleRegistrations = () => {
                                         <div className="flex flex-col items-center mb-6">
                                             {ownerDetailLoading ? (
                                                 <div className="w-24 h-24 rounded-full border-4 border-cloud-mist bg-slate-100 flex items-center justify-center mb-4">
-                                                    <div className="w-8 h-8 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />
+                                                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                                 </div>
                                             ) : (
                                                 <UserAvatar

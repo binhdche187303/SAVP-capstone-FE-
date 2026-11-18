@@ -1,3 +1,4 @@
+import { matchesFilter } from '../../utils/filterSelection';
 export const changeReportFilters = (definition, value, patch) => {
     const next = { ...value, ...patch };
     if (definition.type === 'student-attendance') {
@@ -13,10 +14,10 @@ export const reportFilterChoices = (definition, filter, lookups, value) => {
     if (definition.type === 'student-attendance') {
         const sections = lookups.classSections || [];
         if (filter.lookup === 'classSections') {
-            items = items.filter(item => (!value.semesterId || item.semesterId === value.semesterId) && (!value.subjectId || item.subjectId === value.subjectId));
+            items = items.filter(item => (matchesFilter(value.semesterId, item.semesterId)) && (matchesFilter(value.subjectId, item.subjectId)));
         }
         if (filter.lookup === 'subjects' && value.semesterId) {
-            const subjectIds = new Set(sections.filter(item => item.semesterId === value.semesterId).map(item => item.subjectId));
+            const subjectIds = new Set(sections.filter(item => matchesFilter(value.semesterId, item.semesterId)).map(item => item.subjectId));
             items = items.filter(item => subjectIds.has(item.id));
         }
     }

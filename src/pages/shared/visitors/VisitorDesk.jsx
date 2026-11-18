@@ -1,3 +1,4 @@
+import PageHeading from '../../../components/common/PageHeading';
 import TimeRangeButtons from '../../../components/common/TimeRangeButtons';
 import './VisitorDesk.css';
 import PaginatedCollection from '../../../components/common/PaginatedCollection';
@@ -6,7 +7,7 @@ import StatisticCard from '../../../components/common/StatisticCard';
 import FilterBar, { FilterField } from '../../../components/common/FilterBar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ConciergeBell, ExternalLink, MonitorSmartphone, ShieldAlert, UserPlus } from 'lucide-react';
+import { ConciergeBell, ExternalLink, MonitorSmartphone, ShieldAlert, UserPlus, Loader2 } from 'lucide-react';
 import { getDesk, getVisitorLookups, createVisit } from '../../../service/visitorService';
 import toast from '../../../utils/toast';
 import DemoDataBanner from '../../../components/common/DemoDataBanner';
@@ -155,11 +156,10 @@ const VisitorDesk = () => {
         <div data-page-surface="wide" className={pageCls}>
             <div className="visitor-desk-header border-b border-platinum-tint pb-5">
                 <div>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <ConciergeBell className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Khách" icon={<ConciergeBell className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Chốt bảo vệ
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1 max-w-2xl">
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1 max-w-2xl">
                         Khách đã đăng ký, đã duyệt và có ảnh sẽ được camera tại cổng tự cho vào, không cần người trực.
                         Màn hình tập hợp các trường hợp cần bảo vệ xử lý.
                     </p>
@@ -203,7 +203,7 @@ const VisitorDesk = () => {
             <DemoDataBanner onReset={load} />
 
             {error && <div className={errorBoxCls}>{error}</div>}
-            {!error && !desk && <div className="flex items-center justify-center h-64"><div className={spinnerCls} /></div>}
+            {!error && !desk && <div className="flex items-center justify-center h-64"><Loader2 className={spinnerCls} /></div>}
 
             {desk && (
                 <>

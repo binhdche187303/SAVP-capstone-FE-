@@ -1,3 +1,4 @@
+import { changeFilter } from '../../testUtils/filterSelection';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import MeetingAttendanceAdmin from './MeetingAttendanceAdmin';
@@ -51,10 +52,12 @@ test('department and search filter automatically; clearing resets dates, criteri
     const departmentId = '11111111-1111-4111-8111-111111111111';
     getDepartments.mockResolvedValue({ success: true, data: [{ id: departmentId, name: 'Phòng Công nghệ' }] });
     renderPage();
+    fireEvent.click(screen.getByRole('combobox'));
     await screen.findByRole('option', { name: 'Phòng Công nghệ' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     await screen.findByText('Hiển thị 1–10 / 25 cuộc họp');
-    fireEvent.change(screen.getByPlaceholderText('Tên cuộc họp...'), { target: { value: 'Kế hoạch' } });
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: departmentId } });
+    changeFilter(screen.getByPlaceholderText('Tên cuộc họp...'), { target: { value: 'Kế hoạch' } });
+    changeFilter(screen.getByRole('combobox'), { target: { value: departmentId } });
     await waitFor(() => expect(getMeetings).toHaveBeenCalledWith(expect.objectContaining({ departmentId, search: 'Kế hoạch', limit: 10, page: 1 })));
     for (const status of ['completed', 'in_progress']) {
         await waitFor(() => expect(getMeetings).toHaveBeenCalledWith(expect.objectContaining({ departmentId, search: 'Kế hoạch', status, limit: 1 })));
@@ -67,7 +70,7 @@ test('department and search filter automatically; clearing resets dates, criteri
     await screen.findByText('Hiển thị 1–10 / 25 cuộc họp');
     expect(screen.queryByRole('button', { name: 'Áp dụng' })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText('Tên cuộc họp...')).toHaveValue('');
-    expect(screen.getByRole('combobox')).toHaveValue('');
+    expect(screen.getByRole('combobox')).toHaveTextContent('Tất cả phòng ban');
     expect(getMeetings).toHaveBeenCalledWith({ status: 'completed', page: 1, limit: 10 });
     expect(getMeetings).toHaveBeenCalledWith({ status: 'in_progress', page: 1, limit: 1 });
 });

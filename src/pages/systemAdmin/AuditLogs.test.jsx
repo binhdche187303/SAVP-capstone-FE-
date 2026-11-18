@@ -1,3 +1,4 @@
+import { changeFilter } from '../../testUtils/filterSelection';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AuditLogs from './AuditLogs';
@@ -18,9 +19,9 @@ test('filters automatically and clears criteria without sending the previous fil
     renderPage();
     await waitFor(() => expect(getAuditLogs).toHaveBeenCalled());
     expect(screen.queryByRole('button', { name: 'Áp dụng' })).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Mức độ'), { target: { value: 'warning' } });
+    changeFilter(screen.getByLabelText('Mức độ'), { target: { value: 'warning' } });
     await waitFor(() => expect(getAuditLogs).toHaveBeenLastCalledWith(expect.objectContaining({ severity: 'warning', page: 1 })));
-    fireEvent.change(screen.getByLabelText('Tìm kiếm từ khóa'), { target: { value: 'admin' } });
+    changeFilter(screen.getByLabelText('Tìm kiếm từ khóa'), { target: { value: 'admin' } });
     await waitFor(() => expect(getAuditLogs).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'admin' })));
     fireEvent.click(screen.getByRole('button', { name: 'Ngày', exact: true }));
     await waitFor(() => expect(getAuditLogs).toHaveBeenLastCalledWith(expect.objectContaining({ startDate: expect.any(String), endDate: expect.any(String) })));
@@ -35,7 +36,7 @@ test('a slow response for old criteria cannot replace the results after clearing
         ? new Promise(resolve => { resolveOld = resolve; }) : Promise.resolve(result(101)));
     renderPage();
     await waitFor(() => expect(screen.getByText(/Tìm thấy/)).toHaveTextContent('101'));
-    fireEvent.change(screen.getByLabelText('Mức độ'), { target: { value: 'warning' } });
+    changeFilter(screen.getByLabelText('Mức độ'), { target: { value: 'warning' } });
     await waitFor(() => expect(resolveOld).toEqual(expect.any(Function)));
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
     await waitFor(() => expect(getAuditLogs).toHaveBeenLastCalledWith(expect.objectContaining({ severity: undefined })));

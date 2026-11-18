@@ -132,7 +132,7 @@ const GlobalSearchBar = ({ basePath }) => {
                 {query && (
                     <button
                         type="button"
-                        aria-label="Xoá tìm kiếm"
+                        aria-label="Xóa tìm kiếm"
                         onClick={handleClear}
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-blue hover:text-midnight-indigo"
                     >

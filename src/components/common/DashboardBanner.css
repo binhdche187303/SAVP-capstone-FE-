@@ -1,0 +1,13 @@
+/* Điện thoại: khối chữ 52% chiều ngang quá hẹp nên bị cắt — cho chữ trải hết chiều ngang,
+   ẩn hình minh hoạ bên phải (slide không có ảnh nền) và tăng chiều cao banner.
+   Kích thước trên máy tính giữ nguyên (style inline trong DashboardBanner.jsx). */
+@media (max-width: 639px) {
+    .camai-dashboard-banner[data-compact="true"] { height: 210px !important; }
+    .camai-dashboard-banner[data-compact="false"] { height: 300px !important; }
+    .camai-dashboard-banner .camai-banner-text {
+        width: 100% !important;
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+    .camai-dashboard-banner .camai-banner-art { display: none; }
+}

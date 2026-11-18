@@ -3,7 +3,7 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Activity, AlertTriangle, BarChart3, Calendar, Camera, CheckCircle, Edit2, Eye, History, Info, LogIn, LogOut, Map, MapPin, Monitor, Plus, RefreshCw, Search, Server, Shield, ShieldCheck, ShieldQuestion, Trash2, Users, Video, X } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart3, Calendar, Camera, CheckCircle, Edit2, Eye, History, Info, LogIn, LogOut, Map, MapPin, Monitor, Plus, Search, Server, Shield, ShieldCheck, ShieldQuestion, Trash2, Users, Video, X, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { createPortal } from 'react-dom';
@@ -410,7 +410,7 @@ const ZoneTimelineCard = ({ zoneId }) => {
                     <RefreshButton
                         onClick={() => fetchTimeline()}
                         disabled={loading}
-                        title="Tải lại"
+                        title="Làm mới"
                         busy={loading}
                     />
                 </FilterBar>
@@ -419,7 +419,7 @@ const ZoneTimelineCard = ({ zoneId }) => {
             {/* Body */}
             {loading ? (
                 <div className="flex items-center justify-center h-36 text-slate-blue text-sm gap-2">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Đang tải timeline...</span>
                 </div>
             ) : error ? (
@@ -748,17 +748,17 @@ const ZoneManagement = () => {
         try {
             const res = await deleteZone(zoneToDelete.id);
             if (res?.success) {
-                setSuccessMessage(`Đã xoá khu vực ${zoneToDelete.zone_name} thành công.`);
+                setSuccessMessage(`Đã xóa khu vực ${zoneToDelete.zone_name} thành công.`);
                 setIsDeleteModalOpen(false);
                 if (selectedZone?.id === zoneToDelete.id) {
                     setSelectedZone(null);
                 }
                 fetchZones();
             } else {
-                setError(res?.message || 'Không thể xoá khu vực.');
+                setError(res?.message || 'Không thể xóa khu vực.');
             }
         } catch (err) {
-            setError(err?.message || 'Lỗi kết nối khi xoá.');
+            setError(err?.message || 'Lỗi kết nối khi xóa.');
         } finally {
             setIsDeleting(false);
             setZoneToDelete(null);
@@ -943,7 +943,7 @@ const ZoneManagement = () => {
 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center h-40 text-slate-blue">
-                                    <RefreshCw className="w-8 h-8 animate-spin mb-4" />
+                                    <Loader2 className="w-8 h-8 animate-spin mb-4" />
                                     <p className="text-sm">Đang tải danh sách...</p>
                                 </div>
                             ) : filteredZones.length === 0 ? (
@@ -974,7 +974,7 @@ const ZoneManagement = () => {
                                                 <button
                                                     onClick={(e) => handleDeleteClick(zone, e)}
                                                     className="p-1 text-slate-blue hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                                    title="Xoá khu vực"
+                                                    title="Xóa khu vực"
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
@@ -1039,7 +1039,7 @@ const ZoneManagement = () => {
                                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
                                     {detailLoading ? (
                                         <div className="flex flex-col items-center justify-center h-40 text-slate-blue">
-                                            <RefreshCw className="w-6 h-6 animate-spin mb-3" />
+                                            <Loader2 className="w-6 h-6 animate-spin mb-3" />
                                             <p className="text-sm">Đang tải chi tiết...</p>
                                         </div>
                                     ) : (
@@ -1286,15 +1286,15 @@ const ZoneManagement = () => {
                                 <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <AlertTriangle className="w-8 h-8" />
                                 </div>
-                                <h3 className="text-lg font-bold text-midnight-indigo mb-2">Xác nhận xoá khu vực</h3>
+                                <h3 className="text-lg font-bold text-midnight-indigo mb-2">Xác nhận xóa khu vực</h3>
                                 <p className="text-sm text-slate-blue mb-1">
-                                    Bạn có chắc chắn muốn xoá khu vực <span className="font-bold text-midnight-indigo">{zoneToDelete.zone_name}</span>?
+                                    Bạn có chắc chắn muốn xóa khu vực <span className="font-bold text-midnight-indigo">{zoneToDelete.zone_name}</span>?
                                 </p>
                             </div>
                             <div className="p-4 bg-cloud-mist/30 border-t border-platinum-tint flex justify-end gap-3">
                                 <button onClick={() => setIsDeleteModalOpen(false)} disabled={isDeleting} className="px-4 py-2 bg-white border border-platinum-tint text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist">Hủy</button>
                                 <button onClick={handleConfirmDelete} disabled={isDeleting} className="inline-flex items-center px-4 py-2 bg-red-600 text-white font-semibold rounded-xl text-sm hover:bg-red-700">
-                                    {isDeleting ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Xoá vĩnh viễn'}
+                                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xóa vĩnh viễn'}
                                 </button>
                             </div>
                         </div>

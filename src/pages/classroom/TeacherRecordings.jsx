@@ -84,7 +84,7 @@ const TeacherRecordings = () => {
                     Chưa có buổi dạy nào trong {DAYS_BACK} ngày gần nhất.
                 </p>
             )}
-            {loading && <p className="text-sm text-slate-blue">Đang tải…</p>}
+            {loading && <p className="text-sm text-slate-blue">Đang tải...</p>}
 
             <div className="flex flex-wrap gap-2">
                 {classes.map(c => (

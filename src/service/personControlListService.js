@@ -1,4 +1,4 @@
-import { get, post, patch, dele as del } from '../utils/request';
+import { get, post, patch, dele as del, buildQuery } from '../utils/request';
 
 // ============================================================
 // M3: Person Control List API
@@ -9,7 +9,7 @@ import { get, post, patch, dele as del } from '../utils/request';
  * GET /person-control-list
  */
 export const getPersonControlList = async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params).slice(1);
     return await get(`/person-control-list${query ? `?${query}` : ''}`);
 };
 

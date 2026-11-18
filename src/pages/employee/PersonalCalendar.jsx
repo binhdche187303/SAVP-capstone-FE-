@@ -1,9 +1,12 @@
+import { countBy, useProbeCounts } from '../../hooks/useFilterCounts';
+import { matchesFilter, filterValues } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import './PersonalCalendarFilters.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
-import { AlertTriangle, Award, Calendar as CalendarIcon, CheckCircle, Clock, Filter, Info, MapPin, PlusCircle, Radio, User, UserCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, Award, Calendar as CalendarIcon, CheckCircle, Clock, Filter, Info, MapPin, PlusCircle, Radio, User, UserCheck, XCircle, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -12,6 +15,8 @@ import StatCard from '../../components/common/StatCard';
 import { ATTENDANCE_STATUS, CALENDAR_TYPES, getMockMySchedule } from '../../mocks/meetingCalendarMock';
 import { getMySchedule } from '../../service/employeeServices';
 import { isForbiddenError } from '../../utils/permissionUtils';
+import { calendarViewRange, dateKey } from '../../utils/calendarRange';
+import { toCalendarTypeKey } from '../../utils/calendarType';
 import MockMyMeetingAttendance from './MockMyMeetingAttendance';
 import MyMeetingAttendance from './MyMeetingAttendance';
 
@@ -21,7 +26,7 @@ const STATUS_CONFIG = {
     scheduled: { label: 'Đã lên lịch', bg: 'bg-blue-50 text-action-blue border-blue-150', dot: 'bg-blue-500', icon: Clock },
     in_progress: { label: 'Đang diễn ra', bg: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500', icon: CheckCircle },
     completed: { label: 'Đã kết thúc', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle },
-    cancelled: { label: 'Đã huỷ', bg: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500', icon: XCircle }
+    cancelled: { label: 'Đã hủy', bg: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500', icon: XCircle }
 };
 
 const getEffectiveStatus = (meeting, nowTs = Date.now()) => {
@@ -39,21 +44,8 @@ const fetchMySchedule = MEETING_CALENDAR_MOCK_ENABLED ? getMockMySchedule : getM
 const ROLE_LABEL = { host: 'Chủ trì', secretary: 'Thư ký', organizer: 'Người tổ chức' };
 const typeOf = (m) => CALENDAR_TYPES[m.calendarType];
 
-const dateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
-export const calendarViewRange = (date, view) => {
-    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const end = new Date(start);
-    if (view === 'month') {
-        start.setDate(1);
-        end.setMonth(end.getMonth() + 1, 0);
-    } else if (view === 'week') {
-        start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-        end.setTime(start.getTime());
-        end.setDate(end.getDate() + 6);
-    }
-    return { from: `${dateKey(start)}T00:00:00+07:00`, to: `${dateKey(end)}T23:59:59+07:00` };
-};
+// Dùng chung với tab "Lịch sử tham dự" — giữ export cũ cho test/import hiện có.
+export { calendarViewRange };
 
 const PersonalCalendar = () => {
     const navigate = useNavigate();
@@ -88,7 +80,7 @@ const PersonalCalendar = () => {
         endTime: dto.endTime || dto.end_time,
         myRole: dto.userRole || dto.user_role,
         status: (dto.status || (dto.isCurrent ? 'in_progress' : dto.isPast ? 'completed' : 'scheduled')).toLowerCase(),
-        calendarType: dto.calendarType || dto.calendar_type,
+        calendarType: toCalendarTypeKey(dto.calendarType || dto.calendar_type),
         hostName: dto.hostName || dto.host?.fullName,
         attendanceEnabled: dto.attendanceEnabled,
         myAttendance: dto.myAttendance || null,
@@ -107,7 +99,7 @@ const PersonalCalendar = () => {
                 from: range.from,
                 to: range.to,
                 view: viewMode,
-                status: statusFilter ? [statusFilter, statusFilter] : ['scheduled', 'in_progress', 'completed', 'pending_approval', ...(MEETING_CALENDAR_MOCK_ENABLED ? ['cancelled'] : [])]
+                status: filterValues(statusFilter).length ? filterValues(statusFilter) : ['scheduled', 'in_progress', 'completed', 'pending_approval', ...(MEETING_CALENDAR_MOCK_ENABLED ? ['cancelled'] : [])]
             });
 
             if (version !== scheduleVersion.current) return;
@@ -152,13 +144,31 @@ const PersonalCalendar = () => {
 
     const effectiveMeetings = useMemo(
         () => meetings
-            .filter((meeting) => !typeFilter || meeting.calendarType === typeFilter)
+            .filter((meeting) => matchesFilter(typeFilter, meeting.calendarType))
             .map((meeting) => ({
                 ...meeting,
                 rawStatus: meeting.rawStatus || meeting.status,
                 status: getEffectiveStatus(meeting, nowTs),
             })),
         [meetings, nowTs, typeFilter],
+    );
+
+    // Số đếm cạnh lựa chọn các ô lọc.
+    // - Loại lịch: đếm tại chỗ trên các cuộc họp đã tải (đã áp trạng thái).
+    // - Trạng thái: BE lọc theo trạng thái nên đếm qua API (cùng khoảng ngày), rồi áp loại lịch tại chỗ.
+    const typeCounts = useMemo(() => countBy(meetings, (meeting) => meeting.calendarType), [meetings]);
+    const allScheduleStatuses = ['scheduled', 'in_progress', 'completed', 'pending_approval', ...(MEETING_CALENDAR_MOCK_ENABLED ? ['cancelled'] : [])];
+    const scheduleRange = calendarViewRange(currentDate, viewMode);
+    const statusCounts = useProbeCounts(
+        ['pending_approval', 'scheduled', 'completed', ...(MEETING_CALENDAR_MOCK_ENABLED ? ['cancelled'] : [])],
+        async (value) => {
+            const res = await fetchMySchedule({ from: scheduleRange.from, to: scheduleRange.to, view: viewMode, status: value ? [value] : allScheduleStatuses });
+            const items = res?.data?.items || res?.data || [];
+            return Array.isArray(items)
+                ? items.filter((item) => matchesFilter(typeFilter, toCalendarTypeKey(item.calendarType || item.calendar_type))).length
+                : undefined;
+        },
+        `${scheduleRange.from}|${scheduleRange.to}|${viewMode}|${JSON.stringify(typeFilter)}`,
     );
 
     // Số liệu tháng đang xem (điểm danh lấy từ myAttendance nếu API trả về).
@@ -297,22 +307,22 @@ const PersonalCalendar = () => {
                 )}
             </div>
 
-            <FilterBar variant="card" className="personal-calendar-filters">
+            <FilterBar forceStandard variant="card" className="personal-calendar-filters">
                 <div className="personal-calendar-filter-main">
                     <FilterField label="Trạng thái cuộc họp">
-                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+                        <FilterMultiSelect counts={statusCounts} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                             <option value="">Tất cả trạng thái</option>
                             <option value="pending_approval">Chờ duyệt</option>
                             <option value="scheduled">Đã lên lịch</option>
                             <option value="completed">Đã kết thúc</option>
-                            {MEETING_CALENDAR_MOCK_ENABLED && <option value="cancelled">Đã huỷ</option>}
-                        </select>
+                            {MEETING_CALENDAR_MOCK_ENABLED && <option value="cancelled">Đã hủy</option>}
+                        </FilterMultiSelect>
                     </FilterField>
                     <FilterField label="Loại lịch">
-                        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                        <FilterMultiSelect counts={typeCounts} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
                             <option value="">Tất cả loại lịch</option>
                             {Object.entries(CALENDAR_TYPES).map(([key, type]) => <option key={key} value={key}>{type.label}</option>)}
-                        </select>
+                        </FilterMultiSelect>
                     </FilterField>
                 </div>
                 <div className="personal-calendar-filter-time">
@@ -373,7 +383,7 @@ const PersonalCalendar = () => {
 
                     {loading ? (
                         <div className="flex flex-col items-center justify-center p-20 min-h-[400px]">
-                            <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                            <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                             <p className="mt-3 text-slate-blue text-xs font-semibold">Đang tải lịch trình...</p>
                         </div>
                     ) : viewMode === 'month' ? (

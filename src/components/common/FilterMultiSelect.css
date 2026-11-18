@@ -1,0 +1,36 @@
+.camai-multi-filter {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; min-width: 0; min-height: 38px; padding: 8px 12px;
+    border: 1px solid #D4E0ED; border-radius: 12px; background: #fff; color: #476788;
+    font: inherit; font-size: 14px; line-height: 20px; text-align: left; cursor: pointer;
+}
+.camai-multi-filter > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.camai-multi-filter > svg { flex-shrink: 0; }
+.camai-multi-filter:focus-visible { outline: 2px solid #0066ff; outline-offset: 2px; }
+.camai-multi-filter:disabled { opacity: .5; cursor: not-allowed; }
+.camai-multi-filter-panel {
+    position: fixed; z-index: 1100; display: flex; flex-direction: column; overflow: hidden;
+    border: 1px solid #D4E0ED; border-radius: 12px; background: #fff; color: #0B3558;
+    box-shadow: 0 8px 24px rgb(11 53 88 / .14); font: 14px/20px 'Montserrat', 'Inter', sans-serif;
+}
+.camai-multi-filter-search { display: flex; align-items: center; gap: 8px; padding: 10px; }
+.camai-multi-filter-search input { min-width: 0; width: 100%; padding: 6px 8px; border: 1px solid #D4E0ED; border-radius: 8px; font: inherit; }
+.camai-multi-filter-tools { display: flex; justify-content: space-between; padding: 4px 12px 10px; border-bottom: 1px solid #D4E0ED; }
+.camai-multi-filter-tools button { color: #0066ff; font: inherit; font-size: 12px; }
+.camai-multi-filter-panel ul { margin: 0; padding: 4px; list-style: none; overflow-y: auto; }
+.camai-multi-filter-panel [role=option] { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 8px; text-align: left; border-radius: 6px; font: inherit; overflow-wrap: anywhere; }
+.camai-multi-filter-panel [role=option]:hover, .camai-multi-filter-panel [aria-selected=true] { background: #EFF6FF; }
+.camai-multi-filter-panel [role=option]:disabled { opacity: .5; }
+.camai-multi-filter-check { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 16px; height: 16px; margin-top: 2px; border: 1px solid #94A3B8; border-radius: 4px; }
+.camai-multi-filter-check[data-checked=true] { color: #fff; background: #0066ff; border-color: #0066ff; }
+.camai-multi-filter-empty { padding: 16px 8px; color: #476788; }
+/* Legacy selects sometimes had a decorative icon outside the control. */
+.camai-filter-field:has(.camai-multi-filter) .relative > svg { display: none; }
+
+.camai-single-filter {
+    width: 100%; min-width: 0; min-height: 38px;
+    padding: 8px 12px; border: 1px solid #D4E0ED; border-radius: 12px;
+    background-color: #fff; color: #476788; font: inherit;
+    font-size: 14px; line-height: 20px;
+}
+.camai-single-filter:focus-visible { outline: 2px solid #0066ff; outline-offset: 2px; }

@@ -11,7 +11,7 @@ const delay = () =>
     new Promise((resolve) => setTimeout(resolve, process.env.NODE_ENV === 'test' ? 0 : 200 + Math.random() * 300));
 
 // BE thật: request() ném đối tượng lỗi khi HTTP ≥ 400 hoặc mất kết nối. Trang chỉ biết đọc { success, message },
-// nên quy về cùng dạng để hiện khối lỗi thay vì quay "Đang tải…" mãi.
+// nên quy về cùng dạng để hiện khối lỗi thay vì quay "Đang tải..." mãi.
 const safeReal = async (realFn) => {
     try {
         return await realFn();

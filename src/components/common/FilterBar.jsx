@@ -2,6 +2,7 @@ import { Children, cloneElement, createContext, isValidElement, useContext, useI
 import { useInRouterContext, useLocation } from 'react-router-dom';
 import FilterDateInput, { calendarProps } from './FilterDateInput';
 import DateInput from './DateInput';
+import FilterMultiSelect from './FilterMultiSelect';
 import './FilterBar.css';
 
 const STANDARD_AREAS = new Set(['system-admin', 'business-admin', 'manager', 'employee', 'guard']);
@@ -53,7 +54,7 @@ const findControl = (children) => {
     Children.forEach(children, child => {
         if (result || !isValidElement(child)) return;
         const dateControl = typeof child.props.onChange === 'function' && ('selected' in child.props || 'selectsRange' in child.props);
-        result = child.type === 'input' || child.type === 'select' || child.type === FilterDateInput || child.type === DateInput || dateControl ? child : findControl(child.props.children);
+        result = child.type === 'input' || child.type === 'select' || child.type === FilterMultiSelect || child.type === FilterDateInput || child.type === DateInput || dateControl ? child : findControl(child.props.children);
     });
     return result;
 };

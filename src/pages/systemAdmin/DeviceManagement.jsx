@@ -1,3 +1,6 @@
+import { clientFacetCounts } from '../../hooks/useFilterCounts';
+import { matchesFilter } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard from '../../components/common/StatisticCard';
@@ -5,7 +8,7 @@ import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import './DeviceManagement.css';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Activity, Cpu, Film } from 'lucide-react';
+import { Activity, Cpu, Film, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -31,7 +34,6 @@ import { subscribeToDeviceStatusChanges, subscribeToNotificationUpdates, subscri
 import DeviceConnectionHistoryPanel from '../../components/devices/DeviceConnectionHistoryPanel';
 import CameraAiConfigModal from '../../components/devices/CameraAiConfigModal';
 import { CAMERA_TYPES, LANE_LABEL, getAnprInfo } from '../../mocks/cameraMock';
-import SharedStatCard from '../../components/common/StatCard';
 
 // Realtime trạng thái: tải lại im lặng mỗi 30s + ngay khi có cảnh báo/thông báo mới qua
 // WebSocket (BE gửi khi camera đổi online↔offline). So trạng thái cũ/mới để báo thay đổi.
@@ -157,7 +159,7 @@ const DeviceManagement = () => {
     });
 
     // Load rooms and devices
-    // silent = cập nhật nền (poll/WebSocket): không hiện spinner, không xoá thông báo lỗi.
+    // silent = cập nhật nền (poll/WebSocket): không hiện spinner, không xóa thông báo lỗi.
     const fetchData = useCallback(async (silent = false) => {
         if (!silent) {
             setLoading(true);
@@ -672,24 +674,37 @@ const DeviceManagement = () => {
     const DEVICE_CFG_DEFAULT = { label: 'Thiết bị', accentBar: 'bg-slate-400', border: 'border-platinum-tint', badgeBg: 'bg-slate-50', badgeText: 'text-steel-gray' };
 
     // Filtered list
+    // face_server thường không có ip_address (chỉ dùng base_url) → null. Trước đây gọi
+    // thẳng .includes() trên null làm crash trắng màn hình ngay khi gõ ô tìm kiếm nếu
+    // danh sách có bất kỳ thiết bị nào chưa có IP.
+    const matchDeviceSearch = device => search.trim() === '' ||
+        (device.device_code || '').toLowerCase().includes(search.toLowerCase()) ||
+        (device.device_name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (device.ip_address || '').includes(search);
+    // Số đếm cạnh lựa chọn của từng ô lọc (đếm tại chỗ, mỗi ô theo các bộ lọc khác).
+    const deviceFilterCounts = clientFacetCounts(devicesList.filter(matchDeviceSearch), {
+        room: { selected: selectedRoomId, get: d => d.room_id },
+        type: { selected: selectedType, get: d => d.device_type },
+        status: { selected: selectedStatus, get: d => d.status },
+        health: { selected: selectedHealth, get: d => d.health_status },
+    });
     const filteredDevices = devicesList.filter(device => {
-        // face_server thường không có ip_address (chỉ dùng base_url) → null. Trước đây gọi
-        // thẳng .includes() trên null làm crash trắng màn hình ngay khi gõ ô tìm kiếm nếu
-        // danh sách có bất kỳ thiết bị nào chưa có IP.
-        const matchSearch = search.trim() === '' ||
-            (device.device_code || '').toLowerCase().includes(search.toLowerCase()) ||
-            (device.device_name || '').toLowerCase().includes(search.toLowerCase()) ||
-            (device.ip_address || '').includes(search);
-        const matchType = selectedType === '' || device.device_type === selectedType;
-        const matchStatus = selectedStatus === '' || device.status === selectedStatus;
-        const matchRoom = selectedRoomId === '' || device.room_id === selectedRoomId;
-        const matchHealth = selectedHealth === '' || device.health_status === selectedHealth;
+        const matchSearch = matchDeviceSearch(device);
+        const matchType = matchesFilter(selectedType, device.device_type);
+        const matchStatus = matchesFilter(selectedStatus, device.status);
+        const matchRoom = matchesFilter(selectedRoomId, device.room_id);
+        const matchHealth = matchesFilter(selectedHealth, device.health_status);
         return matchSearch && matchType && matchStatus && matchRoom && matchHealth;
     });
 
     const offlineDevices = devicesList.filter(d => d.status === 'offline');
     const totalPages = Math.ceil(filteredDevices.length / limit) || 1;
     const paginatedDevices = filteredDevices.slice((page - 1) * limit, page * limit);
+
+    const filterByStatusCard = (status) => {
+        setSelectedStatus(status);
+        setPage(1);
+    };
 
     return (
         <div className="space-y-6 animate-fade-in-up">
@@ -736,11 +751,40 @@ const DeviceManagement = () => {
             {/* UC-51: Device status summary cards */}
             {statusSummary && (
                 <StatisticGrid columns={5} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                    <StatisticCard label="Tổng thiết bị" value={statusSummary.total ?? devicesList.length} icon={Cpu} />
-                    <StatisticCard label="Online" value={statusSummary.online ?? 0} tone="success" />
-                    <StatisticCard label="Offline" value={statusSummary.offline ?? 0} tone="danger" />
-                    <StatisticCard label="Vô hiệu" value={statusSummary.disabled ?? 0} />
-                    <StatisticCard label="Bảo trì" value={statusSummary.maintenance ?? 0} tone="warning" />
+                    <StatisticCard
+                        label="Tổng thiết bị"
+                        value={statusSummary.total ?? devicesList.length}
+                        icon={Cpu}
+                        selected={!selectedStatus}
+                        onClick={() => filterByStatusCard('')}
+                    />
+                    <StatisticCard
+                        label="Online"
+                        value={statusSummary.online ?? 0}
+                        tone="success"
+                        selected={selectedStatus === 'online'}
+                        onClick={() => filterByStatusCard('online')}
+                    />
+                    <StatisticCard
+                        label="Offline"
+                        value={statusSummary.offline ?? 0}
+                        tone="danger"
+                        selected={selectedStatus === 'offline'}
+                        onClick={() => filterByStatusCard('offline')}
+                    />
+                    <StatisticCard
+                        label="Vô hiệu"
+                        value={statusSummary.disabled ?? 0}
+                        selected={selectedStatus === 'disabled'}
+                        onClick={() => filterByStatusCard('disabled')}
+                    />
+                    <StatisticCard
+                        label="Bảo trì"
+                        value={statusSummary.maintenance ?? 0}
+                        tone="warning"
+                        selected={selectedStatus === 'maintenance'}
+                        onClick={() => filterByStatusCard('maintenance')}
+                    />
                 </StatisticGrid>
             )}
 
@@ -766,7 +810,7 @@ const DeviceManagement = () => {
             {/* Device cards / loading */}
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-platinum-tint shadow-sm-1">
-                    <div className="w-10 h-10 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin"></div>
+                    <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                     <p className="text-slate-blue text-sm mt-4">Đang tải dữ liệu thiết bị và phòng họp...</p>
                 </div>
             ) : (
@@ -789,7 +833,7 @@ const DeviceManagement = () => {
                                     className="pl-9 pr-4 py-2 w-full border border-platinum-tint rounded-xl text-sm text-midnight-indigo placeholder:text-steel-gray focus:outline-none focus:border-action-blue"
                                 />
                             </div></FilterField>
-                            <FilterField label="Phòng"><select
+                            <FilterField label="Phòng"><FilterMultiSelect counts={deviceFilterCounts.room}
                                 value={selectedRoomId}
                                 onChange={(e) => { setSelectedRoomId(e.target.value); setPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue bg-white"
@@ -798,8 +842,8 @@ const DeviceManagement = () => {
                                 {rooms.map(room => (
                                     <option key={room.roomId} value={room.roomId}>{room.roomName}</option>
                                 ))}
-                            </select></FilterField>
-                            <FilterField label="Loại thiết bị"><select
+                            </FilterMultiSelect></FilterField>
+                            <FilterField label="Loại thiết bị"><FilterMultiSelect counts={deviceFilterCounts.type}
                                 value={selectedType}
                                 onChange={(e) => { setSelectedType(e.target.value); setPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue bg-white"
@@ -810,8 +854,8 @@ const DeviceManagement = () => {
                                 <option value="room_camera">Camera phòng</option>
                                 <option value="anpr_camera">Camera biển số</option>
                                 <option value="face_server">Face Server</option>
-                            </select></FilterField>
-                            <FilterField label="Trạng thái"><select
+                            </FilterMultiSelect></FilterField>
+                            <FilterField label="Trạng thái"><FilterMultiSelect counts={deviceFilterCounts.status}
                                 value={selectedStatus}
                                 onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue bg-white"
@@ -821,8 +865,8 @@ const DeviceManagement = () => {
                                 <option value="offline">Offline</option>
                                 <option value="disabled">Vô hiệu</option>
                                 <option value="maintenance">Bảo trì</option>
-                            </select></FilterField>
-                            <FilterField label="Tình trạng kết nối"><select
+                            </FilterMultiSelect></FilterField>
+                            <FilterField label="Tình trạng kết nối"><FilterMultiSelect counts={deviceFilterCounts.health}
                                 value={selectedHealth}
                                 onChange={(e) => { setSelectedHealth(e.target.value); setPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue focus:outline-none focus:border-action-blue bg-white"
@@ -831,7 +875,7 @@ const DeviceManagement = () => {
                                 {Object.entries(HEALTH_CONFIG).map(([value, h]) => (
                                     <option key={value} value={value}>{h.label}</option>
                                 ))}
-                            </select></FilterField>
+                            </FilterMultiSelect></FilterField>
                         </div>
                         <span data-ui-text="secondary" className="device-filter-count text-xs text-steel-gray font-semibold tabular-nums" role="status">
                             {filteredDevices.length} thiết bị
@@ -853,8 +897,8 @@ const DeviceManagement = () => {
 {(camaiPageItems, camaiStartIndex) => (
 <ul className="divide-y divide-red-100">
                                 {camaiPageItems.map((camaiRecord, camaiIndex) => (d => (
-                                    <li key={d.id} className="py-1.5 flex items-center justify-between gap-3">
-                                        <span className="text-xs text-red-800 min-w-0 truncate">
+                                    <li key={d.id} className="py-1.5 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                        <span className="text-xs text-red-800 min-w-0 break-words sm:truncate">
                                             <span className="font-mono font-semibold">{d.device_code}</span> · {d.device_name}
                                             <span className="text-red-600"> · hoạt động lần cuối {timeAgo(d.last_seen_at, now)}</span>
                                         </span>

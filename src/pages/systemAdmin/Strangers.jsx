@@ -1,3 +1,6 @@
+import { totalOf, useProbeCounts } from '../../hooks/useFilterCounts';
+import PageHeading from '../../components/common/PageHeading';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import './StrangersFilters.css';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
@@ -102,6 +105,13 @@ const Strangers = () => {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
+    // Số đếm cạnh từng camera trong ô lọc (theo khoảng ngày + tab đang xem).
+    const deviceCounts = useProbeCounts(
+        devices.map(device => device.id),
+        (value) => getStrangerAlerts({ from, to, status: tab, page: 1, limit: 1, ...(value ? { deviceId: value } : {}) }).then(totalOf),
+        `${from}|${to}|${tab}`,
+    );
+
     // Đổi bộ lọc luôn về trang 1 (React gộp 2 setState → chỉ 1 lần gọi API).
     const changeFilter = (setter) => (value) => { setter(value); setPage(1); };
     const counts = {
@@ -184,10 +194,10 @@ const Strangers = () => {
         <div data-page-surface="wide" className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="min-w-0">
-                    <h1 className="text-2xl font-extrabold text-midnight-indigo flex items-center gap-2">
-                        <UserX className="w-6 h-6 text-amber-600" /> Người lạ
-                    </h1>
-                    <p className="text-sm text-slate-blue mt-1 max-w-3xl">
+                    <PageHeading as="h1" badge="An ninh" icon={<UserX className="w-6 h-6 text-amber-600" />} className="text-2xl font-extrabold text-midnight-indigo flex items-center gap-2">
+                         Người lạ
+                    </PageHeading>
+                    <p data-page-description className="text-sm text-slate-blue mt-1 max-w-3xl">
                         Khuôn mặt camera không nhận ra, gom theo từng người. Thêm người đáng chú ý vào{' '}
                         <Link to={personControlLink} className="text-action-blue font-semibold hover:underline">Danh sách người giám sát</Link>.
                     </p>
@@ -220,10 +230,10 @@ const Strangers = () => {
                     <FilterField label="Đến ngày"><input type="date" value={to} min={from} max={vnToday()} onChange={e => e.target.value && changeFilter(setTo)(e.target.value)} className={inputCls} /></FilterField>
                 </div>
                 <FilterField label="Camera" className="strangers-filter-camera">
-                    <select value={deviceId} onChange={e => changeFilter(setDeviceId)(e.target.value)} className={inputCls}>
+                    <FilterMultiSelect counts={deviceCounts} value={deviceId} onChange={e => changeFilter(setDeviceId)(e.target.value)} className={inputCls}>
                         <option value="">Tất cả camera</option>
                         {devices.map(device => <option key={device.id} value={device.id}>{device.device_code}{device.device_name ? ` — ${device.device_name}` : ''}</option>)}
-                    </select>
+                    </FilterMultiSelect>
                 </FilterField>
                 <button type="button" data-filter-action className="strangers-filter-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
                     onClick={() => { setFrom(daysAgo(6)); setTo(vnToday()); setDeviceId(''); setTab('pending'); setPage(1); }}>
@@ -313,7 +323,7 @@ const Strangers = () => {
                             <PaginatedCollection items={detail?.sightings} itemLabel="lần xuất hiện">
 {(camaiPageItems, camaiStartIndex) => (
 <div className="overflow-y-auto p-4 space-y-2">
-                                {detail.loading && <p className="text-sm text-slate-blue">Đang tải…</p>}
+                                {detail.loading && <p className="text-sm text-slate-blue">Đang tải...</p>}
                                 {camaiPageItems.map((camaiRecord, camaiIndex) => ((x, i) => (
                                     <div key={x.eventId} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-100">
                                         {x.hasSnapshot ? (
@@ -402,8 +412,8 @@ const Strangers = () => {
                             </div>
                         )}
                         <div className="flex justify-end gap-2">
-                            <button type="button" onClick={() => setAddForm(null)} className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-blue hover:bg-slate-100">Huỷ</button>
-                            <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-action-blue hover:bg-blue-700 text-white text-sm font-bold disabled:opacity-50">{saving ? 'Đang lưu…' : 'Thêm'}</button>
+                            <button type="button" onClick={() => setAddForm(null)} className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-blue hover:bg-slate-100">Hủy</button>
+                            <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-action-blue hover:bg-blue-700 text-white text-sm font-bold disabled:opacity-50">{saving ? 'Đang lưu...' : 'Thêm'}</button>
                         </div>
                     </form>
                 </div>,

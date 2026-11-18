@@ -7,3 +7,31 @@
     gap: 8px;
     max-width: 100%;
 }
+
+.camai-report-actions:has(> .camai-refresh-control) {
+    display: inline-grid;
+    grid-template-columns: auto 36px;
+    align-items: start;
+    row-gap: 4px;
+}
+
+.camai-report-actions:has(> .camai-refresh-control) > * {
+    align-self: start;
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.camai-report-actions > .camai-refresh-control {
+    display: contents;
+}
+
+.camai-report-actions > .camai-refresh-control > button {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.camai-report-actions > .camai-refresh-control > .camai-refresh-time {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: end;
+}
