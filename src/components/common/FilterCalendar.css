@@ -53,8 +53,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding: 0 28px 6px;
+    gap: 6px;
+    padding: 0 34px 8px;
 }
 
 .camai-filter-calendar :is(.react-datepicker__month-dropdown-container, .react-datepicker__year-dropdown-container) {
@@ -70,17 +70,22 @@
     background: #fff;
     color: #0B3558;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 700;
     cursor: pointer;
+    /* Chữ tháng/năm nằm giữa ô chọn. */
+    text-align: center;
+    text-align-last: center;
 }
 
-.camai-filter-calendar .react-datepicker__month-select { width: 144px; }
+.camai-filter-calendar .react-datepicker__month-select { width: 156px; }
 .camai-filter-calendar .react-datepicker__year-select { width: 68px; }
 .camai-filter-calendar select:focus-visible { outline: 2px solid #006BFF; outline-offset: 1px; }
 
 .camai-filter-calendar .react-datepicker__day-name {
     color: #476788;
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .camai-filter-calendar :is(.react-datepicker__day, .react-datepicker__day-name) {
@@ -128,8 +133,22 @@
     cursor: not-allowed;
 }
 
+/* Mũi tên ‹ › cùng hàng (căn giữa theo chiều dọc) với ô chọn tháng/năm: header padding-top 12px,
+   ô chọn cao 30px → nút điều hướng cũng đặt ở top 12px, cao 30px. */
 .camai-filter-calendar .react-datepicker__navigation {
-    top: 10px;
+    top: 12px;
+    height: 30px;
+    width: 26px;
+}
+.camai-filter-calendar .react-datepicker__navigation--previous { left: 4px; }
+.camai-filter-calendar .react-datepicker__navigation--next { right: 4px; }
+.camai-filter-calendar .react-datepicker__navigation-icon { top: 0; }
+
+/* Lưới ngày + hàng thứ căn giữa khung lịch (khung rộng theo hàng chọn tháng/năm). */
+.camai-filter-calendar .react-datepicker__month-container { float: none; }
+.camai-filter-calendar :is(.react-datepicker__day-names, .react-datepicker__week) {
+    display: flex;
+    justify-content: center;
 }
 
 .camai-filter-calendar .react-datepicker__time-container {

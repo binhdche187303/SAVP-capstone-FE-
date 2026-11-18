@@ -261,7 +261,7 @@ const DashboardBanner = ({ roleName = 'bạn', compact = false, titleAs: TitleTa
                             }}
                         >
                             {/* Greeting row: logo + tên */}
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0">
                                 <img
                                     src={websiteLogo}
                                     alt="VISMA IVA"
@@ -274,7 +274,7 @@ const DashboardBanner = ({ roleName = 'bạn', compact = false, titleAs: TitleTa
                                     }}
                                 />
                                 <span
-                                    className="text-white font-bold leading-tight"
+                                    className="text-white font-bold leading-tight whitespace-nowrap overflow-hidden text-ellipsis min-w-0"
                                     style={{ fontSize: '1.15rem', textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}
                                 >
                                     Xin chào,&nbsp;

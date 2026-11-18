@@ -51,7 +51,8 @@ export const buildPlan = (zones, rooms) => {
           key: z.id,
           kind: "corridor",
           label: z.zone_name,
-          sub: z.zone_code,
+          // Không hiện mã khu vực (GATE_MAIN…) — chỉ tên tiếng Việt.
+          sub: null,
           zoneId: z.id,
         })),
     ],
@@ -67,7 +68,8 @@ export const buildPlan = (zones, rooms) => {
               ? z.zone_type
               : "lobby",
           label: z.zone_name,
-          sub: z.zone_code,
+          // Không hiện mã khu vực (GATE_MAIN…) — chỉ tên tiếng Việt.
+          sub: null,
           zoneId: z.id,
         })),
     ],

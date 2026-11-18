@@ -1,11 +1,12 @@
 import PersonalAttendancePoints, { usePersonalAttendancePoints } from './PersonalAttendancePoints';
+import QuickShortcutCard from '../../components/common/QuickShortcutCard';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import CalendarRangePresets, { calendarRange } from '../../components/common/CalendarRangePresets';
 import './PersonalStatistics.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard from '../../components/common/StatisticCard';
-import { AlertCircle, ArrowRight, BarChart2, Award, Calendar, CheckCircle, ClipboardCheck, Clock, PlusCircle, ShieldAlert, TrendingUp, User, Video } from 'lucide-react';
+import { AlertCircle, BarChart2, Award, Calendar, CheckCircle, ClipboardCheck, Clock, PlusCircle, ShieldAlert, TrendingUp, User, Video } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Label } from 'recharts';
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -335,72 +336,44 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
                             <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
                                 Lối tắt chức năng nhanh
                             </h2>
-                            <div className={`grid grid-cols-1 sm:grid-cols-2 ${MEETING_BOOKING_ENABLED ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}>
+                            <div className={`grid grid-cols-1 sm:grid-cols-2 ${MEETING_BOOKING_ENABLED ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
                                 {MEETING_BOOKING_ENABLED && (
-                                <div
+                                <QuickShortcutCard
                                     onClick={() => navigate('/employee/book')}
-                                    className="group bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                            <PlusCircle className="w-6 h-6 text-white" />
-                                        </div>
-                                    </div>
-                                    <h3 className="font-bold text-base mb-1">Đăng ký họp</h3>
-                                    <p className="text-xs text-blue-100 mb-4">Lên lịch cuộc họp mới và đặt phòng họp theo kế hoạch.</p>
-                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
-                                        Tạo lịch họp ngay <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                    icon={PlusCircle}
+                                    tone="blue"
+                                    title="Đăng ký họp"
+                                    description="Lên lịch cuộc họp mới và đặt phòng họp theo kế hoạch."
+                                    action="Tạo lịch họp ngay"
+                                />
                                 )}
 
-                                <div
+                                <QuickShortcutCard
                                     onClick={() => navigate('/employee/schedule')}
-                                    className="group bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                            <Calendar className="w-6 h-6 text-white" />
-                                        </div>
-                                    </div>
-                                    <h3 className="font-bold text-base mb-1">Lịch họp cá nhân</h3>
-                                    <p className="text-xs text-indigo-100 mb-4">Theo dõi và quản lý lịch trình các cuộc họp cá nhân của bạn.</p>
-                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
-                                        Xem lịch trình <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                    icon={Calendar}
+                                    tone="indigo"
+                                    title="Lịch họp cá nhân"
+                                    description="Theo dõi và quản lý lịch trình các cuộc họp cá nhân của bạn."
+                                    action="Xem lịch trình"
+                                />
 
-                                <div
+                                <QuickShortcutCard
                                     onClick={() => navigate('/employee/face-register')}
-                                    className="group bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                            <User className="w-6 h-6 text-white" />
-                                        </div>
-                                    </div>
-                                    <h3 className="font-bold text-base mb-1">Đăng ký khuôn mặt</h3>
-                                    <p className="text-xs text-emerald-100 mb-4">Cập nhật dữ liệu khuôn mặt phục vụ điểm danh thông minh bằng Camera AI.</p>
-                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
-                                        Đăng ký ngay <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                    icon={User}
+                                    tone="emerald"
+                                    title="Đăng ký khuôn mặt"
+                                    description="Cập nhật dữ liệu khuôn mặt phục vụ điểm danh thông minh bằng Camera AI."
+                                    action="Đăng ký ngay"
+                                />
 
-                                <div
+                                <QuickShortcutCard
                                     onClick={() => navigate('/employee/recordings')}
-                                    className="group bg-gradient-to-br from-amber-500 to-amber-600 p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                            <Video className="w-6 h-6 text-white" />
-                                        </div>
-                                    </div>
-                                    <h3 className="font-bold text-base mb-1">Bản ghi & Tài liệu</h3>
-                                    <p className="text-xs text-amber-100 mb-4">Tra cứu video ghi âm, ghi hình và tài liệu tóm tắt cuộc họp.</p>
-                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
-                                        Xem bản ghi <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                    icon={Video}
+                                    tone="amber"
+                                    title="Bản ghi & Tài liệu"
+                                    description="Tra cứu video ghi âm, ghi hình và tài liệu tóm tắt cuộc họp."
+                                    action="Xem bản ghi"
+                                />
                             </div>
                         </div>
 
@@ -488,7 +461,7 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
 </PaginatedCollection>
                             </div>
 
-                            <div className="bg-gradient-to-br from-indigo-900 to-purple-950 p-6 rounded-2xl text-white shadow-sm flex flex-col justify-between">
+                            <div className="self-start bg-gradient-to-br from-indigo-900 to-purple-950 p-5 rounded-2xl text-white shadow-sm flex flex-col">
                                 <div>
                                     <h3 className="font-bold text-base mb-2 flex items-center gap-2">
                                         <ShieldAlert className="w-5 h-5 text-amber-400" />
@@ -503,7 +476,7 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
                                         <li>Bản ghi hình cuộc họp được tự động xóa sau 90 ngày.</li>
                                     </ul>
                                 </div>
-                                <div data-ui-text="secondary" className="pt-4 border-t border-white/10 mt-6 text-[10px] text-indigo-300 font-mono">
+                                <div data-ui-text="secondary" className="pt-3 border-t border-white/10 mt-4 text-[10px] text-indigo-300 font-mono">
                                     Quy định bảo vệ dữ liệu cá nhân VN áp dụng
                                 </div>
                             </div>

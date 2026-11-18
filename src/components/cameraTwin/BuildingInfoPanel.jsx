@@ -53,7 +53,7 @@ const BuildingInfoPanel = ({ twin, selectedBuildingId, selectedGateId, onSelectB
           <p data-ui-text="label" className="text-[10px] font-bold uppercase text-slate-500">Cổng · {g.side}</p>
           <h3 className="text-base font-bold text-slate-900">{g.name}</h3>
           <p data-ui-text="secondary" className="mt-1 text-[11px] text-slate-600">
-            Zone: {g.zones.length ? g.zones.map((z) => z.zone_code).join(", ") : <span className="text-amber-700">chưa gán zone cổng nào</span>}
+            Khu vực: {g.zones.length ? g.zones.map((z) => z.zone_name || z.zone_code).join(", ") : <span className="text-amber-700">chưa gán khu vực cổng nào</span>}
           </p>
           <ul className="mt-2 space-y-1">
             {[...g.cameraIds].map((id) => {

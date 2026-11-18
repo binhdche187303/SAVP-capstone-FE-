@@ -21,6 +21,7 @@ import { getSecurityAlerts } from '../../service/securityAlertService';
 import { getBusinessAdminSummary } from '../../service/campusService';
 import { getAlertTypeLabel } from '../../constants/alertType';
 import ZonePresenceTable from '../../components/campus/ZonePresenceTable';
+import DeviceStatusModal from '../../components/campus/DeviceStatusModal';
 import SharedStatCard from '../../components/common/StatCard';
 
 // ─── Design tokens (DESIGN.md — Sky Blueprint / Light Theme) ─────────────────
@@ -378,13 +379,13 @@ const GChartCard = ({ title, sub, delay = 0, accent = D.cyan, loading, empty, em
 
 // ─── KPI Tile ─────────────────────────────────────────────────────────────────
 
-const KpiTile = ({ icon, label, value, sub, subColor, iconColor = D.cyan, delay, progress, className = '' }) => {
+const KpiTile = ({ icon, label, value, sub, subColor, iconColor = D.cyan, delay, progress, className = '', onClick }) => {
     const [ref, inView] = useInView(0.2);
     const numericTarget = typeof value === 'number' ? value : null;
     const counted = useCountUp(numericTarget, inView);
     const tone = iconColor === D.red ? 'danger' : iconColor === D.amber ? 'warning' : iconColor === D.green ? 'success' : 'default';
     return <div ref={ref} className={`h-full min-w-0 ${className}`} style={{ transitionDelay: inView ? `${delay || 0}ms` : '0ms' }}>
-        <StatisticCard extraPosition="footer" icon={icon} label={label} value={numericTarget !== null ? counted : value} tone={tone}
+        <StatisticCard onClick={onClick} extraPosition="footer" icon={icon} label={label} value={numericTarget !== null ? counted : value} tone={tone}
             helper={sub && <span className="font-semibold" style={{ color: subColor }}>{sub}</span>}>
             {progress !== undefined && <div className="h-1 rounded-full bg-cloud-mist overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: inView ? `${Math.min(100, Math.max(0, progress))}%` : '0%', background: iconColor }} />
@@ -401,9 +402,10 @@ const DashBoard = () => {
     const [loading, setLoading] = useState(true);
     const [error,   setError]   = useState(null);
     const [lastUpdated, setLastUpdated] = useState(null);
+    const [showOffline, setShowOffline] = useState(false);
 
     const [kpi, setKpi] = useState({
-        devicesOnline: 0, devicesTotal: 0, devicesOffline: 0,
+        devicesOnline: 0, devicesTotal: 0, devicesOffline: 0, offlineDevices: [],
         alertsNew: 0, gateTrafficToday: 0,
         zonesActive: 0, zonesTotal: 0, vehicleHitsToday: 0,
     });
@@ -523,6 +525,7 @@ const DashBoard = () => {
             devicesOnline:    online,
             devicesTotal:     devList.length,
             devicesOffline:   offlineCount,
+            offlineDevices:   devList.filter(d => d.status !== 'online'),
             alertsNew,
             gateTrafficToday: gateToday,
             zonesActive,
@@ -662,18 +665,9 @@ const DashBoard = () => {
                         <h1 style={{ fontSize: 22, fontWeight: 800, color: D.text, letterSpacing: '-0.5px' }}>
                             Xin chào, {currentUser?.fullName || 'Quản trị hệ thống'} 👋
                         </h1>
-                        <p style={{ fontSize: 12, color: D.muted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {lastUpdated ? (
-                                <>
-                                    <span style={{
-                                        width: 7, height: 7, borderRadius: '50%',
-                                        background: D.green, boxShadow: `0 0 5px ${D.green}`,
-                                        display: 'inline-block', flexShrink: 0,
-                                    }} />
-                                    Cập nhật lúc {lastUpdated.toLocaleTimeString('vi-VN')}
-                                </>
-                            ) : 'Đang tải dữ liệu...'}
-                        </p>
+                        {!lastUpdated && (
+                            <p style={{ fontSize: 12, color: D.muted, marginTop: 4 }}>Đang tải dữ liệu...</p>
+                        )}
                     </div>
 
                     <RefreshButton
@@ -701,13 +695,14 @@ const DashBoard = () => {
 
             {/* ── KPI Tiles ─────────────────────────────────────────────────── */}
             <StatisticGrid columns={6} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <KpiTile delay={0}   icon={Wifi}        label="Thiết bị Online"
+                <KpiTile delay={0}   icon={Wifi}        label="Thiết bị IoT online"
                     value={loading ? '—' : kpi.devicesOnline}
-                    sub={loading ? '' : `/ ${kpi.devicesTotal} thiết bị`}
+                    sub={loading ? '' : `/ ${kpi.devicesTotal} thiết bị IoT đã đăng ký`}
                     iconColor={D.green} progress={loading ? undefined : onlinePct} />
                 <KpiTile delay={60}  icon={WifiOff}     label="Offline / Lỗi"
                     value={loading ? '—' : kpi.devicesOffline}
-                    sub={loading ? '' : kpi.devicesOffline > 0 ? 'Cần kiểm tra' : 'Ổn định'}
+                    sub={loading ? '' : kpi.devicesOffline > 0 ? 'Cần kiểm tra · Bấm để xem' : 'Ổn định'}
+                    onClick={!loading && kpi.offlineDevices.length > 0 ? () => setShowOffline(true) : undefined}
                     iconColor={kpi.devicesOffline > 0 ? D.red : D.green}
                     subColor={kpi.devicesOffline > 0 ? '#DC2626' : '#059669'} />
                 <KpiTile delay={120} icon={ShieldAlert}  label="Cảnh báo chưa xử lý"
@@ -1095,6 +1090,10 @@ const DashBoard = () => {
                 </div>
             </ScrollReveal>
 
+            <DeviceStatusModal isOpen={showOffline} onClose={() => setShowOffline(false)}
+                title={`Thiết bị offline / lỗi (${kpi.offlineDevices.length})`}
+                typeLabels={DEVICE_TYPE_LABEL} manageHref="/system-admin/devices"
+                devices={kpi.offlineDevices.map(d => ({ id: d.id, name: d.device_name, code: d.device_code, type: d.device_type, status: d.status, lastSeenAt: d.last_seen_at }))} />
         </div>
     );
 };

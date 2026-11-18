@@ -1,4 +1,5 @@
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
+import QuickShortcutCard from '../../components/common/QuickShortcutCard';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -399,6 +400,8 @@ const ManagerHomePage = () => {
     const onTimeSample = campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0;
     const onTimeValue = campusSummaryLoading || onTimeSample === 0 ? '—' : `${campusSummary?.onTimeRateThisWeek?.rate ?? 0}%`;
     const isSchoolWideLeader = !!leaderTitle && !currentUser?.departmentId;
+    // Hiệu trưởng / Phó hiệu trưởng phụ trách toàn trường, không có "team" riêng → ẩn khối hiện diện team.
+    const hideTeamPresence = ['HIEU_TRUONG', 'PHO_HIEU_TRUONG'].includes(leaderTitle);
     const onTimeHelper = campusSummaryLoading
         ? 'Đang tải...'
         : onTimeSample === 0
@@ -599,6 +602,7 @@ const ManagerHomePage = () => {
                         </StatisticGrid>
 
                         {/* Team Presence Today (CDB-RS-001: campus-dashboard/manager-summary) */}
+                        {!hideTeamPresence && (
                         <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm">
                             <h2 className="text-sm font-bold text-midnight-indigo mb-3">Hiện diện team hôm nay</h2>
                             {campusSummaryLoading ? (
@@ -623,76 +627,49 @@ const ManagerHomePage = () => {
                                 <p className="text-sm text-slate-blue">Không có dữ liệu hiện diện team.</p>
                             )}
                         </div>
+                        )}
 
                         {/* Quick Shortcuts */}
                         <div className="space-y-4">
                             <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
                                 Lối tắt chức năng nhanh
                             </h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <div 
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <QuickShortcutCard
                                     onClick={() => navigate('/manager/meeting-approvals')}
-                                    className="group bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                            <Sliders className="w-6 h-6 text-white" />
-                                        </div>
-                                    </div>
-                                    <h3 className="font-bold text-base mb-1">Phê duyệt đặt lịch</h3>
-                                    <p className="text-xs text-indigo-100 mb-4">Xét duyệt nhanh chóng các yêu cầu đặt phòng họp có điều kiện của nhân viên.</p>
-                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
-                                        Xem yêu cầu ({pendingRequests.length}) <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                    icon={Sliders}
+                                    tone="indigo"
+                                    title="Phê duyệt đặt lịch"
+                                    description="Xét duyệt nhanh chóng các yêu cầu đặt phòng họp có điều kiện của nhân viên."
+                                    action={`Xem yêu cầu (${pendingRequests.length})`}
+                                />
 
-                                <div
+                                <QuickShortcutCard
                                     onClick={() => navigate('/manager/rooms')}
-                                    className="group bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                            <TrendingUp className="w-6 h-6 text-white" />
-                                        </div>
-                                    </div>
-                                    <h3 className="font-bold text-base mb-1">Trạng thái phòng</h3>
-                                    <p className="text-xs text-blue-100 mb-4">Xem thông tin và hình ảnh hiện diện thực tế (Occupancy) tại các phòng.</p>
-                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
-                                        Xem phòng họp <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                    icon={TrendingUp}
+                                    tone="blue"
+                                    title="Trạng thái phòng"
+                                    description="Xem thông tin và hình ảnh hiện diện thực tế (Occupancy) tại các phòng."
+                                    action="Xem phòng họp"
+                                />
 
-                                <div 
+                                <QuickShortcutCard
                                     onClick={() => navigate('/manager/attendance-analytics')}
-                                    className="group bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                            <Clock className="w-6 h-6 text-white" />
-                                        </div>
-                                    </div>
-                                    <h3 className="font-bold text-base mb-1">Điểm danh phòng ban</h3>
-                                    <p className="text-xs text-emerald-100 mb-4">Xem chi tiết tình trạng điểm danh các cuộc họp thuộc phòng ban.</p>
-                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
-                                        Xem danh sách <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                    icon={Clock}
+                                    tone="emerald"
+                                    title="Điểm danh phòng ban"
+                                    description="Xem chi tiết tình trạng điểm danh các cuộc họp thuộc phòng ban."
+                                    action="Xem danh sách"
+                                />
 
-                                <div 
+                                <QuickShortcutCard
                                     onClick={() => setActiveTab('analytics')}
-                                    className="group bg-gradient-to-br from-purple-500 to-purple-600 p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                            <FileText className="w-6 h-6 text-white" />
-                                        </div>
-                                    </div>
-                                    <h3 className="font-bold text-base mb-1">Báo cáo & Thống kê</h3>
-                                    <p className="text-xs text-purple-100 mb-4">Mở trang phân tích biểu đồ tần suất họp và hiệu suất sử dụng phòng.</p>
-                                    <div data-ui-text="primary" className="flex items-center gap-1 text-xs font-bold mt-auto group-hover:gap-2 transition-all">
-                                        Xem thống kê <ArrowRight className="w-4 h-4" />
-                                    </div>
-                                </div>
+                                    icon={FileText}
+                                    tone="purple"
+                                    title="Báo cáo & Thống kê"
+                                    description="Mở trang phân tích biểu đồ tần suất họp và hiệu suất sử dụng phòng."
+                                    action="Xem thống kê"
+                                />
                             </div>
                         </div>
 
@@ -893,7 +870,7 @@ const ManagerHomePage = () => {
                         ) : (
                             <>
                                 {/* Stat Cards */}
-                                <StatisticGrid columns={4} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <StatisticGrid columns={4} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                     <StatisticCard label="Họp phòng ban" value={`${stats.meetingCount} cuộc`} icon={Calendar} helper={<>Thời lượng trung bình: {avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}p · Hủy: {cancelRateStats.cancelRate}%</>} />
 
                                     <StatisticCard label="Hiệu suất dùng phòng" value={`${stats.utilizationRate}%`} icon={TrendingUp} helper="Thời gian có hiện diện thực tế" />

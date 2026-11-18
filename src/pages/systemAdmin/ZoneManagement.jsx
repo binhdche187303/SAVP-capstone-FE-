@@ -3,7 +3,9 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Activity, AlertTriangle, BarChart3, Calendar, Camera, CheckCircle, Edit2, Eye, History, Info, LogIn, LogOut, Map, MapPin, Monitor, Plus, Search, Server, Shield, ShieldCheck, ShieldQuestion, Trash2, Users, Video, X, Loader2 } from 'lucide-react';
+import DateInput from '../../components/common/DateInput';
+import CalendarRangePresets from '../../components/common/CalendarRangePresets';
+import { Activity, AlertTriangle, BarChart3, Building2, ChevronRight, Camera, CheckCircle, Edit2, Eye, History, Info, LogIn, LogOut, Map, MapPin, Monitor, Plus, Search, Server, Shield, ShieldCheck, ShieldQuestion, Trash2, Users, Video, X, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { createPortal } from 'react-dom';
@@ -15,6 +17,7 @@ import { getZoneAccessLog, getZonePresenceTimeline } from '../../service/sysAdmi
 import { subscribeToZonePresence } from '../../utils/socket';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
+import { groupZones, zoneLocationOptions } from '../../utils/zoneGroups';
 import ZoneLocationPicker, { parseZoneCoordinates } from '../../components/campus/ZoneLocationPicker';
 
 
@@ -23,14 +26,42 @@ import ZoneLocationPicker, { parseZoneCoordinates } from '../../components/campu
 const getTodayVN = () =>
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
 
-const fmtEventTime = (iso) => {
+const fmtEventTime = (iso, withDate = false) => {
     if (!iso) return '—';
     try {
-        return new Date(iso).toLocaleTimeString('vi-VN', {
-            hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Ho_Chi_Minh'
+        return new Date(iso).toLocaleString('vi-VN', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Ho_Chi_Minh', hourCycle: 'h23',
+            ...(withDate ? { day: '2-digit', month: '2-digit' } : {}),
         });
     } catch { return '—'; }
 };
+
+const fmtRefreshed = (d) => d ? d.toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }) : '—';
+const RefreshedAt = ({ at }) => (
+    <span className="text-xs font-normal normal-case tracking-normal text-slate-blue" aria-live="polite">
+        · Cập nhật lúc <time className="tabular-nums">{fmtRefreshed(at)}</time>
+    </span>
+);
+
+// Nút Ngày/Tuần/Tháng/Năm cỡ nhỏ cho đầu thẻ (ẩn nhãn "Khoảng thời gian").
+// Giữ chuỗi class nguyên văn để Tailwind quét được.
+const PRESET_COMPACT = '[&_.camai-time-label]:sr-only [&_[data-filter-preset]]:!min-h-0 [&_[data-filter-preset]]:!h-8 [&_[data-filter-preset]]:!py-0 [&_[data-filter-preset]]:!px-3 [&_[data-filter-preset]]:!text-xs [&_.camai-time-buttons]:!gap-1.5';
+
+/** Cụm nút lọc Tất cả / Người quen / Người lạ — dùng chung cho Nhật ký và Dòng thời gian. */
+const StatusFilterChips = ({ value, onChange, counts }) => (
+    <div className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Lọc theo trạng thái">
+        {[
+            ['', 'Tất cả', counts.all, 'bg-action-blue text-white border-action-blue'],
+            ['matched', 'Người quen', counts.matched, 'bg-emerald-600 text-white border-emerald-600'],
+            ['stranger', 'Người lạ', counts.stranger, 'bg-red-600 text-white border-red-600'],
+        ].map(([key, label, count, active]) => (
+            <button key={key || 'all'} type="button" onClick={() => onChange(key)} aria-pressed={value === key}
+                className={`h-8 px-3 rounded-lg text-xs font-semibold border transition-colors ${value === key ? active : 'bg-white text-slate-blue border-platinum-tint hover:border-action-blue/50'}`}>
+                {label} <span className="tabular-nums">{count ?? 0}</span>
+            </button>
+        ))}
+    </div>
+);
 
 // ─── inline badges ───────────────────────────────────────────────────────────
 
@@ -53,8 +84,12 @@ const ZoneStatusBadge = ({ isStranger }) => {
 
 
 const ZoneAccessLogCard = ({ zoneId }) => {
-    const [ZONE_LOG_LIMIT, setZoneLogLimit] = useState(10);
-    const [date, setDate] = useState(getTodayVN);
+    const [ZONE_LOG_LIMIT, setZoneLogLimit] = useState(9); // lưới 3 cột → 9 = 3 hàng đủ
+    const [statusFilter, setStatusFilter] = useState('');
+    const [refreshedAt, setRefreshedAt] = useState(null);
+    const [fromDate, setFromDate] = useState(getTodayVN);
+    const [toDate, setToDate] = useState(getTodayVN);
+    const multiDay = fromDate !== toDate;
     const [page, setPage] = useState(1);
     const [events, setEvents] = useState([]);
     const [totalPages, setTotalPages] = useState(1);
@@ -75,14 +110,14 @@ const ZoneAccessLogCard = ({ zoneId }) => {
         }
     }, [zoneId]);
 
-    useEffect(() => { setPage(1); }, [date]);
+    useEffect(() => { setPage(1); }, [fromDate, toDate, statusFilter]);
 
     const fetchLog = useCallback(async (silent = false) => {
         if (!zoneId) return;
         if (!silent) setLoading(true);
         setError(null);
         try {
-            const res = await getZoneAccessLog(zoneId, date, { page, limit: ZONE_LOG_LIMIT });
+            const res = await getZoneAccessLog(zoneId, undefined, { from: fromDate, to: toDate, page, limit: ZONE_LOG_LIMIT, ...(statusFilter ? { status: statusFilter } : {}) });
             if (res?.success && res.data) {
                 const evList = res.data.events || res.data.items || [];
                 const sorted = [...evList].sort((a, b) =>
@@ -95,6 +130,7 @@ const ZoneAccessLogCard = ({ zoneId }) => {
                 setTotal(res.data.totalEvents ?? pag.total ?? pag.totalItems ?? evList.length);
                 setMatchedCount(res.data.matchedCount ?? 0);
                 setUnmatchedCount(res.data.unmatchedCount ?? 0);
+                setRefreshedAt(new Date());
             } else {
                 throw new Error(res?.message || 'Không thể tải nhật ký.');
             }
@@ -103,7 +139,7 @@ const ZoneAccessLogCard = ({ zoneId }) => {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [zoneId, date, page, ZONE_LOG_LIMIT]);
+    }, [zoneId, fromDate, toDate, page, ZONE_LOG_LIMIT, statusFilter]);
 
     useEffect(() => { fetchLog(); }, [fetchLog]);
 
@@ -133,40 +169,48 @@ const ZoneAccessLogCard = ({ zoneId }) => {
 
     return (
         <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
-            {/* Card header */}
-            <div className="px-5 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="text-sm font-bold text-slate-blue uppercase tracking-wider flex items-center gap-2">
+            {/* Card header: hàng 1 = tiêu đề · giờ cập nhật | Ngày/Tuần/Tháng/Năm + làm mới; hàng 2 = trạng thái | từ – đến */}
+            <div className="px-4 py-3 border-b border-platinum-tint bg-cloud-mist/30 space-y-2">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <h3 className="text-sm font-bold text-slate-blue uppercase tracking-wider flex items-center gap-2 h-9">
                         <History className="w-4 h-4 text-action-blue" />
                         Nhật ký ra vào khu vực
+                        <RefreshedAt at={refreshedAt} />
                     </h3>
-                    {!loading && total > 0 && (
-                        <div className="flex items-center gap-1.5">
-                            <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">{total} sự kiện</span>
-                            {matchedCount > 0 && <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">{matchedCount} khớp</span>}
-                            {/* Tạm ẩn badge "lượt người lạ" theo yêu cầu, giữ nguyên code để bật lại khi cần */}
-                            {/* {unmatchedCount > 0 && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700">{unmatchedCount} lượt người lạ</span>} */}
-                        </div>
-                    )}
-                </div>
-                <FilterBar variant="inline" className="flex items-center gap-2">
-                    <div className="relative">
-                        <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-action-blue pointer-events-none" />
-                        <input
-                            type="date"
-                            value={date}
-                            max={getTodayVN()}
-                            onChange={(e) => setDate(e.target.value)}
-                            className="pl-8 pr-3 py-1.5 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo bg-white hover:border-action-blue/50 focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/10 transition-all cursor-pointer"
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <CalendarRangePresets
+                            from={fromDate}
+                            to={toDate}
+                            options={[['day', 'Ngày'], ['week', 'Tuần'], ['month', 'Tháng'], ['year', 'Năm']]}
+                            onChange={(range) => { setFromDate(range.from); setToDate(range.to); }}
+                            className={PRESET_COMPACT}
+                        />
+                        <RefreshButton
+                            showTime={false}
+                            onClick={() => fetchLog()}
+                            title="Làm mới (tự động cập nhật mỗi 2 giây)"
+                            busy={loading}
                         />
                     </div>
-                    <span data-ui-text="secondary" className="text-[10px] text-slate-400">Tự động cập nhật mỗi 2s</span>
-                    <RefreshButton
-                        onClick={() => fetchLog()}
-                        title="Làm mới"
-                        busy={loading}
-                    />
-                </FilterBar>
+                </div>
+                {/* Hàng 2: lọc trạng thái (số đếm theo khoảng đã chọn) | khoảng ngày tùy chọn */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                <StatusFilterChips value={statusFilter} onChange={setStatusFilter}
+                    counts={{ all: statusFilter ? matchedCount + unmatchedCount : total, matched: matchedCount, stranger: unmatchedCount }} />
+                    <span className="flex items-center gap-1.5 text-xs text-slate-blue">
+                        <span className="block w-32 shrink-0">
+                            <DateInput type="date" aria-label="Từ ngày" value={fromDate} max={toDate}
+                                onChange={(e) => e.target.value && setFromDate(e.target.value)}
+                                className="w-full h-9 px-3 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo bg-white focus:outline-none focus:border-action-blue" />
+                        </span>
+                        –
+                        <span className="block w-32 shrink-0">
+                            <DateInput type="date" aria-label="Đến ngày" value={toDate} min={fromDate} max={getTodayVN()}
+                                onChange={(e) => e.target.value && setToDate(e.target.value)}
+                                className="w-full h-9 px-3 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo bg-white focus:outline-none focus:border-action-blue" />
+                        </span>
+                    </span>
+                </div>
             </div>
 
             {/* Error */}
@@ -178,10 +222,10 @@ const ZoneAccessLogCard = ({ zoneId }) => {
             )}
 
             {/* Event grid */}
-            <div className="p-4">
+            <div className="p-3">
                 {loading ? (
                     <div className="grid grid-cols-3 gap-2.5">
-                        {Array.from({ length: 6 }).map((_, i) => (
+                        {Array.from({ length: 9 }).map((_, i) => (
                             <div key={i} className="rounded-xl border border-platinum-tint overflow-hidden animate-pulse">
                                 <div className="w-full aspect-video bg-slate-100" />
                                 <div className="p-3 space-y-2">
@@ -197,12 +241,12 @@ const ZoneAccessLogCard = ({ zoneId }) => {
                 ) : events.length === 0 ? (
                     <div className="py-10 text-center text-slate-400">
                         <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        <p className="text-xs">Không có sự kiện nào trong ngày này</p>
+                        <p className="text-xs">{statusFilter === 'matched' ? 'Chưa có người quen nào được nhận diện trong khoảng thời gian này' : statusFilter === 'stranger' ? 'Không có người lạ trong khoảng thời gian này' : 'Không có sự kiện nào trong khoảng thời gian này'}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-3 gap-2.5">
                         {events.map((ev) => {
-                            const time = fmtEventTime(ev.eventTime || ev.timestamp);
+                            const time = fmtEventTime(ev.eventTime || ev.timestamp, multiDay);
                             const name = ev.fullName || (ev.isStranger ? 'Người lạ' : 'Không nhận diện được');
                             const cardStyle = ev.isStranger
                                 ? 'border-red-300 ring-1 ring-red-200'
@@ -278,7 +322,7 @@ const toVnHour = (isoStr) => {
 const buildIso = (dateStr, isEnd) =>
     isEnd ? `${dateStr}T23:59:59+07:00` : `${dateStr}T00:00:00+07:00`;
 
-const MAX_TIMELINE_DAYS = 31;
+const MAX_TIMELINE_DAYS = 366; // > 31 ngày BE trả số liệu tổng hợp (summary)
 
 const EVENT_TYPE_BADGE = {
     appear: (
@@ -293,10 +337,15 @@ const EVENT_TYPE_BADGE = {
     ),
 };
 
-const ZoneTimelineCard = ({ zoneId }) => {
+// BE chỉ ghi số người hiện diện cho các loại khu này (PRESENCE_ZONE_TYPES).
+const PRESENCE_ZONE_TYPES = ['corridor', 'lobby', 'parking'];
+
+const ZoneTimelineCard = ({ zoneId, zoneType }) => {
     const [fromDate, setFromDate] = useState(getTodayVN);
     const [toDate, setToDate] = useState(getTodayVN);
     const [data, setData] = useState(null);
+    const [refreshedAt, setRefreshedAt] = useState(null);
+    const [statusFilter, setStatusFilter] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -321,9 +370,11 @@ const ZoneTimelineCard = ({ zoneId }) => {
             const res = await getZonePresenceTimeline(zoneId, {
                 from: buildIso(fromDate, false),
                 to: buildIso(toDate, true),
+                ...(statusFilter ? { status: statusFilter } : {}),
             });
             if (res?.success) {
                 setData(res.data);
+                setRefreshedAt(new Date());
             } else {
                 throw new Error(res?.message || 'Không thể tải dữ liệu timeline.');
             }
@@ -332,7 +383,7 @@ const ZoneTimelineCard = ({ zoneId }) => {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [zoneId, fromDate, toDate]);
+    }, [zoneId, fromDate, toDate, statusFilter]);
 
     // Reset + refetch khi đổi zone
     useEffect(() => {
@@ -362,6 +413,7 @@ const ZoneTimelineCard = ({ zoneId }) => {
 
     // Aggregate events by VN hour (0–23) cho BarChart
     const hourlyData = useMemo(() => {
+        if (data?.summary?.hourly) return data.summary.hourly;
         if (!data?.events?.length) return [];
         const buckets = Array.from({ length: 24 }, (_, h) => ({
             hour: h, appear: 0, disappear: 0,
@@ -374,46 +426,60 @@ const ZoneTimelineCard = ({ zoneId }) => {
         return buckets;
     }, [data]);
 
-    const appearTotal = useMemo(() => data?.events?.filter(e => e.eventType === 'appear').length ?? 0, [data]);
+    // Khoảng dài: events chỉ là vài sự kiện gần nhất, tổng thật nằm ở summary.total.
+    const eventTotal = data?.summary?.total ?? data?.events?.length ?? 0;
+    // Số cho nút lọc: ưu tiên BE (tính cả khoảng); BE cũ chưa có thì tự đếm từ events đang có.
+    const timelineCounts = useMemo(() => data?.statusCounts ?? {
+        all: eventTotal,
+        matched: (data?.events ?? []).filter(e => e.userId).length,
+        stranger: (data?.events ?? []).filter(e => e.isStranger).length,
+    }, [data, eventTotal]);
     const recentEvents = useMemo(() => [...(data?.events ?? [])].filter(e => e.eventType !== 'count').reverse().slice(0, 30), [data]);
     const hasChart = hourlyData.some(b => b.appear > 0 || b.disappear > 0);
 
     return (
         <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
-            {/* Header */}
-            <div className="px-5 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-bold text-slate-blue uppercase tracking-wider flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-action-blue" />
-                    Dòng thời gian hiện diện
-                </h3>
-                <FilterBar variant="inline" className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center gap-1.5">
-                        <span data-ui-text="secondary" className="text-[10px] text-slate-blue font-medium">Từ</span>
-                        <input
-                            type="date"
-                            value={fromDate}
-                            onChange={e => setFromDate(e.target.value)}
-                            className="px-2 py-1 border border-platinum-tint rounded-lg text-xs text-midnight-indigo focus:outline-none focus:border-action-blue"
+            {/* Header: hàng 1 = tiêu đề · giờ cập nhật | Ngày/Tuần/Tháng/Năm + làm mới; hàng 2 = lọc trạng thái | từ – đến */}
+            <div className="px-4 py-3 border-b border-platinum-tint bg-cloud-mist/30 space-y-2">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <h3 className="text-sm font-bold text-slate-blue uppercase tracking-wider flex items-center gap-2 h-9">
+                        <Activity className="w-4 h-4 text-action-blue" />
+                        Dòng thời gian hiện diện
+                        <RefreshedAt at={refreshedAt} />
+                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <CalendarRangePresets
+                            from={fromDate}
+                            to={toDate}
+                            options={[['day', 'Ngày'], ['week', 'Tuần'], ['month', 'Tháng'], ['year', 'Năm']]}
+                            onChange={(range) => { setFromDate(range.from); setToDate(range.to); }}
+                            className={PRESET_COMPACT}
+                        />
+                        <RefreshButton
+                            showTime={false}
+                            onClick={() => fetchTimeline()}
+                            disabled={loading}
+                            title="Làm mới (tự động cập nhật mỗi 6 giây)"
+                            busy={loading}
                         />
                     </div>
-                    <div className="flex items-center gap-1.5">
-                        <span data-ui-text="secondary" className="text-[10px] text-slate-blue font-medium">Đến</span>
-                        <input
-                            type="date"
-                            value={toDate}
-                            min={fromDate}
-                            onChange={e => setToDate(e.target.value)}
-                            className="px-2 py-1 border border-platinum-tint rounded-lg text-xs text-midnight-indigo focus:outline-none focus:border-action-blue"
-                        />
-                    </div>
-                    <span data-ui-text="secondary" className="text-[10px] text-slate-400">Tự động cập nhật mỗi 6s</span>
-                    <RefreshButton
-                        onClick={() => fetchTimeline()}
-                        disabled={loading}
-                        title="Làm mới"
-                        busy={loading}
-                    />
-                </FilterBar>
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <StatusFilterChips value={statusFilter} onChange={setStatusFilter} counts={timelineCounts} />
+                    <span className="flex items-center gap-1.5 text-xs text-slate-blue">
+                        <span className="block w-32 shrink-0">
+                            <DateInput type="date" aria-label="Từ ngày" value={fromDate} max={toDate}
+                                onChange={e => e.target.value && setFromDate(e.target.value)}
+                                className="w-full h-9 px-3 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo bg-white focus:outline-none focus:border-action-blue" />
+                        </span>
+                        –
+                        <span className="block w-32 shrink-0">
+                            <DateInput type="date" aria-label="Đến ngày" value={toDate} min={fromDate} max={getTodayVN()}
+                                onChange={e => e.target.value && setToDate(e.target.value)}
+                                className="w-full h-9 px-3 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo bg-white focus:outline-none focus:border-action-blue" />
+                        </span>
+                    </span>
+                </div>
             </div>
 
             {/* Body */}
@@ -427,26 +493,18 @@ const ZoneTimelineCard = ({ zoneId }) => {
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     <span>{error}</span>
                 </div>
-            ) : !data || data.events.length === 0 ? (
+            ) : !data || eventTotal === 0 ? (
                 <div className="p-10 text-center text-slate-blue">
                     <Activity className="w-10 h-10 mx-auto mb-3 opacity-20" />
                     <p className="text-sm font-medium">{data?.message || 'Không có sự kiện trong khoảng thời gian này.'}</p>
-                    <p className="text-xs mt-1">Camera khu vực cần ghi nhận sự kiện hiện diện để hiển thị dữ liệu.</p>
+                    <p className="text-xs mt-1">
+                        {zoneType && !PRESENCE_ZONE_TYPES.includes(zoneType)
+                            ? 'Khu vực này không thuộc loại Hành lang, Sảnh bảo vệ hoặc Bãi đỗ xe nên hệ thống không đếm người hiện diện. Sửa loại khu vực nếu cần theo dõi.'
+                            : 'Camera khu vực cần ghi nhận sự kiện hiện diện để hiển thị dữ liệu.'}
+                    </p>
                 </div>
             ) : (
                 <div className="p-5 space-y-5">
-                    {/* KPI chips */}
-                    <div className="grid grid-cols-3 gap-2.5">
-                        <div className="bg-cloud-mist/40 rounded-xl p-3 text-center">
-                            <p data-ui-text="label" className="text-[10px] text-slate-blue font-medium uppercase">Tổng sự kiện</p>
-                            <p className="text-lg font-bold text-midnight-indigo mt-0.5">{data.events.length}</p>
-                        </div>
-                        <div className="bg-blue-50 rounded-xl p-3 text-center">
-                            <p data-ui-text="label" className="text-[10px] text-blue-600 font-medium uppercase">Lượt xuất hiện</p>
-                            <p className="text-lg font-bold text-blue-700 mt-0.5">{appearTotal}</p>
-                        </div>
-                    </div>
-
                     {/* personDataAvailable warning */}
                     {data.personDataAvailable === false && (
                         <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
@@ -500,8 +558,8 @@ const ZoneTimelineCard = ({ zoneId }) => {
                     <div>
                         <p data-ui-text="label" className="text-[10px] font-bold text-midnight-indigo uppercase mb-3 flex items-center gap-1.5">
                             <History className="w-3.5 h-3.5 text-slate-blue" />
-                            {recentEvents.length < (data?.events?.length ?? 0)
-                                ? `${recentEvents.length} sự kiện gần nhất (tổng ${data.events.length})`
+                            {recentEvents.length < eventTotal
+                                ? `${recentEvents.length} sự kiện gần nhất (tổng ${eventTotal})`
                                 : `${recentEvents.length} sự kiện`}
                         </p>
                         <div className="border border-platinum-tint rounded-xl overflow-hidden">
@@ -574,6 +632,10 @@ const ZoneManagement = () => {
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    // Nhóm tòa nhà/tầng: mặc định đóng; tự mở khi đang tìm kiếm hoặc chứa khu đang chọn.
+    const [openGroups, setOpenGroups] = useState({});
+    const isGroupOpen = (key, hasSelected) => openGroups[key] ?? (!!searchTerm.trim() || hasSelected);
+    const toggleGroup = (key, current) => setOpenGroups(prev => ({ ...prev, [key]: !current }));
 
     // Modal states
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -602,7 +664,7 @@ const ZoneManagement = () => {
         corridor: 'Hành lang',
         lobby: 'Sảnh bảo vệ',
         parking: 'Bãi đỗ xe',
-        room: 'Phòng họp'
+        room: 'Phòng'
     };
 
     // Chính sách cho khách đến làm việc: quyết định khu nào khách được cấp khi duyệt (BE: zones.visitor_policy).
@@ -680,6 +742,9 @@ const ZoneManagement = () => {
             setDetailLoading(false);
         }
     };
+
+    // Gõ vào ô nào thì bỏ lỗi của ô đó (trước đây lỗi chỉ mất khi bấm lưu lại).
+    const clearZoneError = (field) => setZoneErrors(prev => (prev[field] ? { ...prev, [field]: undefined } : prev));
 
     // Lỗi trường bắt buộc hiển thị dưới ô nhập (thay tooltip mặc định tiếng Anh của trình duyệt).
     const validateZoneRequired = (form) => {
@@ -935,12 +1000,9 @@ const ZoneManagement = () => {
                                     className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
                                 />
                             </div>
-                            <p data-ui-text="secondary" className="text-[10px] text-slate-400 mt-2">Tự động cập nhật mỗi 2s</p>
                         </FilterBar>
 
-                        <PaginatedCollection items={filteredZones} itemLabel="khu vực">
-{(camaiPageItems, camaiStartIndex) => (
-<div className="flex-1 overflow-y-auto p-4 space-y-2">
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center h-40 text-slate-blue">
                                     <Loader2 className="w-8 h-8 animate-spin mb-4" />
@@ -951,45 +1013,75 @@ const ZoneManagement = () => {
                                     <Map className="w-8 h-8 mb-3" />
                                     <p className="text-sm">Không tìm thấy khu vực nào</p>
                                 </div>
-                            ) : (
-                                camaiPageItems.map((camaiRecord, camaiIndex) => ((zone) => (
-                                    <div
-                                        key={zone.id}
-                                        onClick={() => handleSelectZone(zone)}
-                                        className={`p-3 rounded-xl border transition-all cursor-pointer group ${selectedZone?.id === zone.id
-                                            ? 'border-action-blue bg-blue-50/50 shadow-sm'
-                                            : 'border-platinum-tint bg-white hover:border-action-blue/50 hover:bg-cloud-mist/20'
-                                            }`}
-                                    >
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h3 className="font-bold text-sm text-midnight-indigo">{zone.zone_name}</h3>
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={(e) => handleEditClick(zone, e)}
-                                                    className="p-1 text-slate-blue hover:text-action-blue hover:bg-blue-50 rounded transition-colors"
-                                                    title="Sửa khu vực"
-                                                >
-                                                    <Edit2 className="w-3.5 h-3.5" />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => handleDeleteClick(zone, e)}
-                                                    className="p-1 text-slate-blue hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                                    title="Xóa khu vực"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
+                            ) : groupZones(filteredZones).map((b) => {
+                                const bOpen = isGroupOpen(b.key, b.floors.some(f => f.zones.some(z => z.id === selectedZone?.id)));
+                                return (
+                                <section key={b.key} className="rounded-xl border border-platinum-tint overflow-hidden">
+                                    <button type="button" onClick={() => toggleGroup(b.key, bOpen)} aria-expanded={bOpen}
+                                        className="w-full flex items-center gap-2 px-3 py-2.5 bg-cloud-mist/40 hover:bg-cloud-mist text-left">
+                                        <ChevronRight className={`w-4 h-4 text-slate-blue transition-transform ${bOpen ? 'rotate-90' : ''}`} />
+                                        <Building2 className="w-4 h-4 text-action-blue" />
+                                        <span className="flex-1 text-sm font-bold text-midnight-indigo truncate">{b.label}</span>
+                                        <span className="px-2 py-0.5 rounded-full bg-white text-xs font-semibold text-slate-blue">{b.count}</span>
+                                    </button>
+                                    {bOpen && b.floors.map((f) => {
+                                        const fOpen = isGroupOpen(f.key, f.zones.some(z => z.id === selectedZone?.id));
+                                        return (
+                                        <div key={f.key} className="border-t border-platinum-tint">
+                                            <button type="button" onClick={() => toggleGroup(f.key, fOpen)} aria-expanded={fOpen}
+                                                className="w-full flex items-center gap-2 pl-8 pr-3 py-2 hover:bg-cloud-mist/30 text-left">
+                                                <ChevronRight className={`w-3.5 h-3.5 text-slate-blue transition-transform ${fOpen ? 'rotate-90' : ''}`} />
+                                                <span className="flex-1 text-xs font-semibold text-slate-blue">{f.label}</span>
+                                                <span className="text-xs text-slate-blue tabular-nums">{f.zones.length}</span>
+                                            </button>
+                                            {fOpen && (
+                                                <div className="pl-8 pr-2 pb-2 space-y-1.5">
+                                                    {f.zones.map((zone) => (
+                                            <div
+                                                key={zone.id}
+                                                onClick={() => handleSelectZone(zone)}
+                                                className={`p-3 rounded-xl border transition-all cursor-pointer group ${selectedZone?.id === zone.id
+                                                    ? 'border-action-blue bg-blue-50/50 shadow-sm'
+                                                    : 'border-platinum-tint bg-white hover:border-action-blue/50 hover:bg-cloud-mist/20'
+                                                    }`}
+                                            >
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <h3 className="font-bold text-sm text-midnight-indigo">{zone.zone_name}</h3>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={(e) => handleEditClick(zone, e)}
+                                                            className="p-1 text-slate-blue hover:text-action-blue hover:bg-blue-50 rounded transition-colors"
+                                                            title="Sửa khu vực"
+                                                        >
+                                                            <Edit2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleDeleteClick(zone, e)}
+                                                            className="p-1 text-slate-blue hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                            title="Xóa khu vực"
+                                                        >
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-slate-blue flex items-center mt-1">
+                                                    <MapPin className="w-3 h-3 mr-1" />
+                                                    {[zone.building, zone.floor].filter(Boolean).join(' - ') || 'Chưa cập nhật vị trí'}
+                                                </p>
                                             </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                        <p className="text-xs text-slate-blue flex items-center mt-1">
-                                            <MapPin className="w-3 h-3 mr-1" />
-                                            {[zone.building, zone.floor].filter(Boolean).join(' - ') || 'Chưa cập nhật vị trí'}
-                                        </p>
-                                    </div>
-                                ))(camaiRecord, camaiStartIndex + camaiIndex, (filteredZones)))
-                            )}
+                                        );
+                                    })}
+                                </section>
+                                );
+                            })}
                         </div>
-)}
-</PaginatedCollection>
+                        {!loading && filteredZones.length > 0 && (
+                            <p className="px-4 py-3 border-t border-platinum-tint text-xs text-slate-blue">{filteredZones.length} khu vực</p>
+                        )}
                     </div>
 
                     {/* ZONE DETAIL PANE */}
@@ -1035,8 +1127,13 @@ const ZoneManagement = () => {
                                         Dòng thời gian
                                     </button>
                                 </div>
+                                <p className="px-4 pt-3 text-xs text-slate-blue bg-slate-50/50">
+                                    {detailTab === 'log'
+                                        ? 'Từng lượt camera nhận diện khuôn mặt trong khu vực: ảnh, giờ, người quen hay người lạ.'
+                                        : 'Số người có mặt trong khu vực theo thời gian (đếm đầu người), không phân biệt danh tính.'}
+                                </p>
 
-                                <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+                                <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50">
                                     {detailLoading ? (
                                         <div className="flex flex-col items-center justify-center h-40 text-slate-blue">
                                             <Loader2 className="w-6 h-6 animate-spin mb-3" />
@@ -1048,7 +1145,7 @@ const ZoneManagement = () => {
                                                 <ZoneAccessLogCard zoneId={selectedZone.id} />
                                             )}
                                             {detailTab === 'timeline' && (
-                                                <ZoneTimelineCard zoneId={selectedZone.id} />
+                                                <ZoneTimelineCard zoneId={selectedZone.id} zoneType={selectedZone.zone_type} />
                                             )}
                                         </div>
                                     )}
@@ -1067,25 +1164,25 @@ const ZoneManagement = () => {
                 {/* CREATE MODAL */}
                 {isCreateModalOpen && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-xl p-4 animate-fade-in-up">
-                        <div className="bg-white rounded-2xl border border-platinum-tint shadow-xl max-w-md w-full flex flex-col">
-                            <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-cloud-mist/50">
+                        <div className="bg-white rounded-2xl border border-platinum-tint shadow-xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden">
+                            <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-white shrink-0">
                                 <h3 className="font-bold text-midnight-indigo">Tạo khu vực mới</h3>
                                 <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">✕</button>
                             </div>
                             <form onSubmit={handleCreateSubmit} noValidate className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã khu vực <span className="text-red-500">*</span></label>
-                                    <input type="text" value={createForm.zone_code} onChange={e => setCreateForm({ ...createForm, zone_code: e.target.value })} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_code ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: ROOM-101" />
+                                    <input type="text" value={createForm.zone_code} onChange={e => { setCreateForm({ ...createForm, zone_code: e.target.value }); clearZoneError('zone_code'); }} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_code ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: ROOM-101" />
                                     {zoneErrors.zone_code && <p className="text-red-500 text-xs mt-1">{zoneErrors.zone_code}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên khu vực <span className="text-red-500">*</span></label>
-                                    <input type="text" value={createForm.zone_name} onChange={e => setCreateForm({ ...createForm, zone_name: e.target.value })} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_name ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: Phòng họp 1" />
+                                    <input type="text" value={createForm.zone_name} onChange={e => { setCreateForm({ ...createForm, zone_name: e.target.value }); clearZoneError('zone_name'); }} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_name ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: Phòng họp 1" />
                                     {zoneErrors.zone_name && <p className="text-red-500 text-xs mt-1">{zoneErrors.zone_name}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại khu vực <span className="text-red-500">*</span></label>
-                                    <select value={createForm.zone_type} onChange={e => setCreateForm({ ...createForm, zone_type: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm">
+                                    <select value={createForm.zone_type} onChange={e => setCreateForm({ ...createForm, zone_type: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white">
                                         <option value="gate">Cổng ra vào</option>
                                         <option value="corridor">Hành lang</option>
                                         <option value="lobby">Sảnh bảo vệ</option>
@@ -1094,7 +1191,7 @@ const ZoneManagement = () => {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Khách đến làm việc</label>
-                                    <select value={createForm.visitor_policy} onChange={e => setCreateForm({ ...createForm, visitor_policy: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm">
+                                    <select value={createForm.visitor_policy} onChange={e => setCreateForm({ ...createForm, visitor_policy: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white">
                                         <option value="">Mặc định ({createForm.zone_type === 'gate' ? 'mở cho mọi khách' : 'người được gặp cấp'})</option>
                                         {VISITOR_POLICY_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                                     </select>
@@ -1102,11 +1199,13 @@ const ZoneManagement = () => {
                                 <div className="flex gap-4">
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tòa nhà</label>
-                                        <input type="text" value={createForm.building} onChange={e => setCreateForm({ ...createForm, building: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: Toà nhà A" />
+                                        <input type="text" list="create-zone-buildings" autoComplete="off" value={createForm.building} onChange={e => setCreateForm({ ...createForm, building: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white" placeholder="VD: Tòa nhà A" title="Chọn từ gợi ý hoặc nhập tòa nhà mới" />
+                                        <datalist id="create-zone-buildings">{zoneLocationOptions(zones).buildings.map(v => <option key={v} value={v} />)}</datalist>
                                     </div>
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tầng</label>
-                                        <input type="text" value={createForm.floor} onChange={e => setCreateForm({ ...createForm, floor: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: Tầng 1" />
+                                        <input type="text" list="create-zone-floors" autoComplete="off" value={createForm.floor} onChange={e => setCreateForm({ ...createForm, floor: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white" placeholder="VD: Tầng 1" title="Chọn từ gợi ý hoặc nhập tầng mới" />
+                                        <datalist id="create-zone-floors">{zoneLocationOptions(zones, createForm.building || '').floors.map(v => <option key={v} value={v} />)}</datalist>
                                     </div>
                                 </div>
                                 <ZoneLocationPicker
@@ -1131,20 +1230,20 @@ const ZoneManagement = () => {
                 {/* EDIT MODAL */}
                 {isEditModalOpen && selectedZone && createPortal(
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-xl p-4 animate-fade-in-up">
-                        <div className="bg-white rounded-2xl border border-platinum-tint shadow-xl max-w-md w-full flex flex-col">
-                            <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-cloud-mist/50">
+                        <div className="bg-white rounded-2xl border border-platinum-tint shadow-xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden">
+                            <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-white shrink-0">
                                 <h3 className="font-bold text-midnight-indigo">Cập nhật khu vực</h3>
                                 <button onClick={() => setIsEditModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">✕</button>
                             </div>
                             <form onSubmit={handleEditSubmit} noValidate className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mã khu vực <span className="text-red-500">*</span></label>
-                                    <input type="text" value={editForm.zone_code} onChange={e => setEditForm({ ...editForm, zone_code: e.target.value })} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_code ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: ROOM-101" />
+                                    <input type="text" value={editForm.zone_code} onChange={e => { setEditForm({ ...editForm, zone_code: e.target.value }); clearZoneError('zone_code'); }} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_code ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: ROOM-101" />
                                     {zoneErrors.zone_code && <p className="text-red-500 text-xs mt-1">{zoneErrors.zone_code}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tên khu vực <span className="text-red-500">*</span></label>
-                                    <input type="text" value={editForm.zone_name} onChange={e => setEditForm({ ...editForm, zone_name: e.target.value })} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_name ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: Phòng họp 1" />
+                                    <input type="text" value={editForm.zone_name} onChange={e => { setEditForm({ ...editForm, zone_name: e.target.value }); clearZoneError('zone_name'); }} className={`w-full px-3 py-2 border rounded-xl text-sm ${zoneErrors.zone_name ? '!border-red-500' : 'border-platinum-tint'}`} placeholder="VD: Phòng họp 1" />
                                     {zoneErrors.zone_name && <p className="text-red-500 text-xs mt-1">{zoneErrors.zone_name}</p>}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
@@ -1155,7 +1254,7 @@ const ZoneManagement = () => {
                                             <option value="corridor">Hành lang</option>
                                             <option value="lobby">Sảnh bảo vệ</option>
                                             <option value="parking">Bãi đỗ xe</option>
-                                            <option value="room">Phòng họp</option>
+                                            <option value="room">Phòng</option>
                                         </select>
                                     </div>
                                     <div>
@@ -1176,11 +1275,13 @@ const ZoneManagement = () => {
                                 <div className="flex gap-4">
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tòa nhà</label>
-                                        <input type="text" value={editForm.building} onChange={e => setEditForm({ ...editForm, building: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: Toà nhà A" />
+                                        <input type="text" list="edit-zone-buildings" autoComplete="off" value={editForm.building} onChange={e => setEditForm({ ...editForm, building: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white" placeholder="VD: Tòa nhà A" title="Chọn từ gợi ý hoặc nhập tòa nhà mới" />
+                                        <datalist id="edit-zone-buildings">{zoneLocationOptions(zones).buildings.map(v => <option key={v} value={v} />)}</datalist>
                                     </div>
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tầng</label>
-                                        <input type="text" value={editForm.floor} onChange={e => setEditForm({ ...editForm, floor: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm" placeholder="VD: Tầng 1" />
+                                        <input type="text" list="edit-zone-floors" autoComplete="off" value={editForm.floor} onChange={e => setEditForm({ ...editForm, floor: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm bg-white" placeholder="VD: Tầng 1" title="Chọn từ gợi ý hoặc nhập tầng mới" />
+                                        <datalist id="edit-zone-floors">{zoneLocationOptions(zones, editForm.building || '').floors.map(v => <option key={v} value={v} />)}</datalist>
                                     </div>
                                 </div>
                                 <ZoneLocationPicker

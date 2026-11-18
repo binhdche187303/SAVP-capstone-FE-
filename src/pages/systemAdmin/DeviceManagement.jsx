@@ -893,7 +893,7 @@ const DeviceManagement = () => {
                                     Xem cảnh báo
                                 </Link>
                             </div>
-                            <PaginatedCollection items={offlineDevices} itemLabel="thiết bị" paginationTone="danger">
+                            <PaginatedCollection items={offlineDevices} itemLabel="thiết bị" paginationTone="danger" initialPageSize={5}>
 {(camaiPageItems, camaiStartIndex) => (
 <ul className="divide-y divide-red-100">
                                 {camaiPageItems.map((camaiRecord, camaiIndex) => (d => (

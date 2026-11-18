@@ -24,8 +24,9 @@ export const getSecurityAlertById = async (id) => {
  * Xác nhận cảnh báo an ninh (Acknowledge)
  * POST /security-alerts/:id/acknowledge
  */
-export const acknowledgeSecurityAlert = async (id) => {
-    return await post(`/security-alerts/${id}/acknowledge`);
+export const acknowledgeSecurityAlert = async (id, note) => {
+    const text = typeof note === 'string' ? note.trim() : '';
+    return await post(`/security-alerts/${id}/acknowledge`, text ? { acknowledge_note: text } : undefined);
 };
 
 /**

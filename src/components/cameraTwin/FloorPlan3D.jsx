@@ -207,10 +207,11 @@ const Block = ({ block, cx, cz, selected, layers, onSelect }) => {
         <Html position={[0, WALL_H + 0.6, 0]} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
           <div className={`whitespace-nowrap rounded-md px-2 py-0.5 text-center text-white shadow ${selected ? "bg-[#c2410c]" : "bg-[#1e3a5f]"}`}>
             <div className="text-[11px] font-bold leading-tight">{block.label}</div>
-            <div className="font-mono text-[9px] leading-tight text-slate-200">
-              {block.sub}
-              {block.kind === "restricted" ? " · khu hạn chế" : ""}
-            </div>
+            {(block.sub || block.kind === "restricted") && (
+              <div className="font-mono text-[9px] leading-tight text-slate-200">
+                {[block.sub, block.kind === "restricted" ? "khu hạn chế" : null].filter(Boolean).join(" · ")}
+              </div>
+            )}
           </div>
         </Html>
       )}

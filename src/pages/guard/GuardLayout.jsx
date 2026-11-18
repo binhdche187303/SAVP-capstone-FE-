@@ -68,34 +68,35 @@ const GuardLayout = () => {
     return (
         <div className="min-h-screen bg-cloud-mist flex flex-col">
             <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-platinum-tint">
-                <div className="max-w-[1440px] mx-auto h-16 px-6 lg:px-12 flex items-center justify-between">
-                    <div className="flex items-center gap-10">
-                        <NavLink to="/guard" className="flex items-center gap-2 no-underline">
+                <div className="max-w-[1440px] mx-auto h-16 px-6 lg:px-12 flex items-center justify-between gap-4">
+                    {/* Giống header role teacher: logo, menu chữ không icon, khu vực tài khoản căn phải. */}
+                    <div className="flex shrink-0 items-center min-w-0">
+                        <NavLink to="/guard" className="flex items-center gap-2 no-underline shrink-0">
                             <div className="w-12 h-12 bg-white flex items-center justify-center shrink-0">
                                 <img src={logo} alt="VISMA IVA" className="w-full h-full object-contain scale-[1.3]" />
                             </div>
-                            <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden sm:block">VISMA IVA</span>
+                            <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden xl:block">VISMA IVA</span>
                         </NavLink>
-                        <nav aria-label="Điều hướng chính" className="hidden xl:flex items-center gap-1">
-                            {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
-                                <NavLink
-                                    key={to}
-                                    to={to}
-                                    end={end}
-                                    className={({ isActive }) => `px-3.5 py-2 rounded-xl text-sm no-underline flex items-center gap-2 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`}
-                                >
-                                    <Icon className="w-4 h-4" />
-                                    {label}
-                                </NavLink>
-                            ))}
-                        </nav>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <nav aria-label="Điều hướng chính" className="hidden xl:flex items-center gap-1.5 flex-nowrap">
+                        {NAV_ITEMS.map(({ to, label, end }) => (
+                            <NavLink
+                                key={to}
+                                to={to}
+                                end={end}
+                                className={({ isActive }) => `h-9 px-3.5 rounded-xl text-sm font-semibold no-underline inline-flex items-center gap-1 whitespace-nowrap shrink-0 transition-colors ${isActive ? 'bg-blue-50 text-action-blue' : 'text-slate-blue hover:bg-cloud-mist hover:text-midnight-indigo'}`}
+                            >
+                                {label}
+                            </NavLink>
+                        ))}
+                    </nav>
+                    <div className="flex flex-1 items-center justify-end gap-2 lg:gap-3 min-w-0">
                         <NotificationBell basePath="/guard" fallbackIcon={Bell} />
+                        <span aria-hidden="true" className="hidden sm:block h-7 w-px bg-platinum-tint" />
                         <div className="relative" ref={profileMenuRef}>
                             <button type="button" onClick={() => setIsProfileMenuOpen(v => !v)} className="flex items-center gap-3 px-2 py-1 rounded-xl hover:bg-cloud-mist">
-                                <div className="text-right hidden sm:block">
-                                    <p className="text-sm font-semibold text-midnight-indigo leading-tight">{displayName}</p>
+                                <div className="text-right hidden sm:block max-w-[150px] lg:max-w-[200px]">
+                                    <p className="text-sm font-semibold text-midnight-indigo leading-tight truncate">{displayName}</p>
                                     <p className="text-xs text-slate-blue leading-tight">Bảo vệ</p>
                                 </div>
                                 <span className="relative shrink-0">
@@ -155,7 +156,7 @@ const GuardLayout = () => {
                     </div>
                 </nav>
             </div>
-            <main data-page-frame="wide" className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
+            <main data-page-frame="contained" className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
                 <Outlet />
                 <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
                 <BiometricReminderModal />

@@ -4,6 +4,7 @@ import ResponsiveTable from '../common/ResponsiveTable';
 import RefreshButton from '../common/RefreshButton';
 import { useState, useEffect, useCallback } from 'react';
 import { Building2, ChevronDown, ChevronRight, Users } from 'lucide-react';
+import DeviceStatusModal from './DeviceStatusModal';
 import { getCampusOverview, getPresenceByDepartment } from '../../service/campusService';
 
 // Bảng "Hiện diện hiện tại" (2.12) — dùng chung cho dashboard System Admin & Business Admin.
@@ -28,7 +29,7 @@ const ZONE_TYPE_LABELS = {
     corridor: 'Hành lang',
     lobby: 'Sảnh bảo vệ',
     parking: 'Bãi đỗ xe',
-    room: 'Phòng họp',
+    room: 'Phòng',
 };
 
 // Màu tự tính từ số lượng: BE trả overall='online' khi CHỈ CẦN 1 camera online,
@@ -45,9 +46,6 @@ const cameraState = (cs) => {
 
 const sumBuilding = (b) =>
     b.floors.reduce((s, f) => s + f.zones.reduce((zs, z) => zs + (z.occupancy?.status === 'ok' ? z.occupancy.count ?? 0 : 0), 0), 0);
-
-const formatTime = (iso) =>
-    iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
 
 const MODES = [
     { key: 'zone', label: 'Theo khu vực' },
@@ -109,18 +107,30 @@ const OccupancyCell =({ occupancy }) => {
     return <span style={{ color: C.muted2, fontStyle: 'italic' }}>Không có dữ liệu</span>;
 };
 
-const CameraCell = ({ cameraStatus }) => {
+const CameraCell = ({ cameraStatus, cameras, onOpen }) => {
     const st = cameraState(cameraStatus);
-    return (
-        <span className="inline-flex items-center gap-1.5" title={st.label} style={{ color: C.muted }}>
+    const content = (
+        <>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, display: 'inline-block' }} />
             {st.total > 0 ? `${cameraStatus.online}/${st.total}` : '—'}
-        </span>
+        </>
     );
+    // BE có danh sách camera → bấm để xem camera NÀO đang lỗi.
+    if (cameras?.length) {
+        return (
+            <button type="button" onClick={onOpen} title={`${st.label} · Bấm để xem từng camera`}
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 -mr-2 rounded-lg hover:bg-cloud-mist underline decoration-dotted underline-offset-4"
+                style={{ color: C.muted }}>
+                {content}
+            </button>
+        );
+    }
+    return <span className="inline-flex items-center gap-1.5" title={st.label} style={{ color: C.muted }}>{content}</span>;
 };
 
 const ZonePresenceTable = () => {
     const [mode, setMode] = useState('zone');
+    const [cameraZone, setCameraZone] = useState(null);
     const [data, setData] = useState(null);
     const [deptData, setDeptData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -188,9 +198,6 @@ const ZonePresenceTable = () => {
                                 : `Toàn khuôn viên: ${campusTotal} người`}
                         </span>
                     )}
-                    {current?.generatedAt && (
-                        <span style={{ fontSize: 11, color: C.muted }}>Cập nhật {formatTime(current.generatedAt)}</span>
-                    )}
                     <RefreshButton
                         type="button"
                         onClick={load}
@@ -225,7 +232,7 @@ const ZonePresenceTable = () => {
                                 <th className="text-left font-semibold py-2 px-3">Loại</th>
                                 <th className="text-right font-semibold py-2 px-3">Đang có mặt</th>
                                 <th className="text-right font-semibold py-2 px-3">Vào / Ra hôm nay</th>
-                                <th className="text-right font-semibold py-2 px-3">Camera</th>
+                                <th className="text-right font-semibold py-2 px-3" title="Số camera đang hoạt động / tổng camera của khu vực">Camera</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -259,14 +266,13 @@ const ZonePresenceTable = () => {
                                             <tr key={z.zoneId} style={{ borderTop: `1px solid ${C.borderSub}` }}>
                                                 <td className="py-2 px-3" style={{ paddingLeft: 44, color: C.text }}>
                                                     <div style={{ fontWeight: 600 }}>{z.zoneName}</div>
-                                                    <div style={{ fontSize: 11, color: C.muted2 }}>{z.zoneCode}</div>
                                                 </td>
                                                 <td className="py-2 px-3" style={{ color: C.muted }}>{ZONE_TYPE_LABELS[z.zoneType] || z.zoneType || '—'}</td>
                                                 <td className="py-2 px-3 text-right"><OccupancyCell occupancy={z.occupancy} /></td>
                                                 <td className="py-2 px-3 text-right" style={{ color: C.muted }}>
                                                     {z.gateTraffic?.entriesToday ?? 0} / {z.gateTraffic?.exitsToday ?? 0}
                                                 </td>
-                                                <td className="py-2 px-3 text-right"><CameraCell cameraStatus={z.cameraStatus} /></td>
+                                                <td className="py-2 px-3 text-right"><CameraCell cameraStatus={z.cameraStatus} cameras={z.cameras} onOpen={() => setCameraZone(z)} /></td>
                                             </tr>
                                         )),
                                     ])),
@@ -278,6 +284,9 @@ const ZonePresenceTable = () => {
 </PaginatedCollection>
                 </div>
             )}
+            <DeviceStatusModal isOpen={!!cameraZone} onClose={() => setCameraZone(null)}
+                title={cameraZone ? `Camera khu vực ${cameraZone.zoneName}` : ''}
+                devices={cameraZone?.cameras || []} />
         </div>
     );
 };

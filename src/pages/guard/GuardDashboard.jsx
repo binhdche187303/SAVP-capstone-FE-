@@ -12,6 +12,8 @@ import { getAlertTypeLabel } from '../../constants/alertType';
 import { subscribeToSecurityAlerts } from '../../utils/socket';
 import DashboardBanner from '../../components/common/DashboardBanner';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
+import SimpleModal from '../../components/common/SimpleModal';
+import { getDeviceErrorDetail } from '../../utils/deviceErrorDetail';
 
 const REFRESH_MS = 15000;
 const SEVERITY_CLS = {
@@ -70,7 +72,7 @@ const GuardDashboard = () => {
     const [alertActionId, setAlertActionId] = useState(null);
     const [snapshotEventId, setSnapshotEventId] = useState(null);
     const [alertPage, setAlertPage] = useState(1);
-    const [alertPageSize, setAlertPageSize] = useState(10);
+    const [alertPageSize, setAlertPageSize] = useState(5); // thẻ cảnh báo cao → 5 thẻ/trang cho cân với bảng ra vào
     const [alertTotal, setAlertTotal] = useState(0);
     const [logPage, setLogPage] = useState(1);
     const [logPageSize, setLogPageSize] = useState(10);
@@ -110,31 +112,36 @@ const GuardDashboard = () => {
         if (logPage > lastLogPage) setLogPage(lastLogPage);
     }, [loading, alertTotal, alertPageSize, alertPage, logTotal, logPageSize, logPage]);
 
-    const handleAcknowledge = async (alertId) => {
-        setAlertActionId(alertId);
-        try {
-            await acknowledgeSecurityAlert(alertId);
-            await load();
-        } catch (err) {
-            setError(getErrorMessage(err));
-        } finally {
-            setAlertActionId(null);
-        }
-    };
-
-    const handleResolve = async (alert) => {
-        const note = window.prompt('Nhập ghi chú xử lý cảnh báo:', 'Đã kiểm tra và xử lý tại hiện trường');
-        if (note === null) return;
-        if (!note.trim()) {
-            setError('Vui lòng nhập ghi chú trước khi đóng cảnh báo.');
+    // Tiếp nhận / Đóng cảnh báo đều qua modal của hệ thống (không dùng window.prompt).
+    //  - Tiếp nhận: ghi chú KHÔNG bắt buộc (BE lưu payload_json.acknowledgeNote).
+    //  - Đóng: ghi chú BẮT BUỘC (resolution_note).
+    const DEFAULT_RESOLVE_NOTE = 'Đã kiểm tra và xử lý tại hiện trường';
+    const [action, setAction] = useState(null); // { kind: 'ack' | 'resolve', alert, note, error }
+    const [notice, setNotice] = useState('');
+    useEffect(() => {
+        if (!notice) return undefined;
+        const t = setTimeout(() => setNotice(''), 4000);
+        return () => clearTimeout(t);
+    }, [notice]);
+    const handleAcknowledge = (alert) => setAction({ kind: 'ack', alert, note: '', error: '' });
+    const handleResolve = (alert) => setAction({ kind: 'resolve', alert, note: DEFAULT_RESOLVE_NOTE, error: '' });
+    const submitAction = async () => {
+        if (!action) return;
+        const note = action.note.trim();
+        if (action.kind === 'resolve' && !note) {
+            setAction(a => ({ ...a, error: 'Vui lòng nhập ghi chú trước khi đóng cảnh báo.' }));
             return;
         }
-        setAlertActionId(alert.id);
+        const label = `${getAlertTypeLabel(action.alert.alert_type)}${getAlertSubject(action.alert) ? ` · ${getAlertSubject(action.alert)}` : ''}`;
+        setAlertActionId(action.alert.id);
         try {
-            await resolveSecurityAlert(alert.id, { resolution_note: note.trim() });
+            if (action.kind === 'ack') await acknowledgeSecurityAlert(action.alert.id, note);
+            else await resolveSecurityAlert(action.alert.id, { resolution_note: note });
+            setAction(null);
+            setNotice(action.kind === 'ack' ? `Đã tiếp nhận cảnh báo: ${label}` : `Đã đóng cảnh báo: ${label}`);
             await load();
         } catch (err) {
-            setError(getErrorMessage(err));
+            setAction(a => a && ({ ...a, error: getErrorMessage(err) }));
         } finally {
             setAlertActionId(null);
         }
@@ -151,22 +158,12 @@ const GuardDashboard = () => {
     }, [load]);
 
     return (
-        <div className="space-y-6">
-            <DashboardBanner roleName="Bảo vệ" />
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Trực cổng</h1>
-                    <p className="text-slate-blue text-sm mt-1">Theo dõi lượt ra vào cổng hôm nay và các cảnh báo cần xử lý.</p>
-                </div>
-                <RefreshButton
-                    type="button"
-                    onClick={load}
-                    disabled={loading}
-                    busy={loading}
-                />
-            </div>
+        <div className="space-y-5 animate-fade-in-up">
+            <h1 className="sr-only">Trang chủ bảo vệ</h1>
+            <DashboardBanner roleName="Bảo vệ" compact />
 
             {error && <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
+            {notice && <div role="status" className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm font-semibold text-emerald-700">{notice}</div>}
 
             <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard icon={AlertTriangle} label="Cảnh báo mới" value={counts.new} tone="bg-red-50 text-red-600" to="/guard/security-alerts?status=new" />
@@ -181,9 +178,18 @@ const GuardDashboard = () => {
                         <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
                             <UserCheck className="w-5 h-5 text-action-blue" /> Ra vào cổng gần nhất
                         </h2>
-                        <Link to="/guard/anpr" className="text-xs font-bold text-action-blue no-underline flex items-center gap-1">
-                            <Car className="w-3.5 h-3.5" /> Xe vào ra →
-                        </Link>
+                        {/* Link "Xe vào ra" đứng sát nút làm mới; giờ làm mới nằm dưới cả cụm */}
+                        <RefreshButton
+                            type="button"
+                            onClick={load}
+                            disabled={loading}
+                            busy={loading}
+                            before={(
+                                <Link to="/guard/anpr" className="text-xs font-bold text-action-blue no-underline flex items-center gap-1 whitespace-nowrap">
+                                    <Car className="w-3.5 h-3.5" /> Xe vào ra →
+                                </Link>
+                            )}
+                        />
                     </div>
                     <div className="min-w-0">
                         <ResponsiveTable className="w-full text-sm">
@@ -233,7 +239,17 @@ const GuardDashboard = () => {
                         <h2 className="text-base font-bold text-midnight-indigo flex items-center gap-2">
                             <ShieldAlert className="w-5 h-5 text-red-500" /> Cảnh báo cần xử lý
                         </h2>
-                        <Link to="/guard/visitor-alerts" className="text-xs font-bold text-action-blue no-underline">Cảnh báo khách →</Link>
+                        {/* Giống mục Ra vào cổng: link đứng sát nút làm mới, giờ làm mới nằm dưới cả cụm */}
+                        <RefreshButton
+                            type="button"
+                            onClick={load}
+                            disabled={loading}
+                            busy={loading}
+                            title="Làm mới cảnh báo"
+                            before={(
+                                <Link to="/guard/visitor-alerts" className="text-xs font-bold text-action-blue no-underline whitespace-nowrap">Cảnh báo khách →</Link>
+                            )}
+                        />
                     </div>
                     {alerts.length === 0 ? (
                         <p className="text-sm text-slate-blue py-8 text-center">Không có cảnh báo đang chờ.</p>
@@ -261,10 +277,16 @@ const GuardDashboard = () => {
                                             <span><b className="text-midnight-indigo">Nhóm camera:</b> {getAlertCameraGroup(alert)}</span>
                                             <span><b className="text-midnight-indigo">Camera:</b> {getAlertCamera(alert)}</span>
                                         </div>
-                                        {(payload.detail || payload.reason || payload.message) && <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{payload.detail || payload.reason || payload.message}</p>}
+                                        {getDeviceErrorDetail(alert) ? (
+                                            <p data-ui-text="secondary" className="text-[11px] text-red-700">
+                                                <b>{getDeviceErrorDetail(alert).kind}</b>
+                                                {getDeviceErrorDetail(alert).devices.length > 0 && `: ${getDeviceErrorDetail(alert).devices.map(d => d.name).join(', ')}`}
+                                            </p>
+                                        ) : (payload.detail || payload.reason || payload.message) && <p data-ui-text="secondary" className="text-[11px] text-slate-blue">{payload.detail || payload.reason || payload.message}</p>}
+                                        {payload.acknowledgeNote && <p data-ui-text="secondary" className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1"><b>Ghi chú tiếp nhận:</b> {payload.acknowledgeNote}</p>}
                                         <div className="flex flex-wrap items-center gap-2">
                                             {evidenceId && <button data-ui-text="action" type="button" onClick={() => setSnapshotEventId(evidenceId)} className="px-2.5 py-1.5 rounded-lg border border-platinum-tint text-[11px] font-bold text-slate-blue hover:text-action-blue">Xem ảnh bằng chứng</button>}
-                                            {alert.status === 'new' && <button data-ui-text="action" type="button" disabled={busy} onClick={() => handleAcknowledge(alert.id)} className="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold disabled:opacity-60">{busy ? 'Đang xử lý...' : 'Tiếp nhận'}</button>}
+                                            {alert.status === 'new' && <button data-ui-text="action" type="button" disabled={busy} onClick={() => handleAcknowledge(alert)} className="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold disabled:opacity-60">{busy ? 'Đang xử lý...' : 'Tiếp nhận'}</button>}
                                             {alert.status === 'acknowledged' && <button data-ui-text="action" type="button" disabled={busy} onClick={() => handleResolve(alert)} className="px-2.5 py-1.5 rounded-lg bg-action-blue text-white text-[11px] font-bold disabled:opacity-60">{busy ? 'Đang xử lý...' : 'Đóng cảnh báo'}</button>}
                                             <Link to="/guard/security-alerts" className="px-2.5 py-1.5 rounded-lg border border-action-blue/30 text-action-blue text-[11px] font-bold no-underline">Mở trung tâm</Link>
                                         </div>
@@ -285,6 +307,55 @@ const GuardDashboard = () => {
                 eventId={snapshotEventId}
                 onClose={() => setSnapshotEventId(null)}
             />
+            <SimpleModal
+                isOpen={!!action}
+                size="sm"
+                title={action?.kind === 'ack' ? 'Tiếp nhận cảnh báo' : 'Đóng cảnh báo'}
+                onClose={alertActionId ? undefined : () => setAction(null)}
+                footer={(
+                    <>
+                        <button type="button" onClick={() => setAction(null)} disabled={!!alertActionId}
+                            className="px-4 py-2 rounded-xl border border-platinum-tint text-sm font-semibold text-slate-blue hover:bg-cloud-mist disabled:opacity-60">
+                            Hủy
+                        </button>
+                        <button type="button" onClick={submitAction} disabled={!!alertActionId}
+                            className={`px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-60 ${action?.kind === 'ack' ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-action-blue text-white hover:bg-glacier-blue'}`}>
+                            {alertActionId ? 'Đang xử lý...' : action?.kind === 'ack' ? 'Tiếp nhận' : 'Đóng cảnh báo'}
+                        </button>
+                    </>
+                )}
+            >
+                {action && (
+                    <form onSubmit={(e) => { e.preventDefault(); submitAction(); }} className="space-y-3">
+                        <div className="rounded-xl bg-cloud-mist/50 border border-platinum-tint px-3 py-2 text-sm">
+                            <p className="font-bold text-midnight-indigo">
+                                {getAlertTypeLabel(action.alert.alert_type)}
+                                {getAlertSubject(action.alert) && <span className="font-semibold text-slate-blue"> · {getAlertSubject(action.alert)}</span>}
+                            </p>
+                            <p className="text-xs text-slate-blue mt-0.5">{formatTime(action.alert.triggered_at || action.alert.created_at)} · {getAlertLocation(action.alert)}</p>
+                        </div>
+                        <p className="text-sm text-slate-blue">
+                            {action.kind === 'ack'
+                                ? 'Xác nhận bạn đã nhận cảnh báo này và sẽ xử lý. Có thể ghi chú thêm (không bắt buộc).'
+                                : 'Ghi lại cách đã xử lý trước khi đóng cảnh báo.'}
+                        </p>
+                        <label className="block text-xs font-bold text-slate-blue uppercase tracking-wide" htmlFor="guard-action-note">
+                            {action.kind === 'ack' ? 'Ghi chú tiếp nhận' : 'Ghi chú xử lý'}
+                        </label>
+                        <textarea
+                            id="guard-action-note"
+                            autoFocus
+                            rows={3}
+                            maxLength={action.kind === 'ack' ? 500 : 1000}
+                            value={action.note}
+                            placeholder={action.kind === 'ack' ? 'VD: Đang ra cổng kiểm tra' : ''}
+                            onChange={(e) => setAction(a => ({ ...a, note: e.target.value, error: '' }))}
+                            className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue focus:ring-2 focus:ring-action-blue/10"
+                        />
+                        {action.error && <p role="alert" className="text-xs font-semibold text-red-600">{action.error}</p>}
+                    </form>
+                )}
+            </SimpleModal>
         </div>
     );
 };
