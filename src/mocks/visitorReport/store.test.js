@@ -93,7 +93,7 @@ describe('store', () => {
         expect(next.visits.filter((v) => sameDay(v.scheduledFrom, NEXT_DAY)).length).toBeGreaterThanOrEqual(14);
         expect(new Set(next.visits.map((v) => v.id)).size).toBe(next.visits.length);
     });
-    test('resetState xoá thay đổi', () => {
+    test('resetState xóa thay đổi', () => {
         updateState((s) => { s.visits[0].purpose = 'Đã sửa'; }, NOW);
         expect(resetState(NOW).visits[0].purpose).not.toBe('Đã sửa');
     });

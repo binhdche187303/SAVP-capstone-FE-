@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Phone, Building2, Briefcase, ShieldAlert, BadgeCheck } from 'lucide-react';
+import { X, Mail, Phone, Building2, Briefcase, ShieldAlert, BadgeCheck, Loader2 } from 'lucide-react';
 import UserAvatar from '../common/UserAvatar';
 import { getUserById } from '../../service/employeeServices';
 
@@ -163,7 +163,7 @@ const ParticipantDetailModal = ({ isOpen, onClose, participant, isExternal = fal
                         {/* Loading State */}
                         {loading ? (
                             <div className="flex-1 flex flex-col justify-center items-center py-8 space-y-4">
-                                <div className="w-8 h-8 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin"></div>
+                                <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                 <span data-ui-text="primary" className="text-xs font-bold text-slate-blue">Đang tải thông tin...</span>
                             </div>
                         ) : (

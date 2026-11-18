@@ -8,7 +8,8 @@ import ReportExportButton from '../../components/common/ReportExportButton';
 import StatisticCard from '../../components/common/StatisticCard';
 import FilterBar from '../../components/common/FilterBar';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, ArrowRight, Calendar, CheckCircle, CheckCircle2, Clock, Download, FileText, PieChart as PieIcon, Sliders, TrendingUp, XCircle } from 'lucide-react';
+import ReportActions from '../../components/common/ReportActions';
+import { AlertTriangle, ArrowRight, Building2, Calendar, CheckCircle, CheckCircle2, ClipboardCheck, Clock, Download, FileText, PieChart as PieIcon, Sliders, TrendingUp, XCircle, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,12 +32,15 @@ import {
     getManagerMeetingCancelRate,
     getManagerNoShowStats,
     exportMeetingActivity,
-    getDepartments
+    getDepartmentById
 } from '../../service/managerServices';
+import { LEADERSHIP_TITLE_LABELS } from '../../utils/calendarRoleLabel';
+import { getCurrentUser } from '../../service/authService';
 import { getManagerSummary } from '../../service/campusService';
 import DashboardBanner from '../../components/common/DashboardBanner';
 import { subscribeToMeetingRequestUpdates } from '../../utils/socket';
 import SharedStatCard from '../../components/common/StatCard';
+import './ManagerRequestActions.css';
 
 const COLORS = ['#006BFF', '#7F3DFF', '#FFAE00', '#FF3B30'];
 
@@ -44,7 +48,7 @@ const COLORS = ['#006BFF', '#7F3DFF', '#FFAE00', '#FF3B30'];
 const MEETING_STATUS_LABEL = {
     scheduled: 'Đã lên lịch',
     completed: 'Đã diễn ra',
-    cancelled: 'Đã huỷ',
+    cancelled: 'Đã hủy',
     no_show: 'Vắng mặt',
     draft: 'Nháp',
     in_progress: 'Đang diễn ra',
@@ -135,12 +139,16 @@ const ManagerHomePage = () => {
     const [error, setError] = useState(null);
     const [successMsg, setSuccessMsg] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
-    const [departmentName, setDepartmentName] = useState('Phòng ban');
+    const [departmentName, setDepartmentName] = useState('—');
+    const [departmentMemberCount, setDepartmentMemberCount] = useState(null);
+    // Ban Giám hiệu (HT/PHT…) không thuộc đơn vị nào: phạm vi toàn trường, không có màn phê duyệt.
+    const [leaderTitle, setLeaderTitle] = useState(null);
 
     // ==========================================
     // OVERVIEW STATE & LOGIC (UC-SCH-04)
     // ==========================================
     const [pendingRequests, setPendingRequests] = useState([]);
+    const [pendingTotal, setPendingTotal] = useState(0); // tổng thật (danh sách trả về theo trang)
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [decisionNote, setDecisionNote] = useState('');
     const [rejectionReason, setRejectionReason] = useState('');
@@ -159,8 +167,10 @@ const ManagerHomePage = () => {
             const res = await getPendingMeetingRequests({ approvalStatus: 'pending' });
             if (res?.success) {
                 setPendingRequests(res.data || []);
+                setPendingTotal(res.meta?.total ?? (res.data || []).length);
             } else {
                 setPendingRequests([]);
+                setPendingTotal(0);
                 setError(res?.message || 'Không thể tải danh sách yêu cầu chờ duyệt.');
             }
         } catch (err) {
@@ -385,6 +395,18 @@ const ManagerHomePage = () => {
         });
     };
 
+    // Thẻ "Đúng giờ tuần này": chưa có lượt chấm công thì hiện "—" thay vì 0% (tránh hiểu nhầm là không ai đúng giờ).
+    const onTimeSample = campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0;
+    const onTimeValue = campusSummaryLoading || onTimeSample === 0 ? '—' : `${campusSummary?.onTimeRateThisWeek?.rate ?? 0}%`;
+    const isSchoolWideLeader = !!leaderTitle && !currentUser?.departmentId;
+    const onTimeHelper = campusSummaryLoading
+        ? 'Đang tải...'
+        : onTimeSample === 0
+            ? 'Chưa có lượt chấm công nào tuần này'
+            : onTimeSample < 5
+                ? `Mới có ${onTimeSample} lượt chấm công, chưa đủ để đánh giá`
+                : `Trên ${onTimeSample} lượt chấm công ${isSchoolWideLeader ? 'toàn trường' : 'của đơn vị'}`;
+
     // Load initial context
     useEffect(() => {
         const loadContext = async () => {
@@ -392,14 +414,30 @@ const ManagerHomePage = () => {
             try {
                 const userStr = localStorage.getItem('user');
                 if (userStr) {
-                    const user = JSON.parse(userStr);
+                    let user = JSON.parse(userStr);
+                    // Lấy departmentId/leadershipTitle mới nhất từ server — bản lưu lúc đăng nhập có thể chưa có chức danh.
+                    try {
+                        const me = await getCurrentUser();
+                        if (me?.success && me.data) {
+                            user = { ...user, departmentId: me.data.departmentId ?? null, leadershipTitle: me.data.leadershipTitle ?? null };
+                        }
+                    } catch {
+                        // giữ bản lưu sẵn
+                    }
                     setCurrentUser(user);
+                    setLeaderTitle(user.leadershipTitle || null);
                     deptId = user.departmentId;
 
-                    const deptsRes = await getDepartments();
-                    if (deptsRes?.success) {
-                        const dept = deptsRes.data.find(d => d.id === deptId || d.departmentCode === deptId);
-                        if (dept) setDepartmentName(dept.departmentName);
+                    // Lấy đúng phòng ban theo id (danh sách /departments phân trang nên có thể không chứa phòng ban này).
+                    if (deptId) {
+                        const deptRes = await getDepartmentById(deptId);
+                        if (deptRes?.success && deptRes.data) {
+                            setDepartmentName(deptRes.data.departmentName || '—');
+                            setDepartmentMemberCount(deptRes.data.memberCount ?? null);
+                        }
+                    } else if (user.leadershipTitle) {
+                        // Ban Giám hiệu không thuộc đơn vị nào — phạm vi toàn trường.
+                        setDepartmentName('Toàn trường');
                     }
                 }
             } catch {
@@ -474,7 +512,7 @@ const ManagerHomePage = () => {
 
             {/* Banner Greeting */}
             <motion.div variants={itemVariants}>
-                <DashboardBanner roleName="Manager" />
+                <DashboardBanner roleName="Manager" compact titleAs="h1" />
             </motion.div>
 
             {/* Notifications and Alerts */}
@@ -505,27 +543,27 @@ const ManagerHomePage = () => {
 
             {/* Custom Tab Selector */}
             <motion.div variants={itemVariants} className="flex justify-between items-center border-b border-platinum-tint pb-px">
-                <div className="flex gap-1 bg-white p-1.5 rounded-xl border border-platinum-tint/80 shadow-sm">
+                <div className="grid grid-cols-2 w-full sm:flex sm:w-auto gap-1 bg-white p-1.5 rounded-xl border border-platinum-tint/80 shadow-sm">
                     <button
                         onClick={() => setActiveTab('overview')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
+                        className={`flex items-center justify-center gap-2 px-5 max-sm:px-2 py-2.5 rounded-lg text-sm max-sm:text-xs font-bold max-sm:leading-tight transition-all duration-200 ${
                             activeTab === 'overview'
                                 ? 'bg-action-blue text-white shadow-sm'
                                 : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50'
                         }`}
                     >
-                        <Sliders className="w-4 h-4" />
+                        <Sliders className="hidden sm:block w-4 h-4 shrink-0" />
                         Phê duyệt & Lối tắt
                     </button>
                     <button
                         onClick={() => setActiveTab('analytics')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
+                        className={`flex items-center justify-center gap-2 px-5 max-sm:px-2 py-2.5 rounded-lg text-sm max-sm:text-xs font-bold max-sm:leading-tight transition-all duration-200 ${
                             activeTab === 'analytics'
                                 ? 'bg-action-blue text-white shadow-sm'
                                 : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50'
                         }`}
                     >
-                        <TrendingUp className="w-4 h-4" />
+                        <TrendingUp className="hidden sm:block w-4 h-4 shrink-0" />
                         Báo cáo & Thống kê
                     </button>
                 </div>
@@ -544,13 +582,20 @@ const ManagerHomePage = () => {
                         {/* Quick Status Bar */}
                         <StatisticGrid columns={3} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Card: Chờ phê duyệt */}
-                            <StatisticCard label="Chờ phê duyệt" value={pendingRequests.length} icon={Sliders} helper="yêu cầu" />
+                            <StatisticCard label="Chờ phê duyệt" value={pendingTotal} icon={ClipboardCheck}
+                                helper={isSchoolWideLeader
+                                    ? 'Lịch cấp trường do đơn vị duyệt cấp trường xử lý'
+                                    : pendingTotal > 0 ? 'yêu cầu đang chờ bạn duyệt' : 'Không có yêu cầu nào đang chờ'}
+                                to={currentUser?.departmentId ? '/manager/meeting-approvals' : undefined} />
 
                             {/* Card: Tỷ lệ đúng giờ */}
-                            <StatisticCard label="Đúng giờ tuần này" value={campusSummaryLoading ? '—' : `${campusSummary?.onTimeRateThisWeek?.rate ?? 0}%`} icon={Calendar} helper={!campusSummaryLoading && (campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0) < 5 ? <>{campusSummary?.onTimeRateThisWeek?.sampleSize ?? 0} chấm công — chưa đủ dữ liệu</> : 'tỷ lệ đúng giờ'} />
+                            <StatisticCard label="Đúng giờ tuần này" value={onTimeValue} icon={Clock} helper={onTimeHelper} />
 
                             {/* Card: Phòng ban phụ trách */}
-                            <StatisticCard label="Phòng ban phụ trách" value={departmentName} icon={CheckCircle2} compactValue helper="phòng ban" />
+                            <StatisticCard label={isSchoolWideLeader ? 'Phạm vi phụ trách' : 'Phòng ban phụ trách'} value={departmentName} icon={Building2} compactValue
+                                helper={isSchoolWideLeader
+                                    ? `Ban Giám hiệu · ${LEADERSHIP_TITLE_LABELS[leaderTitle] || 'Lãnh đạo trường'}`
+                                    : departmentMemberCount != null ? `${departmentMemberCount} thành viên` : 'Đơn vị bạn quản lý'} />
                         </StatisticGrid>
 
                         {/* Team Presence Today (CDB-RS-001: campus-dashboard/manager-summary) */}
@@ -661,7 +706,7 @@ const ManagerHomePage = () => {
                                     </h2>
                                     <p className="text-xs text-slate-blue mt-1">Các yêu cầu mới từ nhân sự cần duyệt đặt phòng họp</p>
                                 </div>
-                                <div className="flex items-center gap-2.5">
+                                <ReportActions>
                                     <button
                                         onClick={() => navigate('/manager/meeting-approvals')}
                                         className="px-3.5 py-1.5 bg-action-blue/10 hover:bg-action-blue text-action-blue hover:text-white rounded-xl text-xs font-bold transition-all"
@@ -672,7 +717,7 @@ const ManagerHomePage = () => {
                                         onClick={() => fetchPendingRequests()}
                                         busy={loadingOverview}
                                     />
-                                </div>
+                                </ReportActions>
                             </div>
 
                             <div className="overflow-x-auto">
@@ -683,15 +728,15 @@ const ManagerHomePage = () => {
                                 ) : (
                                     <PaginatedCollection items={pendingRequests} itemLabel="yêu cầu" initialPageSize={10}>
 {(camaiPageItems, camaiStartIndex) => (
-<ResponsiveTable className="w-full text-left border-collapse">
+<ResponsiveTable className="w-full text-left border-collapse manager-pending-requests-table">
 <colgroup>
 <col style={{ width: '11%' }} />
-<col style={{ width: '23%' }} />
-<col style={{ width: '20%' }} />
-<col style={{ width: '14%' }} />
-<col style={{ width: '14%' }} />
+<col />
+<col style={{ width: '16%' }} />
 <col style={{ width: '10%' }} />
-<col style={{ width: '8%' }} />
+<col style={{ width: '14%' }} />
+<col style={{ width: '128px' }} />
+<col style={{ width: '248px' }} />
 </colgroup>
                                         <thead>
                                             <tr className="border-b border-platinum-tint bg-cloud-mist/20 text-xs font-bold text-slate-blue uppercase">
@@ -730,29 +775,31 @@ const ManagerHomePage = () => {
                                                                 </span>
                                                             )}
                                                         </td>
-                                                        <td className="p-4 text-right flex justify-end gap-2">
-                                                            <button
-                                                                onClick={() => {
-                                                                    setError(null);
-                                                                    setSelectedRequest(req);
-                                                                    setApprovalModalOpen(true);
-                                                                }}
-                                                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
-                                                            >
-                                                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                                                Phê duyệt
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    setError(null);
-                                                                    setSelectedRequest(req);
-                                                                    setRejectionModalOpen(true);
-                                                                }}
-                                                                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
-                                                            >
-                                                                <XCircle className="w-3.5 h-3.5" />
-                                                                Từ chối
-                                                            </button>
+                                                        <td className="p-4 text-right">
+                                                            <div className="manager-request-actions">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setError(null);
+                                                                        setSelectedRequest(req);
+                                                                        setApprovalModalOpen(true);
+                                                                    }}
+                                                                    className="manager-request-approve px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                                                                >
+                                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                    Phê duyệt
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setError(null);
+                                                                        setSelectedRequest(req);
+                                                                        setRejectionModalOpen(true);
+                                                                    }}
+                                                                    className="manager-request-reject px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                                                                >
+                                                                    <XCircle className="w-3.5 h-3.5" />
+                                                                    Từ chối
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 );
@@ -840,14 +887,14 @@ const ManagerHomePage = () => {
 
                         {loadingAnalytics ? (
                             <div className="flex flex-col items-center justify-center min-h-[400px]">
-                                <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                                <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                                 <p className="mt-3 text-slate-blue text-sm font-semibold">Đang tải phân tích phòng ban...</p>
                             </div>
                         ) : (
                             <>
                                 {/* Stat Cards */}
                                 <StatisticGrid columns={4} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <StatisticCard label="Họp phòng ban" value={`${stats.meetingCount} cuộc`} icon={Calendar} helper={<>Thời lượng trung bình: {avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}p · Huỷ: {cancelRateStats.cancelRate}%</>} />
+                                    <StatisticCard label="Họp phòng ban" value={`${stats.meetingCount} cuộc`} icon={Calendar} helper={<>Thời lượng trung bình: {avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}p · Hủy: {cancelRateStats.cancelRate}%</>} />
 
                                     <StatisticCard label="Hiệu suất dùng phòng" value={`${stats.utilizationRate}%`} icon={TrendingUp} helper="Thời gian có hiện diện thực tế" />
 
@@ -1032,7 +1079,7 @@ const ManagerHomePage = () => {
                                                 >
                                                     {isExporting ? (
                                                         <>
-                                                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                            <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
                                                             Đang xuất file...
                                                         </>
                                                     ) : (
@@ -1111,7 +1158,7 @@ const ManagerHomePage = () => {
                                         disabled={submittingAction}
                                         className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
                                     >
-                                        {submittingAction && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                        {submittingAction && <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />}
                                         Xác nhận phê duyệt
                                     </button>
                                 </div>
@@ -1176,7 +1223,7 @@ const ManagerHomePage = () => {
                                         disabled={submittingAction || !rejectionReason.trim()}
                                         className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
                                     >
-                                        {submittingAction && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                        {submittingAction && <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />}
                                         Xác nhận từ chối
                                     </button>
                                 </div>

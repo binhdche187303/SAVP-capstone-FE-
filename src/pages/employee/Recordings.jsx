@@ -1,3 +1,6 @@
+import { countBy } from '../../hooks/useFilterCounts';
+import { matchesFilter } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import './RecordingsFilters.css';
@@ -228,9 +231,14 @@ const EmployeeRecordings = () => {
         const matchQuery = !searchQuery.trim() ||
             (rec.meetingTitle || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
             (rec.roomName     || '').toLowerCase().includes(searchQuery.toLowerCase());
-        const matchRoom = !selectedRoom || rec.roomName === selectedRoom;
+        const matchRoom = matchesFilter(selectedRoom, rec.roomName);
         return matchQuery && matchRoom;
     }), [recordings, searchQuery, selectedRoom]);
+
+    // Số đếm cạnh lựa chọn ô "Phòng họp" (đếm tại chỗ theo từ khoá đang gõ).
+    const roomCounts = useMemo(() => countBy(recordings.filter(rec => !searchQuery.trim() ||
+        (rec.meetingTitle || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (rec.roomName || '').toLowerCase().includes(searchQuery.toLowerCase())), rec => rec.roomName), [recordings, searchQuery]);
 
     // reset to page 1 when filters change
     useEffect(() => { setCurrentPage(1); }, [searchQuery, selectedRoom]);
@@ -301,7 +309,7 @@ const EmployeeRecordings = () => {
             </AnimatePresence>
 
             {/* Filter panel */}
-            <FilterBar variant="card" className="recordings-filters">
+            <FilterBar forceStandard variant="card" className="recordings-filters">
                 <div className="recordings-filter-main">
                     <FilterField label="Tìm kiếm">
                         <div className="relative">
@@ -312,10 +320,10 @@ const EmployeeRecordings = () => {
                         </div>
                     </FilterField>
                     <FilterField label="Phòng họp">
-                        <select value={selectedRoom} onChange={e => setSelectedRoom(e.target.value)}>
+                        <FilterMultiSelect counts={roomCounts} value={selectedRoom} onChange={e => setSelectedRoom(e.target.value)}>
                             <option value="">Tất cả phòng</option>
                             {uniqueRooms.map(room => <option key={room} value={room}>{room}</option>)}
-                        </select>
+                        </FilterMultiSelect>
                     </FilterField>
                 </div>
                 <div className="recordings-filter-time">
@@ -374,7 +382,7 @@ const EmployeeRecordings = () => {
                     </p>
                     <button onClick={fetchRecordingsData}
                         className="mt-2 px-4 py-2 bg-action-blue text-white rounded-xl text-xs font-bold hover:bg-glacier-blue transition-colors inline-flex items-center gap-1.5">
-                        <RefreshCw className="w-3.5 h-3.5" /> Tải lại
+                        <RefreshCw className="w-3.5 h-3.5" /> Làm mới
                     </button>
                 </div>
             ) : (

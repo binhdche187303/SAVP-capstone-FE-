@@ -1,4 +1,4 @@
-import { get, post, patch, dele as del } from '../utils/request';
+import { get, post, patch, dele as del, buildQuery } from '../utils/request';
 
 // ============================================================
 // M2: Alert Rules API
@@ -13,7 +13,7 @@ export const getAlertRules = async (params = {}) => {
     const cleanParams = Object.fromEntries(
         Object.entries(params).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
     );
-    const query = new URLSearchParams(cleanParams).toString();
+    const query = buildQuery(cleanParams).slice(1);
     return await get(`/alert-rules${query ? `?${query}` : ''}`);
 };
 

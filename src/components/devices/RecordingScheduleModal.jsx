@@ -31,7 +31,7 @@ const PRESETS = [
       "1".repeat(24),
     ],
   },
-  { label: "Xoá hết", rows: () => Array(7).fill("0".repeat(24)) },
+  { label: "Xóa hết", rows: () => Array(7).fill("0".repeat(24)) },
 ];
 const RETENTION = [7, 15, 30, 60, 90];
 
@@ -126,7 +126,7 @@ const RecordingScheduleModal = ({ device, recording, onClose, onSaved }) => {
               >
                 {RETENTION.map((d) => (
                   <option key={d} value={d}>
-                    {d} ngày (tự xoá cũ hơn)
+                    {d} ngày (tự xóa cũ hơn)
                   </option>
                 ))}
               </select>
@@ -159,7 +159,7 @@ const RecordingScheduleModal = ({ device, recording, onClose, onSaved }) => {
               <p className="text-xs font-bold text-midnight-indigo">
                 Khung giờ ghi{" "}
                 <span className="font-normal text-slate-blue">
-                  · kéo chuột để tô/xoá · {hours} giờ/tuần
+                  · kéo chuột để tô/xóa · {hours} giờ/tuần
                 </span>
               </p>
               <div className="flex gap-1">

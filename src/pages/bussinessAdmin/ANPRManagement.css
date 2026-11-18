@@ -23,6 +23,8 @@
 }
 @container (min-width: 800px) {
     .anpr-history-filter-main { grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr)); }
+    /* Tab "Biển số lạ": 4 ô lọc (biển số, hướng, danh sách kiểm soát, cách hiển thị). */
+    .anpr-unknown-filters .anpr-history-filter-main { grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); }
 }
 
 .anpr-history-filter-dates {

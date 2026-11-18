@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check, SearchX } from 'lucide-react';
+import { Check, SearchX, Loader2 } from 'lucide-react';
 import { getPublicRegistration } from '../../service/visitorService';
 import PublicShell from '../../components/visitor/PublicShell';
 import VisitQr from '../../components/visitor/VisitQr';
@@ -72,7 +72,7 @@ const VisitorStatus = () => {
                 <button type="submit" className={btnPrimary}>Tra cứu</button>
             </form>
 
-            {loading && <div className="flex justify-center py-10"><div className={spinnerCls} /></div>}
+            {loading && <div className="flex justify-center py-10"><Loader2 className={spinnerCls} /></div>}
 
             {notFound && (
                 <div className={`${cardCls} p-8 text-center space-y-3`}>

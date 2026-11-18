@@ -1,0 +1,28 @@
+.meeting-approvals-table.meeting-approvals-table th,
+.meeting-approvals-table.meeting-approvals-table .meeting-approval-conflict > [data-ui-text="badge"] {
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+}
+
+.meeting-approval-conflict > [data-ui-text="badge"] > svg {
+    flex-shrink: 0;
+}
+
+.meeting-approval-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+}
+
+.meeting-approvals-table .meeting-approval-actions > button {
+    display: inline-flex;
+    flex: 0 0 28px;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px !important;
+    height: 32px;
+}
+
+.meeting-approval-actions svg { flex-shrink: 0; }
+.camai-table-container[data-table-layout="cards"] .meeting-approval-actions { justify-content: flex-start; }

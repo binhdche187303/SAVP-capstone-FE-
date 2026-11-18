@@ -1,3 +1,4 @@
+import FilterMultiSelect from '../common/FilterMultiSelect';
 import TimeRangeButtons from '../common/TimeRangeButtons';
 import { changeReportFilters, reportFilterChoices } from './reportFilterChoices';
 import FilterBar from '../common/FilterBar';
@@ -48,7 +49,8 @@ const ReportFilterBar = ({ definition, lookups = {}, value, onChange, onApply, l
                 return (
                     <div className="camai-filter-field space-y-1" key={filter.key}>
                         <label className={labelCls} htmlFor={`report-${filter.key}`}>{filter.label}</label>
-                        <select
+                        <FilterMultiSelect
+                            singleSelect={Boolean(filter.options) && choices.filter(choice => !['', 'all', 'ALL'].includes(choice.value)).length === 2}
                             id={`report-${filter.key}`}
                             value={value[filter.key] || ''}
                             onChange={(e) => set({ [filter.key]: e.target.value })}
@@ -56,7 +58,7 @@ const ReportFilterBar = ({ definition, lookups = {}, value, onChange, onApply, l
                         >
                             <option value="">{academic && filter.lookup && choices.length === 0 ? 'Chưa có dữ liệu đã đồng bộ' : 'Tất cả'}</option>
                             {choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                        </select>
+                        </FilterMultiSelect>
                     </div>
                 );
             })}
@@ -67,7 +69,7 @@ const ReportFilterBar = ({ definition, lookups = {}, value, onChange, onApply, l
                     <input id="report-q" type="text" value={value.q || ''} onChange={(e) => set({ q: e.target.value })} placeholder="Tên, mã, biển số…" className={`${searchInputCls} w-44`} />
                 </div>
             </div>
-            <button data-filter-action type="submit" className={btnPrimary} disabled={loading}>{loading ? 'Đang tải…' : 'Xem báo cáo'}</button>
+            <button data-filter-action type="submit" className={btnPrimary} disabled={loading}>{loading ? 'Đang tải...' : 'Xem báo cáo'}</button>
         </FilterBar>
     );
 };

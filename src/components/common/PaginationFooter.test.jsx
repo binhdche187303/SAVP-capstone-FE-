@@ -98,7 +98,7 @@ test('keeps text buttons and numbered pages in a narrow panel', () => {
 
 test('disables navigation during loading without displaying a size picker', () => {
     render(<PaginationFooter {...defaults} loading pageSizeControl={<select defaultValue="10"><option value="10">10</option></select>} />);
-    expect(screen.getByText('Đang tải dữ liệu…')).toBeInTheDocument();
+    expect(screen.getByText('Đang tải dữ liệu...')).toBeInTheDocument();
     expect(screen.queryByText('Hiển thị 11–20 / 35 bản ghi')).not.toBeInTheDocument();
     for (const button of screen.getAllByRole('button')) expect(button).toBeDisabled();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();

@@ -1,6 +1,6 @@
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
-import { AlertTriangle, CheckCircle, GripVertical, Key, Plus, RefreshCw, Save, Search, Shield, Trash2, UserCog } from 'lucide-react';
+import { AlertTriangle, CheckCircle, GripVertical, Key, Plus, Save, Search, Shield, Trash2, UserCog, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 
@@ -185,7 +185,7 @@ const RoleListItem = ({ role, isSelected, onSelect, onDelete }) => {
                             <button
                                 onClick={(e) => onDelete(role, e)}
                                 className="p-1 text-slate-blue hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                title="Xoá vai trò"
+                                title="Xóa vai trò"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -486,7 +486,7 @@ const RolePermissionManagement = () => {
         try {
             const res = await deleteRole(roleToDelete.id);
             if (res?.success) {
-                setSuccessMessage(`Đã xoá vai trò ${getDisplayRoleName(roleToDelete)} thành công.`);
+                setSuccessMessage(`Đã xóa vai trò ${getDisplayRoleName(roleToDelete)} thành công.`);
                 setIsDeleteModalOpen(false);
                 if (selectedRole?.id === roleToDelete.id) {
                     setSelectedRole(null);
@@ -495,10 +495,10 @@ const RolePermissionManagement = () => {
                 }
                 fetchData();
             } else {
-                setError(res?.message || 'Không thể xoá vai trò.');
+                setError(res?.message || 'Không thể xóa vai trò.');
             }
         } catch (err) {
-            setError(apiErrorMessage(err, 'Lỗi kết nối khi xoá vai trò.'));
+            setError(apiErrorMessage(err, 'Lỗi kết nối khi xóa vai trò.'));
         } finally {
             setIsDeletingRole(false);
             setRoleToDelete(null);
@@ -602,31 +602,31 @@ const RolePermissionManagement = () => {
                 <div className="w-full lg:w-2/3 flex flex-col bg-white rounded-2xl shadow-sm-1 border border-platinum-tint overflow-hidden">
                     {selectedRole ? (
                         <>
-                            <div className="p-4 border-b border-platinum-tint bg-cloud-mist/30 flex justify-between items-center">
-                                <div>
+                            <div className="p-4 border-b border-platinum-tint bg-cloud-mist/30 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+                                <div className="min-w-0">
                                     <h2 className="font-bold text-midnight-indigo flex items-center">
                                         <Key className="w-5 h-5 mr-2 text-action-blue" />
                                         Phân quyền: {getDisplayRoleName(selectedRole)}
                                     </h2>
                                     <p className="text-xs text-slate-blue mt-1">Cấu hình các quyền thao tác cho vai trò này</p>
                                 </div>
-                                <div className="flex gap-3">
-                                    <FilterBar variant="inline" className="relative">
+                                <div className="flex gap-3 w-full sm:w-auto">
+                                    <FilterBar variant="inline" className="relative flex-1 min-w-0 sm:flex-none">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue" />
                                         <input 
                                             type="text" 
                                             placeholder="Tìm quyền..." 
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="w-48 pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
+                                            className="w-full sm:w-48 pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
                                         />
                                     </FilterBar>
                                     <button
                                         onClick={handleSavePermissions}
                                         disabled={saving || permissionsLoading || !permissionsReady || Boolean(catalogError)}
-                                        className="inline-flex items-center px-4 py-2 bg-action-blue text-white rounded-xl text-sm font-semibold hover:bg-glacier-blue transition-all shadow-sm disabled:opacity-50"
+                                        className="inline-flex shrink-0 items-center px-4 py-2 bg-action-blue text-white rounded-xl text-sm font-semibold whitespace-nowrap hover:bg-glacier-blue transition-all shadow-sm disabled:opacity-50"
                                     >
-                                        {saving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                                        {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                                         Lưu cấu hình
                                     </button>
                                 </div>
@@ -635,7 +635,7 @@ const RolePermissionManagement = () => {
                             <div className="flex-1 overflow-y-auto p-6">
                                 {permissionsLoading ? (
                                     <div className="flex flex-col items-center justify-center h-40">
-                                        <RefreshCw className="w-6 h-6 text-action-blue animate-spin mb-3" />
+                                        <Loader2 className="w-6 h-6 text-action-blue animate-spin mb-3" />
                                         <span className="text-sm text-slate-blue">Đang tải cấu hình quyền...</span>
                                     </div>
                                 ) : filteredModules.length === 0 ? (
@@ -769,9 +769,9 @@ const RolePermissionManagement = () => {
                             <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <AlertTriangle className="w-8 h-8" />
                             </div>
-                            <h3 className="text-lg font-bold text-midnight-indigo mb-2">Xác nhận xoá vai trò</h3>
+                            <h3 className="text-lg font-bold text-midnight-indigo mb-2">Xác nhận xóa vai trò</h3>
                             <p className="text-sm text-slate-blue mb-1">
-                                Bạn có chắc chắn muốn xoá vai trò <span className="font-bold text-midnight-indigo">{getDisplayRoleName(roleToDelete)}</span>?
+                                Bạn có chắc chắn muốn xóa vai trò <span className="font-bold text-midnight-indigo">{getDisplayRoleName(roleToDelete)}</span>?
                             </p>
                             <p data-ui-text="badge" className="text-[11px] text-red-500 bg-red-50 p-2 rounded-lg mt-3 text-left">
                                 Lưu ý: Thao tác này không thể hoàn tác. Người dùng đang có vai trò này có thể sẽ bị mất quyền truy cập.
@@ -790,7 +790,7 @@ const RolePermissionManagement = () => {
                                 disabled={isDeletingRole}
                                 className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-xl text-sm shadow-sm hover:bg-red-700 disabled:opacity-50 min-w-[100px]"
                             >
-                                {isDeletingRole ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Xoá vĩnh viễn'}
+                                {isDeletingRole ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xóa vĩnh viễn'}
                             </button>
                         </div>
                     </div>

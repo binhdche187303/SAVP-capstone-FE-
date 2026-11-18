@@ -13,25 +13,7 @@ import {
 } from '../../service/managerServices';
 import ThumbnailImage from '../common/ThumbnailImage';
 import EventSnapshotModal from '../security/EventSnapshotModal';
-import {
-    Users,
-    Clock,
-    AlertTriangle,
-    Search,
-    FileText,
-    Activity,
-    CheckCircle2,
-    XCircle,
-    ArrowUpDown,
-    RefreshCw,
-    X,
-    ChevronLeft,
-    ChevronRight,
-    Eye,
-    UserCheck,
-    UserX,
-    BarChart2
-} from 'lucide-react';
+import { Users, Clock, AlertTriangle, Search, FileText, Activity, CheckCircle2, XCircle, ArrowUpDown, RefreshCw, X, ChevronLeft, ChevronRight, Eye, UserCheck, UserX, BarChart2, Loader2 } from 'lucide-react';
 import SharedStatCard from '../../components/common/StatCard';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -198,7 +180,7 @@ const UserDetailModal = ({ user, meetingId, meetingStartTime, meetingEndTime, on
                 <div className="overflow-y-auto flex-1 p-6 space-y-5">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-16 gap-3">
-                            <RefreshCw className="w-7 h-7 text-action-blue animate-spin" />
+                            <Loader2 className="w-7 h-7 text-action-blue animate-spin" />
                             <span data-ui-text="primary" className="text-xs text-slate-blue font-semibold">Đang tải dữ liệu tiến trình từ IVSS...</span>
                         </div>
                     ) : error ? (
@@ -711,7 +693,7 @@ const MeetingPresenceIVSS = ({ meetingId, meetingStartTime, meetingEndTime }) =>
                         disabled={pdfLoading || participants.length === 0}
                         legacyClassName="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-action-blue hover:bg-action-blue/90 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
                     >
-                        {pdfLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                        {pdfLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
                         Tải báo cáo PDF
                     </ReportExportAction>
                 </div>

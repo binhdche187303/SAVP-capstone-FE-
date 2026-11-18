@@ -1,8 +1,9 @@
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
-import { Settings, Camera, GraduationCap, Plus, Trash2, Pencil, X } from 'lucide-react';
+import { Settings, Camera, GraduationCap, Plus, Trash2, Pencil, X, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 
@@ -762,7 +763,7 @@ const SystemSettings = () => {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
-                <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                 <p className="mt-4 text-slate-blue text-sm font-medium">Đang tải cấu hình hệ thống...</p>
             </div>
         );
@@ -806,9 +807,6 @@ const SystemSettings = () => {
                         Hệ thống
                     </span>
                     <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Cài đặt hệ thống</h1>
-                    <p className="text-slate-blue text-sm mt-1">
-                        Cấu hình chính sách No-show, tự động giải phóng phòng và ánh xạ camera.
-                    </p>
                 </div>
 
                 {/* Action Buttons */}
@@ -1086,25 +1084,28 @@ const SystemSettings = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="md:col-span-3 p-4 bg-cloud-mist/50 border border-platinum-tint/70 rounded-xl flex flex-col h-full">
-                                    <label className="block text-xs font-bold text-slate-blue uppercase">Lớp / môn học áp dụng</label>
+                                    <label htmlFor={classAttendanceTargets.length ? 'class-attendance-target' : undefined} className="block text-xs font-bold text-slate-blue uppercase">Lớp / môn học áp dụng</label>
                                     <span className="text-xs text-steel-gray mt-1 block">
                                         Chọn lớp và môn học cần cấu hình giờ vào học, ngưỡng đi muộn và chu kỳ quét FaceID tự động.
                                     </span>
-                                    <select
+                                    {classAttendanceTargets.length > 0 ? <select
+                                        id="class-attendance-target"
                                         value={selectedClassAttendanceClassId}
                                         disabled={classAttendanceLoading || !classAttendanceTargets.length}
                                         onChange={(e) => setSelectedClassAttendanceClassId(e.target.value)}
                                         className="mt-3 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-medium text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
                                     >
-                                        {!classAttendanceTargets.length && <option value="">{classAttendanceLoading ? 'Đang tải lớp học…' : 'Chưa có lớp học đã đồng bộ'}</option>}
                                         {classAttendanceTargets.map(target => (
                                             <option key={target.value} value={target.value}>
                                                 {target.item.code} - {target.item.subject}{target.className ? ` - Lớp ${target.className}` : ''}{target.item.room ? ` (${target.item.room})` : ''}
                                             </option>
                                         ))}
-                                    </select>
+                                    </select> : <div role="status" className="mt-3 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white">
+                                        {classAttendanceLoading ? 'Đang tải lớp học...' : classAttendanceLoadError ? 'Chưa tải được danh sách lớp học' : 'Chưa có lớp học đã đồng bộ'}
+                                    </div>}
                                     {classAttendanceLoadError && <p role="alert" className="mt-2 text-sm text-red-700">{classAttendanceLoadError}</p>}
                                     {!classAttendanceLoading && !classAttendanceLoadError && !classAttendanceTargets.length && <p className="mt-2 text-sm text-slate-blue">Chưa có lớp học phần từ UEL. Vui lòng đồng bộ lớp học phần; đồng bộ thêm đăng ký học phần và lịch học để có danh sách sinh viên, phòng và giờ học.</p>}
+                                    {!classAttendanceLoading && !classAttendanceTargets.length && <Link to="/system-admin/uel-sync" className="mt-2 self-start text-sm font-semibold text-action-blue hover:underline">Đi đến đồng bộ dữ liệu UEL →</Link>}
                                 </div>
 
                                 <div className="p-4 bg-white border border-platinum-tint rounded-xl flex flex-col h-full">
@@ -1568,7 +1569,7 @@ const SystemSettings = () => {
                             disabled={channelActionSaving}
                             className="px-5 py-2 bg-action-blue text-white hover:bg-glacier-blue rounded-xl text-sm font-semibold shadow-sm transition-all min-w-[100px] flex items-center justify-center gap-2"
                         >
-                            {channelActionSaving && <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                            {channelActionSaving && <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />}
                             {channelActionSaving ? 'Đang lưu...' : (channelEditor.mode === 'add' ? 'Thêm kênh' : 'Lưu thay đổi')}
                         </button>
                     </div>

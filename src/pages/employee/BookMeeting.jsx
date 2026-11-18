@@ -1,8 +1,9 @@
+import useConfirm from '../../hooks/useConfirm';
 import TableColumns from '../../components/common/TableColumns';
 import DateInput from '../../components/common/DateInput';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
-import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench, Monitor, Bell, Mail, MessageSquare, Smartphone, Repeat, FileText, PenLine } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Building, Calendar, CalendarPlus, Check, CheckCircle2, ChevronRight, ChevronDown, Clock, Download, FileSpreadsheet, HelpCircle, Info, Mic, Paperclip, Plus, Search, ShieldAlert, Trash2, Upload, Users, Video, X, Edit2, GripVertical, Wrench, Monitor, Bell, Mail, MessageSquare, Smartphone, Repeat, FileText, PenLine, Loader2 } from 'lucide-react';
 import RichTextEditor from '../../components/common/RichTextEditor';
 import { useState, useEffect, useMemo, useRef } from 'react';
 
@@ -126,6 +127,7 @@ const isoWeekday = (d) => ((d.getDay() + 6) % 7) + 1;
 const formatViDate = (ymd) => ymd.split('-').reverse().join('/');
 
 const BookMeeting = () => {
+    const [confirm, confirmDialog] = useConfirm();
     const navigate = useNavigate();
     const [currentUser, setCurrentUser] = useState(null);
 
@@ -522,7 +524,7 @@ const BookMeeting = () => {
 
     // Người dùng sửa giờ/ngày/số người sau khi đã suggest phòng: kết quả suggest cũ
     // (availableRooms) không còn đáng tin (phòng có thể không còn trống, hoặc giờ mới
-    // có thể không hợp lệ/đã ở quá khứ) — phải xoá luôn danh sách và bắt tìm lại,
+    // có thể không hợp lệ/đã ở quá khứ) — phải xóa luôn danh sách và bắt tìm lại,
     // không chỉ bỏ chọn phòng, để tránh việc chọn nhầm 1 thẻ phòng cũ rồi lọt qua bước 2.
     const invalidateRoomSuggestions = () => {
         setSelectedRoomId('');
@@ -1110,7 +1112,7 @@ const BookMeeting = () => {
             } catch (seriesErr) {
                 // Chuỗi lặp có ngày trùng phòng ⇒ hỏi bỏ qua các ngày đó rồi tạo phần còn lại.
                 const dates = seriesErr?.error?.code === 'RECURRENCE_ROOM_CONFLICT' ? seriesErr.error.details?.conflictDates || [] : null;
-                if (!dates || !window.confirm(`Phòng đã có lịch vào các ngày: ${dates.map(formatViDate).join(', ')}.\n\nBỏ qua các ngày này và tạo các buổi còn lại?`)) throw seriesErr;
+                if (!dates || !(await confirm({ message: `Phòng đã có lịch vào các ngày: ${dates.map(formatViDate).join(', ')}.\n\nBỏ qua các ngày này và tạo các buổi còn lại?`, confirmLabel: 'Bỏ qua và tạo', danger: false }))) throw seriesErr;
                 payload.skipDates = dates;
                 res = await createMeeting(payload);
             }
@@ -1404,7 +1406,7 @@ const BookMeeting = () => {
     if (loadingData) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-blue">
-                <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin mb-4" />
+                <Loader2 className="w-10 h-10 mb-4 text-action-blue animate-spin" />
                 <p className="font-semibold text-sm">Đang tải danh sách tài nguyên và thông tin cấu hình...</p>
             </div>
         );
@@ -1561,7 +1563,7 @@ const BookMeeting = () => {
                                     className="px-6 py-2.5 bg-action-blue hover:bg-action-blue/90 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
                                 >
                                     {searchingRooms ? (
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <Loader2 className="w-4 h-4 text-white animate-spin" />
                                     ) : (
                                         <>
                                             <Search className="w-4 h-4" /> Tìm phòng họp
@@ -1861,7 +1863,7 @@ const BookMeeting = () => {
                                                 <div className="absolute z-30 left-0 right-0 mt-2 bg-white border border-platinum-tint rounded-xl shadow-lg max-h-72 overflow-y-auto divide-y divide-cloud-mist">
                                                     {searchingUsers ? (
                                                         <div className="p-4 flex items-center justify-center gap-2 text-xs text-slate-blue">
-                                                            <div className="w-3.5 h-3.5 border-2 border-action-blue border-t-transparent rounded-full animate-spin" />
+                                                            <Loader2 className="w-3.5 h-3.5 text-action-blue animate-spin" />
                                                             Đang tìm kiếm...
                                                         </div>
                                                     ) : (visibleSuggestions.length > 0 || visibleDepartments.length > 0) ? (
@@ -2716,7 +2718,7 @@ const BookMeeting = () => {
                                             className="w-1/2 py-3 bg-action-blue hover:bg-action-blue/90 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-95"
                                         >
                                             {submitting ? (
-                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                <Loader2 className="w-4 h-4 text-white animate-spin" />
                                             ) : (
                                                 'Xác nhận đặt'
                                             )}
@@ -2922,7 +2924,7 @@ const BookMeeting = () => {
                                                     className="px-4 py-2 bg-action-blue hover:bg-action-blue/90 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
                                                 >
                                                     {importProcessing && (
-                                                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                        <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
                                                     )}
                                                     Xem trước danh sách
                                                 </button>
@@ -2956,7 +2958,7 @@ const BookMeeting = () => {
                                                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
                                                 />
                                                 {importProcessing ? (
-                                                    <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin mb-2" />
+                                                    <Loader2 className="w-8 h-8 mb-2 text-action-blue animate-spin" />
                                                 ) : (
                                                     <Upload className="w-8 h-8 text-slate-blue/60 group-hover:text-action-blue transition-colors mb-2" />
                                                 )}
@@ -3222,7 +3224,7 @@ const BookMeeting = () => {
 
                             {loadingDetail ? (
                                 <div className="flex flex-col items-center justify-center py-12">
-                                    <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                     <p data-ui-text="secondary" className="mt-4 text-xs text-slate-blue font-medium">Đang tải thông tin chi tiết...</p>
                                 </div>
                             ) : userDetail ? (
@@ -3277,6 +3279,7 @@ const BookMeeting = () => {
                 </div>,
                 document.body
             )}
+        {confirmDialog}
         </div>
     );
 };

@@ -59,7 +59,7 @@ export const getRoomsMissingEquipment = async () => {
 };
 
 /**
- * Xoá thiết bị-tài sản
+ * Xóa thiết bị-tài sản
  * BE: DELETE /equipments/:equipmentId
  * @param {string|number} equipmentId
  * @returns {Promise<object>} response envelope

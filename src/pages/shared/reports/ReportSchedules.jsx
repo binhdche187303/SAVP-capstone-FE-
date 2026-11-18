@@ -1,3 +1,4 @@
+import PageHeading from '../../../components/common/PageHeading';
 import PaginatedCollection from '../../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../../components/common/ResponsiveTable';
 import { useCallback, useEffect, useState } from 'react';
@@ -13,6 +14,7 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import ScheduleFormModal from '../../../components/report/ScheduleFormModal';
 import { describeFrequency, FORMAT_LABELS } from '../../../components/report/scheduleLabels';
 import { pageCls, cardCls, btnPrimary, thCls, tdCls, errorBoxCls } from '../../../components/common/uiClasses';
+import './ReportSchedules.css';
 
 // S10 (2.13): thiết lập lịch gửi báo cáo tự động.
 const iconBtn = 'p-1.5 rounded-lg text-slate-blue hover:bg-cloud-mist hover:text-action-blue disabled:opacity-40';
@@ -69,13 +71,12 @@ const ReportSchedules = () => {
 
     return (
         <div data-page-surface="wide" className={pageCls}>
-            <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
+            <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <CalendarClock className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Báo cáo" icon={<CalendarClock className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Lịch gửi báo cáo tự động
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">Hệ thống tự tạo báo cáo theo kỳ và gửi email kèm file PDF, Excel, Word tới người nhận.</p>
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">Hệ thống tự tạo báo cáo theo kỳ và gửi email kèm file PDF, Excel, Word tới người nhận.</p>
                 </div>
                 <button type="button" className={btnPrimary} onClick={() => setForm({ open: true, initial: null })}>
                     <Plus className="w-4 h-4" /> Tạo lịch gửi
@@ -91,28 +92,28 @@ const ReportSchedules = () => {
             {error && <div className={errorBoxCls}>{error}</div>}
 
             <div className={`${cardCls} overflow-hidden`}>
-                <div className="overflow-x-auto">
+                <div className="min-w-0">
                     <PaginatedCollection items={schedules} itemLabel="lịch gửi">
 {(camaiPageItems, camaiStartIndex) => (
-<ResponsiveTable className="w-full">
+<ResponsiveTable className="w-full report-schedules-table">
 <colgroup>
-<col style={{ width: '18%' }} />
-<col style={{ width: '16%' }} />
-<col style={{ width: '10%' }} />
-<col style={{ width: '8%' }} />
-<col style={{ width: '18%' }} />
-<col style={{ width: '11%' }} />
-<col style={{ width: '11%' }} />
-<col style={{ width: '4%' }} />
-<col style={{ width: '4%' }} />
+<col />
+<col style={{ width: '14%' }} />
+<col style={{ width: '128px' }} />
+<col style={{ width: '104px' }} />
+<col style={{ width: '120px' }} />
+<col style={{ width: '144px' }} />
+<col style={{ width: '136px' }} />
+<col style={{ width: '56px' }} />
+<col style={{ width: '168px' }} />
 </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
-                                {['Tên lịch', 'Báo cáo', 'Tần suất', 'Định dạng', 'Người nhận', 'Chạy gần nhất', 'Chạy kế tiếp', 'Bật', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
+                                {['Tên lịch', 'Báo cáo', 'Tần suất', 'Định dạng', 'Người nhận', 'Chạy gần nhất', 'Chạy kế tiếp', 'Bật', 'Thao tác'].map((h) => <th key={h} className={thCls}>{h}</th>)}
                             </tr>
                         </thead>
                         <tbody>
-                            {!schedules && <tr><td colSpan={9} className="px-4 py-10 text-center text-xs text-slate-blue">Đang tải dữ liệu…</td></tr>}
+                            {!schedules && <tr><td colSpan={9} className="px-4 py-10 text-center text-xs text-slate-blue">Đang tải dữ liệu...</td></tr>}
                             {schedules?.length === 0 && (
                                 <tr>
                                     <td colSpan={9} className="px-4 py-10 text-center text-xs text-slate-blue space-y-3">
@@ -127,7 +128,7 @@ const ReportSchedules = () => {
                                     <td className={tdCls}>{schedule.reportTitle}</td>
                                     <td className={tdCls}>{describeFrequency(schedule)}</td>
                                     <td className={tdCls}>
-                                        <span className="flex gap-1">
+                                        <span className="flex flex-wrap gap-1">
                                             {schedule.formats.map((f) => <span data-ui-text="badge" key={f} className="px-2 py-0.5 rounded-md bg-pale-gray text-[11px] font-semibold">{FORMAT_LABELS[f]}</span>)}
                                         </span>
                                     </td>
@@ -149,7 +150,7 @@ const ReportSchedules = () => {
                                         />
                                     </td>
                                     <td className={`${tdCls} text-right`}>
-                                        <span className="inline-flex items-center gap-1">
+                                        <span className="report-schedule-actions">
                                             <button type="button" className={iconBtn} aria-label="Gửi thử" title="Gửi thử ngay" disabled={busyId === schedule.id} onClick={() => sendTest(schedule)}><Send className="w-4 h-4" /></button>
                                             <button type="button" className={iconBtn} aria-label="Sửa" title="Sửa" onClick={() => setForm({ open: true, initial: schedule })}><Pencil className="w-4 h-4" /></button>
                                             <button type="button" className={iconBtn} aria-label="Nhân bản" title="Nhân bản" disabled={busyId === schedule.id} onClick={() => act(schedule.id, () => duplicateSchedule(schedule.id), () => toast.success('Đã nhân bản lịch gửi (đang tắt)'))}><Copy className="w-4 h-4" /></button>

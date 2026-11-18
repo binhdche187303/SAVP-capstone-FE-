@@ -17,7 +17,7 @@ const Footer = ({ currentPage = 1, totalPages, onPageChange, totalItems, pageSiz
     const first = knownTotal && (totalItems === 0 || visibleCount === 0 || start > totalItems) ? 0 : start;
     const count = visibleCount ?? pageSize ?? 0;
     const last = knownTotal ? (first === 0 ? 0 : Math.min(first + count - 1, totalItems)) : null;
-    const summary = loading ? 'Đang tải dữ liệu…' : knownTotal
+    const summary = loading ? 'Đang tải dữ liệu...' : knownTotal
         ? `Hiển thị ${first}–${Math.max(0, last)} / ${totalItems.toLocaleString('vi-VN')} ${itemLabel}`
         : `Trang ${currentPage}${visibleCount !== undefined ? ` · ${visibleCount} ${itemLabel} trên trang` : ''}`;
 

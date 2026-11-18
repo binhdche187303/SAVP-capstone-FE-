@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, BookOpen, Calendar, CalendarDays, Car, ChevronDown, FileCheck, FileText, GraduationCap, KeyRound, LayoutGrid, LogOut, Film, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, Users, X } from 'lucide-react';
+import { Activity, Archive, Calendar, CalendarDays, Car, ChevronDown, FileText, GraduationCap, Home, KeyRound, LayoutGrid, LogOut, Film, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, X } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import { getCurrentUser, logout } from '../../service/authService';
-import { getBiometricStatus } from '../../service/avatarService';
+import { useFaceStatus } from '../../components/biometric/FaceMenuItem';
 import { MEETING_BOOKING_ENABLED } from '../../config/featureFlags';
 import UserAvatar from '../../components/common/UserAvatar';
 import NotificationBell from '../../components/common/NotificationBell';
@@ -16,13 +16,6 @@ const footerLinks = [
     { label: 'Quyền riêng tư', to: 'legal?tab=privacy' },
 ];
 
-// Trạng thái khuôn mặt hiển thị trong menu tài khoản (mục đã chuyển từ thanh điều hướng vào đây).
-const FACE_STATUS = {
-    not_uploaded: { label: 'Chưa đăng ký', className: 'bg-amber-50 text-amber-700 border-amber-200', needsAction: true },
-    rejected: { label: 'Bị từ chối', className: 'bg-red-50 text-red-700 border-red-200', needsAction: true },
-    pending_review: { label: 'Chờ duyệt', className: 'bg-blue-50 text-action-blue border-blue-200' },
-    approved: { label: 'Đã đăng ký', className: 'bg-green-50 text-green-700 border-green-200' },
-};
 
 const LearningLayout = ({ role = 'teacher' }) => {
     const navigate = useNavigate();
@@ -32,7 +25,6 @@ const LearningLayout = ({ role = 'teacher' }) => {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [faceStatus, setFaceStatus] = useState(null);
     const profileMenuRef = useRef(null);
     const basePath = role === 'student' ? '/student' : '/teacher';
     const displayRole = role === 'student' ? 'Sinh viên' : 'Giảng viên';
@@ -52,9 +44,6 @@ const LearningLayout = ({ role = 'teacher' }) => {
                 localStorage.setItem('user', JSON.stringify(updated));
                 setCurrentUser(updated);
             }
-        }).catch(() => {});
-        getBiometricStatus().then(res => {
-            if (res?.success && res.data) setFaceStatus(res.data.biometricReviewStatus || 'not_uploaded');
         }).catch(() => {});
     }, []);
 
@@ -89,7 +78,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
     // Thanh trên chỉ giữ việc dùng hằng ngày; mục cài đặt một lần (khuôn mặt, xe) nằm trong menu tài khoản.
     // Giảng viên là cán bộ: ngoài giảng dạy còn họp, báo hỏng thiết bị, đón khách như Nhân viên.
     const navItems = role === 'teacher' ? [
-        { label: 'Trang chủ', to: basePath, end: true, icon: BookOpen },
+        { label: 'Trang chủ', to: basePath, end: true, icon: Home },
         {
             label: 'Giảng dạy',
             icon: GraduationCap,
@@ -107,7 +96,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
                 { label: 'Lịch cá nhân', to: `${basePath}/my-schedule`, icon: Calendar },
                 // Ẩn khi MEETING_BOOKING_ENABLED=false — lịch họp đăng ký trên VPĐT, SAVP chỉ hiển thị + điểm danh.
                 ...(MEETING_BOOKING_ENABLED ? [{ label: 'Đăng ký họp', to: `${basePath}/book`, icon: PlusCircle }] : []),
-                { label: 'Kho biên bản', to: `${basePath}/minutes`, icon: FileCheck },
+                { label: 'Kho biên bản', to: `${basePath}/minutes`, icon: Archive },
                 { label: 'Tài liệu họp', to: `${basePath}/meeting-documents`, icon: FileText },
             ],
         },
@@ -115,16 +104,16 @@ const LearningLayout = ({ role = 'teacher' }) => {
             label: 'Tiện ích',
             icon: LayoutGrid,
             children: [
-                { label: 'Khách của tôi', to: `${basePath}/my-visitors`, icon: Users },
+                { label: 'Khách của tôi', to: `${basePath}/my-visitors`, icon: UserCheck },
                 { label: 'Báo hỏng thiết bị', to: `${basePath}/equipments`, icon: Monitor },
             ],
         },
     ] : [
-        { label: 'Trang chủ', to: basePath, end: true, icon: BookOpen },
+        { label: 'Trang chủ', to: basePath, end: true, icon: Home },
         { label: 'Chuyên cần', to: `${basePath}/attendance`, icon: UserCheck },
         { label: 'Lịch học', to: `${basePath}/schedule`, icon: CalendarDays },
     ];
-    const faceInfo = faceStatus ? FACE_STATUS[faceStatus] || FACE_STATUS.not_uploaded : null;
+    const faceInfo = useFaceStatus();
     const goTo = (path) => { setIsProfileMenuOpen(false); navigate(path); };
     const isGroupActive = (item) => item.children.some(c => location.pathname.startsWith(c.to));
     // Cùng độ đậm cho mọi trạng thái (mục đang chọn chỉ đổi màu/nền) để chiều rộng không nhảy; mũi tên sát chữ.

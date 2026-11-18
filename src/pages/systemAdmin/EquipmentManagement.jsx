@@ -1,14 +1,17 @@
+import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, Bell, Clock, Cpu, History, MapPin, MapPinOff, Mic, Monitor, Package, Plus, RefreshCw, Search, Speaker, Trash2, Video, Wrench, Check } from 'lucide-react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { AlertTriangle, Bell, Clock, Cpu, History, MapPin, MapPinOff, Mic, Monitor, Package, Plus, RefreshCw, Search, Speaker, Trash2, Video, Wrench, Check, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
 import { getEquipments, createEquipment, reportEquipmentFault, assignEquipment, unassignEquipment, deleteEquipment, confirmEquipmentFault, resolveEquipmentFault, getEquipmentFaultHistory, getRoomsMissingEquipment } from '../../service/equipmentServices';
 import { getRooms } from '../../service/businessAdminServices';
+import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 
 const GAP_POLL_INTERVAL_MS = 30000;
 
@@ -23,8 +26,10 @@ const EquipmentManagement = () => {
 
     // Filters & Pagination
     const [search, setSearch] = useState('');
+    const debouncedSearch = useDebouncedValue(search);
     const [equipmentType, setEquipmentType] = useState('');
     const [healthStatus, setHealthStatus] = useState('');
+    const [roomId, setRoomId] = useState('');
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
@@ -95,7 +100,16 @@ const EquipmentManagement = () => {
         setLoading(true);
         setError(null);
         try {
-            const params = { page, limit, search, equipmentType, healthStatus };
+            const params = {
+                page,
+                limit,
+                search: debouncedSearch.trim() || undefined,
+                equipmentType,
+                healthStatus,
+                currentRoomId: roomId || undefined,
+                sortBy: 'equipmentType',
+                sortOrder: 'asc'
+            };
             const res = await getEquipments(params);
             if (res?.success) {
                 setEquipmentList(res.data || []);
@@ -111,7 +125,29 @@ const EquipmentManagement = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, limit, search, equipmentType, healthStatus]);
+    }, [page, limit, debouncedSearch, equipmentType, healthStatus, roomId]);
+
+    // Lọc ngay trên danh sách đang hiển thị trong lúc chờ BE trả kết quả cho từ khoá mới.
+    const visibleEquipments = useInstantFilter(equipmentList, search, search !== debouncedSearch || loading);
+
+    // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
+    const equipmentFilters = useMemo(
+        () => ({ search: debouncedSearch.trim(), equipmentType, healthStatus, currentRoomId: roomId }),
+        [debouncedSearch, equipmentType, healthStatus, roomId],
+    );
+    const equipmentTotal = useCallback(
+        (f) => getEquipments({
+            page: 1,
+            limit: 1,
+            search: f.search || undefined,
+            equipmentType: f.equipmentType || undefined,
+            healthStatus: f.healthStatus || undefined,
+            currentRoomId: f.currentRoomId || undefined,
+        }).then(totalOf),
+        [],
+    );
+    const typeCounts = useFacetCounts(equipmentFilters, 'equipmentType', ['camera', 'microphone', 'display', 'speaker', 'capture_agent'], equipmentTotal);
+    const healthCounts = useFacetCounts(equipmentFilters, 'healthStatus', ['healthy', 'warning', 'faulty', 'offline'], equipmentTotal);
 
     const fetchRooms = async () => {
         try {
@@ -140,8 +176,11 @@ const EquipmentManagement = () => {
 
     useEffect(() => {
         fetchEquipments();
-        fetchRooms();
     }, [fetchEquipments]);
+
+    useEffect(() => {
+        fetchRooms();
+    }, []);
 
     // Banner real-time: tải ngay khi vào trang + polling định kỳ để BA luôn thấy
     // phòng mới phát sinh thiếu thiết bị (vd: phòng khác vừa được đăng ký có mic/cam/tivi).
@@ -310,15 +349,15 @@ const EquipmentManagement = () => {
         try {
             const res = await deleteEquipment(equipmentToDelete.id);
             if (res?.success) {
-                setSuccessMessage(`Đã xoá thiết bị ${equipmentToDelete.equipmentName} thành công.`);
+                setSuccessMessage(`Đã xóa thiết bị ${equipmentToDelete.equipmentName} thành công.`);
                 setIsDeleteModalOpen(false);
                 fetchEquipments();
                 fetchGapRooms();
             } else {
-                setError(res?.message || 'Không thể xoá thiết bị này.');
+                setError(res?.message || 'Không thể xóa thiết bị này.');
             }
         } catch (err) {
-            setError(err?.message || 'Lỗi kết nối khi xoá thiết bị.');
+            setError(err?.message || 'Lỗi kết nối khi xóa thiết bị.');
         } finally {
             setIsDeletingEquipment(false);
             setEquipmentToDelete(null);
@@ -365,6 +404,41 @@ const EquipmentManagement = () => {
             case 'capture_agent': return <Cpu className="w-5 h-5 text-red-500" />;
             default: return <Package className="w-5 h-5 text-slate-blue" />;
         }
+    };
+
+    const getEquipmentTypeMeta = (type) => {
+        const styles = {
+            camera: {
+                icon: 'bg-blue-50 border-blue-100',
+                badge: 'bg-blue-50 text-blue-700 border-blue-100'
+            },
+            microphone: {
+                icon: 'bg-orange-50 border-orange-100',
+                badge: 'bg-orange-50 text-orange-700 border-orange-100'
+            },
+            display: {
+                icon: 'bg-purple-50 border-purple-100',
+                badge: 'bg-purple-50 text-purple-700 border-purple-100'
+            },
+            speaker: {
+                icon: 'bg-emerald-50 border-emerald-100',
+                badge: 'bg-emerald-50 text-emerald-700 border-emerald-100'
+            },
+            capture_agent: {
+                icon: 'bg-red-50 border-red-100',
+                badge: 'bg-red-50 text-red-700 border-red-100'
+            },
+            sensor: {
+                icon: 'bg-cyan-50 border-cyan-100',
+                badge: 'bg-cyan-50 text-cyan-700 border-cyan-100'
+            },
+            other: {
+                icon: 'bg-slate-50 border-slate-200',
+                badge: 'bg-slate-50 text-slate-700 border-slate-200'
+            }
+        };
+
+        return styles[type] || styles.other;
     };
 
     const getTypeLabel = (type) => {
@@ -458,12 +532,11 @@ const EquipmentManagement = () => {
                             type="text" 
                             placeholder="Tìm theo tên, mã thiết bị..." 
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && fetchEquipments()}
+                            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                             className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                         />
                     </div></FilterField>
-                    <FilterField label="Loại thiết bị"><select
+                    <FilterField label="Loại thiết bị"><FilterMultiSelect counts={typeCounts}
                         value={equipmentType}
                         onChange={(e) => { setEquipmentType(e.target.value); setPage(1); }}
                         className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
@@ -474,8 +547,8 @@ const EquipmentManagement = () => {
                         <option value="display">Màn hình</option>
                         <option value="speaker">Loa</option>
                         <option value="capture_agent">Bộ xử lý</option>
-                    </select></FilterField>
-                    <FilterField label="Tình trạng thiết bị"><select
+                    </FilterMultiSelect></FilterField>
+                    <FilterField label="Tình trạng thiết bị"><FilterMultiSelect counts={healthCounts}
                         value={healthStatus}
                         onChange={(e) => { setHealthStatus(e.target.value); setPage(1); }}
                         className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
@@ -485,6 +558,20 @@ const EquipmentManagement = () => {
                         <option value="warning">Cảnh báo</option>
                         <option value="faulty">Lỗi</option>
                         <option value="offline">Mất kết nối (Offline)</option>
+                    </FilterMultiSelect></FilterField>
+                    <FilterField label="Phòng gắn"><select
+                        value={roomId}
+                        onChange={(e) => { setRoomId(e.target.value); setPage(1); }}
+                        className="w-full px-3 py-2 bg-white border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
+                    >
+                        <option value="">Tất cả phòng</option>
+                        {[...rooms]
+                            .sort((a, b) => (a.roomName || '').localeCompare(b.roomName || '', 'vi'))
+                            .map((room) => (
+                                <option key={room.roomId} value={room.roomId}>
+                                    {room.roomName}
+                                </option>
+                            ))}
                     </select></FilterField>
                     <RefreshButton
                         onClick={fetchEquipments}
@@ -514,7 +601,7 @@ const EquipmentManagement = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-platinum-tint/50">
-                            {loading ? (
+                            {loading && (!search.trim() || visibleEquipments.length === 0) ? (
                                 Array(5).fill(0).map((_, idx) => (
                                     <tr key={idx} className="animate-pulse">
                                         <td className="p-4"><div className="h-4 bg-cloud-mist rounded w-32"></div></td>
@@ -525,7 +612,7 @@ const EquipmentManagement = () => {
                                         <td className="p-4"><div className="h-4 bg-cloud-mist rounded w-12 ml-auto"></div></td>
                                     </tr>
                                 ))
-                            ) : equipmentList.length === 0 ? (
+                            ) : visibleEquipments.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="p-12 text-center">
                                         <div className="flex flex-col items-center justify-center text-slate-blue">
@@ -535,13 +622,14 @@ const EquipmentManagement = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                equipmentList.map(eq => {
+                                visibleEquipments.map(eq => {
                                     const assignedRoom = rooms.find(r => r.roomId === eq.currentRoomId);
+                                    const typeMeta = getEquipmentTypeMeta(eq.equipmentType);
                                     return (
                                     <tr key={eq.id} className="hover:bg-cloud-mist/20 transition-colors group">
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-cloud-mist flex items-center justify-center flex-shrink-0">
+                                                <div className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 ${typeMeta.icon}`}>
                                                     {getEquipmentIcon(eq.equipmentType)}
                                                 </div>
                                                 <div>
@@ -554,8 +642,10 @@ const EquipmentManagement = () => {
                                             <p className="text-sm font-medium text-midnight-indigo">{eq.equipmentCode}</p>
                                             <p className="text-xs text-slate-blue">SN: {eq.serialNumber || 'N/A'}</p>
                                         </td>
-                                        <td className="p-4 text-sm text-slate-blue whitespace-nowrap">
-                                            {getTypeLabel(eq.equipmentType)}
+                                        <td className="p-4 text-sm whitespace-nowrap">
+                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-semibold ${typeMeta.badge}`}>
+                                                {getTypeLabel(eq.equipmentType)}
+                                            </span>
                                         </td>
                                         <td className="p-4">
                                             <span data-ui-text="badge" className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${getHealthStatusMeta(eq.healthStatus).cls}`}>
@@ -638,7 +728,7 @@ const EquipmentManagement = () => {
                                             <button
                                                 onClick={() => handleDeleteClick(eq)}
                                                 className="inline-flex p-1.5 rounded-lg text-slate-blue hover:text-red-500 hover:bg-red-50 transition-colors"
-                                                title="Xoá thiết bị"
+                                                title="Xóa thiết bị"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -901,12 +991,12 @@ const EquipmentManagement = () => {
                             <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <AlertTriangle className="w-8 h-8" />
                             </div>
-                            <h3 className="text-lg font-bold text-midnight-indigo mb-2">Xác nhận xoá thiết bị</h3>
+                            <h3 className="text-lg font-bold text-midnight-indigo mb-2">Xác nhận xóa thiết bị</h3>
                             <p className="text-sm text-slate-blue mb-1">
-                                Bạn có chắc chắn muốn xoá thiết bị <span className="font-bold text-midnight-indigo">{equipmentToDelete.equipmentName}</span>?
+                                Bạn có chắc chắn muốn xóa thiết bị <span className="font-bold text-midnight-indigo">{equipmentToDelete.equipmentName}</span>?
                             </p>
                             <p data-ui-text="badge" className="text-[11px] text-red-500 bg-red-50 p-2 rounded-lg mt-3 text-left">
-                                Lưu ý: Thao tác này sẽ xoá hoàn toàn thiết bị khỏi hệ thống và không thể khôi phục. Hãy chắc chắn thiết bị không còn được sử dụng.
+                                Lưu ý: Thao tác này sẽ xóa hoàn toàn thiết bị khỏi hệ thống và không thể khôi phục. Hãy chắc chắn thiết bị không còn được sử dụng.
                             </p>
                         </div>
                         <div className="p-4 bg-cloud-mist/30 border-t border-platinum-tint flex justify-end gap-3">
@@ -922,7 +1012,7 @@ const EquipmentManagement = () => {
                                 disabled={isDeletingEquipment}
                                 className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-xl text-sm shadow-sm hover:bg-red-700 disabled:opacity-50 min-w-[100px]"
                             >
-                                {isDeletingEquipment ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Xoá vĩnh viễn'}
+                                {isDeletingEquipment ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xóa vĩnh viễn'}
                             </button>
                         </div>
                     </div>
@@ -959,7 +1049,7 @@ const EquipmentManagement = () => {
                                 disabled={isUnassigning}
                                 className="inline-flex items-center justify-center px-4 py-2 bg-orange-500 text-white font-semibold rounded-xl text-sm shadow-sm hover:bg-orange-600 disabled:opacity-50 min-w-[100px]"
                             >
-                                {isUnassigning ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Gỡ khỏi phòng'}
+                                {isUnassigning ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Gỡ khỏi phòng'}
                             </button>
                         </div>
                     </div>

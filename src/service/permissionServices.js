@@ -20,7 +20,7 @@ export const updateRole = async (id, data) => {
 };
 
 /**
- * Xoá vai trò
+ * Xóa vai trò
  * BE: DELETE /roles/:id
  * @param {string|number} id
  */

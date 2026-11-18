@@ -1,3 +1,5 @@
+import PageHeading from '../../components/common/PageHeading';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import './MeetingAttendanceAdmin.css';
 import StatisticCard from '../../components/common/StatisticCard';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -5,7 +7,7 @@ import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Activity, AlertTriangle, ArrowLeft, Calendar, Clock, Search, Users, MapPin, ArrowRight, CheckCircle2, Filter } from 'lucide-react';
+import { Activity, AlertTriangle, ArrowLeft, Calendar, Clock, Search, Users, MapPin, ArrowRight, CheckCircle2, Filter, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getMeetings, getDepartments } from '../../service/businessAdminServices';
 import MeetingPresenceIVSS from '../../components/meeting/MeetingPresenceIVSS';
@@ -205,11 +207,10 @@ const MeetingAttendanceAdmin = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-action-blue" />
+                    <PageHeading as="h1" badge="Chuyên cần" icon={<Activity className="w-5 h-5 text-action-blue" />} className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
                         Chuyên cần phòng ban
-                    </h1>
-                    <p className="text-xs text-slate-blue mt-0.5">Xem thời lượng tham dự thực tế của nhân viên theo từng cuộc họp</p>
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-0.5">Xem thời lượng tham dự thực tế của nhân viên theo từng cuộc họp</p>
                 </div>
             </div>
 
@@ -242,7 +243,7 @@ const MeetingAttendanceAdmin = () => {
                     </div>
                     <div className="camai-filter-field">
                         <label className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Phòng ban</label>
-                        <select
+                        <FilterMultiSelect
                             value={selectedDeptId}
                             onChange={(e) => { setSelectedDeptId(e.target.value); setPage(1); }}
                             className="px-3 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue bg-cloud-mist/20"
@@ -251,7 +252,7 @@ const MeetingAttendanceAdmin = () => {
                             {departments.map((d) => (
                                 <option key={d.id} value={d.id}>{d.name || d.departmentName}</option>
                             ))}
-                        </select>
+                        </FilterMultiSelect>
                     </div>
                 </div>
                 <div className="meeting-attendance-filter-time">
@@ -302,7 +303,7 @@ const MeetingAttendanceAdmin = () => {
 
                 {loading ? (
                     <div className="p-8 flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-2 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                        <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                         <span data-ui-text="primary" className="text-xs text-slate-blue font-semibold">Đang tải danh sách cuộc họp...</span>
                     </div>
                 ) : error ? (

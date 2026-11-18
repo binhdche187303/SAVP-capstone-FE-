@@ -3,7 +3,8 @@ import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
 import FilterBar from '../../components/common/FilterBar';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, Box, Camera, ChevronLeft, Cpu, Search, WifiOff } from 'lucide-react';
+import ReportActions from '../../components/common/ReportActions';
+import { AlertTriangle, Box, Camera, ChevronLeft, Cpu, Search, WifiOff, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DeviceConnectionHistoryPanel from "../../components/devices/DeviceConnectionHistoryPanel";
 import BuildingInfoPanel from "../../components/cameraTwin/BuildingInfoPanel";
@@ -228,7 +229,7 @@ const CameraTwin = () => {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <span data-ui-text="badge" className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#1e3a5f]/10 px-3 py-1 text-[11px] font-bold text-[#1e3a5f]">
-            <Box className="h-3.5 w-3.5" /> Campus Digital Twin
+            <Box className="h-3.5 w-3.5" /> Bản sao số khuôn viên
           </span>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Sơ đồ camera 3D</h1>
           <nav className="mt-1 flex items-center gap-1 text-sm text-slate-500" aria-label="breadcrumb">
@@ -243,7 +244,7 @@ const CameraTwin = () => {
             )}
           </nav>
         </div>
-        <div className="flex items-center gap-2">
+        <ReportActions>
           <FilterBar variant="inline" className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
             <input
@@ -251,7 +252,7 @@ const CameraTwin = () => {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Tìm mã camera, phòng, tòa nhà…"
               aria-label="Tìm kiếm"
-              className="w-72 rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm outline-none focus:border-[#1e3a5f]"
+              className="w-72 max-w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm outline-none focus:border-[#1e3a5f]"
             />
             {query.trim().length >= 2 && (
               <ul className="absolute right-0 z-30 mt-1 max-h-80 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
@@ -279,7 +280,7 @@ const CameraTwin = () => {
               disabled={loading}
               busy={loading}
           />
-        </div>
+        </ReportActions>
       </div>
 
       {error && (
@@ -300,7 +301,7 @@ const CameraTwin = () => {
 
       {loading && !twin ? (
         <div className="flex h-[560px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1e3a5f]/20 border-t-[#1e3a5f]" />
+          <Loader2 className="h-8 w-8 text-[#1e3a5f] animate-spin" />
         </div>
       ) : !twin ? (
         <div className="flex h-[300px] items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-500">

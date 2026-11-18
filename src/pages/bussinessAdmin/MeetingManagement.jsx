@@ -1,7 +1,7 @@
 import DateInput from '../../components/common/DateInput';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
-import { AlertCircle, Calendar, CheckCircle, Clock, Home, Plus, RefreshCw, Search, Users, XCircle } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, Clock, Home, Plus, RefreshCw, Search, Users, XCircle, Loader2 } from 'lucide-react';
 import { htmlToPlainText } from '../../utils/richText';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useState, useEffect, useCallback } from 'react';
@@ -24,7 +24,7 @@ const STATUS_BADGE = {
     scheduled:        { label: 'Đã lên lịch', className: 'bg-blue-50 text-blue-700' },
     in_progress:      { label: 'Đang họp',    className: 'bg-emerald-50 text-emerald-700' },
     completed:        { label: 'Hoàn thành',  className: 'bg-green-50 text-green-700' },
-    cancelled:        { label: 'Đã huỷ',      className: 'bg-red-50 text-red-700' },
+    cancelled:        { label: 'Đã hủy',      className: 'bg-red-50 text-red-700' },
 };
 
 const EDITABLE_STATUSES = new Set(['draft', 'scheduled']);
@@ -217,19 +217,19 @@ const MeetingManagement = () => {
     // ── Cancel ────────────────────────────────────────────────────────────────
     const handleCancel = (meeting) => {
         setConfirm({
-            message: `Huỷ cuộc họp "${meeting.title}"? Thao tác không thể hoàn tác.`,
+            message: `Hủy cuộc họp "${meeting.title}"? Thao tác không thể hoàn tác.`,
             onConfirm: async () => {
                 setError(null);
                 try {
                     const res = await cancelMeeting(meeting.id);
                     if (res?.success) {
-                        setSuccessMessage('Huỷ cuộc họp thành công!');
+                        setSuccessMessage('Hủy cuộc họp thành công!');
                         fetchMeetingsList();
                     } else {
-                        setError(res?.message || 'Không thể huỷ cuộc họp.');
+                        setError(res?.message || 'Không thể hủy cuộc họp.');
                     }
                 } catch (err) {
-                    setError(err?.message || err?.error?.message || 'Có lỗi xảy ra khi huỷ cuộc họp.');
+                    setError(err?.message || err?.error?.message || 'Có lỗi xảy ra khi hủy cuộc họp.');
                 }
             },
         });
@@ -389,7 +389,7 @@ const MeetingManagement = () => {
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center p-12">
-                        <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                        <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                         <p className="mt-4 text-slate-blue text-sm">Đang tải danh sách cuộc họp...</p>
                     </div>
                 ) : (
@@ -494,12 +494,12 @@ const MeetingManagement = () => {
                                                     </button>
                                                 )}
 
-                                                {/* Huỷ */}
+                                                {/* Hủy */}
                                                 {(m.status === 'scheduled' || m.status === 'draft' || m.status === 'pending_approval') && (
                                                     <button
                                                         onClick={() => handleCancel(m)}
                                                         className="inline-flex p-1.5 rounded-lg text-slate-blue hover:text-red-600 hover:bg-red-50 transition-colors"
-                                                        title="Huỷ cuộc họp"
+                                                        title="Hủy cuộc họp"
                                                     >
                                                         <XCircle className="w-4 h-4" />
                                                     </button>
@@ -605,7 +605,7 @@ const MeetingManagement = () => {
 
                             <div className="flex justify-end gap-3 pt-2 border-t border-platinum-tint">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-platinum-tint rounded-xl text-xs font-bold text-slate-blue bg-white hover:bg-cloud-mist">
-                                    Huỷ bỏ
+                                    Hủy bỏ
                                 </button>
                                 <button type="submit" className="px-4 py-2 bg-action-blue text-white rounded-xl text-xs font-bold hover:bg-glacier-blue">
                                     {modalMode === 'create' ? 'Đặt lịch' : 'Cập nhật'}
@@ -651,7 +651,7 @@ const MeetingManagement = () => {
                             </div>
                             <div className="flex justify-end gap-3 pt-2 border-t border-platinum-tint">
                                 <button type="button" onClick={() => setIsTimeModalOpen(false)} className="px-4 py-2 border border-platinum-tint rounded-xl text-xs font-bold text-slate-blue bg-white hover:bg-cloud-mist">
-                                    Huỷ
+                                    Hủy
                                 </button>
                                 <button type="submit" disabled={savingTime} className="px-4 py-2 bg-action-blue text-white rounded-xl text-xs font-bold hover:bg-glacier-blue disabled:opacity-50">
                                     {savingTime ? 'Đang lưu...' : 'Lưu thời gian'}
@@ -697,7 +697,7 @@ const MeetingManagement = () => {
                             </div>
                             <div className="flex justify-end gap-3 pt-2 border-t border-platinum-tint">
                                 <button type="button" onClick={() => setIsRoomModalOpen(false)} className="px-4 py-2 border border-platinum-tint rounded-xl text-xs font-bold text-slate-blue bg-white hover:bg-cloud-mist">
-                                    Huỷ
+                                    Hủy
                                 </button>
                                 <button type="submit" disabled={savingRoom} className="px-4 py-2 bg-action-blue text-white rounded-xl text-xs font-bold hover:bg-glacier-blue disabled:opacity-50">
                                     {savingRoom ? 'Đang lưu...' : 'Lưu phòng họp'}

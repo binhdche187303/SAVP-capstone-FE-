@@ -1,3 +1,5 @@
+import PageHeading from '../../components/common/PageHeading';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import './RoomUsageAnalytics.css';
 import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
@@ -159,11 +161,10 @@ const RoomUsageAnalytics = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-platinum-tint pb-5">
                 <div>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <BarChart3 className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Phòng họp" icon={<BarChart3 className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Hiệu suất sử dụng phòng họp
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">
                         Theo dõi tần suất đặt phòng, tỷ lệ lấp đầy thực tế, tỷ lệ vắng mặt và phân tích chi tiết hiệu năng phòng họp.
                     </p>
                 </div>
@@ -181,7 +182,7 @@ const RoomUsageAnalytics = () => {
 
                 <div className="camai-filter-field space-y-1">
                     <label className="block text-[10px] font-bold text-slate-blue uppercase">Tòa nhà</label>
-                    <select
+                    <FilterMultiSelect
                         value={siteName}
                         onChange={(e) => setSiteName(e.target.value)}
                         className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo"
@@ -190,7 +191,7 @@ const RoomUsageAnalytics = () => {
                         {siteOptions.map((site) => (
                             <option key={site} value={site}>{site}</option>
                         ))}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
 
                 <div className="camai-filter-period-row">

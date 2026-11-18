@@ -606,6 +606,10 @@ export const router = [
                 element: <VisitorDesk />
             },
             {
+                path: 'face-register',
+                element: <EmployeeFaceRegistration />
+            },
+            {
                 path: 'profile',
                 element: <Profile />
             },

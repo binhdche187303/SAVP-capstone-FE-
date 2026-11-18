@@ -142,7 +142,7 @@ const ClassStudentAttendanceModal = ({ classItem, mode, anchorDate, semester, ad
 
                 {loading && (
                     <div className="py-16 flex items-center justify-center gap-2 text-sm text-slate-blue">
-                        <Loader2 className="w-4 h-4 animate-spin" /> Đang tải chuyên cần…
+                        <Loader2 className="w-4 h-4 animate-spin" /> Đang tải chuyên cần...
                     </div>
                 )}
                 {error && <div role="alert" className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">{error}</div>}

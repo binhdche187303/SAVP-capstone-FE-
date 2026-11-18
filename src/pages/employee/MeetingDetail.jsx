@@ -863,7 +863,7 @@ const EmployeeMeetingDetail = () => {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[450px]">
-                <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                 <p className="mt-4 text-slate-blue text-sm font-semibold">Đang tải chi tiết cuộc họp...</p>
             </div>
         );
@@ -1056,7 +1056,7 @@ const EmployeeMeetingDetail = () => {
     };
 
     // Đảm bảo phòng đang chọn luôn có mặt trong option list, kể cả khi bị loại khỏi `rooms`
-    // sau lần kiểm tra gần nhất (không tự động khoá/xoá lựa chọn của người dùng).
+    // sau lần kiểm tra gần nhất (không tự động khoá/xóa lựa chọn của người dùng).
     const roomOptionsToRender = rooms.some(r => String(r.roomId) === String(editRoomId))
         ? rooms
         : (selectedRoomInfo ? [...rooms, selectedRoomInfo] : rooms);
@@ -1569,7 +1569,7 @@ const EmployeeMeetingDetail = () => {
                                     </div>
                                     {hostPresenceLoading ? (
                                         <div className="p-8 flex flex-col items-center gap-3 animate-pulse">
-                                            <div className="w-8 h-8 border-2 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                            <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                             <span data-ui-text="primary" className="text-xs text-slate-blue font-semibold">Đang tải dữ liệu từ IVSS...</span>
                                         </div>
                                     ) : hostPresenceError ? (
@@ -1631,7 +1631,7 @@ const EmployeeMeetingDetail = () => {
                             )}
                             {presenceLoading ? (
                                 <div className="bg-white rounded-2xl border border-platinum-tint p-8 flex flex-col items-center gap-3 animate-pulse">
-                                    <div className="w-8 h-8 border-2 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                     <span data-ui-text="primary" className="text-xs text-slate-blue font-semibold">Đang tải dữ liệu từ IVSS...</span>
                                 </div>
                             ) : presenceError ? (

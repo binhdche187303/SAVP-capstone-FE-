@@ -8,7 +8,7 @@ const Action = ({ standard, format = 'xlsx', filterSummary = [], initialRange, o
     const [open, setOpen] = useState(false);
     if (!standard) return <ReportExportButton {...props} onClick={onClick} />;
     return <>
-        <ReportExportButton {...props} aria-haspopup="dialog" onClick={() => setOpen(true)} />
+        <ReportExportButton {...props} forceStandard aria-haspopup="dialog" onClick={() => setOpen(true)} />
         <ExportModeDialog isOpen={open} title="Xuất báo cáo" formats={[format]} allowStandard={false}
             initialRange={initialRange} filterSummary={filterSummary}
             onClose={() => setOpen(false)} onConfirm={async () => {
@@ -18,12 +18,12 @@ const Action = ({ standard, format = 'xlsx', filterSummary = [], initialRange, o
             }} />
     </>;
 };
-const Routed = props => {
+const Routed = ({ forceStandard = false, ...props }) => {
     const { pathname } = useLocation();
-    return <Action {...props} standard={AREAS.has(pathname.split('/')[1])} />;
+    return <Action {...props} standard={forceStandard || AREAS.has(pathname.split('/')[1])} />;
 };
-const ReportExportAction = props => {
+const ReportExportAction = ({ forceStandard = false, ...props }) => {
     const routed = useInRouterContext();
-    return routed ? <Routed {...props} /> : <Action {...props} standard />;
+    return routed ? <Routed {...props} forceStandard={forceStandard} /> : <Action {...props} standard />;
 };
 export default ReportExportAction;

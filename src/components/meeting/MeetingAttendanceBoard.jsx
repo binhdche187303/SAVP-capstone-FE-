@@ -4,9 +4,7 @@ import ResponsiveTable from '../common/ResponsiveTable';
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    Users, Clock, CheckCircle, AlertTriangle, AlertCircle, XCircle, Edit3, Save, X, RotateCcw
-} from 'lucide-react';
+import { Users, Clock, CheckCircle, AlertTriangle, AlertCircle, XCircle, Edit3, Save, X, RotateCcw, Loader2 } from 'lucide-react';
 import UserAvatar from '../common/UserAvatar';
 import {
     getMeetingAttendance,
@@ -213,7 +211,7 @@ const MeetingAttendanceBoard = ({ meetingId }) => {
     if (loading && !attendanceData) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[300px]">
-                <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                 <p data-ui-text="primary" className="mt-3 text-slate-blue text-xs font-semibold">Đang tải bảng điểm danh...</p>
             </div>
         );

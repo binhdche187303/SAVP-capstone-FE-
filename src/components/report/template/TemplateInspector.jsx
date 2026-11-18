@@ -70,7 +70,7 @@ const AssetUpload = ({ mediaFileId, onUploaded, label }) => {
         <div className="space-y-1">
             <input ref={input} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={pick} data-testid="asset-input" />
             <button type="button" className={`${btnGhost} w-full !text-xs`} disabled={busy} onClick={() => input.current?.click()}>
-                <ImagePlus className="w-4 h-4" /> {busy ? 'Đang tải ảnh…' : mediaFileId ? `Đổi ảnh ${label.toLowerCase()}` : `Chọn ảnh ${label.toLowerCase()}`}
+                <ImagePlus className="w-4 h-4" /> {busy ? 'Đang tải ảnh...' : mediaFileId ? `Đổi ảnh ${label.toLowerCase()}` : `Chọn ảnh ${label.toLowerCase()}`}
             </button>
             <p data-ui-text="secondary" className="text-[10px] text-slate-blue">PNG nền trong suốt cho đẹp nhất. Ảnh được đổi sang PNG trước khi tải lên (tối đa 2 MB).</p>
             {error && <p data-ui-text="secondary" className="text-[11px] text-red-600" role="alert">{error}</p>}

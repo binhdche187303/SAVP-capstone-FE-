@@ -5,7 +5,7 @@ import './PersonalStatistics.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard from '../../components/common/StatisticCard';
-import { AlertCircle, ArrowRight, BarChart2, Award, Calendar, CheckCircle, Clock, PlusCircle, ShieldAlert, TrendingUp, User, Video } from 'lucide-react';
+import { AlertCircle, ArrowRight, BarChart2, Award, Calendar, CheckCircle, ClipboardCheck, Clock, PlusCircle, ShieldAlert, TrendingUp, User, Video } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Label } from 'recharts';
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +13,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 import DashboardBanner from '../../components/common/DashboardBanner';
 import { getEmployeeSummary } from '../../service/campusService';
+import { getPendingMeetingRequests } from '../../service/managerServices';
+import { getCurrentUser } from '../../service/authService';
 import { getMySchedule, getMyAttendanceStats } from '../../service/employeeServices';
 import { MEETING_BOOKING_ENABLED } from '../../config/featureFlags';
 
@@ -64,6 +66,22 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
     const [upcomingMeetings, setUpcomingMeetings] = useState([]);
     const [upcomingCount, setUpcomingCount] = useState(null);
     const [scheduleLoading, setScheduleLoading] = useState(true);
+    // Văn thư đơn vị (quyền meeting_request.read cấp theo cờ is_unit_clerk): đếm lịch đơn vị đang chờ duyệt.
+    const [pendingApprovals, setPendingApprovals] = useState(null); // null = không phải văn thư
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            try {
+                const me = await getCurrentUser();
+                if (!alive || !me?.data?.permissions?.includes('meeting_request.read')) return;
+                const res = await getPendingMeetingRequests({ approvalStatus: 'pending' });
+                if (alive) setPendingApprovals(res?.success ? (res.meta?.total ?? (res.data || []).length) : 0);
+            } catch {
+                // bỏ qua: không hiện thẻ
+            }
+        })();
+        return () => { alive = false; };
+    }, []);
     const [scheduleError, setScheduleError] = useState(false);
 
     // Campus summary (CDB-RS-001: GET /campus-dashboard/employee-summary)
@@ -267,7 +285,7 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
                 {activeTab === 'analytics' ? <div className="personal-stats-header">
                     <h1 data-page-title className="text-midnight-indigo">Thống kê cá nhân</h1>
                     <p data-page-description className="text-slate-blue">Theo dõi việc tham dự, đi muộn và vắng mặt trong các cuộc họp bắt buộc của bạn.</p>
-                </div> : <DashboardBanner roleName="Employee" />}
+                </div> : <DashboardBanner roleName="Employee" compact titleAs="h1" />}
             </motion.div>
 
             <AnimatePresence mode="wait">
@@ -281,7 +299,13 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
                         className="space-y-8"
                     >
                         {/* Quick Status Bar */}
-                        <StatisticGrid columns={3} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <StatisticGrid columns={pendingApprovals === null ? 3 : 4} className={`grid grid-cols-1 gap-4 ${pendingApprovals === null ? 'md:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-4'}`}>
+                            {/* Card: Lịch chờ duyệt — chỉ văn thư đơn vị */}
+                            {pendingApprovals !== null && (
+                                <StatisticCard label="Lịch chờ duyệt" value={pendingApprovals} icon={ClipboardCheck}
+                                    helper={pendingApprovals > 0 ? 'lịch họp đơn vị đang chờ bạn duyệt' : 'Không có lịch nào đang chờ'}
+                                    to="/employee/meeting-approvals" />
+                            )}
                             {/* Card: Họp trong ngày */}
                             <StatisticCard label="Họp trong ngày" value={campusSummaryLoading ? '—' : (campusSummary?.meetingsToday ?? 0)} icon={Clock} helper="cuộc họp" />
 

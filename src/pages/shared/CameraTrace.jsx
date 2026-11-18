@@ -1,3 +1,6 @@
+import { useProbeCounts } from '../../hooks/useFilterCounts';
+import PageHeading from '../../components/common/PageHeading';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import ReportActions from '../../components/common/ReportActions';
@@ -189,6 +192,15 @@ const CameraTrace = () => {
             setLoading(false);
         }
     }, [targetId, quick, from, to, buildParams, PAGE_SIZE]);
+
+    // Số đếm cạnh lựa chọn ô "Loại sự kiện" — chỉ tính khi đã có kết quả truy vết (truy vấn nặng).
+    const traceBase = useMemo(() => { const { kind: _kind, ...rest } = buildParams(1, 1); return rest; }, [buildParams]);
+    const kindCounts = useProbeCounts(
+        Object.keys(KIND_LABEL),
+        (value) => getCameraTrace({ ...traceBase, ...(value ? { kind: value } : {}) }).then((res) => (res?.success ? res.data?.total : undefined)),
+        JSON.stringify(traceBase),
+        { enabled: !!result },
+    );
 
     // Vào từ link có sẵn mục tiêu (vd. nút "Truy vết" ở trang Nhóm camera) thì chạy luôn.
     useEffect(() => {
@@ -391,11 +403,10 @@ const CameraTrace = () => {
     return (
         <div data-page-surface="wide" className="space-y-6 p-6 max-w-7xl mx-auto">
             <div className="border-b border-platinum-tint pb-[1.25rem]">
-                <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                    <Route className="w-6 h-6 text-action-blue" />
+                <PageHeading badge="Truy vết" icon={<Route className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                     Truy vết theo camera / khu vực
-                </h2>
-                <p className="text-xs text-slate-blue mt-1 max-w-3xl">
+                </PageHeading>
+                <p data-page-description className="text-xs text-slate-blue mt-1 max-w-3xl">
                     Xem camera nào đã ghi nhận ai, lúc nào, ở đâu — dùng để truy vết mất đồ ở một tòa nhà, cổng hoặc nhà xe.
                     {canOpenJourney && <> Muốn tra theo một người, dùng <Link to={`${base}/user-journey`} className="text-action-blue font-semibold">Lịch sử di chuyển theo người</Link>.</>}
                 </p>
@@ -415,10 +426,10 @@ const CameraTrace = () => {
                 <div data-filter-grid className="grid md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] gap-[1rem] items-start">
                     <div className="camai-filter-field space-y-1.5">
                         <label htmlFor="trace-target" className={labelCls}>{currentMode.label} *</label>
-                        <select id="trace-target" value={targetId} onChange={(e) => setTargetId(e.target.value)} className={`${inputCls} w-full`}>
+                        <FilterMultiSelect id="trace-target" value={targetId} onChange={(e) => setTargetId(e.target.value)} className={`${inputCls} w-full`}>
                             <option value="">— Chọn —</option>
                             {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                        </select>
+                        </FilterMultiSelect>
                     </div>
                     <TimeRangeButtons id="trace-range" label="Khoảng thời gian" value={quick} onChange={applyQuick}
                         options={[...QUICK_RANGES.map(r => [r.key, r.label]), ['custom', 'Tùy chọn giờ cụ thể']]} />
@@ -478,10 +489,10 @@ const CameraTrace = () => {
                             </ReportActions>
                         </div>
                         <FilterBar variant="inline" className="flex flex-wrap items-center gap-2">
-                            <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} aria-label="Loại sự kiện" className={`${inputCls} !py-1.5 text-xs`}>
+                            <FilterMultiSelect counts={kindCounts} value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} aria-label="Loại sự kiện" className={`${inputCls} !py-1.5 text-xs`}>
                                 <option value="">Mọi loại sự kiện</option>
                                 {Object.entries(KIND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                            </select>
+                            </FilterMultiSelect>
                             <div data-filter-search className="relative">
                                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} placeholder="Lọc theo tên / mã / biển số"

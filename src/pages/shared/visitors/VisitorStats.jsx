@@ -1,8 +1,10 @@
+import PageHeading from '../../../components/common/PageHeading';
+import FilterMultiSelect from '../../../components/common/FilterMultiSelect';
 import TimeRangeButtons from '../../../components/common/TimeRangeButtons';
 import FilterBar from '../../../components/common/FilterBar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, FileBarChart, Filter, X } from 'lucide-react';
+import { BarChart3, FileBarChart, Filter, X, Loader2 } from 'lucide-react';
 import { getVisitorStats, getVisitorLookups } from '../../../service/visitorService';
 import { formatCell } from '../../../utils/reportFormat';
 import useAreaBase from '../../../hooks/useAreaBase';
@@ -140,11 +142,10 @@ const VisitorStats = () => {
         <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <BarChart3 className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Khách" icon={<BarChart3 className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Thống kê khách đến làm việc
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">Lượt khách theo đơn vị tiếp và theo thời gian, mục đích, giờ cao điểm.</p>
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">Lượt khách theo đơn vị tiếp và theo thời gian, mục đích, giờ cao điểm.</p>
                 </div>
                 <Link to={`${base}/reports/visitor`} className={btnGhost}>
                     <FileBarChart className="w-4 h-4" /> Mở báo cáo để xuất
@@ -155,10 +156,10 @@ const VisitorStats = () => {
 
                 <div className="camai-filter-field space-y-1">
                     <label className={labelCls} htmlFor="vs-dep">Đơn vị tiếp</label>
-                    <select id="vs-dep" className={inputCls} value={filters.departmentId} onChange={(e) => set({ departmentId: e.target.value })}>
+                    <FilterMultiSelect id="vs-dep" className={inputCls} value={filters.departmentId} onChange={(e) => set({ departmentId: e.target.value })}>
                         <option value="">Tất cả</option>
                         {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <TimeRangeButtons id="vs-group" label="Nhóm theo" value={filters.groupBy}
                     onChange={groupBy => set({ groupBy })} options={GROUPS} />
@@ -179,7 +180,7 @@ const VisitorStats = () => {
             </FilterBar>
 
             {error && <div className={errorBoxCls}>{error}</div>}
-            {!error && !stats && <div className="flex items-center justify-center h-64"><div className={spinnerCls} /></div>}
+            {!error && !stats && <div className="flex items-center justify-center h-64"><Loader2 className={spinnerCls} /></div>}
 
             {stats && (
                 <>
@@ -195,7 +196,7 @@ const VisitorStats = () => {
                                     </button>
                                 </span>
                             ))}
-                            {!crossStats && !crossError && <span className="text-slate-blue">Đang lọc…</span>}
+                            {!crossStats && !crossError && <span className="text-slate-blue">Đang lọc...</span>}
                             {crossError && <span className="text-red-600">{crossError}</span>}
                             <button type="button" onClick={() => setSelection(null)} className="ml-auto font-bold text-action-blue hover:underline">
                                 Bỏ lọc

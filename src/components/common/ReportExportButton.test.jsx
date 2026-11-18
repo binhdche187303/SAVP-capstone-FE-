@@ -43,7 +43,7 @@ test('blocks duplicate downloads until an asynchronous export finishes', async (
     fireEvent.click(button);
     expect(button).toHaveAttribute('aria-busy', 'true');
     expect(button).toBeDisabled();
-    expect(button).toHaveTextContent('Đang xuất…');
+    expect(button).toHaveTextContent('Đang xuất...');
     fireEvent.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
     await act(async () => finish());
@@ -57,7 +57,7 @@ test('preserves native form submission and externally controlled loading', () =>
     fireEvent.click(screen.getByRole('button', { name: 'Xuất báo cáo' }));
     expect(submit).toHaveBeenCalledTimes(1);
     rerender(<form onSubmit={submit}><ReportExportButton type="submit" busy /></form>);
-    expect(screen.getByRole('button', { name: 'Đang xuất…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Đang xuất...' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button'));
     expect(submit).toHaveBeenCalledTimes(1);
 });

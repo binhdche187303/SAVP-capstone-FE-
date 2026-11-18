@@ -1,7 +1,8 @@
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, Bell, Calendar, CheckCircle, CheckSquare, Clock, Eye, EyeOff, Info, RefreshCw } from 'lucide-react';
+import ReportActions from '../../components/common/ReportActions';
+import { AlertTriangle, Bell, Calendar, CheckCircle, CheckSquare, Clock, Eye, EyeOff, Info, RefreshCw, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -193,10 +194,10 @@ const Notifications = () => {
                     <p className="text-slate-blue text-sm">Xem lịch sử thông báo, cập nhật trạng thái lịch họp, cảnh báo phòng họp và tình trạng thiết bị.</p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <ReportActions>
                     <button
                         onClick={handleMarkAllAsRead}
-                        className="inline-flex items-center justify-center px-4 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-bold shadow-sm transition-all duration-200"
+                        className="inline-flex h-9 items-center justify-center px-4 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-bold shadow-sm transition-all duration-200"
                     >
                         <CheckSquare className="w-4 h-4 mr-2 text-green-600" />
                         Đọc tất cả
@@ -204,12 +205,12 @@ const Notifications = () => {
                     <RefreshButton
                         onClick={fetchNotificationsList}
                         legacyClassName="p-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl hover:bg-cloud-mist transition-colors duration-200"
-                        title="Tải lại thông báo"
+                        title="Làm mới thông báo"
                         busy={loading}
                     >
                         <RefreshCw className="w-4 h-4" />
                     </RefreshButton>
-                </div>
+                </ReportActions>
             </div>
 
             {/* Alert Message */}
@@ -252,7 +253,7 @@ const Notifications = () => {
             <div className="space-y-4">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-platinum-tint min-h-[200px]">
-                        <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                        <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                         <p data-ui-text="primary" className="text-slate-blue text-xs font-semibold mt-3">Đang tải danh sách thông báo...</p>
                     </div>
                 ) : notificationsList.length === 0 ? (

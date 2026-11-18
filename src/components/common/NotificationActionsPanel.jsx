@@ -1,10 +1,7 @@
 import DateInput from './DateInput';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-    Bell, Mail, MessageSquare, X, CheckCircle, AlertTriangle,
-    Send, Clock, Users, FileText, ChevronDown, ChevronUp
-} from 'lucide-react';
+import { Bell, Mail, MessageSquare, X, CheckCircle, AlertTriangle, Send, Clock, Users, FileText, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import {
     sendMeetingInvitations,
     sendMeetingReminder,
@@ -96,7 +93,7 @@ const ActionModal = ({ open, onClose, title, description, icon: Icon, iconColor,
                         className="px-5 py-2.5 text-sm font-bold text-white bg-action-blue hover:bg-blue-700 rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2 min-w-[100px] justify-center"
                     >
                         {loading
-                            ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ? <Loader2 className="w-4 h-4 text-white animate-spin" />
                             : <><Send className="w-3.5 h-3.5" /> Gửi ngay</>
                         }
                     </button>

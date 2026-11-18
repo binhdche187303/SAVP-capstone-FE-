@@ -1,3 +1,4 @@
+import { changeFilter } from '../../testUtils/filterSelection';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ClassAttendanceAnalytics from './ClassAttendanceAnalytics';
@@ -58,7 +59,7 @@ test('kết hợp thẻ với môn học và hiển thị rỗng khi không có 
     render(<MemoryRouter initialEntries={['/business-admin/class-attendance']}><ClassAttendanceAnalytics /></MemoryRouter>);
     await screen.findByText('Trí tuệ nhân tạo', { exact: true });
     fireEvent.click(screen.getByRole('button', { name: 'Đi muộn', exact: true }));
-    fireEvent.change(screen.getByLabelText('Môn học'), { target: { value: 'AI' } });
+    changeFilter(screen.getByLabelText('Môn học'), { target: { value: 'AI' } });
     await waitFor(() => expect(fetchTeacherClassAttendanceReport).toHaveBeenLastCalledWith(expect.objectContaining({ subjectCode: 'AI' })));
     expect(await screen.findByText('Không có lớp/môn học phù hợp với bộ lọc hiện tại.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Lượt cần điểm danh', exact: true }));

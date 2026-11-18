@@ -1,3 +1,6 @@
+import { clientFacetCounts, countBy, totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
+import { filterValues, matchesFilter } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import '../../components/security/AlertFilters.css';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import { buildSecurityAlertQuery } from '../../utils/securityAlertFilters';
@@ -143,7 +146,7 @@ const VisitorAlerts = () => {
                 if (sequence === loadSequence.current) setAlerts(buildDemoAlerts(desk));
                 return;
             }
-            const collections = await Promise.all((criteria.alert_type ? [criteria.alert_type] : VISITOR_ALERT_TYPES).map(async alertType => {
+            const collections = await Promise.all((filterValues(criteria.alert_type).length ? filterValues(criteria.alert_type) : VISITOR_ALERT_TYPES).map(async alertType => {
                 const records = [];
                 for (let page = 1; page <= 200; page += 1) {
                     const response = await getSecurityAlerts(buildSecurityAlertQuery({ ...criteria, alert_type: alertType, page, limit: 50 }));
@@ -184,15 +187,38 @@ const VisitorAlerts = () => {
         const payload = getPayload(alert);
         const time = new Date(alert.triggered_at || alert.created_at).getTime();
         const query = buildSecurityAlertQuery(criteria);
-        const zone = zones.find(item => item.id === criteria.zone_id);
-        return (!criteria.alert_type || alert.alert_type === criteria.alert_type)
-            && (!criteria.severity || alert.severity === criteria.severity)
-            && (!criteria.zone_id || alert.zone_id === criteria.zone_id || payload.zoneName === (zone?.name || zone?.zoneName || zone?.zone_name))
+        const selectedZones = zones.filter(item => matchesFilter(criteria.zone_id, item.id));
+        return matchesFilter(criteria.alert_type, alert.alert_type)
+            && matchesFilter(criteria.severity, alert.severity)
+            && (matchesFilter(criteria.zone_id, alert.zone_id) || selectedZones.some(zone => payload.zoneName === (zone.name || zone.zoneName || zone.zone_name)))
             && (!query.from || time >= new Date(query.from).getTime())
             && (!query.to || time <= new Date(query.to).getTime());
     }), [alerts, criteria, zones]);
-    const filteredAlerts = useMemo(() => scopedAlerts.filter(alert => status === 'all'
-        || (status === 'open' ? alert.status !== 'resolved' : alert.status === status)), [scopedAlerts, status]);
+    const filteredAlerts = useMemo(() => scopedAlerts.filter(alert => matchesFilter(status, alert.status) || (filterValues(status).includes('open') && alert.status !== 'resolved')), [scopedAlerts, status]);
+    // Số đếm cạnh lựa chọn các ô lọc. Ô Trạng thái đếm tại chỗ; các ô khác do BE lọc nên đếm qua API
+    // (tổng theo từng loại cảnh báo khách), riêng dữ liệu mô phỏng thì đếm tại chỗ.
+    const statusFilterCounts = useMemo(() => {
+        const by = countBy(scopedAlerts, item => item.status);
+        return { ...by, open: (by.new || 0) + (by.acknowledged || 0) };
+    }, [scopedAlerts]);
+    const alertCriteriaTotal = useCallback(async (c) => {
+        const types = filterValues(c.alert_type).length ? filterValues(c.alert_type) : VISITOR_ALERT_TYPES;
+        const totals = await Promise.all(types.map(type => getSecurityAlerts(buildSecurityAlertQuery({ ...c, alert_type: type, page: 1, limit: 1 })).then(totalOf)));
+        return totals.reduce((sum, n) => sum + (n || 0), 0);
+    }, []);
+    const probeOn = !VISITOR_MOCK_ENABLED;
+    const mockFacets = VISITOR_MOCK_ENABLED ? clientFacetCounts(alerts, {
+        alert_type: { selected: criteria.alert_type, get: a => a.alert_type },
+        severity: { selected: criteria.severity, get: a => a.severity },
+        zone_id: { selected: criteria.zone_id, get: a => a.zone_id },
+    }) : {};
+    const typeProbe = useFacetCounts(criteria, 'alert_type', VISITOR_ALERT_TYPES, alertCriteriaTotal, { enabled: probeOn });
+    const severityProbe = useFacetCounts(criteria, 'severity', Object.keys(severityMeta), alertCriteriaTotal, { enabled: probeOn });
+    const zoneProbe = useFacetCounts(criteria, 'zone_id', zones.map(zone => zone.id), alertCriteriaTotal, { enabled: probeOn });
+    const typeFilterCounts = probeOn ? typeProbe : mockFacets.alert_type;
+    const severityFilterCounts = probeOn ? severityProbe : mockFacets.severity;
+    const zoneFilterCounts = probeOn ? zoneProbe : mockFacets.zone_id;
+
     const counts = useMemo(() => ({
         total: scopedAlerts.length,
         new: scopedAlerts.filter(item => item.status === 'new').length,
@@ -295,31 +321,31 @@ const VisitorAlerts = () => {
             <FilterBar data-filter-grid variant="card" className="security-alert-filters grid gap-4">
                 <div className="camai-filter-field">
                     <label htmlFor="visitor-alert-status">Trạng thái</label>
-                    <select id="visitor-alert-status" value={status} onChange={event => setStatus(event.target.value)}>
+                    <FilterMultiSelect id="visitor-alert-status" counts={statusFilterCounts} value={status} onChange={event => setStatus(event.target.value)}>
                         <option value="all">Tất cả trạng thái</option><option value="open">Đang mở</option>
                         <option value="new">Chưa tiếp nhận</option><option value="acknowledged">Đang xử lý</option><option value="resolved">Đã xử lý</option>
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field">
                     <label htmlFor="visitor-alert-type">Loại cảnh báo</label>
-                    <select id="visitor-alert-type" value={criteria.alert_type} onChange={event => changeCriterion('alert_type', event.target.value)}>
+                    <FilterMultiSelect id="visitor-alert-type" counts={typeFilterCounts} value={criteria.alert_type} onChange={event => changeCriterion('alert_type', event.target.value)}>
                         <option value="">Tất cả loại cảnh báo</option>
                         {VISITOR_ALERT_TYPES.map(type => <option key={type} value={type}>{getAlertTypeLabel(type)}</option>)}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field">
                     <label htmlFor="visitor-alert-severity">Mức độ</label>
-                    <select id="visitor-alert-severity" value={criteria.severity} onChange={event => changeCriterion('severity', event.target.value)}>
+                    <FilterMultiSelect id="visitor-alert-severity" counts={severityFilterCounts} value={criteria.severity} onChange={event => changeCriterion('severity', event.target.value)}>
                         <option value="">Tất cả mức độ</option>
                         {Object.entries(severityMeta).map(([value, item]) => <option key={value} value={value}>{item.label}</option>)}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field">
                     <label htmlFor="visitor-alert-zone">Vị trí</label>
-                    <select id="visitor-alert-zone" value={criteria.zone_id} onChange={event => changeCriterion('zone_id', event.target.value)}>
+                    <FilterMultiSelect id="visitor-alert-zone" counts={zoneFilterCounts} value={criteria.zone_id} onChange={event => changeCriterion('zone_id', event.target.value)}>
                         <option value="">Toàn hệ thống</option>
                         {zones.map(zone => <option key={zone.id} value={zone.id}>{[zone.name || zone.zoneName || zone.zone_name, zone.building, zone.floor ? (/^(tầng|tang)/i.test(String(zone.floor)) ? zone.floor : `Tầng ${zone.floor}`) : ''].filter(Boolean).join(' · ')}</option>)}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="security-alert-time-filters">
                     <CalendarRangePresets from={criteria.from} to={criteria.to} onChange={range => setCriteria(previous => ({ ...previous, ...range }))} />
@@ -374,7 +400,7 @@ const VisitorAlerts = () => {
                                     <td className="px-4 py-4 text-xs text-slate-blue">{payload.zoneName || payload.zone_name || alert.zone_name || alert.zone_id || 'Chưa xác định'}</td>
                                     <td className="px-4 py-4 text-xs text-slate-blue"><p>{payload.cameraGroupName || payload.camera_group_name || 'Chưa xác định'}</p><p className="mt-1">{payload.cameraName || payload.camera_name || payload.cameraId || 'Chưa xác định'}</p></td>
                                     <td className="px-4 py-4 text-xs text-slate-blue whitespace-nowrap">{formatTime(alert.last_seen_at || alert.triggered_at || alert.created_at)}<p className="mt-1">{alert.occurrence_count || 1} lượt</p></td>
-                                    <td className="px-4 py-4"><span data-ui-text="badge" className="inline-flex px-2 py-1 rounded-md text-[11px] font-bold border bg-blue-50 text-action-blue border-blue-200 whitespace-nowrap">{statusLabel[alert.status] || alert.status}</span>{alert.acknowledged_at && <p data-ui-text="primary" className="text-[10px] text-slate-blue mt-2">Tiếp nhận: {formatTime(alert.acknowledged_at)}</p>}{(alert.acknowledged_by_name || alert.acknowledged_by) && <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Bởi: {alert.acknowledged_by_name || alert.acknowledged_by}</p>}</td>
+                                    <td className="px-4 py-4"><span data-ui-text="badge" className="inline-flex px-2 py-1 rounded-md text-[11px] font-bold border bg-blue-50 text-action-blue border-blue-200 whitespace-nowrap">{statusLabel[alert.status] || alert.status}</span>{alert.acknowledged_at && <p data-ui-text="primary" className="text-[10px] text-slate-blue mt-2">Tiếp nhận: {formatTime(alert.acknowledged_at)}</p>}{(alert.acknowledged_by_name || alert.acknowledged_by) && <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Bởi: {alert.acknowledged_by_name || 'Chưa có thông tin người tiếp nhận'}</p>}</td>
                                     <td className="px-5 py-4"><div className="flex justify-end gap-2"><div className="flex flex-col items-end gap-2">{alert.status !== 'resolved' && <button type="button" disabled={busy} onClick={(event) => { event.stopPropagation(); alert.status === 'new' ? openAcknowledgeModal(alert) : openResolveModal(alert); }} className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-xs font-bold disabled:opacity-60 whitespace-nowrap">{busy ? 'Đang xử lý...' : alert.status === 'new' ? 'Tiếp nhận' : 'Xử lý ngay'}</button>}{evidenceId && <button type="button" onClick={(event) => { event.stopPropagation(); setSnapshotEventId(evidenceId); }} className="px-3 py-1.5 rounded-lg border border-platinum-tint text-xs font-bold text-slate-blue hover:text-action-blue whitespace-nowrap">Xem bằng chứng</button>}</div></div></td>
                                 </tr>;
                             })(camaiRecord, camaiStartIndex + camaiIndex, (alerts)))}

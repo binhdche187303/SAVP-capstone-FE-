@@ -1,12 +1,15 @@
+import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
+import { filterValues } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import ReportExportAction from '../../components/common/ReportExportAction';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
-import { Users, RefreshCw } from 'lucide-react';
+import { Users, RefreshCw, Loader2 } from 'lucide-react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import ImportAccountsModal from '../../components/user/ImportAccountsModal';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import DatePicker from '../../components/common/AppDatePicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { vi } from 'date-fns/locale/vi';
@@ -45,6 +48,7 @@ import {
 } from '../../constants/partnerAccount';
 
 import { getLeaderRoleLabel } from '../../utils/calendarRoleLabel';
+import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 
 const ROLE_LABELS = {
     SYSTEM_ADMIN: 'Quản trị hệ thống',
@@ -115,6 +119,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
 
     // Filter & Search states
     const [search, setSearch] = useState('');
+    const debouncedSearch = useDebouncedValue(search);
     const [selectedAccountType, setSelectedAccountType] = useState('staff');
     const [selectedRole, setSelectedRole] = useState('');
     const [selectedDept, setSelectedDept] = useState('');
@@ -197,11 +202,11 @@ const UserManagement = ({ mode = 'business-admin' }) => {
             const params = {
                 page,
                 limit,
-                search: search.trim() || undefined,
+                search: debouncedSearch.trim() || undefined,
                 accountType: selectedAccountType,
                 roleId: selectedRole || undefined,
                 departmentId: selectedDept || undefined,
-                classId: selectedAccountType === 'student' ? selectedClass || undefined : undefined,
+                classId: selectedClass || undefined,
                 accountStatus: selectedStatus || undefined
             };
             const res = await getUsersForManagement(params);
@@ -219,7 +224,10 @@ const UserManagement = ({ mode = 'business-admin' }) => {
         } finally {
             setLoading(false);
         }
-    }, [page, limit, search, selectedAccountType, selectedRole, selectedDept, selectedClass, selectedStatus]);
+    }, [page, limit, debouncedSearch, selectedAccountType, selectedRole, selectedDept, selectedClass, selectedStatus]);
+
+    // Lọc ngay trên danh sách đang hiển thị trong lúc chờ BE trả kết quả cho từ khoá mới.
+    const visibleUsers = useInstantFilter(usersList, search, search !== debouncedSearch || loading);
 
     useEffect(() => {
         loadFilterData();
@@ -247,9 +255,37 @@ const UserManagement = ({ mode = 'business-admin' }) => {
 
     const visibleRoles = roles.filter((role) => {
         const code = normalizeRoleCode(role);
-        return selectedAccountType === 'student' ? code === 'STUDENT' : code !== 'STUDENT';
+        const types = filterValues(selectedAccountType);
+        return types.length !== 1 || (types[0] === 'student' ? code === 'STUDENT' : code !== 'STUDENT');
     });
     const isStudentList = selectedAccountType === 'student';
+
+    // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
+    // Ô Phòng ban / Lớp hành chính quá nhiều lựa chọn nên hook tự bỏ qua (tránh dồn yêu cầu lên BE).
+    const userFilters = useMemo(() => ({
+        search: debouncedSearch.trim(),
+        accountType: selectedAccountType,
+        roleId: selectedRole,
+        departmentId: selectedDept,
+        classId: selectedClass,
+        accountStatus: selectedStatus,
+    }), [debouncedSearch, selectedAccountType, selectedRole, selectedDept, selectedClass, selectedStatus]);
+    const userTotal = useCallback((f) => getUsersForManagement({
+        page: 1,
+        limit: 1,
+        search: f.search || undefined,
+        accountType: f.accountType || undefined,
+        roleId: f.roleId || undefined,
+        departmentId: f.departmentId || undefined,
+        classId: f.classId || undefined,
+        accountStatus: f.accountStatus || undefined,
+    }).then(totalOf), []);
+    const accountTypeCounts = useFacetCounts(userFilters, 'accountType', ['staff', 'student'], userTotal);
+    const roleCounts = useFacetCounts(userFilters, 'roleId', visibleRoles.map((r) => r.id), userTotal, { enabled: !isStudentList });
+    const deptCounts = useFacetCounts(userFilters, 'departmentId', departments.map((d) => d.id), userTotal);
+    const classCounts = useFacetCounts(userFilters, 'classId', studentClassOptions.map((c) => c.code), userTotal);
+    const statusCounts = useFacetCounts(userFilters, 'accountStatus', ['active', 'locked', 'inactive', 'pending_reset', 'expired'], userTotal);
+    const includesStudents = !filterValues(selectedAccountType).length || filterValues(selectedAccountType).includes('student');
     const studentRole = roles.find((role) => normalizeRoleCode(role) === 'STUDENT');
     const isStudentRoleSelected = Boolean(studentRole && formData.roleIds.includes(studentRole.id));
 
@@ -793,10 +829,12 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                         {!isSystemAdminMode && (
                             <button
                                 onClick={() => { resetForm(); setIsImportModalOpen(true); }}
-                                style={{ height: 38, minHeight: 38, whiteSpace: 'nowrap' }}
-                                className="inline-flex items-center justify-center px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
+                                type="button"
+                                // Cùng kiểu với nút "Xuất dữ liệu Excel" bên cạnh.
+                                style={{ height: 38, minHeight: 38 }}
+                                className="camai-report-export-button"
                             >
-                                <svg className="w-4 h-4 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                                 Nhập từ Excel
@@ -852,7 +890,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                 </div></FilterField>
 
                 <div data-filter-fields className="grid grid-cols-1 md:grid-cols-2 min-[1440px]:grid-cols-4 gap-4 items-end">
-                    <FilterField label="Loại tài khoản"><select
+                    <FilterField label="Loại tài khoản"><FilterMultiSelect singleSelect counts={accountTypeCounts}
                         value={selectedAccountType}
                         onChange={(e) => {
                             setSelectedAccountType(e.target.value);
@@ -865,10 +903,10 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                     >
                         <option value="staff">Nhân sự</option>
                         <option value="student">Sinh viên</option>
-                    </select></FilterField>
+                    </FilterMultiSelect></FilterField>
 
                     {/* Keep the role slot fixed when switching between staff and students. */}
-                    <FilterField label="Vai trò"><select
+                    <FilterField label="Vai trò"><FilterMultiSelect counts={roleCounts}
                         value={isStudentList ? 'student' : selectedRole}
                         disabled={isStudentList}
                         onChange={(e) => { setSelectedRole(e.target.value); setPage(1); }}
@@ -880,12 +918,12 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                 <option key={r.id} value={r.id}>{formatRoleLabel(r, roles)}</option>
                             ))}
                         </>}
-                    </select></FilterField>
+                    </FilterMultiSelect></FilterField>
 
 
                     {/* Department Filter */}
                     {!isStudentList && (
-                        <FilterField label="Phòng ban"><select
+                        <FilterField label="Phòng ban"><FilterMultiSelect counts={deptCounts}
                             value={selectedDept}
                             onChange={(e) => { setSelectedDept(e.target.value); setPage(1); }}
                             className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
@@ -894,12 +932,12 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                             {departments.map(d => (
                                 <option key={d.id} value={d.id}>{d.departmentName}</option>
                             ))}
-                        </select></FilterField>
+                        </FilterMultiSelect></FilterField>
                     )}
 
                     {/* Class Filter */}
-                    {isStudentList && (
-                        <FilterField label="Lớp hành chính"><select
+                    {includesStudents && (
+                        <FilterField label="Lớp hành chính"><FilterMultiSelect counts={classCounts}
                             value={selectedClass}
                             onChange={(e) => { setSelectedClass(e.target.value); setPage(1); }}
                             className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
@@ -910,11 +948,11 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                     {klass.code}
                                 </option>
                             ))}
-                        </select></FilterField>
+                        </FilterMultiSelect></FilterField>
                     )}
 
                     {/* Status Filter */}
-                    <FilterField label="Trạng thái"><select
+                    <FilterField label="Trạng thái"><FilterMultiSelect counts={statusCounts}
                         value={selectedStatus}
                         onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
                         className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-slate-blue bg-white focus:outline-none focus:border-action-blue"
@@ -925,15 +963,15 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                         <option value="inactive">Tạm dừng</option>
                         <option value="pending_reset">Chờ đổi mật khẩu</option>
                         <option value="expired">Hết hạn</option>
-                    </select></FilterField>
+                    </FilterMultiSelect></FilterField>
                 </div>
             </FilterBar>
 
             {/* User Table card */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
-                {loading ? (
+                {loading && (!search.trim() || visibleUsers.length === 0) ? (
                     <div className="flex flex-col items-center justify-center p-12">
-                        <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                        <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                         <p className="mt-4 text-slate-blue text-sm font-medium">Đang tải danh sách người dùng...</p>
                     </div>
                 ) : (
@@ -958,14 +996,14 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {usersList.length === 0 ? (
+                                {visibleUsers.length === 0 ? (
                                     <tr>
                                         <td colSpan="6" className="py-12 text-center text-slate-blue text-sm">
                                             Không tìm thấy người dùng phù hợp.
                                         </td>
                                     </tr>
                                 ) : (
-                                    usersList.map((baseUser) => {
+                                    visibleUsers.map((baseUser) => {
                                         const detailedUser = usersMap[baseUser.id] || {};
                                         const user = { ...baseUser, ...detailedUser };
                                         return (
@@ -1641,7 +1679,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                         <div className="p-6">
                             {logsLoading ? (
                                 <div className="flex flex-col items-center justify-center py-8">
-                                    <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                 </div>
                             ) : userLogs.length === 0 ? (
                                 <p className="text-center text-sm text-slate-blue py-8">Không có bản ghi hoạt động nào.</p>
@@ -1699,7 +1737,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                         </div>
                         {detailLoading || !selectedUserDetail ? (
                             <div className="p-12 flex flex-col items-center justify-center">
-                                <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                 <p className="mt-4 text-slate-blue text-sm">Đang tải chi tiết...</p>
                             </div>
                         ) : (

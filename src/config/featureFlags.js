@@ -1,5 +1,5 @@
 /**
- * Cờ bật/tắt tính năng ở mức FE — chỉ ẩn UI, KHÔNG xoá code/service phía sau.
+ * Cờ bật/tắt tính năng ở mức FE — chỉ ẩn UI, KHÔNG xóa code/service phía sau.
  * Đổi giá trị ở đây là bật/tắt được ngay, không cần sửa component.
  */
 

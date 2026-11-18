@@ -157,12 +157,13 @@ const ZonePresenceTable = () => {
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px 20px 16px', boxShadow: C.shadow, position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${C.accent} 0%, ${C.accent}44 50%, transparent 100%)` }} />
 
-            <div className="flex items-start justify-between gap-3" style={{ marginBottom: 14 }}>
-                <div>
+            {/* Màn hẹp: tiêu đề và bộ điều khiển xếp dọc để tiêu đề không bị ép thành một cột. */}
+            <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-3" style={{ marginBottom: 14 }}>
+                <div className="min-w-0">
                     <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Hiện diện hiện tại</h3>
                     <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{SUBTITLES[mode]}</p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                <div className="flex items-center gap-2 flex-wrap xl:flex-shrink-0 xl:justify-end">
                     <div className="inline-flex rounded-lg p-0.5" style={{ background: C.borderSub }}>
                         {MODES.map((m) => (
                             <button key={m.key} type="button" onClick={() => setMode(m.key)}

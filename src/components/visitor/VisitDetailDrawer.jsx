@@ -1,7 +1,7 @@
 import DateInput from '../common/DateInput';
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import {
     getVisit, approveVisit, rejectVisit, cancelVisit, revokeVisit, extendVisit, updateVisitAccess,
     attachVisitorPhoto, checkInVisit, checkOutVisit, closeVisitManually, reassignVisitHost, searchHosts,
@@ -133,7 +133,7 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
 
                 <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
                     {loadError && <div className={errorBoxCls}>{loadError}</div>}
-                    {!loadError && !visit && <div className="flex justify-center py-16"><div className={spinnerCls} /></div>}
+                    {!loadError && !visit && <div className="flex justify-center py-16"><Loader2 className={spinnerCls} /></div>}
 
                     {visit && (
                         <>

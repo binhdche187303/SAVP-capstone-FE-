@@ -1,11 +1,14 @@
+import { clientFacetCounts } from '../../hooks/useFilterCounts';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
+import { matchesFilter, filterValues } from '../../utils/filterSelection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import ReportActions from '../../components/common/ReportActions';
-import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
+import StatisticCard from '../../components/common/StatisticCard';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, ArrowUpDown, Briefcase, Building, Calendar, Clock, DoorOpen, Eye, Filter, Camera, LogIn, LogOut, Mail, Phone, RotateCw, Route, Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users, X, ChevronDown } from 'lucide-react';
+import { AlertTriangle, ArrowUpDown, Briefcase, Building, Calendar, Clock, DoorOpen, Eye, Filter, Camera, LogIn, LogOut, Mail, Phone, Route, Search, ShieldAlert, ShieldCheck, ShieldQuestion, Users, X, ChevronDown, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -25,7 +28,7 @@ import { getUsers } from '../../service/employeeServices';
 import { downloadReport, currentUserName, fmtVN, toDate } from '../../utils/exportExcel';
 import ExportMenu from '../../components/report/ExportMenu';
 import toast from '../../utils/toast';
-import SharedStatCard, { toneOf } from '../../components/common/StatCard';
+import { matchesSearch, useDebouncedValue, useHoldPageHeight, useStablePending } from '../../hooks/useInstantSearch';
 
 // ─── constants ──────────────────────────────────────────────────────────────
 
@@ -90,6 +93,7 @@ const getBookingMeetingId = (booking) =>
 const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value || '');
 
 const getSelectedRoomInfo = (rooms, selectedRoomId) => {
+    if (Array.isArray(selectedRoomId)) return { id: selectedRoomId, name: selectedRoomId.map(id => { const room = rooms.find(item => (item.id || item.roomId) === id); return room?.roomName || room?.room_name || 'Phòng họp'; }).join(', ') };
     const room = rooms.find(r => (r.id || r.roomId) === selectedRoomId);
     return {
         id: selectedRoomId,
@@ -99,8 +103,16 @@ const getSelectedRoomInfo = (rooms, selectedRoomId) => {
 
 // ─── StatCard ────────────────────────────────────────────────────────────────
 
-const StatCard = ({ icon, label, value, sub, colorCls, alert }) => (
-    <StatisticCard icon={icon} label={label} value={value} helper={sub} tone={alert ? 'danger' : statisticTone(colorCls)} />
+const StatCard = ({ icon, label, value, sub, tone = 'default', selected, onClick }) => (
+    <StatisticCard
+        icon={icon}
+        label={label}
+        value={value}
+        helper={sub}
+        tone={tone}
+        selected={selected}
+        onClick={onClick}
+    />
 );
 
 // ─── DirectionBadge ──────────────────────────────────────────────────────────
@@ -133,8 +145,6 @@ const RoomAccessLogs = () => {
     const [selectedDate, setSelectedDate]       = useState(getTodayVNString());
     const [meetings, setMeetings]               = useState([]);
     const [selectedMeetingId, setSelectedMeetingId] = useState('');
-    const [isMeetingDropdownOpen, setIsMeetingDropdownOpen] = useState(false);
-    const dropdownRef = useRef(null);
 
     const [roomsLoading, setRoomsLoading] = useState(true);
     const [logsLoading, setLogsLoading]   = useState(false);
@@ -144,7 +154,7 @@ const RoomAccessLogs = () => {
     const [logsData, setLogsData]         = useState(null);
 
     const [searchInput, setSearchInput]       = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const debouncedSearch = useDebouncedValue(searchInput).trim();
     const [directionFilter, setDirectionFilter] = useState('');
     const [statusFilter, setStatusFilter]     = useState('');
     const [sortOrder, setSortOrder]           = useState('desc');
@@ -179,18 +189,7 @@ const RoomAccessLogs = () => {
         return () => document.removeEventListener('visibilitychange', handleVisibility);
     }, []);
 
-    // close meeting dropdown on outside click
-    useEffect(() => {
-        const handler = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsMeetingDropdownOpen(false); };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
 
-    // debounce search 400ms
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 400);
-        return () => clearTimeout(t);
-    }, [searchInput]);
 
     // reset page on filter change
     useEffect(() => { setCurrentPage(1); }, [selectedRoomId, selectedDate, selectedMeetingId, debouncedSearch]);
@@ -204,7 +203,7 @@ const RoomAccessLogs = () => {
             const data = res.data;
             const list = Array.isArray(data) ? data : data?.rooms || data?.items || [];
             setRooms(list);
-            setSelectedRoomId(previous => list.some(room => (room.id || room.roomId) === previous) ? previous : list[0]?.id || list[0]?.roomId || '');
+            setSelectedRoomId(previous => filterValues(previous).length && filterValues(previous).every(id => list.some(room => (room.id || room.roomId) === id)) ? previous : list[0]?.id || list[0]?.roomId || '');
         } catch (err) {
             setRooms([]); setSelectedRoomId('');
             setRoomsError(err?.message || 'Không tải được danh sách phòng họp.');
@@ -221,7 +220,7 @@ const RoomAccessLogs = () => {
 
     const fetchMeetings = useCallback(async () => {
         setMeetingsError(null);
-        if (!selectedRoomId || !selectedDate) { setMeetings([]); setSelectedMeetingId(''); return; }
+        if (!selectedRoomId || Array.isArray(selectedRoomId) || !selectedDate) { setMeetings([]); setSelectedMeetingId(''); return; }
         try {
             const from = `${selectedDate}T00:00:00.000+07:00`;
             const to = `${selectedDate}T23:59:59.999+07:00`;
@@ -299,9 +298,13 @@ const RoomAccessLogs = () => {
 
     // ── derived data ────────────────────────────────────────────────────────
 
+    // Tìm khi gõ: trạng thái chờ ổn định + giữ chiều cao trang để danh sách không bị nhảy.
+    const searchWaiting = useStablePending(!!searchInput.trim() && (searchInput.trim() !== debouncedSearch || logsLoading), logsData);
+    useHoldPageHeight(searchWaiting && !!searchInput.trim());
+
     if (roomsLoading) return (
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
-            <RotateCw className="w-8 h-8 text-action-blue animate-spin" />
+            <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
             <p className="text-slate-blue text-sm font-semibold">Đang tải danh sách phòng họp...</p>
         </div>
     );
@@ -310,10 +313,28 @@ const RoomAccessLogs = () => {
     const matchedCount  = events.filter(ev => getIdentityStatus(ev) === 'matched').length;
     const unmatchedCount = events.filter(ev => getIdentityStatus(ev) === 'unmatched').length;
     const strangerCount = events.filter(ev => getIdentityStatus(ev) === 'stranger').length;
+    const selectedStatuses = filterValues(statusFilter);
+    const isStatusCardSelected = status => selectedStatuses.length === 1 && selectedStatuses[0] === status;
+    const selectStatusCard = status => {
+        setStatusFilter(status);
+        setCurrentPage(1);
+    };
 
+    // Lọc ngay theo từ khoá đang gõ trong lúc chờ BE trả kết quả cho từ khoá mới.
+    // Không có dòng nào khớp tại chỗ thì giữ nguyên danh sách tới khi BE trả kết quả.
+    const searchPending = searchWaiting && events.some(ev => matchesSearch(ev, searchInput));
+    // Số đếm cạnh lựa chọn ô Hướng / Trạng thái (đếm tại chỗ, mỗi ô theo các bộ lọc khác).
+    const eventFilterCounts = clientFacetCounts(
+        events.filter(ev => !searchPending || matchesSearch(ev, searchInput)),
+        {
+            direction: { selected: directionFilter, get: ev => ev.direction },
+            status: { selected: statusFilter, get: ev => getIdentityStatus(ev) },
+        },
+    );
     const filteredEvents = events.filter(ev =>
-        (!directionFilter || ev.direction === directionFilter) &&
-        (!statusFilter || getIdentityStatus(ev) === statusFilter)
+        (!searchPending || matchesSearch(ev, searchInput)) &&
+        (matchesFilter(directionFilter, ev.direction)) &&
+        (matchesFilter(statusFilter, getIdentityStatus(ev)))
     );
 
     const allSorted = [...filteredEvents].sort((a, b) =>
@@ -331,7 +352,7 @@ const RoomAccessLogs = () => {
     const pageGroups  = allGroups.slice((currentPage - 1) * LOGS_PER_PAGE, currentPage * LOGS_PER_PAGE);
     const toggleGroup = (key) => setCollapsedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
-    const showRoomColumn = !selectedRoomId;
+    const showRoomColumn = !selectedRoomId || Array.isArray(selectedRoomId);
 
     // Xuất đúng những gì đang lọc (ngày/phòng/hướng/trạng thái/cuộc họp/tìm kiếm), kèm tổng hợp theo người.
     const handleExport = async (format, extra = {}) => {
@@ -707,10 +728,41 @@ const RoomAccessLogs = () => {
 
             {/* ── Stat cards ── */}
             <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={Clock}         label="Tổng lượt ra/vào"      value={totalItems}     sub="Ghi nhận qua camera AI"          colorCls="bg-blue-50 text-action-blue" />
-                <StatCard icon={ShieldCheck}   label="Lượt hợp lệ"           value={matchedCount}   sub="Đúng người, đúng bối cảnh"       colorCls="bg-emerald-50 text-emerald-600" />
-                <StatCard icon={ShieldQuestion} label="Chưa khớp bối cảnh"   value={unmatchedCount} sub="Người quen, sai phòng/giờ"       colorCls={unmatchedCount > 0 ? 'bg-amber-100 text-amber-600' : 'bg-cloud-mist text-slate-400'} alert={false} />
-                <StatCard icon={AlertTriangle} label="Người lạ"              value={strangerCount}  sub={strangerCount > 0 ? 'Cảnh báo bảo mật!' : 'Không có bất thường'} colorCls={strangerCount > 0 ? 'bg-red-100 text-red-600' : 'bg-cloud-mist text-slate-400'} alert={strangerCount > 0} />
+                <StatCard
+                    icon={Clock}
+                    label="Tổng lượt ra/vào"
+                    value={events.length}
+                    sub="Ghi nhận qua camera AI"
+                    selected={selectedStatuses.length === 0}
+                    onClick={() => selectStatusCard('')}
+                />
+                <StatCard
+                    icon={ShieldCheck}
+                    label="Lượt hợp lệ"
+                    value={matchedCount}
+                    sub="Đúng người, đúng bối cảnh"
+                    tone="success"
+                    selected={isStatusCardSelected('matched')}
+                    onClick={() => selectStatusCard('matched')}
+                />
+                <StatCard
+                    icon={ShieldQuestion}
+                    label="Chưa khớp bối cảnh"
+                    value={unmatchedCount}
+                    sub="Người quen, sai phòng/giờ"
+                    tone="warning"
+                    selected={isStatusCardSelected('unmatched')}
+                    onClick={() => selectStatusCard('unmatched')}
+                />
+                <StatCard
+                    icon={AlertTriangle}
+                    label="Người lạ"
+                    value={strangerCount}
+                    sub={strangerCount > 0 ? 'Cảnh báo bảo mật!' : 'Không có bất thường'}
+                    tone="danger"
+                    selected={isStatusCardSelected('stranger')}
+                    onClick={() => selectStatusCard('stranger')}
+                />
             </StatisticGrid>
 
             {/* ── Error ── */}
@@ -739,17 +791,21 @@ const RoomAccessLogs = () => {
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Phòng họp</label>
                         <div className="relative">
                             <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
-                            <select
+                            <FilterMultiSelect
                                 value={selectedRoomId}
                                 onChange={(e) => setSelectedRoomId(e.target.value)}
                                 className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo font-semibold appearance-none focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
                             >
-                                {rooms.map((r, i) => (
-                                    <option key={r.id || r.roomId || i} value={r.id || r.roomId}>
-                                        {r.roomName || r.room_name}{r.siteName || r.site_name ? ` (${r.siteName || r.site_name})` : ''}
-                                    </option>
-                                ))}
-                            </select>
+                                {rooms.map((r, i) => {
+                                    const name = r.roomName || r.room_name || '';
+                                    const site = r.siteName || r.site_name;
+                                    return (
+                                        <option key={r.id || r.roomId || i} value={r.id || r.roomId}>
+                                            {site && !name.includes(site) ? `${name} (${site})` : name}
+                                        </option>
+                                    );
+                                })}
+                            </FilterMultiSelect>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
                         </div>
                     </div>
@@ -769,68 +825,31 @@ const RoomAccessLogs = () => {
                     </div>
 
                     {/* Meeting */}
-                    <div className="space-y-1.5" ref={dropdownRef}>
+                    <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider block">Ca họp</label>
                         <div className="relative">
-                            <Clock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${!selectedRoomId || meetings.length === 0 ? 'text-slate-400' : 'text-action-blue'}`} />
-                            <button
-                                type="button"
-                                onClick={() => setIsMeetingDropdownOpen(v => !v)}
-                                disabled={!selectedRoomId}
-                                className={`w-full pl-9 pr-8 py-2.5 border rounded-xl text-sm text-left font-semibold outline-none transition-all ${
-                                    !selectedRoomId
-                                        ? 'bg-white border-platinum-tint text-slate-400 cursor-not-allowed'
-                                        : isMeetingDropdownOpen
-                                            ? 'bg-white border-action-blue ring-2 ring-action-blue/20 text-midnight-indigo'
-                                            : 'bg-white hover:bg-white border-platinum-tint text-midnight-indigo'
-                                }`}
+                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
+                            <FilterMultiSelect
+                                singleSelect
+                                value={selectedMeetingId}
+                                onChange={(e) => setSelectedMeetingId(e.target.value)}
+                                disabled={!selectedRoomId || Array.isArray(selectedRoomId)}
+                                title={!selectedRoomId || Array.isArray(selectedRoomId) ? 'Chọn một phòng họp để lọc theo ca họp' : undefined}
+                                aria-label="Ca họp"
+                                className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo font-semibold appearance-none focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                <span className="truncate block">
-                                    {selectedMeetingId === '' ? 'Toàn bộ ngày' : (() => {
-                                        const m = meetings.find(x => getBookingMeetingId(x) === selectedMeetingId);
-                                        if (!m) return 'Toàn bộ ngày';
-                                        const s = formatVNFull(m.reservedStartTime || m.reserved_start_time).split(' ')[0].slice(0, 5);
-                                        const e = formatVNFull(m.reservedEndTime || m.reserved_end_time).split(' ')[0].slice(0, 5);
-                                        return `${s} – ${e} | ${m.meeting?.title || m.title || 'Ca họp'}`;
-                                    })()}
-                                </span>
-                            </button>
-                            <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none transition-transform ${isMeetingDropdownOpen ? 'rotate-180' : ''}`} />
-
-                            {isMeetingDropdownOpen && (
-                                <div className="absolute z-50 w-full mt-1.5 bg-white border border-platinum-tint rounded-xl shadow-lg overflow-hidden">
-                                    <div className="max-h-60 overflow-y-auto py-1">
-                                        <button type="button" onClick={() => { setSelectedMeetingId(''); setIsMeetingDropdownOpen(false); }}
-                                            className={`w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-blue-50 transition-colors flex items-center gap-2 ${selectedMeetingId === '' ? 'bg-blue-50 text-action-blue' : 'text-midnight-indigo'}`}>
-                                            <span className={`w-1.5 h-1.5 rounded-full ${selectedMeetingId === '' ? 'bg-action-blue' : 'bg-transparent'}`} />
-                                            Toàn bộ ngày
-                                        </button>
-                                        {meetings.length === 0 && (
-                                            <div className="px-4 py-3 text-[11px] text-slate-blue font-semibold border-t border-slate-50">
-                                                Không có ca họp trong ngày/phòng đã chọn.
-                                            </div>
-                                        )}
-                                        {meetings.map(m => {
-                                            const tid  = getBookingMeetingId(m);
-                                            const sel  = selectedMeetingId === tid;
-                                            const s    = formatVNFull(m.reservedStartTime || m.reserved_start_time).split(' ')[0].slice(0, 5);
-                                            const e    = formatVNFull(m.reservedEndTime || m.reserved_end_time).split(' ')[0].slice(0, 5);
-                                            const title = m.meeting?.title || m.title || 'Ca họp';
-                                            return (
-                                                <button key={m.id} type="button"
-                                                    onClick={() => { setSelectedMeetingId(tid); setIsMeetingDropdownOpen(false); }}
-                                                    className={`w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors flex items-start gap-2 border-t border-slate-50 ${sel ? 'bg-blue-50/80' : ''}`}>
-                                                    <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${sel ? 'bg-action-blue' : 'bg-slate-300'}`} />
-                                                    <div>
-                                                        <p className={`text-[11px] font-bold ${sel ? 'text-action-blue' : 'text-slate-700'}`}>{s} – {e}</p>
-                                                        <p className="text-[10px] text-slate-500 truncate">{title}</p>
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
+                                <option value="">Toàn bộ ngày</option>
+                                {meetings.map((m) => {
+                                    const s = formatVNFull(m.reservedStartTime || m.reserved_start_time).split(' ')[0].slice(0, 5);
+                                    const e = formatVNFull(m.reservedEndTime || m.reserved_end_time).split(' ')[0].slice(0, 5);
+                                    return (
+                                        <option key={m.id} value={getBookingMeetingId(m)}>
+                                            {s} – {e} | {m.meeting?.title || m.title || 'Ca họp'}
+                                        </option>
+                                    );
+                                })}
+                            </FilterMultiSelect>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue pointer-events-none" />
                         </div>
                     </div>
                 </div>
@@ -848,34 +867,32 @@ const RoomAccessLogs = () => {
                             type="text"
                             placeholder="Tìm theo tên người dùng..."
                             value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
+                            onChange={(e) => { setSearchInput(e.target.value); setCurrentPage(1); }}
                             className="w-full pl-9 pr-3 py-2 bg-white border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
                         />
                     </div>
 
                     <div data-filter-fields className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                         {/* direction */}
-                        <div className="relative flex-1 min-w-[160px]">
-                            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-blue pointer-events-none" />
-                            <select value={directionFilter} onChange={e => { setDirectionFilter(e.target.value); setCurrentPage(1); }}
+                        <div className="relative w-full sm:w-[180px] md:w-[180px] flex-none [&_.camai-multi-filter>span]:whitespace-nowrap">
+                            <FilterMultiSelect counts={eventFilterCounts.direction} value={directionFilter} onChange={e => { setDirectionFilter(e.target.value); setCurrentPage(1); }}
                                 className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none">
                                 <option value="">Tất cả hướng</option>
                                 <option value="enter">Vào cửa</option>
                                 <option value="leave">Ra cửa</option>
                                 <option value="seen">Thấy</option>
-                            </select>
+                            </FilterMultiSelect>
                         </div>
 
                         {/* status */}
-                        <div className="relative flex-1 min-w-[160px]">
-                            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-blue pointer-events-none" />
-                            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                        <div className="relative w-full sm:w-[200px] md:w-[200px] flex-none [&_.camai-multi-filter>span]:whitespace-nowrap">
+                            <FilterMultiSelect counts={eventFilterCounts.status} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
                                 className="w-full appearance-none pl-3 pr-8 py-2 bg-white border border-platinum-tint rounded-xl text-xs text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none">
                                 <option value="">Tất cả trạng thái</option>
                                 <option value="matched">Khớp</option>
                                 <option value="unmatched">Chưa khớp bối cảnh</option>
                                 <option value="stranger">Người lạ</option>
-                            </select>
+                            </FilterMultiSelect>
                         </div>
 
                         {/* sort */}
@@ -911,7 +928,7 @@ const RoomAccessLogs = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-platinum-tint">
-                            {logsLoading ? (
+                            {logsLoading && (!searchInput.trim() || !logsData) ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
                                         <td className="px-6 py-4"><div className="h-3.5 bg-gray-200 rounded w-24" /></td>
@@ -1024,7 +1041,7 @@ const RoomAccessLogs = () => {
                                         <div className="flex flex-col items-center mb-6">
                                             {userDetailLoading ? (
                                                 <div className="w-24 h-24 rounded-full border-4 border-cloud-mist bg-slate-100 flex items-center justify-center mb-4">
-                                                    <div className="w-8 h-8 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />
+                                                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                                 </div>
                                             ) : (
                                                 <UserAvatar user={userDetail || selectedUser} name={name}

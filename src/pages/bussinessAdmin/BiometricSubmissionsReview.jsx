@@ -1,8 +1,10 @@
+import { totalOf, useFacetCounts } from "../../hooks/useFilterCounts";
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { CheckCircle, Briefcase, Mail, Phone, X } from 'lucide-react';
+import { CheckCircle, Briefcase, Mail, Phone, X, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from "react";
 
 import { createPortal } from "react-dom";
@@ -19,6 +21,7 @@ import { getDepartments } from "../../service/sysAdminServices";
 import { getUserById } from "../../service/businessAdminServices";
 import UserAvatar from "../../components/common/UserAvatar";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { useDebouncedValue, useInstantFilter } from "../../hooks/useInstantSearch";
 
 const STATUS_MAP = {
     pending_review: { label: "Đang chờ duyệt", badge: "bg-blue-50 text-action-blue border border-blue-200" },
@@ -37,7 +40,7 @@ const ERROR_MAP = {
     BIOMETRIC_DOWNLOAD_URL_FAILED: "Không thể tải ảnh lúc này. Vui lòng thử lại.",
     BIOMETRIC_APPROVE_FAILED: "Không thể duyệt ảnh này. Vui lòng thử lại.",
     BIOMETRIC_REJECT_FAILED: "Không thể từ chối ảnh này. Vui lòng thử lại.",
-    BIOMETRIC_DELETE_FAILED: "Không thể xoá ảnh này. Vui lòng thử lại.",
+    BIOMETRIC_DELETE_FAILED: "Không thể xóa ảnh này. Vui lòng thử lại.",
     FORBIDDEN: "Bạn không có quyền thực hiện hành động này.",
 };
 
@@ -156,7 +159,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
 
     const handleDelete = () => {
         setConfirm({
-            message: "Bạn có chắc chắn muốn xoá ảnh sinh trắc học đã đăng ký này? Người dùng sẽ cần nộp lại ảnh mới để tiếp tục sử dụng FaceGate.",
+            message: "Bạn có chắc chắn muốn xóa ảnh sinh trắc học đã đăng ký này? Người dùng sẽ cần nộp lại ảnh mới để tiếp tục sử dụng FaceGate.",
             onConfirm: async () => {
                 setActionLoading(true);
                 setActionError(null);
@@ -171,10 +174,10 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
                 } catch (err) {
                     const code = err?.error?.code;
                     if (code === "BIOMETRIC_SUBMISSION_NOT_FOUND") {
-                        setActionError("Yêu cầu này đã bị xoá trước đó.");
+                        setActionError("Yêu cầu này đã bị xóa trước đó.");
                         setTimeout(() => { onActionComplete?.(); onClose(); }, 1500);
                     } else {
-                        setActionError(ERROR_MAP[code] || err?.error?.message || "Không thể xoá ảnh này.");
+                        setActionError(ERROR_MAP[code] || err?.error?.message || "Không thể xóa ảnh này.");
                     }
                 } finally {
                     setActionLoading(false);
@@ -217,7 +220,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
 
                     {loadingDetail ? (
                         <div className="flex justify-center py-8">
-                            <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                            <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                         </div>
                     ) : detail ? (
                         <>
@@ -225,7 +228,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
                             <div className="flex justify-center">
                                 {loadingImage ? (
                                     <div className="w-48 h-48 bg-cloud-mist rounded-xl flex items-center justify-center">
-                                        <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                        <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                     </div>
                                 ) : downloadUrl ? (
                                     <img src={downloadUrl} alt="Biometric submission" className="w-48 h-48 object-cover rounded-xl border border-platinum-tint" />
@@ -361,7 +364,7 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
                                         disabled={actionLoading}
                                         className="w-full py-2 border border-red-300 text-red-600 hover:bg-red-50 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
                                     >
-                                        {actionLoading ? "Đang xử lý..." : "Xoá ảnh đã đăng ký"}
+                                        {actionLoading ? "Đang xử lý..." : "Xóa ảnh đã đăng ký"}
                                     </button>
                                 </div>
                             )}
@@ -432,11 +435,7 @@ const BiometricSubmissionsReview = () => {
     };
 
     // Debounce search
-    const [debouncedSearch, setDebouncedSearch] = useState("");
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 400);
-        return () => clearTimeout(t);
-    }, [search]);
+    const debouncedSearch = useDebouncedValue(search);
 
     // Load departments
     useEffect(() => {
@@ -473,6 +472,13 @@ const BiometricSubmissionsReview = () => {
             setLoading(false);
         }
     }, [page, limit, statusFilter, debouncedSearch, deptFilter, roleFilter, classFilter]);
+
+    // Lọc ngay trên danh sách đang hiển thị; BE chỉ tìm từ 2 ký tự nên 1 ký tự luôn lọc tại chỗ.
+    const visibleSubmissions = useInstantFilter(
+        submissions,
+        search,
+        search !== debouncedSearch || loading || search.trim().length < 2,
+    );
 
     useEffect(() => {
         fetchSubmissions();
@@ -516,6 +522,28 @@ const BiometricSubmissionsReview = () => {
             .sort((a, b) => a.label.localeCompare(b.label, "vi"));
     }, [submissions]);
 
+    // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
+    const submissionFilters = useMemo(() => ({
+        q: debouncedSearch.trim().length >= 2 ? debouncedSearch.trim() : "",
+        status: statusFilter,
+        departmentId: deptFilter,
+        role: roleFilter,
+        classId: classFilter,
+    }), [debouncedSearch, statusFilter, deptFilter, roleFilter, classFilter]);
+    const submissionTotal = useCallback((f) => getAvatarSubmissions({
+        page: 1,
+        limit: 1,
+        q: f.q || undefined,
+        status: f.status || undefined,
+        departmentId: f.departmentId || undefined,
+        role: f.role || undefined,
+        classId: f.classId || undefined,
+    }).then(totalOf), []);
+    const statusCounts = useFacetCounts(submissionFilters, "status", ["pending_review", "rejected", "active"], submissionTotal);
+    const deptCounts = useFacetCounts(submissionFilters, "departmentId", departments.map((d) => d.id), submissionTotal);
+    const roleCounts = useFacetCounts(submissionFilters, "role", ROLE_OPTIONS.map((r) => r.value), submissionTotal);
+    const classCounts = useFacetCounts(submissionFilters, "classId", classOptions.map((c) => c.value), submissionTotal);
+
     return (
         <div className="space-y-6 animate-fade-in-up">
             <div>
@@ -546,7 +574,7 @@ const BiometricSubmissionsReview = () => {
 
             {/* Filter bar */}
             <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm-2 flex flex-wrap items-center gap-3">
-                <FilterField label="Trạng thái"><select
+                <FilterField label="Trạng thái"><FilterMultiSelect counts={statusCounts}
                     value={statusFilter}
                     onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
@@ -555,17 +583,17 @@ const BiometricSubmissionsReview = () => {
                     <option value="rejected">Bị từ chối</option>
                     <option value="active">Đã duyệt</option>
                     <option value="">Tất cả trạng thái</option>
-                </select></FilterField>
+                </FilterMultiSelect></FilterField>
 
                 <FilterField label="Tìm kiếm"><input
                     type="text"
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Tìm kiếm (tối thiểu 2 ký tự)..."
+                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                    placeholder="Tìm kiếm..."
                     className="flex-1 min-w-[200px] px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                 /></FilterField>
 
-                <FilterField label="Phòng ban"><select
+                <FilterField label="Phòng ban"><FilterMultiSelect counts={deptCounts}
                     value={deptFilter}
                     onChange={(e) => { setDeptFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
@@ -574,9 +602,9 @@ const BiometricSubmissionsReview = () => {
                     {departments.map((d) => (
                         <option key={d.id} value={d.id}>{d.departmentName || d.name}</option>
                     ))}
-                </select></FilterField>
+                </FilterMultiSelect></FilterField>
 
-                <FilterField label="Vai trò"><select
+                <FilterField label="Vai trò"><FilterMultiSelect counts={roleCounts}
                     value={roleFilter}
                     onChange={(e) => {
                         setRoleFilter(e.target.value);
@@ -588,9 +616,9 @@ const BiometricSubmissionsReview = () => {
                     {ROLE_OPTIONS.map((role) => (
                         <option key={role.value} value={role.value}>{role.label}</option>
                     ))}
-                </select></FilterField>
+                </FilterMultiSelect></FilterField>
 
-                <FilterField label="Lớp hành chính"><select
+                <FilterField label="Lớp hành chính"><FilterMultiSelect counts={classCounts}
                     value={classFilter}
                     onChange={(e) => { setClassFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
@@ -599,7 +627,7 @@ const BiometricSubmissionsReview = () => {
                     {classOptions.map((klass) => (
                         <option key={klass.value} value={klass.value}>{klass.label}</option>
                     ))}
-                </select></FilterField>
+                </FilterMultiSelect></FilterField>
 
                 <RefreshButton
                     onClick={handleRefresh}
@@ -634,20 +662,20 @@ const BiometricSubmissionsReview = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {loading ? (
+                            {loading && (!search.trim() || visibleSubmissions.length === 0) ? (
                                 <tr>
                                     <td colSpan={8} className="px-4 py-12 text-center">
                                         <div className="flex justify-center">
-                                            <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                            <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                         </div>
                                     </td>
                                 </tr>
-                            ) : submissions.length === 0 ? (
+                            ) : visibleSubmissions.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-blue">Không có yêu cầu nào.</td>
                                 </tr>
                             ) : (
-                                submissions.map((sub) => (
+                                visibleSubmissions.map((sub) => (
                                     <tr key={sub.id || sub.faceProfileId} className="border-b border-platinum-tint/50 hover:bg-cloud-mist/50 transition-colors">
                                         <td className="px-4 py-3">
                                             <div
@@ -752,7 +780,7 @@ const BiometricSubmissionsReview = () => {
                                         <div className="flex flex-col items-center mb-6">
                                             {userDetailLoading ? (
                                                 <div className="w-24 h-24 rounded-full border-4 border-cloud-mist bg-slate-100 flex items-center justify-center mb-4">
-                                                    <div className="w-8 h-8 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />
+                                                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                                 </div>
                                             ) : (
                                                 <UserAvatar user={userDetail || selectedUser} name={name}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Image as ImageIcon, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Image as ImageIcon, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/request';
 
 // showPlate: hiện thêm ảnh cắt biển số (chỉ sự kiện HGVision có; sự kiện khác 404 → tự ẩn).
@@ -125,7 +125,7 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
 
             {loading && (
                 <div className="flex flex-col items-center text-white/70 gap-3">
-                    <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    <Loader2 className="w-10 h-10 text-white animate-spin" />
                     <span className="text-sm font-semibold tracking-wide">Đang tải ảnh...</span>
                 </div>
             )}

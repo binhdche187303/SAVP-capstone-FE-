@@ -2,6 +2,7 @@ import PaginationFooter from '../../components/common/PaginationFooter';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import DateInput from '../../components/common/DateInput';
+import ReportExportAction from '../../components/common/ReportExportAction';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
@@ -282,7 +283,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
     [classById, daySessions, selectedAdministrativeClass, selectedDate, clockTick]);
     const phaseCount = useMemo(() => dayEntries.reduce((acc, entry) => ({ ...acc, [entry.phase]: (acc[entry.phase] || 0) + 1 }), {}), [dayEntries]);
     const daySummary = dayLoading
-        ? 'Đang tải…'
+        ? 'Đang tải...'
         : [
             `${dayEntries.length} buổi dạy`,
             phaseCount.live && `${phaseCount.live} đang diễn ra`,
@@ -384,7 +385,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
         };
     }, [mode, selectedAdministrativeClass, selectedClassId, selectedDate]);
 
-    // Đổi ngày → hiện "Đang tải…" thay vì nháy trạng thái "không có buổi".
+    // Đổi ngày → hiện "Đang tải..." thay vì nháy trạng thái "không có buổi".
     useEffect(() => {
         setDayLoading(true);
         setDaySessions([]);
@@ -776,14 +777,14 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                             <Wrench className="w-4 h-4" /> Báo hỏng camera
                         </button>
                     )}
-                    <button
+                    <ReportExportAction forceStandard format="xlsx" label="Xuất chuyên cần" busy={exporting}
                         type="button"
                         onClick={exportExcel}
                         disabled={!filteredRows.length || exporting}
                         className="h-9 px-3 rounded-xl bg-action-blue text-white text-xs font-bold inline-flex items-center gap-2 whitespace-nowrap hover:bg-blue-700 disabled:opacity-50"
                     >
-                        <Download className="w-4 h-4" /> {exporting ? 'Đang xuất…' : 'Xuất Excel'}
-                    </button>
+                        <Download className="w-4 h-4" /> {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+                    </ReportExportAction>
                 </div>
             </div>
 

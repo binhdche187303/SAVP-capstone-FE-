@@ -41,7 +41,7 @@ const GuestJoin = () => {
     const countdownRef = useRef(null);
     const lobbyPollRef = useRef(null);
 
-    // Xoá session cũ mỗi khi vào trang mời mới
+    // Xóa session cũ mỗi khi vào trang mời mới
     useEffect(() => {
         clearGuestSession();
     }, [token]);

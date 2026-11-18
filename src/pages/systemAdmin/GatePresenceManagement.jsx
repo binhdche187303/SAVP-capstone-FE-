@@ -1,3 +1,4 @@
+import PageHeading from '../../components/common/PageHeading';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -128,11 +129,10 @@ const GatePresenceManagement = () => {
         <div className="space-y-5 animate-fade-in-up">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                    <h1 className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
-                        <Clock3 className="w-5 h-5 text-action-blue" />
+                    <PageHeading as="h1" badge="Hiện diện" icon={<Clock3 className="w-5 h-5 text-action-blue" />} className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
                         Quản lý hiện diện khuôn viên
-                    </h1>
-                    <p className="text-xs text-slate-blue mt-1">Chỉ hiển thị người đã phát sinh tín hiệu vào/ra từ cổng trong khoảng lọc, phù hợp hệ thống có số lượng hồ sơ lớn.</p>
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">Chỉ hiển thị người đã phát sinh tín hiệu vào/ra từ cổng trong khoảng lọc, phù hợp hệ thống có số lượng hồ sơ lớn.</p>
                 </div>
                 <ReportActions>
                     <ReportExportAction format="csv" initialRange={{ from: fromDate, to: toDate }} filterSummary={['Các lượt ghi nhận trong khoảng ngày đang chọn.']} label="Xuất nhật ký CSV" type="button" disabled={loading || Boolean(loadError) || !filteredEvents.length} onClick={() => exportGuardGateEventsCsv(filteredEvents)} legacyClassName="px-3 py-2 rounded-xl border border-blue-200 text-action-blue bg-blue-50 text-xs font-bold flex items-center gap-2">
