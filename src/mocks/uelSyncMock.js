@@ -35,7 +35,7 @@ const PERIOD_STARTS = ['07:00', '07:50', '08:50', '09:40', '10:30', '13:00', '13
 const plus50 = (hm) => { const [h, m] = hm.split(':').map(Number); const t = h * 60 + m + 50; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
 
 const state = {
-    settings: { autoEnabled: true, frequency: 'daily', weekday: 0, time: '02:00', sessionDaysAhead: 14, termMode: 'auto', namHoc: '', hocKy: '' },
+    settings: { autoEnabled: true, frequency: 'daily', weekday: 0, time: '02:00', termMode: 'auto', namHoc: '', hocKy: '', intervalDays: 3 },
     serverAllowed: true,
     periods: PERIOD_STARTS.map((startTime, i) => ({ periodNo: i + 1, startTime, endTime: plus50(startTime) })),
     runs: [
@@ -64,15 +64,22 @@ const scheduleOf = () => ({
     nextRunAt: state.serverAllowed ? nextRunOf(state.settings)?.toISOString() ?? null : null,
 });
 
+/** Giống BE: hôm nay → 31/08 cuối năm học (tối thiểu +13 ngày). */
+const planOf = () => {
+    const now = new Date();
+    const end = `${now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear()}-08-31`;
+    const min = ymd(addDays(13));
+    return { fromDate: ymd(now), toDate: end > min ? end : min };
+};
+
 const running = () => state.runs[0]?.status === 'running';
 
 const startMockRun = () => {
-    const days = state.settings.sessionDaysAhead;
     const run = {
         id: `mock-${Date.now()}`, trigger: 'manual', mode: 'all', status: 'running', requestedByName: 'Quản trị viên',
         startedAt: new Date().toISOString(), finishedAt: null, currentStep: STEP_KEYS[0],
         options: {
-            steps: STEP_KEYS, fromDate: ymd(new Date()), toDate: ymd(addDays(days - 1)),
+            steps: STEP_KEYS, fromDate: ymd(new Date()), toDate: planOf().toDate,
             terms: state.settings.termMode === 'fixed' ? [{ namHoc: state.settings.namHoc, hocKy: state.settings.hocKy }] : [],
         },
         results: [],
@@ -97,7 +104,7 @@ export const uelSyncMock = {
     async getStatus() {
         await wait();
         return clone({
-            configured: true, running: running(), settings: state.settings, schedule: scheduleOf(),
+            configured: true, running: running(), settings: state.settings, plan: planOf(), schedule: scheduleOf(),
             periodCount: state.periods.length, lastRun: state.runs[0] ?? null,
         });
     },

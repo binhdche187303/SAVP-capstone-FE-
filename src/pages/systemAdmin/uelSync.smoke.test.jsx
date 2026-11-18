@@ -15,6 +15,7 @@ jest.mock('../../service/uelSyncService', () => {
         updateUelSyncSettings: jest.fn(),
         replaceStudyPeriods: jest.fn(),
         lookupUel: jest.fn(),
+        downloadUelGaps: jest.fn(),
     };
 });
 
@@ -36,7 +37,8 @@ const status = (over = {}) => ({
     configured: true,
     running: false,
     schedule: { enabled: false, label: '02:00 hằng ngày' },
-    settings: { namHoc: '2026-2027', hocKy: '1', sessionDaysAhead: 14 },
+    settings: { namHoc: '2026-2027', hocKy: '1' },
+    plan: { fromDate: '2026-11-17', toDate: '2027-08-31' },
     periodCount: 0,
     lastRun: RUN,
     ...over,
@@ -55,6 +57,10 @@ test('hiện tình trạng, lượt gần nhất với bước lỗi', async () 
     expect(screen.getByText('Đã cấu hình')).toBeInTheDocument();
     expect(screen.getAllByText('Có bước lỗi').length).toBeGreaterThan(0);
     expect(screen.getByText('Chưa có bảng giờ tiết học. Vui lòng nhập giờ bắt đầu và kết thúc của từng tiết.')).toBeInTheDocument();
+    // Đã bỏ phần Nâng cao (bảng giờ tiết, tra cứu) và đoạn mô tả đầu trang.
+    expect(screen.queryByRole('button', { name: /Nâng cao/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dữ liệu nhập tay không bị ghi đè/)).not.toBeInTheDocument();
+    expect(svc.getStudyPeriods).not.toHaveBeenCalled();
     // Cài đặt cũ chỉ có namHoc/hocKy → hiểu là học kỳ chỉ định.
     expect(screen.getByLabelText('Chỉ định')).toBeChecked();
 });
@@ -65,6 +71,19 @@ test('1 nút: Đồng bộ toàn bộ gọi run-all', async () => {
     fireEvent.click(await screen.findByRole('button', { name: /Đồng bộ toàn bộ/ }));
     await waitFor(() => expect(svc.runUelSyncAll).toHaveBeenCalledTimes(1));
     expect(svc.runUelSync).not.toHaveBeenCalled();
+});
+
+test('thẻ Đồng bộ ngay hiện lịch đến hết năm học, không còn ô số ngày', async () => {
+    render(<UelSync />);
+    expect(await screen.findByText(/đến 31\/08\/2027/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Lấy lịch học trước/)).not.toBeInTheDocument();
+});
+
+test('status cũ không có plan vẫn render', async () => {
+    svc.getUelSyncStatus.mockResolvedValue(status({ plan: undefined }));
+    render(<UelSync />);
+    expect(await screen.findByText(/lịch học từ hôm nay đến hết năm học\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/đến \d{2}\/\d{2}\/\d{4}/)).not.toBeInTheDocument();
 });
 
 test('chưa có API key: không cho chạy', async () => {
@@ -89,45 +108,10 @@ test('cài đặt: bật tự động hằng tuần, chọn ngày + giờ, học
     await waitFor(() =>
         expect(svc.updateUelSyncSettings).toHaveBeenCalledWith({
             autoEnabled: true, frequency: 'weekly', weekday: 1, time: '03:30',
-            sessionDaysAhead: 14, termMode: 'auto', namHoc: '', hocKy: '',
+            termMode: 'auto', namHoc: '', hocKy: '', intervalDays: 3,
         }),
     );
     expect(await screen.findByText('Đã lưu cài đặt.')).toBeInTheDocument();
-});
-
-test('thêm tiết rồi lưu bảng giờ tiết', async () => {
-    svc.replaceStudyPeriods.mockImplementation(async (p) => p);
-    render(<UelSync />);
-    fireEvent.click(await screen.findByRole('button', { name: /Nâng cao/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Thêm tiết/ }));
-    fireEvent.change(screen.getByLabelText('Giờ kết thúc tiết 1'), { target: { value: '07:50' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu bảng giờ tiết' }));
-    await waitFor(() =>
-        expect(svc.replaceStudyPeriods).toHaveBeenCalledWith([{ periodNo: 1, startTime: '07:00', endTime: '07:50' }]),
-    );
-    expect(await screen.findByText(/Đã lưu 1 tiết/)).toBeInTheDocument();
-});
-
-test('tra cứu trực tiếp: lịch dạy 1 ngày gửi kèm ngày, hiện bảng kết quả', async () => {
-    svc.lookupUel.mockResolvedValue({
-        type: 'lecturerDay',
-        api: 'thoikhoabieu/chi_tiet_tkb_gv_1ngay',
-        total: 1,
-        truncated: false,
-        items: [{ stt: 1, ngay_hoc: '2026-11-09', ma_lop_hoc_phan: '261MI0101_01', ten_hoc_phan: 'Cơ sở dữ liệu', ma_giang_vien: 'NS003' }],
-    });
-    render(<UelSync />);
-    fireEvent.click(await screen.findByRole('button', { name: /Nâng cao/ }));
-    await screen.findByText('Tra cứu trực tiếp từ UEL');
-    fireEvent.change(screen.getByLabelText('Tra cứu'), { target: { value: 'lecturerDay' } });
-    fireEvent.change(screen.getByLabelText('Mã giảng viên'), { target: { value: 'NS003' } });
-    fireEvent.change(screen.getByLabelText('Ngày'), { target: { value: '2026-11-09' } });
-    fireEvent.click(screen.getByRole('button', { name: /Tra cứu$/ }));
-    await waitFor(() =>
-        expect(svc.lookupUel).toHaveBeenCalledWith({ type: 'lecturerDay', code: 'NS003', date: '2026-11-09' }),
-    );
-    expect(await screen.findByText('Cơ sở dữ liệu')).toBeInTheDocument();
-    expect(screen.getByText('Học phần')).toBeInTheDocument();
 });
 
 test('cảnh báo của lượt cũ hiển thị tiếng Việt thay cho lỗi trùng email', async () => {
@@ -135,4 +119,70 @@ test('cảnh báo của lượt cũ hiển thị tiếng Việt thay cho lỗi t
     render(<UelSync />);
     expect(await screen.findByText(/cán bộ SDH162: Email này đã được dùng cho một tài khoản khác/)).toBeInTheDocument();
     expect(screen.queryByText(/duplicate key/)).not.toBeInTheDocument();
+});
+
+test('cài đặt: mỗi N ngày (vd 5 ngày) lúc 02:00', async () => {
+    svc.updateUelSyncSettings.mockImplementation(async (p) => p);
+    render(<UelSync />);
+    fireEvent.click(await screen.findByRole('switch', { name: 'Tự động đồng bộ toàn bộ' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Mỗi N ngày' }));
+    fireEvent.change(screen.getByLabelText('Số ngày giữa 2 lần'), { target: { value: '5' } });
+    expect(screen.getByText(/Lần chạy kế tiếp/)).toHaveTextContent('mỗi 5 ngày');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt' }));
+    await waitFor(() =>
+        expect(svc.updateUelSyncSettings).toHaveBeenCalledWith(
+            expect.objectContaining({ frequency: 'interval', intervalDays: 5 }),
+        ),
+    );
+});
+
+test('cài đặt: số ngày ngoài 2..90 thì không cho lưu', async () => {
+    render(<UelSync />);
+    fireEvent.click(await screen.findByRole('switch', { name: 'Tự động đồng bộ toàn bộ' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Mỗi N ngày' }));
+    fireEvent.change(screen.getByLabelText('Số ngày giữa 2 lần'), { target: { value: '1' } });
+    expect(screen.getByText('Số ngày giữa 2 lần phải từ 2 đến 90.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lưu cài đặt' })).toBeDisabled();
+});
+
+test('lượt bị gián đoạn hiện nhãn riêng', async () => {
+    svc.getUelSyncRuns.mockResolvedValue([{ ...RUN, status: 'failed', interrupted: true }]);
+    render(<UelSync />);
+    expect(await screen.findByText('Bị gián đoạn (server khởi động lại)')).toBeInTheDocument();
+});
+
+const GAPS = {
+    generatedAt: '2026-11-18T02:22:31.000Z',
+    students: {
+        total: 18989,
+        noEmail: 1835,
+        groups: [
+            { label: 'K20', total: 22, noEmail: 0 },
+            { label: 'K22', total: 3079, noEmail: 0 },
+            { label: 'Khác', total: 2214, noEmail: 1833 },
+        ],
+    },
+    staff: { total: 1063, noEmail: 79 },
+    sections: { total: 3855, noLecturer: 595, reasons: { not_assigned: 450, ambiguous: 120, not_in_staff: 15, pending: 10 } },
+};
+
+const has = (t) => (content) => content.includes(t);
+
+test('lượt chạy có báo cáo dữ liệu cần bổ sung + nút xuất Excel', async () => {
+    svc.getUelSyncRuns.mockResolvedValue([{ ...RUN, gaps: GAPS }]);
+    svc.downloadUelGaps.mockResolvedValue(undefined);
+    render(<UelSync />);
+    expect(await screen.findByText('Dữ liệu cần bổ sung')).toBeInTheDocument();
+    expect(screen.getByText(has('1.835 / 18.989 SV chưa có email'))).toBeInTheDocument();
+    expect(screen.getByText(has('79 / 1.063 cán bộ chưa có email'))).toBeInTheDocument();
+    expect(screen.getByText(has('595 / 3.855 lớp HP chưa có giảng viên'))).toBeInTheDocument();
+    expect(screen.getByText(/UEL chưa phân công giảng viên: 450/)).toBeInTheDocument();
+    expect(screen.getByText(has('K20: 0 / 22'))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Xuất Excel danh sách/ }));
+    await waitFor(() => expect(svc.downloadUelGaps).toHaveBeenCalled());
+});
+
+test('cột Vô hiệu hóa có giải thích', async () => {
+    render(<UelSync />);
+    expect(await screen.findAllByTitle(/UEL không còn trả về/)).not.toHaveLength(0);
 });
