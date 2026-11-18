@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { getBiometricStatus, submitBiometric, updateSelfAvatar } from '../../service/avatarService';
-import { Shield, Camera, Image, ArrowLeft, Check, AlertCircle, RefreshCw, Upload } from 'lucide-react';
+import { Shield, Camera, Image, ArrowLeft, Check, AlertCircle, RefreshCw, Upload, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useFaceGuidance from '../../hooks/useFaceGuidance';
 import BiometricUploadForm from './BiometricUploadForm';
@@ -147,7 +147,7 @@ const BiometricReminderModal = () => {
             if (userProfile) {
                 userProfile.biometricReviewStatus = 'pending_review';
                 userProfile.shouldShowBiometricPopup = false;
-                userProfile.biometricRequired = false; // Xoá cờ bắt buộc sau khi đã upload
+                userProfile.biometricRequired = false; // Xóa cờ bắt buộc sau khi đã upload
                 localStorage.setItem('user', JSON.stringify(userProfile));
                 window.dispatchEvent(new Event('storage'));
             }
@@ -269,7 +269,7 @@ const BiometricReminderModal = () => {
         intervalMs: 150
     });
 
-    // Huỷ đếm ngược nếu mất điều kiện 'perfect' giữa chừng (che camera, mất mặt, quay đi...)
+    // Hủy đếm ngược nếu mất điều kiện 'perfect' giữa chừng (che camera, mất mặt, quay đi...)
     useEffect(() => {
         if (phase === 'countdown' && guidance.state !== 'perfect') {
             abortCountdown();
@@ -469,7 +469,7 @@ const BiometricReminderModal = () => {
                                 {/* Option A: Use Avatar */}
                                 <div 
                                     onClick={() => hasAvatar && setView('confirm_avatar')}
-                                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-between text-center select-none group h-40 ${
+                                    className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-between text-center select-none group min-h-[10rem] gap-3 ${
                                         hasAvatar 
                                             ? 'border-platinum-tint hover:border-action-blue hover:bg-action-blue/5 cursor-pointer' 
                                             : 'border-platinum-tint/40 opacity-50 cursor-not-allowed bg-cloud-mist/10'
@@ -489,14 +489,14 @@ const BiometricReminderModal = () => {
                                         </div>
                                     </div>
                                     {!hasAvatar && (
-                                        <span className="text-[8px] text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Chưa có avatar</span>
+                                        <span className="text-[8px] text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">Chưa có avatar</span>
                                     )}
                                 </div>
 
                                 {/* Option B: Take Camera */}
                                 <div 
                                     onClick={() => setView('webcam')}
-                                    className="p-4 rounded-2xl border-2 border-platinum-tint hover:border-action-blue hover:bg-action-blue/5 transition-all flex flex-col items-center justify-between text-center cursor-pointer select-none group h-40"
+                                    className="p-4 rounded-2xl border-2 border-platinum-tint hover:border-action-blue hover:bg-action-blue/5 transition-all flex flex-col items-center justify-between text-center cursor-pointer select-none group min-h-[10rem] gap-3"
                                 >
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="w-12 h-12 rounded-full bg-action-blue/10 flex items-center justify-center text-action-blue group-hover:scale-105 transition-transform duration-300">
@@ -507,13 +507,13 @@ const BiometricReminderModal = () => {
                                             <p className="text-[9.5px] text-slate-blue mt-0.5 leading-normal">Chụp ảnh trực tiếp với AI</p>
                                         </div>
                                     </div>
-                                    <span className="text-[8px] text-action-blue font-bold bg-action-blue/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Hỗ trợ AI</span>
+                                    <span className="text-[8px] text-action-blue font-bold bg-action-blue/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">Hỗ trợ AI</span>
                                 </div>
 
                                 {/* Option C: Upload Image */}
                                 <div 
                                     onClick={() => setView('upload')}
-                                    className="p-4 rounded-2xl border-2 border-platinum-tint hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center justify-between text-center cursor-pointer select-none group h-40"
+                                    className="p-4 rounded-2xl border-2 border-platinum-tint hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center justify-between text-center cursor-pointer select-none group min-h-[10rem] gap-3"
                                 >
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform duration-300">
@@ -524,7 +524,7 @@ const BiometricReminderModal = () => {
                                             <p className="text-[9.5px] text-slate-blue mt-0.5 leading-normal">Chọn ảnh có sẵn từ máy của bạn</p>
                                         </div>
                                     </div>
-                                    <span className="text-[8px] text-emerald-600 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Tệp ảnh</span>
+                                    <span className="text-[8px] text-emerald-600 font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap">Tệp ảnh</span>
                                 </div>
                             </div>
                         </div>
@@ -678,7 +678,7 @@ const BiometricReminderModal = () => {
                                     </>
                                 ) : (
                                     <div className="py-12 text-center text-slate-blue flex flex-col items-center gap-2">
-                                        <RefreshCw className="w-8 h-8 text-action-blue animate-spin" />
+                                        <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                         <span className="text-xs font-semibold mt-2">Đang kết nối webcam...</span>
                                     </div>
                                 )}

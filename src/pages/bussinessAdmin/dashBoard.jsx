@@ -1,3 +1,4 @@
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -8,12 +9,7 @@ import StatisticCard from '../../components/common/StatisticCard';
 import FilterBar from '../../components/common/FilterBar';
 import RefreshButton from '../../components/common/RefreshButton';
 import { hasPermission } from '../../utils/permissionUtils';
-import {
-    Activity, AlertTriangle, ArrowRight, BarChart3, Building2, Calendar,
-    Car, CheckCircle, ChevronRight, Clock, Download, LogIn, MapPin,
-    PieChart as PieIcon, Plus, RefreshCw, ShieldAlert, Sliders,
-    TrendingUp, Users, Wifi, WifiOff,
-} from 'lucide-react';
+import { Activity, AlertTriangle, ArrowRight, BarChart3, Building2, Calendar, Car, CheckCircle, ChevronRight, Clock, Download, Filter, LogIn, MapPin, PieChart as PieIcon, Plus, ShieldAlert, Sliders, TrendingUp, Users, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -105,7 +101,7 @@ const STATUS_COLORS = ['#006BFF', '#7F3DFF', '#FFAE00', '#FF3B30'];
 const MEETING_STATUS_LABEL = {
     scheduled: 'Đã lên lịch',
     completed: 'Đã diễn ra',
-    cancelled: 'Đã huỷ',
+    cancelled: 'Đã hủy',
     no_show:   'Vắng mặt',
     draft:     'Nháp',
     in_progress: 'Đang diễn ra',
@@ -590,7 +586,7 @@ const DashBoard = () => {
     // Nhan xet ty le dung gio phai bam theo so lieu that, khong hard-code "dat chi tieu".
     const onTimeAssessment = (() => {
         const r = stats.onTimeRate;
-        if (meetLoading || r == null) return { text: 'Đang tính…', color: D.muted };
+        if (meetLoading || r == null) return { text: 'Đang tính...', color: D.muted };
         if (r >= 80) return { text: '↑ Đạt chỉ tiêu tốt', color: '#059669' };
         if (r >= 50) return { text: '→ Cần cải thiện', color: D.amber };
         return { text: '↓ Dưới mức mong đợi', color: D.red };
@@ -639,14 +635,14 @@ const DashBoard = () => {
 
             {/* ── Tab nav ─────────────────────────────────────────────────── */}
             <ScrollReveal delay={60} fromBelow={false}>
-                <div className="flex bg-white p-1.5 rounded-xl border border-platinum-tint/80 shadow-sm w-fit gap-1">
+                <div className="grid grid-cols-3 w-full sm:flex sm:w-fit bg-white p-1.5 rounded-xl border border-platinum-tint/80 shadow-sm gap-1">
                     {[
                         { key: 'overview',  label: 'Tổng quan' },
                         { key: 'meetings',  label: 'Cuộc họp & Phòng' },
                         { key: 'security',  label: 'An ninh & Khuôn viên' },
                     ].map(t => (
                         <button key={t.key} onClick={() => setActiveTab(t.key)}
-                            className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${activeTab === t.key ? 'bg-action-blue text-white shadow-sm' : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50'}`}
+                            className={`px-5 max-sm:px-2 py-2.5 rounded-lg text-sm max-sm:text-xs font-bold max-sm:leading-tight transition-all duration-200 ${activeTab === t.key ? 'bg-action-blue text-white shadow-sm' : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50'}`}
                         >{t.label}</button>
                     ))}
                 </div>
@@ -796,16 +792,12 @@ const DashBoard = () => {
 
                             <div className="camai-filter-field" style={{ flex: 1, minWidth: 160 }}>
                                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: D.muted, textTransform: 'uppercase', marginBottom: 6 }}>Phòng ban</label>
-                                <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)}
+                                <FilterMultiSelect value={selectedDept} onChange={e => setSelectedDept(e.target.value)}
                                     style={{ width: '100%', padding: '8px 12px', border: `1px solid ${D.border}`, borderRadius: 10, fontSize: 13, color: D.text, background: '#fff', outline: 'none' }}>
                                     <option value="">Tất cả phòng ban</option>
                                     {departmentsList.map(d => <option key={d.id} value={d.id}>{d.departmentName}</option>)}
-                                </select>
+                                </FilterMultiSelect>
                             </div>
-                            <button data-filter-action onClick={fetchMeetingData} disabled={meetLoading}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: D.blue, color: '#fff', border: 'none', cursor: 'pointer', boxShadow: `0 2px 8px ${D.blue}40`, flexShrink: 0 }}>
-                                <RefreshCw style={{ width: 15, height: 15 }} className={meetLoading ? 'animate-spin' : ''} /> Lọc
-                            </button>
 
                             <div className="camai-filter-period-row">
                                 <CalendarRangePresets from={fromDate} to={toDate} onChange={range => { setFromDate(range.from); setToDate(range.to); }} />
@@ -822,12 +814,17 @@ const DashBoard = () => {
                                     ))}
                                 </div>
                             </div>
+                            <button type="button" data-filter-action
+                                onClick={() => { const range = monthRange(); setSelectedDept(''); setFromDate(range.from); setToDate(range.to); }}
+                                className="px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors whitespace-nowrap">
+                                <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                            </button>
                         </FilterBar>
                     </ScrollReveal>
 
                     {/* Meeting KPI tiles */}
                     <StatisticGrid columns={4} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <KpiTile delay={0}   icon={Calendar}      label="Tổng cuộc họp"           value={meetLoading ? '—' : stats.meetingCount}    sub={`TB: ${avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}m · Huỷ: ${cancelRateStats.cancelRate ?? 0}%`} iconColor={D.blue} />
+                        <KpiTile delay={0}   icon={Calendar}      label="Tổng cuộc họp"           value={meetLoading ? '—' : stats.meetingCount}    sub={`TB: ${avgDuration.actualAverageMinutes ?? avgDuration.plannedAverageMinutes ?? 0}m · Hủy: ${cancelRateStats.cancelRate ?? 0}%`} iconColor={D.blue} />
                         <KpiTile delay={60}  icon={TrendingUp}    label="Hiệu suất phòng"           value={meetLoading ? '—' : `${stats.utilizationRate}%`} sub="Sử dụng trung bình" iconColor={D.purple} />
                         <KpiTile delay={120} icon={Clock}         label="Tham gia đúng giờ"         value={meetLoading ? '—' : `${stats.onTimeRate}%`}  sub={onTimeAssessment.text} iconColor={D.green} subColor={onTimeAssessment.color} />
                         <KpiTile delay={180} icon={AlertTriangle} label="Tỷ lệ đặt phòng vắng mặt" value={meetLoading ? '—' : `${stats.noShowRate}%`}   sub="Phòng tự giải phóng" iconColor={D.red} />
@@ -995,7 +992,7 @@ const DashBoard = () => {
                                     </div>
                                     <ReportExportButton label="Xuất báo cáo" busy={isExporting} type="submit" disabled={isExporting || exportForm.sections.length === 0}
                                         legacyStyle={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: D.blue, color: '#fff', border: 'none', cursor: 'pointer', boxShadow: `0 2px 6px ${D.blue}40`, opacity: (isExporting || exportForm.sections.length === 0) ? 0.5 : 1, transition: 'all 0.2s' }}>
-                                        {isExporting ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Đang xuất...</> : <><Download style={{ width: 14, height: 14 }} /> Xuất báo cáo</>}
+                                        {isExporting ? <><Loader2 className="w-3 h-3 text-white animate-spin" /> Đang xuất...</> : <><Download style={{ width: 14, height: 14 }} /> Xuất báo cáo</>}
                                     </ReportExportButton>
                                     <ExportModeDialog isOpen={exportDialogOpen} onClose={() => setExportDialogOpen(false)}
                                         formats={['xlsx', 'pdf']} format={exportForm.format} allowStandard={false}

@@ -7,7 +7,7 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import { useCallback, useEffect, useState } from 'react';
 import {
     Play, ChevronDown, ChevronRight, DatabaseZap,
-    CircleCheck, CircleX, LoaderCircle, CircleMinus, TriangleAlert, History, Settings2, Download,
+    CircleCheck, CircleX, LoaderCircle, CircleMinus, TriangleAlert, History, Settings2, Download, Loader2,
 } from 'lucide-react';
 import {
     UEL_SYNC_PREVIEW,
@@ -94,7 +94,7 @@ const stepStateOf = (run, key) => {
 const STEP_LOOK = {
     idle: { icon: null, ring: 'border-platinum-tint bg-white', text: 'Chưa chạy' },
     pending: { icon: null, ring: 'border-platinum-tint bg-white', text: 'Chờ' },
-    running: { icon: LoaderCircle, ring: 'border-action-blue/60 bg-blue-50/60', iconCls: 'text-action-blue animate-spin', text: 'Đang chạy…' },
+    running: { icon: LoaderCircle, ring: 'border-action-blue/60 bg-blue-50/60', iconCls: 'text-action-blue animate-spin', text: 'Đang chạy...' },
     done: { icon: CircleCheck, ring: 'border-green-200 bg-green-50/50', iconCls: 'text-green-600', text: '' },
     error: { icon: CircleX, ring: 'border-red-200 bg-red-50/50', iconCls: 'text-red-600', text: 'Lỗi' },
     skipped: { icon: CircleMinus, ring: 'border-platinum-tint bg-cloud-mist/40', iconCls: 'text-steel-gray', text: 'Không chạy' },
@@ -535,7 +535,7 @@ const UelSync = () => {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
-                <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                 <p className="mt-4 text-slate-blue text-sm font-medium">Đang tải trạng thái đồng bộ...</p>
             </div>
         );

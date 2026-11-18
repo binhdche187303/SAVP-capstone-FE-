@@ -1,9 +1,7 @@
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import StatisticGrid from '../../components/common/StatisticGrid';
-import {
-    Activity, AlertTriangle, ArrowLeft, ArrowUpDown, CheckCircle2, ChevronRight, Cpu, MapPin,
-    Mic, Monitor, Package, RefreshCw, Search, Speaker, Video, WifiOff, Wrench, X,
-} from 'lucide-react';
+import RefreshButton from '../../components/common/RefreshButton';
+import { Activity, AlertTriangle, ArrowLeft, ArrowUpDown, CheckCircle2, ChevronRight, Cpu, MapPin, Mic, Monitor, Package, RefreshCw, Search, Speaker, Video, WifiOff, Wrench, X, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -302,10 +300,15 @@ const EquipmentReport = () => {
                         Quay lại danh sách phòng
                     </button>
                 ) : (
-                    <button onClick={fetchRecentRooms} className={headerButtonCls}>
+                    <RefreshButton
+                        onClick={fetchRecentRooms}
+                        busy={loadingRooms}
+                        title="Làm mới danh sách phòng"
+                        legacyClassName={headerButtonCls}
+                    >
                         <RefreshCw className={`w-4 h-4 mr-2 ${loadingRooms ? 'animate-spin' : ''}`} />
                         Làm mới
-                    </button>
+                    </RefreshButton>
                 )}
             </div>
 
@@ -590,7 +593,7 @@ const EquipmentReport = () => {
                                     Hủy
                                 </button>
                                 <button type="submit" disabled={submittingFault} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 min-w-[110px] inline-flex items-center justify-center">
-                                    {submittingFault ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Gửi báo cáo'}
+                                    {submittingFault ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Gửi báo cáo'}
                                 </button>
                             </div>
                         </form>

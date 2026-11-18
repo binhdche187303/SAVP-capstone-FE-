@@ -396,7 +396,7 @@ const WeeklySessionSchedule = ({ variant, badge, title, subtitle }) => {
                 <p className="text-sm font-bold text-midnight-indigo">{periodLabel}</p>
                 <button type="button" onClick={() => shift(1)} className="p-1.5 rounded-md text-slate-blue hover:text-action-blue hover:bg-cloud-mist" aria-label={`${unit} sau`}><ChevronRight className="w-4 h-4" /></button>
                 <span className="text-[11px] text-slate-blue">
-                    {loading ? 'Đang tải…' : `${activeCount} buổi ${isTeacher ? 'dạy' : 'học'}`}
+                    {loading ? 'Đang tải...' : `${activeCount} buổi ${isTeacher ? 'dạy' : 'học'}`}
                     {sharedCampus && <> · <MapPin className="inline w-3 h-3 -mt-0.5" /> {sharedCampus}</>}
                 </span>
                 <button type="button" onClick={() => setAnchor(new Date())} className="ml-auto px-2.5 py-1 rounded-md text-[11px] font-semibold text-action-blue hover:bg-blue-50">Về {unit.toLowerCase()} này</button>

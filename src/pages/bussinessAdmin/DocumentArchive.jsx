@@ -1,3 +1,6 @@
+import { countBy, totalOf, useProbeCounts } from '../../hooks/useFilterCounts';
+import { matchesFilter } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import './DocumentArchiveFilters.css';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import TableColumns from '../../components/common/TableColumns';
@@ -6,14 +9,8 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import {
-    Archive, Calendar, ChevronLeft, ChevronRight, Clock,
-    Download, FileText, Filter, Film, HardDrive,
-    Mic, Play, RefreshCw, Search, Video, X, XCircle, AlertTriangle,
-    CheckCircle, Users, Building2, Briefcase, ClipboardList, ListChecks,
-    MapPin, User,
-} from 'lucide-react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Archive, Calendar, ChevronLeft, ChevronRight, Clock, Download, FileText, Filter, Film, HardDrive, Mic, Play, RefreshCw, Search, Video, X, XCircle, AlertTriangle, CheckCircle, Users, Building2, Briefcase, ClipboardList, ListChecks, MapPin, User, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import toast from '../../utils/toast';
@@ -25,6 +22,7 @@ import {
 import { getMeetingMinutesById } from '../../service/minutesServices';
 import ExportMinutesModal from '../../components/minutes/ExportMinutesModal';
 import MinutesInbox from '../../components/minutes/MinutesInbox';
+import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 
 // ─── Constants ───────────────────────────────────────────────
 
@@ -127,6 +125,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
     const [minutesError, setMinutesError]     = useState(null);
 
     const [mSearch, setMSearch]       = useState('');
+    const debouncedMSearch            = useDebouncedValue(mSearch);
     const [mStatus, setMStatus]       = useState('');
     const [mFrom,   setMFrom]         = useState('');
     const [mTo,     setMTo]           = useState('');
@@ -134,20 +133,31 @@ const DocumentArchive = ({ scope = 'all' }) => {
     const [detailItem, setDetailItem]   = useState(null); // { ...min, detail: null | loaded, loading: bool }
 
     // ── Media state ──
-    const [allMedia, setAllMedia]         = useState([]);
+    const [mediaRaw, setMediaRaw]         = useState([]); // toàn bộ tệp (chưa lọc theo loại)
     const [mediaPage, setMediaPage]       = useState(1);
     const [mediaLoading, setMediaLoading] = useState(false);
     const [mediaError, setMediaError]     = useState(null);
     const [rooms, setRooms]               = useState([]);
 
     const [mediaSearch, setMediaSearch]   = useState('');
+    const debouncedMediaSearch            = useDebouncedValue(mediaSearch);
     const [mediaRoom, setMediaRoom]       = useState('');
     const [mediaType, setMediaType]       = useState(''); // '' | 'video' | 'audio'
 
     const [previewItem, setPreviewItem]   = useState(null); // { ...mediaFile, mediaUrl, previewLoading }
 
-    const mediaPageItems  = allMedia.slice((mediaPage - 1) * MEDIA_LIMIT, mediaPage * MEDIA_LIMIT);
-    const mediaTotalPages = Math.max(1, Math.ceil(allMedia.length / MEDIA_LIMIT));
+    // Lọc theo loại tệp tại chỗ (đổi loại không cần tải lại) + số đếm cạnh lựa chọn ô "Loại bản ghi".
+    const mediaTypeOf    = (f) => (f.fileType || f.file_type || '').toLowerCase();
+    const allMedia       = useMemo(
+        () => (mediaType ? mediaRaw.filter(f => matchesFilter(mediaType, mediaTypeOf(f))) : mediaRaw),
+        [mediaRaw, mediaType],
+    );
+    const mediaTypeCounts = useMemo(() => countBy(mediaRaw, mediaTypeOf), [mediaRaw]);
+
+    // Lọc ngay trên dữ liệu đã tải trong lúc chờ BE trả kết quả cho từ khoá mới.
+    const visibleMedia    = useInstantFilter(allMedia, mediaSearch, mediaSearch !== debouncedMediaSearch || mediaLoading);
+    const mediaPageItems  = visibleMedia.slice((mediaPage - 1) * MEDIA_LIMIT, mediaPage * MEDIA_LIMIT);
+    const mediaTotalPages = Math.max(1, Math.ceil(visibleMedia.length / MEDIA_LIMIT));
 
     // ── Debounce ref for minutes search ──
     const mSearchTimer = useRef(null);
@@ -163,7 +173,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                 page,
                 limit: MINUTES_LIMIT,
                 status: mStatus || undefined,
-                q: mSearch.trim() || undefined,
+                q: debouncedMSearch.trim() || undefined,
                 from: mFrom || undefined,
                 to:   mTo   || undefined,
                 sortBy: 'created_at',
@@ -183,16 +193,33 @@ const DocumentArchive = ({ scope = 'all' }) => {
         } finally {
             setMinutesLoading(false);
         }
-    }, [mStatus, mSearch, mFrom, mTo, MINUTES_LIMIT]);
+    }, [mStatus, debouncedMSearch, mFrom, mTo, MINUTES_LIMIT]);
+
+    const visibleMinutes = useInstantFilter(minutes, mSearch, mSearch !== debouncedMSearch || minutesLoading);
+
+    // Số đếm cạnh lựa chọn ô "Trạng thái biên bản" (đếm theo từ khoá + khoảng ngày đang chọn).
+    const minutesStatusCounts = useProbeCounts(
+        ['published', 'draft', 'archived'],
+        (value) => listMinutes({
+            page: 1,
+            limit: 1,
+            status: value || undefined,
+            q: debouncedMSearch.trim() || undefined,
+            from: mFrom || undefined,
+            to: mTo || undefined,
+        }).then(totalOf),
+        `${debouncedMSearch.trim()}|${mFrom}|${mTo}`,
+        { enabled: activeTab === 'minutes' },
+    );
 
     // Fetch on tab open / filter change
     useEffect(() => {
         if (activeTab !== 'minutes') return;
         setMinutesPage(1);
         clearTimeout(mSearchTimer.current);
-        mSearchTimer.current = setTimeout(() => fetchMinutes(1), mSearch ? 350 : 0);
+        mSearchTimer.current = setTimeout(() => fetchMinutes(1), 0);
         return () => clearTimeout(mSearchTimer.current);
-    }, [activeTab, mSearch, mStatus, mFrom, mTo, fetchMinutes]);
+    }, [activeTab, debouncedMSearch, mStatus, mFrom, mTo, fetchMinutes]);
 
     const handleMinutesPageChange = (p) => {
         setMinutesPage(p);
@@ -221,10 +248,10 @@ const DocumentArchive = ({ scope = 'all' }) => {
         setMediaLoading(true);
         setMediaError(null);
         try {
-            const baseParams = { limit: 10, status: 'completed', search: mediaSearch.trim() || undefined, roomId: mediaRoom || undefined };
+            const baseParams = { limit: 10, status: 'completed', search: debouncedMediaSearch.trim() || undefined, roomId: mediaRoom || undefined };
 
             const firstRes = await getMeetings({ ...baseParams, page: 1 });
-            if (!firstRes?.success) { setAllMedia([]); return; }
+            if (!firstRes?.success) { setMediaRaw([]); return; }
 
             const totalPages = firstRes.meta?.totalPages || 1;
             let meetings = firstRes.data || [];
@@ -236,7 +263,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                 rest.forEach(r => { if (r.status === 'fulfilled' && r.value?.success) meetings = meetings.concat(r.value.data || []); });
             }
 
-            if (!meetings.length) { setAllMedia([]); return; }
+            if (!meetings.length) { setMediaRaw([]); return; }
 
             const mediaResults = await Promise.allSettled(
                 meetings.map(async (m) => {
@@ -257,18 +284,16 @@ const DocumentArchive = ({ scope = 'all' }) => {
                 .filter(r => r.status === 'fulfilled')
                 .flatMap(r => r.value);
 
-            // Type filter
-            if (mediaType) flat = flat.filter(f => (f.fileType || f.file_type || '').toLowerCase() === mediaType);
 
             flat.sort((a, b) => new Date(b.meetingDate || b.createdAt || 0) - new Date(a.meetingDate || a.createdAt || 0));
-            setAllMedia(flat);
+            setMediaRaw(flat);
         } catch {
             setMediaError('Lỗi tải dữ liệu media.');
-            setAllMedia([]);
+            setMediaRaw([]);
         } finally {
             setMediaLoading(false);
         }
-    }, [mediaSearch, mediaRoom, mediaType]);
+    }, [debouncedMediaSearch, mediaRoom]);
 
     useEffect(() => { getRooms({ limit: 100 }).then(r => { if (r?.success) setRooms(r.data || []); }); }, []);
 
@@ -394,7 +419,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                         className="space-y-4"
                     >
                         {/* Filters */}
-                        <FilterBar variant="card" className="minutes-archive-filters">
+                        <FilterBar forceStandard variant="card" className="minutes-archive-filters">
                             <div className="minutes-archive-filter-main">
                                 <FilterField label="Tìm biên bản"><div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue/60" />
@@ -403,14 +428,14 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                         className="w-full pl-9 pr-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo" />
                                 </div></FilterField>
                                 <FilterField label="Trạng thái biên bản">
-                                    <select value={mStatus} onChange={e => setMStatus(e.target.value)}>
+                                    <FilterMultiSelect counts={minutesStatusCounts} value={mStatus} onChange={e => setMStatus(e.target.value)}>
                                         <option value="">Tất cả trạng thái</option>
                                         <option value="published">Đã ban hành</option>
                                         <option value="draft">Bản nháp</option>
                                         <option value="archived">Lưu trữ</option>
-                                    </select>
+                                    </FilterMultiSelect>
                                 </FilterField>
-                                <RefreshButton onClick={() => fetchMinutes(minutesPage)} busy={minutesLoading} title="Tải lại"
+                                <RefreshButton onClick={() => fetchMinutes(minutesPage)} busy={minutesLoading} title="Làm mới"
                                     legacyClassName="p-2 border border-platinum-tint rounded-xl text-slate-blue hover:bg-cloud-mist transition-colors" />
                             </div>
                             <div className="minutes-archive-filter-time">
@@ -431,9 +456,9 @@ const DocumentArchive = ({ scope = 'all' }) => {
 
                         {/* Minutes table */}
                         <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
-                            {minutesLoading ? (
+                            {minutesLoading && (!mSearch.trim() || visibleMinutes.length === 0) ? (
                                 <div className="flex flex-col items-center justify-center py-16">
-                                    <div className="w-9 h-9 border-4 border-action-blue border-t-transparent rounded-full animate-spin mb-3" />
+                                    <Loader2 className="w-9 h-9 mb-3 text-action-blue animate-spin" />
                                     <p data-ui-text="primary" className="text-slate-blue text-xs font-semibold">Đang tải biên bản họp...</p>
                                 </div>
                             ) : minutesError ? (
@@ -443,7 +468,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                     <p className="text-xs text-slate-blue mt-1">{minutesError}</p>
                                     <button onClick={() => fetchMinutes(1)} className="mt-4 px-4 py-2 bg-action-blue text-white rounded-xl text-xs font-bold">Thử lại</button>
                                 </div>
-                            ) : minutes.length === 0 ? (
+                            ) : visibleMinutes.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-16 text-center">
                                     <FileText className="w-12 h-12 text-platinum-tint mb-3" />
                                     <p className="text-sm font-bold text-midnight-indigo">Chưa có biên bản nào</p>
@@ -451,8 +476,14 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <ResponsiveTable className="w-full text-left border-collapse">
-<TableColumns widths={[38, 16, 23, 13, 10]} />
+                                    <ResponsiveTable className="w-full text-left border-collapse minutes-archive-table">
+                                        <colgroup>
+                                            <col />
+                                            <col style={{ width: '16%' }} />
+                                            <col style={{ width: '23%' }} />
+                                            <col style={{ width: '13%' }} />
+                                            <col style={{ width: '160px' }} />
+                                        </colgroup>
                                         <thead>
                                             <tr className="border-b border-platinum-tint bg-cloud-mist/40 text-[11px] font-bold text-slate-blue uppercase tracking-wider">
                                                 <th className="px-5 py-3.5">Biên bản / Cuộc họp</th>
@@ -463,7 +494,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-platinum-tint text-sm">
-                                            {minutes.map(min => (
+                                            {visibleMinutes.map(min => (
                                                 <tr key={min.id} className="hover:bg-cloud-mist/20 transition-colors">
                                                     <td className="px-5 py-4">
                                                         <p className="font-semibold text-midnight-indigo leading-snug line-clamp-1">
@@ -510,18 +541,19 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                         <StatusBadge status={min.status} />
                                                     </td>
                                                     <td className="px-5 py-4">
-                                                        <div className="flex items-center justify-end gap-1.5">
+                                                        <div className="minutes-archive-row-actions">
                                                             {/* Chi tiết — mở modal */}
                                                             <button data-ui-text="action"
                                                                 onClick={() => handleOpenDetail(min)}
                                                                 title="Xem chi tiết biên bản"
-                                                                className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-action-blue hover:bg-blue-100 rounded-lg text-[11px] font-bold transition-colors"
+                                                                className="minutes-archive-detail flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-action-blue hover:bg-blue-100 rounded-lg text-[11px] font-bold transition-colors"
                                                             >
                                                                 <FileText className="w-3.5 h-3.5" />
                                                                 Chi tiết
                                                             </button>
 
                                                             {/* Xuất file — chỉ Host/người soạn thảo/Admin */}
+                                                            <span className="minutes-archive-export-slot">
                                                             {canExportMinutesItem(min, currentUser, isAdmin) && (
                                                                 <button
                                                                     onClick={() => setExportModalId(min.id)}
@@ -531,6 +563,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                                                     <Download className="w-3.5 h-3.5" />
                                                                 </button>
                                                             )}
+                                                            </span>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -589,7 +622,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                         className="space-y-4"
                     >
                         {/* Filters */}
-                        <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-col md:flex-row gap-3">
+                        <FilterBar forceStandard variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-col md:flex-row gap-3">
                             <FilterField label="Tìm bản ghi"><div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue/60" />
                                 <input
@@ -601,16 +634,16 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                 />
                             </div></FilterField>
 
-                            <FilterField label="Phòng họp"><select
+                            <FilterField label="Phòng họp"><FilterMultiSelect
                                 value={mediaRoom}
                                 onChange={e => { setMediaRoom(e.target.value); setMediaPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
                             >
                                 <option value="">Tất cả phòng</option>
                                 {rooms.map(r => <option key={r.id ?? r.roomId} value={r.id ?? r.roomId}>{r.roomName}</option>)}
-                            </select></FilterField>
+                            </FilterMultiSelect></FilterField>
 
-                            <FilterField label="Loại bản ghi"><select
+                            <FilterField label="Loại bản ghi"><FilterMultiSelect singleSelect counts={mediaTypeCounts}
                                 value={mediaType}
                                 onChange={e => { setMediaType(e.target.value); setMediaPage(1); }}
                                 className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-midnight-indigo bg-white"
@@ -618,12 +651,12 @@ const DocumentArchive = ({ scope = 'all' }) => {
                                 <option value="">Video & Âm thanh</option>
                                 <option value="video">Chỉ video</option>
                                 <option value="audio">Chỉ âm thanh</option>
-                            </select></FilterField>
+                            </FilterMultiSelect></FilterField>
 
                             <RefreshButton
                                 onClick={() => { setMediaPage(1); fetchMedia(); }}
                                 busy={mediaLoading}
-                                title="Tải lại"
+                                title="Làm mới"
                                 legacyClassName="p-2 border border-platinum-tint rounded-xl text-slate-blue hover:bg-cloud-mist transition-colors"
                             >
                                 <RefreshCw className="w-4 h-4" />
@@ -632,9 +665,9 @@ const DocumentArchive = ({ scope = 'all' }) => {
 
                         {/* Media table */}
                         <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
-                            {mediaLoading ? (
+                            {mediaLoading && (!mediaSearch.trim() || mediaPageItems.length === 0) ? (
                                 <div className="flex flex-col items-center justify-center py-16">
-                                    <div className="w-9 h-9 border-4 border-action-blue border-t-transparent rounded-full animate-spin mb-3" />
+                                    <Loader2 className="w-9 h-9 mb-3 text-action-blue animate-spin" />
                                     <p data-ui-text="primary" className="text-slate-blue text-xs font-semibold">Đang tải danh sách media...</p>
                                 </div>
                             ) : mediaError ? (
@@ -727,17 +760,17 @@ const DocumentArchive = ({ scope = 'all' }) => {
                             )}
 
                             {/* Pagination */}
-                            {<PaginationRegion legacyVisible={!mediaLoading && allMedia.length > 0}><PaginationFooter
+                            {<PaginationRegion legacyVisible={!mediaLoading && visibleMedia.length > 0}><PaginationFooter
                                     currentPage={mediaPage}
                                     totalPages={mediaTotalPages}
-                                    totalItems={allMedia.length}
+                                    totalItems={visibleMedia.length}
                                     pageSize={MEDIA_LIMIT}
                                     onPageChange={setMediaPage}
                                     itemLabel={"tệp"}
                                     loading={mediaLoading}
                                     legacy={<div className="px-5 py-3.5 border-t border-platinum-tint bg-cloud-mist/20 flex items-center justify-between">
                                     <span className="text-[11px] text-slate-blue">
-                                        Trang {mediaPage} / {mediaTotalPages} · {allMedia.length} file
+                                        Trang {mediaPage} / {mediaTotalPages} · {visibleMedia.length} file
                                     </span>
                                     <div className="flex items-center gap-1">
                                         <button
@@ -790,7 +823,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                             return (
                                 <div className={`${rawType === 'audio' ? 'bg-gradient-to-br from-violet-50 to-indigo-50 p-10' : 'bg-black aspect-video'} flex items-center justify-center`}>
                                     {previewItem.previewLoading ? (
-                                        <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <Loader2 className="w-10 h-10 text-white animate-spin" />
                                     ) : previewItem.mediaUrl ? (
                                         rawType === 'audio' ? (
                                             <div className="flex flex-col items-center gap-4 w-full max-w-md">
@@ -870,7 +903,7 @@ const DocumentArchive = ({ scope = 'all' }) => {
                         <div className="overflow-y-auto flex-1 p-5 space-y-5">
                             {detailItem._loading ? (
                                 <div className="flex flex-col items-center justify-center py-16">
-                                    <div className="w-9 h-9 border-4 border-action-blue border-t-transparent rounded-full animate-spin mb-3" />
+                                    <Loader2 className="w-9 h-9 mb-3 text-action-blue animate-spin" />
                                     <p data-ui-text="primary" className="text-xs font-semibold text-slate-blue">Đang tải chi tiết biên bản...</p>
                                 </div>
                             ) : (() => {

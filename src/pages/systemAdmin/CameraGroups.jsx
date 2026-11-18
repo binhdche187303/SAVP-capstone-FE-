@@ -1,7 +1,10 @@
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import FilterBar from '../../components/common/FilterBar';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Camera, Plus, Route, Search, Trash2, X, Edit2, AlertTriangle } from 'lucide-react';
+import ReportActions from '../../components/common/ReportActions';
+import StatisticCard from '../../components/common/StatisticCard';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import { Camera, Plus, Route, Search, Trash2, X, Edit2, AlertTriangle, Layers3, CircleCheck, CameraOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,6 +16,7 @@ import {
     getCameraGroups, removeCameraGroupDevice, updateCameraGroup,
 } from '../../service/cameraGroupServices';
 import { CAMERA_TYPES } from '../../mocks/cameraMock';
+import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 
 const STATUS = {
     online: ['Online', 'text-emerald-700 bg-emerald-50 border-emerald-200'],
@@ -145,11 +149,13 @@ const AddDevicesModal = ({ group, onClose, onDone }) => {
 const CameraGroups = () => {
     const [groups, setGroups] = useState([]);
     const [search, setSearch] = useState('');
+    const debouncedSearch = useDebouncedValue(search);
     const [loading, setLoading] = useState(true);
     const [detail, setDetail] = useState(null);
     const [modal, setModal] = useState(null); // 'create' | 'edit' | 'add' | 'delete'
     const [busy, setBusy] = useState(false);
     const [zones, setZones] = useState([]);
+    const [summaryFilter, setSummaryFilter] = useState('all');
 
     useEffect(() => {
         getZones({ limit: 100 }).then((r) => setZones(list(r))).catch((e) => void e);
@@ -157,11 +163,13 @@ const CameraGroups = () => {
 
     const load = useCallback(async () => {
         setLoading(true);
-        try { setGroups(list(await getCameraGroups({ search }))); }
+        try { setGroups(list(await getCameraGroups({ search: debouncedSearch.trim() || undefined }))); }
         catch (e) { void e; /* request.js đã toast lỗi */ }
         finally { setLoading(false); }
-    }, [search]);
-    useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [load]);
+    }, [debouncedSearch]);
+    useEffect(() => { load(); }, [load]);
+    // Lọc ngay trên dữ liệu đã tải trong lúc chờ BE trả kết quả cho từ khoá mới.
+    const searchedGroups = useInstantFilter(groups, search, search !== debouncedSearch || loading);
 
     const open = async (id) => {
         try { setDetail((await getCameraGroupById(id)).data); }
@@ -197,6 +205,25 @@ const CameraGroups = () => {
     const remove = () => run(async () => { await deleteCameraGroup(detail.id); setDetail(null); await load(); }, 'Đã xóa nhóm', 'Không xóa được nhóm');
     const removeDevice = (d) => run(async () => { await removeCameraGroupDevice(detail.id, d.id); await refreshAll(); }, `Đã gỡ ${d.device_name} khỏi nhóm`, 'Không gỡ được camera');
 
+    const summary = useMemo(() => groups.reduce((result, group) => {
+        const deviceCount = Number(group.device_count) || 0;
+        const offlineCount = Number(group.offline_count) || 0;
+        result.total += 1;
+        if (deviceCount === 0) result.empty += 1;
+        else if (offlineCount > 0) result.offline += 1;
+        else result.healthy += 1;
+        return result;
+    }, { total: 0, healthy: 0, offline: 0, empty: 0 }), [groups]);
+
+    const visibleGroups = useMemo(() => searchedGroups.filter((group) => {
+        const deviceCount = Number(group.device_count) || 0;
+        const offlineCount = Number(group.offline_count) || 0;
+        if (summaryFilter === 'healthy') return deviceCount > 0 && offlineCount === 0;
+        if (summaryFilter === 'offline') return offlineCount > 0;
+        if (summaryFilter === 'empty') return deviceCount === 0;
+        return true;
+    }), [searchedGroups, summaryFilter]);
+
     return (
         <div className="p-4 md:p-6 space-y-5">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -204,17 +231,56 @@ const CameraGroups = () => {
                     <h1 className="text-2xl font-bold text-midnight-indigo">Nhóm camera</h1>
                     <p className="text-sm text-slate-blue">Gom camera theo tòa nhà / mục đích để quản lý. Camera offline quá ngưỡng giờ sẽ phát cảnh báo cần bảo trì.</p>
                 </div>
-                <div className="flex gap-2">
+                {/* Nút tạo + làm mới đứng sát nhau; dòng "Lần cuối làm mới" trải dưới cả nhóm. */}
+                <ReportActions>
+                    <button onClick={() => setModal('create')} className="inline-flex h-9 shrink-0 items-center gap-1.5 px-3.5 bg-action-blue text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors">
+                        <Plus className="w-4 h-4" />Tạo nhóm
+                    </button>
                     <RefreshButton
                         onClick={load}
                         aria-label="Làm mới"
                         busy={loading}
                     />
-                    <button onClick={() => setModal('create')} className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-action-blue text-white rounded-xl text-sm font-semibold">
-                        <Plus className="w-4 h-4" />Tạo nhóm
-                    </button>
-                </div>
+                </ReportActions>
             </div>
+
+            <StatisticGrid columns={4}>
+                <StatisticCard
+                    label="Tổng nhóm"
+                    value={summary.total}
+                    helper="Tất cả nhóm camera"
+                    icon={Layers3}
+                    selected={summaryFilter === 'all'}
+                    onClick={() => setSummaryFilter('all')}
+                />
+                <StatisticCard
+                    label="Hoạt động bình thường"
+                    value={summary.healthy}
+                    helper="Có camera và không có thiết bị offline"
+                    icon={CircleCheck}
+                    tone="success"
+                    selected={summaryFilter === 'healthy'}
+                    onClick={() => setSummaryFilter('healthy')}
+                />
+                <StatisticCard
+                    label="Có camera offline"
+                    value={summary.offline}
+                    helper="Cần kiểm tra kết nối"
+                    icon={AlertTriangle}
+                    tone="danger"
+                    selected={summaryFilter === 'offline'}
+                    onClick={() => setSummaryFilter('offline')}
+                />
+                <StatisticCard
+                    label="Chưa có camera"
+                    value={summary.empty}
+                    helper="Nhóm chưa được gán thiết bị"
+                    icon={CameraOff}
+                    tone="warning"
+                    selected={summaryFilter === 'empty'}
+                    onClick={() => setSummaryFilter('empty')}
+                />
+            </StatisticGrid>
 
             <FilterBar variant="inline" className="relative max-w-sm">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -224,13 +290,15 @@ const CameraGroups = () => {
 
             <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start gap-5">
                 <section aria-label="Danh sách nhóm camera" className="min-w-0 space-y-3">
-                <PaginatedCollection items={groups} itemLabel="nhóm camera">
+                <PaginatedCollection items={visibleGroups} itemLabel="nhóm camera">
 {(camaiPageItems, camaiStartIndex) => (
 <div className="space-y-2">
-                    {loading && <p className="text-sm text-slate-500">Đang tải...</p>}
-                    {!loading && groups.length === 0 && (
+                    {loading && !(search.trim() && visibleGroups.length) && <p className="text-sm text-slate-500">Đang tải...</p>}
+                    {!loading && visibleGroups.length === 0 && (
                         <div className="p-8 text-center border border-dashed border-platinum-tint rounded-2xl text-sm text-slate-500">
-                            {search ? 'Không có nhóm khớp từ khóa.' : 'Chưa có nhóm camera nào. Bấm "Tạo nhóm" để bắt đầu.'}
+                            {groups.length > 0
+                                ? 'Không có nhóm camera thuộc trạng thái đã chọn.'
+                                : search ? 'Không có nhóm khớp từ khóa.' : 'Chưa có nhóm camera nào. Bấm "Tạo nhóm" để bắt đầu.'}
                         </div>
                     )}
                     {camaiPageItems.map((camaiRecord, camaiIndex) => ((g) => (
@@ -248,7 +316,7 @@ const CameraGroups = () => {
                                 {g.offline_count > 0 && <span className="inline-flex items-center gap-1 text-red-600"><AlertTriangle className="w-3.5 h-3.5" />{g.offline_count} offline</span>}
                             </div>
                         </button>
-                    ))(camaiRecord, camaiStartIndex + camaiIndex, (groups)))}
+                    ))(camaiRecord, camaiStartIndex + camaiIndex, (visibleGroups)))}
                 </div>
 )}
 </PaginatedCollection>

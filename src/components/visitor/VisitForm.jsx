@@ -111,7 +111,7 @@ const VisitForm = ({ mode, lookups = {}, onSubmit, submitting, error }) => {
             {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
             <div className="flex justify-end">
                 <button type="submit" className={btnPrimary} disabled={submitting}>
-                    {submitting ? 'Đang lưu…' : isWalkIn ? 'Đăng ký và cấp quyền' : 'Gửi lời mời'}
+                    {submitting ? 'Đang lưu...' : isWalkIn ? 'Đăng ký và cấp quyền' : 'Gửi lời mời'}
                 </button>
             </div>
         </form>

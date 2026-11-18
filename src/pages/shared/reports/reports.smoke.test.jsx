@@ -1,6 +1,6 @@
-jest.mock('../../../config/featureFlags', () => ({ VISITOR_MOCK_ENABLED: true, REPORT_MOCK_ENABLED: true, ANY_DEMO_DATA: true }));
 
 // Test render thay cho bước kiểm tra tay: mỗi trang báo cáo dựng được với dữ liệu giả.
+import { changeFilter } from '../../../testUtils/filterSelection';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { REPORT_TYPES, REPORT_DEFINITIONS } from '../../../config/reportDefinitions';
@@ -11,6 +11,8 @@ import ReportSchedules from './ReportSchedules';
 import ReportRuns from './ReportRuns';
 
 // recharts cần kích thước thật của DOM; jsdom không có nên thay khung chứa bằng thẻ rỗng.
+jest.mock('../../../config/featureFlags', () => ({ VISITOR_MOCK_ENABLED: true, REPORT_MOCK_ENABLED: true, ANY_DEMO_DATA: true }));
+
 jest.mock('recharts', () => ({
     ...jest.requireActual('recharts'),
     ResponsiveContainer: () => <div data-testid="chart" />,
@@ -46,8 +48,8 @@ describe('ReportViewer', () => {
         renderAt('/business-admin/reports/vehicle', viewerRoute);
         await screen.findAllByText('Tổng lượt');
         fireEvent.click(screen.getByText('Tùy chọn'));
-        fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2020-01-01' } });
-        fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2020-01-07' } });
+        changeFilter(screen.getByLabelText('Từ ngày'), { target: { value: '2020-01-01' } });
+        changeFilter(screen.getByLabelText('Đến ngày'), { target: { value: '2020-01-07' } });
         fireEvent.click(screen.getByText('Xem báo cáo'));
         expect(await screen.findByText('Không có dữ liệu trong kỳ đã chọn')).toBeInTheDocument();
         expect(screen.getAllByText('Chưa có dữ liệu trong kỳ đã chọn')).toHaveLength(2);
@@ -57,7 +59,7 @@ describe('ReportViewer', () => {
         renderAt('/business-admin/reports/vehicle', viewerRoute);
         await screen.findAllByText('Tổng lượt');
         fireEvent.click(screen.getByText('Tùy chọn'));
-        fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2025-01-01' } });
+        changeFilter(screen.getByLabelText('Từ ngày'), { target: { value: '2025-01-01' } });
         fireEvent.click(screen.getByText('Xem báo cáo'));
         expect(await screen.findByText('Kỳ báo cáo tối đa 366 ngày')).toBeInTheDocument();
     });
@@ -131,18 +133,18 @@ describe('ReportSchedules', () => {
         await screen.findByText('Chuyên cần cán bộ hằng tuần');
         fireEvent.click(screen.getByRole('button', { name: /Tạo lịch gửi/ }));
         const modal = screen.getByRole('dialog', { name: 'Tạo lịch gửi báo cáo' });
-        fireEvent.change(within(modal).getByLabelText('Tên lịch gửi'), { target: { value: 'Khách hằng tuần cho BGH' } });
-        fireEvent.change(within(modal).getByLabelText('Báo cáo'), { target: { value: 'visitor' } });
+        changeFilter(within(modal).getByLabelText('Tên lịch gửi'), { target: { value: 'Khách hằng tuần cho BGH' } });
+        changeFilter(within(modal).getByLabelText('Báo cáo'), { target: { value: 'visitor' } });
         fireEvent.click(within(modal).getByRole('button', { name: 'Lưu lịch gửi' }));
         expect(await within(modal).findByRole('alert')).toHaveTextContent('Cần ít nhất 1 người nhận');
 
-        fireEvent.change(within(modal).getByLabelText('Thêm email'), { target: { value: 'sai-email' } });
+        changeFilter(within(modal).getByLabelText('Thêm email'), { target: { value: 'sai-email' } });
         fireEvent.click(within(modal).getByRole('button', { name: 'Thêm' }));
         fireEvent.click(within(modal).getByRole('button', { name: 'Lưu lịch gửi' }));
         expect(await within(modal).findByText('Email không hợp lệ: sai-email')).toBeInTheDocument();
         fireEvent.click(within(modal).getByRole('button', { name: 'Bỏ sai-email' }));
 
-        fireEvent.change(within(modal).getByLabelText('Thêm email'), { target: { value: 'bgh@savp.edu.vn' } });
+        changeFilter(within(modal).getByLabelText('Thêm email'), { target: { value: 'bgh@savp.edu.vn' } });
         fireEvent.click(within(modal).getByRole('button', { name: 'Thêm' }));
         expect(within(modal).getByText('1/20')).toBeInTheDocument();
         fireEvent.click(within(modal).getByRole('button', { name: 'Lưu lịch gửi' }));
@@ -181,7 +183,7 @@ describe('ReportRuns', () => {
         fireEvent.click(screen.getByRole('button', { name: '2', exact: true }));
         expect(await screen.findByText('Hiển thị 11–20 / 40 lần chạy')).toBeInTheDocument();
         expect(rows()[0]).not.toHaveTextContent(firstRow);
-        fireEvent.change(screen.getByLabelText('Trạng thái'), { target: { value: 'failed' } });
+        changeFilter(screen.getByLabelText('Trạng thái'), { target: { value: 'failed' } });
         expect(await screen.findByText('Hiển thị 1–3 / 3 lần chạy')).toBeInTheDocument();
         expect(screen.getByText('Quá thời gian tạo file báo cáo')).toBeInTheDocument();
         fireEvent.click(screen.getAllByRole('button', { name: 'Gửi lại' })[0]);

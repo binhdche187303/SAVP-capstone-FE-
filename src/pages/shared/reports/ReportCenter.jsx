@@ -1,8 +1,9 @@
+import PageHeading from '../../../components/common/PageHeading';
 import PaginatedCollection from '../../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../../components/common/ResponsiveTable';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarClock, FileBarChart, LayoutTemplate } from 'lucide-react';
+import { ArrowRight, CalendarClock, FileBarChart, LayoutTemplate, Loader2 } from 'lucide-react';
 import { getReportDefinition } from '../../../config/reportDefinitions';
 import { getReportCatalog, getRecentExports, exportReport, getExportDownloadUrl } from '../../../service/reportCenterService';
 import { formatDateTime } from '../../../utils/reportFormat';
@@ -64,11 +65,10 @@ const ReportCenter = () => {
         <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <FileBarChart className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Báo cáo" icon={<FileBarChart className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Trung tâm báo cáo
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">
                         Xem, xuất PDF / Excel / Word và đặt lịch gửi tự động cho 7 báo cáo quản trị.
                     </p>
                 </div>
@@ -82,7 +82,7 @@ const ReportCenter = () => {
             <DemoDataBanner onReset={load} />
 
             {error && <div className={errorBoxCls}>{error}</div>}
-            {!error && !catalog && <div className="flex items-center justify-center h-64"><div className={spinnerCls} /></div>}
+            {!error && !catalog && <div className="flex items-center justify-center h-64"><Loader2 className={spinnerCls} /></div>}
 
             {catalog && (
                 <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -103,11 +103,11 @@ const ReportCenter = () => {
                                         Chưa khả dụng{item.unavailableReason ? `: ${item.unavailableReason}` : ''}
                                     </p>
                                 ) : (
-                                    <div data-ui-text="secondary" className="flex items-center justify-between text-[11px]">
-                                        <span className="inline-flex items-center gap-1 text-slate-blue">
+                                    <div data-ui-text="secondary" className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px]">
+                                        <span className="inline-flex items-center gap-1 whitespace-nowrap text-slate-blue">
                                             <CalendarClock className="w-3.5 h-3.5" /> {item.activeSchedules} lịch gửi đang bật
                                         </span>
-                                        <span className="inline-flex items-center gap-1 font-semibold text-action-blue group-hover:underline">
+                                        <span className="inline-flex items-center gap-1 whitespace-nowrap font-semibold text-action-blue group-hover:underline">
                                             Xem báo cáo <ArrowRight className="w-3.5 h-3.5" />
                                         </span>
                                     </div>

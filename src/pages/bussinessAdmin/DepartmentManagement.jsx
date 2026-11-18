@@ -2,7 +2,7 @@ import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
-import { Building, RefreshCw, Power, Lock } from 'lucide-react';
+import { Building, RefreshCw, Power, Lock, Loader2 } from 'lucide-react';
 import { PARTNER_DEPARTMENT_ID } from '../../constants/partnerAccount';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useState, useEffect, useCallback } from 'react';
@@ -660,7 +660,7 @@ const DepartmentManagement = () => {
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center p-12">
-                        <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                        <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                         <p className="mt-4 text-slate-blue text-sm font-medium">Đang tải danh sách phòng ban...</p>
                     </div>
                 ) : (
@@ -998,7 +998,7 @@ const DepartmentManagement = () => {
                         <div className="p-6 flex-1 overflow-y-auto flex flex-col min-h-0 justify-between">
                             {membersLoading ? (
                                 <div className="flex flex-col items-center justify-center py-12 flex-1">
-                                    <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                     <p className="mt-4 text-slate-blue text-xs">Đang tải danh sách thành viên...</p>
                                 </div>
                             ) : membersList.length === 0 ? (
@@ -1372,7 +1372,7 @@ const DepartmentManagement = () => {
                         <div className="p-6 flex-1 overflow-y-auto flex flex-col min-h-0">
                             {logsLoading ? (
                                 <div className="flex flex-col items-center justify-center py-8">
-                                    <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                 </div>
                             ) : userLogs.length === 0 ? (
                                 <p className="text-center text-sm text-slate-blue py-8">Không có bản ghi hoạt động nào.</p>
@@ -1430,7 +1430,7 @@ const DepartmentManagement = () => {
                         </div>
                         {detailLoading || !selectedUserDetail ? (
                             <div className="p-12 flex flex-col items-center justify-center flex-1">
-                                <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                                <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                 <p className="mt-4 text-slate-blue text-sm">Đang tải chi tiết...</p>
                             </div>
                         ) : (

@@ -791,7 +791,7 @@ const ManagerMeetingDetail = () => {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[450px]">
-                <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                 <p className="mt-4 text-slate-blue text-sm font-semibold">Đang tải chi tiết cuộc họp...</p>
             </div>
         );
@@ -889,7 +889,7 @@ const ManagerMeetingDetail = () => {
     };
 
     // Đảm bảo phòng đang chọn luôn có mặt trong option list, kể cả khi bị loại khỏi `rooms`
-    // sau lần kiểm tra gần nhất (không tự động khoá/xoá lựa chọn của người dùng).
+    // sau lần kiểm tra gần nhất (không tự động khoá/xóa lựa chọn của người dùng).
     const roomOptionsToRender = rooms.some(r => String(r.roomId) === String(editRoomId))
         ? rooms
         : (selectedRoomInfo ? [...rooms, selectedRoomInfo] : rooms);

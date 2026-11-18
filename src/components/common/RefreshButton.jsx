@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInRouterContext, useLocation } from 'react-router-dom';
+import './RefreshButton.css';
 
 const STANDARD_AREAS = new Set(['system-admin', 'business-admin', 'manager', 'employee', 'guard']);
 const BUTTON_CLASS = 'inline-flex h-9 w-9 shrink-0 items-center justify-center text-slate-blue bg-cloud-mist/50 rounded-xl hover:bg-cloud-mist transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action-blue focus-visible:ring-offset-2';
@@ -8,6 +9,13 @@ const BUTTON_CLASS = 'inline-flex h-9 w-9 shrink-0 items-center justify-center t
 const Button = ({ standard, busy = false, disabled, legacyClassName, legacyStyle, children, title, type, onClick, ...props }) => {
     const [pending, setPending] = useState(false);
     const inFlight = useRef(false);
+    const [lastRefresh, setLastRefresh] = useState(() => busy ? null : new Date());
+    const previousBusy = useRef(busy);
+
+    useEffect(() => {
+        if (standard && previousBusy.current && !busy) setLastRefresh(new Date());
+        previousBusy.current = busy;
+    }, [busy, standard]);
 
     if (!standard) {
         return <button {...props} type={type} title={title} onClick={onClick} disabled={disabled} className={legacyClassName} style={legacyStyle}>{children}</button>;
@@ -18,7 +26,8 @@ const Button = ({ standard, busy = false, disabled, legacyClassName, legacyStyle
         inFlight.current = true;
         setPending(true);
         try {
-            await onClick?.(event);
+            const result = await onClick?.(event);
+            if (result !== false && result?.success !== false) setLastRefresh(new Date());
         } finally {
             inFlight.current = false;
             setPending(false);
@@ -27,18 +36,26 @@ const Button = ({ standard, busy = false, disabled, legacyClassName, legacyStyle
     const loading = busy || pending;
     const label = props['aria-label'] || title || 'Làm mới';
     return (
-        <button
-            {...props}
-            type={type || 'button'}
-            onClick={handleClick}
-            title={title || 'Làm mới'}
-            aria-label={label}
-            aria-busy={loading || undefined}
-            disabled={disabled || loading}
-            className={BUTTON_CLASS}
-        >
-            <RefreshCw aria-hidden="true" className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <span className="camai-refresh-control">
+            <button
+                {...props}
+                type={type || 'button'}
+                onClick={handleClick}
+                title={title || 'Làm mới'}
+                aria-label={label}
+                aria-busy={loading || undefined}
+                disabled={disabled || loading}
+                className={BUTTON_CLASS}
+            >
+                <RefreshCw aria-hidden="true" className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <span className="camai-refresh-time" aria-live="polite">
+                Lần cuối làm mới lúc:{' '}
+                {lastRefresh ? <time dateTime={lastRefresh.toISOString()}>{lastRefresh.toLocaleTimeString('vi-VN', {
+                    timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                })}</time> : '—'}
+            </span>
+        </span>
     );
 };
 

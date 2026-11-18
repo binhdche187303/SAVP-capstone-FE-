@@ -9,6 +9,7 @@ import gsap from 'gsap';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import SLIDES from './banner/slideConfig';
 import websiteLogo from '../../assets/images/logo.png';
+import './DashboardBanner.css';
 
 // ── Fade transition hook ───────────────────────────────────────────────────────
 const useContentTransition = (slideIndex) => {
@@ -88,7 +89,8 @@ const BottomNav = ({ slideIndex, paused, accent, goTo }) => (
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 // compact: bản thấp (~1/2) cho trang chủ nhiều nội dung — ẩn mô tả, thu nhỏ ảnh/tiêu đề.
-const DashboardBanner = ({ roleName = 'bạn', compact = false }) => {
+// titleAs: thẻ tiêu đề slide — 'h1' khi banner là tiêu đề chính của trang (trang không có h1 riêng).
+const DashboardBanner = ({ roleName = 'bạn', compact = false, titleAs: TitleTag = 'h2' }) => {
     const [slideIndex, setSlideIndex] = useState(0);
     const [paused, setPaused]         = useState(false);
     const [userName, setUserName]     = useState('');
@@ -147,7 +149,8 @@ const DashboardBanner = ({ roleName = 'bạn', compact = false }) => {
     return (
         <div
             ref={wrapRef}
-            className="relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl select-none"
+            className="camai-dashboard-banner relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl select-none"
+            data-compact={compact ? 'true' : 'false'}
             style={{ height: compact ? 170 : 320 }}
             onMouseEnter={() => setPaused(true)}
             onMouseMove={handleMouseMove}
@@ -200,7 +203,7 @@ const DashboardBanner = ({ roleName = 'bạn', compact = false }) => {
                     {!slide.photo && (<>
                     {/* Ảnh bên phải — bounded, không tràn */}
                     <div
-                        className="absolute top-0 right-0 bottom-0 pointer-events-none"
+                        className="camai-banner-art absolute top-0 right-0 bottom-0 pointer-events-none"
                         style={{ zIndex: 1, width: '52%', overflow: 'hidden' }}
                     >
                         {/* float wrapper */}
@@ -246,7 +249,7 @@ const DashboardBanner = ({ roleName = 'bạn', compact = false }) => {
 
                     {/* Text panel trái — CHỈ text, không có controls */}
                     <div
-                        className={`absolute left-0 top-0 bottom-0 flex flex-col justify-center pl-8 pr-4 ${compact ? 'pt-3 pb-12' : 'py-7'}`}
+                        className={`camai-banner-text absolute left-0 top-0 bottom-0 flex flex-col justify-center pl-8 pr-4 ${compact ? 'pt-3 pb-12' : 'py-7'}`}
                         style={{ zIndex: 2, width: '52%', pointerEvents: 'none' }}
                     >
                         <div
@@ -291,7 +294,7 @@ const DashboardBanner = ({ roleName = 'bạn', compact = false }) => {
                             </span>
 
                             {/* Title */}
-                            <h2 data-page-title
+                            <TitleTag data-page-title
                                 className="text-white font-extrabold leading-tight tracking-tight"
                                 style={{
                                     fontSize: compact ? '1.2rem' : '1.5rem',
@@ -299,7 +302,7 @@ const DashboardBanner = ({ roleName = 'bạn', compact = false }) => {
                                 }}
                             >
                                 {slide.title}
-                            </h2>
+                            </TitleTag>
 
                             {/* Description */}
                             {!compact && <p className="text-white/75 leading-relaxed line-clamp-2 max-w-xs" style={{ fontSize: '0.82rem' }}>

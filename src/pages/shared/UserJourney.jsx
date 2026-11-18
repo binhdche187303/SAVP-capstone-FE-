@@ -1,3 +1,7 @@
+import { countBy } from '../../hooks/useFilterCounts';
+import { matchesFilter } from '../../utils/filterSelection';
+import PageHeading from '../../components/common/PageHeading';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard from '../../components/common/StatisticCard';
 import ReportActions from '../../components/common/ReportActions';
@@ -5,11 +9,7 @@ import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import {
-    AlertCircle, ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck,
-    Car, Check, Clock, Eye, Image as ImageIcon, Map, RefreshCw,
-    Filter, Search, Sparkles, Timer, User,
-} from 'lucide-react';
+import { AlertCircle, ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck, Car, Check, Clock, Eye, Image as ImageIcon, Map, RefreshCw, Filter, Search, Timer, User, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ExportMenu from '../../components/report/ExportMenu';
@@ -249,9 +249,15 @@ const UserJourney = () => {
     const sortedEvents = React.useMemo(() => {
         if (!journeyData?.events) return [];
         return journeyData.events
-            .filter(e => (!typeFilter || (e.type || '').toLowerCase() === typeFilter) && (!placeFilter || getPlace(e) === placeFilter))
+            .filter(e => (!typeFilter || (e.type || '').toLowerCase() === typeFilter) && (matchesFilter(placeFilter, getPlace(e))))
             .sort((a, b) => new Date(b.time) - new Date(a.time));
     }, [journeyData?.events, typeFilter, placeFilter]);
+
+    // Số đếm cạnh lựa chọn ô "Vị trí" (đếm tại chỗ theo loại sự kiện đang chọn).
+    const placeCounts = React.useMemo(() => countBy(
+        (journeyData?.events || []).filter(e => !typeFilter || (e.type || '').toLowerCase() === typeFilter),
+        getPlace,
+    ), [journeyData?.events, typeFilter]);
 
     useEffect(() => { setPage(1); }, [typeFilter, placeFilter]);
 
@@ -437,23 +443,14 @@ const UserJourney = () => {
         <div data-page-surface="wide" className="space-y-6 max-w-5xl mx-auto pb-12 animate-fade-in-up">
 
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-platinum-tint shadow-sm-2">
-                <div className="flex items-start gap-3.5">
-                    <div className="w-12 h-12 bg-action-blue/10 text-action-blue rounded-2xl flex items-center justify-center shrink-0">
-                        <Sparkles className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-                            <Map className="w-3.5 h-3.5" />
-                            Hành trình
-                        </span>
-                        <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Lịch sử di chuyển theo người</h1>
-                        <p className="text-slate-blue text-sm mt-0.5">
-                            {isSelfOnly
-                                ? 'Xem lại hành trình di chuyển (ra/vào cổng, phòng họp, khu vực) của bạn trong ngày.'
-                                : 'Theo dõi lịch trình hoạt động tổng hợp của một nhân viên trong ngày.'}
-                        </p>
-                    </div>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-platinum-tint pb-5">
+                <div className="min-w-0">
+                    <PageHeading badge="Hành trình" icon={<Map />} className="text-2xl font-bold text-midnight-indigo tracking-tight">Lịch sử di chuyển theo người</PageHeading>
+                    <p data-page-description className="text-slate-blue text-sm mt-1">
+                        {isSelfOnly
+                            ? 'Xem lại hành trình di chuyển (ra/vào cổng, phòng họp, khu vực) của bạn trong ngày.'
+                            : 'Theo dõi lịch trình hoạt động tổng hợp của một nhân viên trong ngày.'}
+                    </p>
                 </div>
                 {selectedUser && (
                     <ReportActions>
@@ -461,7 +458,7 @@ const UserJourney = () => {
                         <RefreshButton
                             onClick={fetchJourney}
                             disabled={loading}
-                            title="Tải lại dữ liệu hành trình"
+                            title="Làm mới dữ liệu hành trình"
                             busy={loading}
                         />
                     </ReportActions>
@@ -519,7 +516,7 @@ const UserJourney = () => {
                                 <div className="absolute z-20 w-full mt-1.5 bg-white border border-platinum-tint rounded-xl shadow-lg max-h-60 overflow-y-auto divide-y divide-platinum-tint/40">
                                     {usersLoading && users.length === 0 ? (
                                         <div className="p-4 text-center text-xs text-slate-blue flex items-center justify-center gap-2">
-                                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-action-blue" />
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-action-blue" />
                                             Đang tìm kiếm...
                                         </div>
                                     ) : users.length === 0 ? (
@@ -695,10 +692,10 @@ const UserJourney = () => {
 
                         <FilterBar variant="card" className="journey-place-filters mb-6">
                             <FilterField label="Vị trí">
-                                <select value={placeFilter} onChange={e => setPlaceFilter(e.target.value)} disabled={placeOptions.length === 0}>
+                                <FilterMultiSelect counts={placeCounts} value={placeFilter} onChange={e => setPlaceFilter(e.target.value)} disabled={placeOptions.length === 0}>
                                     <option value="">Tất cả vị trí</option>
                                     {placeOptions.map(place => <option key={place} value={place}>{place}</option>)}
-                                </select>
+                                </FilterMultiSelect>
                             </FilterField>
                             <button data-filter-action type="button"
                                 onClick={() => { setTypeFilter(''); setPlaceFilter(''); setPage(1); }}

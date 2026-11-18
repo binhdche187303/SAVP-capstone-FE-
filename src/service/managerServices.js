@@ -142,6 +142,13 @@ export const getDepartments = async (params = {}) => {
 };
 
 /**
+ * Chi tiết một phòng ban (tên, số thành viên) — GET /departments/:id
+ */
+export const getDepartmentById = async (departmentId) => {
+    return await get(`/departments/${departmentId}`);
+};
+
+/**
  * UC-22: Tra cứu lịch trình cá nhân
  * @param {object} params - { from, to, view, status }
  */

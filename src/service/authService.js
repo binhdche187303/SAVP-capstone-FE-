@@ -43,7 +43,7 @@ export const logout = async () => {
         // Clear local storage tokens regardless of API success/failure
         clearTokens();
         localStorage.removeItem('user');
-        // Huỷ socket đang mang token của người vừa đăng xuất — nếu không, phiên
+        // Hủy socket đang mang token của người vừa đăng xuất — nếu không, phiên
         // đăng nhập kế tiếp dùng lại socket singleton cũ và sẽ nhận thông báo
         // của tài khoản trước (room user:{userId} cũ vẫn đang join).
         resetSocket();

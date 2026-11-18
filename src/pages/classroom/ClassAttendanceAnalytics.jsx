@@ -1,3 +1,6 @@
+import PageHeading from '../../components/common/PageHeading';
+import { matchesFilter, filterValues } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import './ClassAttendanceAnalyticsFilters.css';
 import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import TableColumns from '../../components/common/TableColumns';
@@ -356,7 +359,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
 
     const administrativeClassOptions = useMemo(() => {
         const classes = teacherClassrooms
-            .filter(item => selectedSubjectCode === 'all' || (item.subjectCode || item.code) === selectedSubjectCode)
+            .filter(item => matchesFilter(selectedSubjectCode, item.subjectCode || item.code))
             .flatMap(item => item.administrativeClasses || [])
             .filter(Boolean);
         return [...new Set(classes)].sort((a, b) => a.localeCompare(b, 'vi'));
@@ -365,7 +368,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
     const semesters = useMemo(() => Array.from(new Set(teacherClassrooms.map(item => item.semester).filter(Boolean))), [teacherClassrooms]);
 
     useEffect(() => {
-        if (selectedAdministrativeClass !== 'all' && !administrativeClassOptions.includes(selectedAdministrativeClass)) {
+        if (selectedAdministrativeClass !== 'all' && !filterValues(selectedAdministrativeClass).every(value => administrativeClassOptions.includes(value))) {
             setSelectedAdministrativeClass('all');
         }
     }, [administrativeClassOptions, selectedAdministrativeClass]);
@@ -473,14 +476,13 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
         <div data-page-surface="wide" className="p-6 space-y-5 animate-fade-in-up">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-action-blue" />
+                    <PageHeading as="h1" badge="Lớp học" icon={<Activity className="w-5 h-5 text-action-blue" />} className="text-xl font-bold text-midnight-indigo flex items-center gap-2">
                         {canExport ? 'Bảng chuyên cần lớp học' : 'Thống kê chuyên cần lớp học'}
-                    </h1>
-                    <p className="text-xs text-slate-blue mt-0.5">Lọc theo lớp, môn học và khoảng thời gian để xem tỷ lệ chuyên cần</p>
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-0.5">Lọc theo lớp, môn học và khoảng thời gian để xem tỷ lệ chuyên cần</p>
                 </div>
                 {canExport && (
-                    <ReportExportAction format="csv" label="Xuất chuyên cần"
+                    <ReportExportAction forceStandard format="csv" label="Xuất chuyên cần"
                         type="button"
                         onClick={() => exportSemesterClassAttendanceCsv({
                             classId: 'all',
@@ -528,7 +530,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                     <label htmlFor="ca-admin-class" className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Lớp hành chính</label>
                     <div className="relative">
                         <Users className="w-4 h-4 text-slate-blue absolute left-3 top-2.5" />
-                        <select id="ca-admin-class"
+                        <FilterMultiSelect id="ca-admin-class"
                             value={selectedAdministrativeClass}
                             onChange={(event) => setSelectedAdministrativeClass(event.target.value)}
                             className="w-full pl-9 pr-4 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
@@ -537,13 +539,13 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                             {administrativeClassOptions.map(className => (
                                 <option key={className} value={className}>{className}</option>
                             ))}
-                        </select>
+                        </FilterMultiSelect>
                     </div>
                 </div>
 
                 <div className="camai-filter-field" >
                     <label htmlFor="ca-subject" className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Môn học</label>
-                    <select id="ca-subject"
+                    <FilterMultiSelect id="ca-subject"
                         value={selectedSubjectCode}
                         onChange={(event) => setSelectedSubjectCode(event.target.value)}
                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
@@ -552,12 +554,12 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                         {subjectOptions.map(subject => (
                             <option key={subject.code} value={subject.code}>{subject.code} - {subject.name}</option>
                         ))}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
 
                 <div className="camai-filter-field" >
                     <label htmlFor="ca-semester" className="text-[10px] font-bold text-slate-blue uppercase tracking-wide">Học kỳ</label>
-                    <select id="ca-semester"
+                    <FilterMultiSelect id="ca-semester"
                         value={selectedSemester}
                         onChange={(event) => setSelectedSemester(event.target.value)}
                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-xs font-semibold text-midnight-indigo focus:outline-none focus:border-action-blue bg-cloud-mist/20"
@@ -566,14 +568,14 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                         {semesters.map(semester => (
                             <option key={semester} value={semester}>{semester}</option>
                         ))}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
 
             </div>
                 {tab === 'overview' && (<div className="class-attendance-analytics-filter-time">
                 <TimeRangeButtons forceButtons label="Khoảng thời gian" value={rangeMode} onChange={setRangeMode} options={RANGE_OPTIONS} />
 
-                <FilterField label="Ngày mốc"><DateInput type="date" value={anchorDate} disabled={rangeMode === 'semester'} onChange={e => e.target.value && setAnchorDate(e.target.value)} /></FilterField>
+                <FilterField label="Ngày mốc"><DateInput forceStandard type="date" value={anchorDate} disabled={rangeMode === 'semester'} onChange={e => e.target.value && setAnchorDate(e.target.value)} /></FilterField>
                 </div>)}
             {tab === 'overview' && report.period && (
                 <p className="mt-3 pt-3 border-t border-platinum-tint/70 text-xs text-slate-blue flex items-center gap-1.5">
@@ -750,7 +752,7 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                         </thead>
                         <tbody>
                             {filteredReportRows.length === 0 && (
-                                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-blue">{loading ? 'Đang tải dữ liệu…' : report.rows.length === 0 ? 'Chưa có lớp học thực tế đã đồng bộ phù hợp với bộ lọc hiện tại.' : 'Không có lớp/môn học phù hợp với bộ lọc hiện tại.'}</td></tr>
+                                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-blue">{loading ? 'Đang tải dữ liệu...' : report.rows.length === 0 ? 'Chưa có lớp học thực tế đã đồng bộ phù hợp với bộ lọc hiện tại.' : 'Không có lớp/môn học phù hợp với bộ lọc hiện tại.'}</td></tr>
                             )}
                             {visibleSubjectGroups.map(group => {
                                 const expanded = expandedSubjects.has(group.key);

@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-    FileText, X, Download, CheckCircle, AlertTriangle,
-    Clock, RefreshCw, FileDown
-} from 'lucide-react';
+import { FileText, X, Download, CheckCircle, AlertTriangle, Clock, RefreshCw, FileDown, Loader2 } from 'lucide-react';
 import { exportMinutes, getMediaFile } from '../../service/businessAdminServices';
 import usePollJob from '../../hooks/usePollJob';
 import { motion } from 'framer-motion';
@@ -252,7 +249,7 @@ const ExportMinutesModal = ({ minutesId, open, onClose }) => {
                             className="px-5 py-2.5 text-sm font-bold text-white bg-action-blue hover:bg-blue-700 rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2"
                         >
                             {submitting
-                                ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ? <Loader2 className="w-4 h-4 text-white animate-spin" />
                                 : <><FileDown className="w-4 h-4" /> Xuất file</>
                             }
                         </button>

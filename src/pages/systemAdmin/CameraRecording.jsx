@@ -1,3 +1,4 @@
+import { Loader2 } from 'lucide-react';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
@@ -205,7 +206,7 @@ const CameraRecording = () => {
       <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />
+            <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
           </div>
         ) : (
           <PaginatedCollection items={rows} itemLabel="camera">

@@ -1,3 +1,6 @@
+import { totalOf, useFacetCounts } from '../../../hooks/useFilterCounts';
+import PageHeading from '../../../components/common/PageHeading';
+import FilterMultiSelect from '../../../components/common/FilterMultiSelect';
 import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
 import './VisitorListFilters.css';
 import ResponsiveTable from '../../../components/common/ResponsiveTable';
@@ -56,6 +59,10 @@ const VisitorManagement = () => {
         return () => clearTimeout(timer);
     }, [query, filters.q]);
 
+    // Số đếm cạnh lựa chọn ô "Đơn vị tiếp" (theo tab + các bộ lọc khác; hook bỏ qua nếu quá nhiều đơn vị).
+    const deptCounts = useFacetCounts({ ...filters, tab }, 'departmentId', lookups.departments.map((d) => d.id),
+        ({ tab: status, ...f }) => listVisits({ ...f, status, page: 1, limit: 1 }).then(totalOf));
+
     const load = useCallback(async () => {
         setLoading(true);
         const res = await listVisits({ ...filters, status: tab, page, limit: PAGE_SIZE });
@@ -100,11 +107,10 @@ const VisitorManagement = () => {
     return (
         <div data-page-surface="wide" className={pageCls}>
             <div className="border-b border-platinum-tint pb-5">
-                <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                    <ClipboardList className="w-6 h-6 text-action-blue" />
+                <PageHeading badge="Khách" icon={<ClipboardList className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                     Quản lý khách đến làm việc
-                </h2>
-                <p className="text-xs text-slate-blue mt-1">Theo dõi đăng ký (người được gặp tự duyệt), quyền ra vào theo thời gian và theo dõi trạng thái từng lượt khách.</p>
+                </PageHeading>
+                <p data-page-description className="text-xs text-slate-blue mt-1">Theo dõi đăng ký (người được gặp tự duyệt), quyền ra vào theo thời gian và theo dõi trạng thái từng lượt khách.</p>
             </div>
 
             <StatisticGrid columns={5} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4" data-stat-grid role="group" aria-label="Thống kê trạng thái khách">
@@ -132,10 +138,10 @@ const VisitorManagement = () => {
                     </div>
                     <div className="camai-filter-field space-y-1">
                         <label className={labelCls} htmlFor="vm-dep">Đơn vị tiếp</label>
-                        <select id="vm-dep" className={inputCls} value={filters.departmentId} onChange={(e) => changeFilter({ departmentId: e.target.value })}>
+                        <FilterMultiSelect id="vm-dep" counts={deptCounts} className={inputCls} value={filters.departmentId} onChange={(e) => changeFilter({ departmentId: e.target.value })}>
                             <option value="">Tất cả</option>
                             {lookups.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                        </select>
+                        </FilterMultiSelect>
                     </div>
                 </div>
                 <div className="visitor-list-filter-time">
@@ -184,7 +190,7 @@ const VisitorManagement = () => {
                         </thead>
                         <tbody className={loading ? 'opacity-60' : ''}>
                             {items.length === 0 ? (
-                                <tr><td colSpan={7} className="px-4 py-10 text-center text-xs text-slate-blue">{data ? 'Không có lượt khách nào phù hợp' : 'Đang tải dữ liệu…'}</td></tr>
+                                <tr><td colSpan={7} className="px-4 py-10 text-center text-xs text-slate-blue">{data ? 'Không có lượt khách nào phù hợp' : 'Đang tải dữ liệu...'}</td></tr>
                             ) : items.map((visit) => (
                                 <tr key={visit.id} className="border-b border-pale-gray last:border-0 hover:bg-cloud-mist/40 cursor-pointer" onClick={() => setSelectedId(visit.id)}>
                                     <td className={tdCls}>

@@ -1,3 +1,4 @@
+import PageHeading from '../../../components/common/PageHeading';
 import ResponsiveTable from '../../../components/common/ResponsiveTable';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -58,16 +59,15 @@ const ReportTemplates = () => {
 
     return (
         <div data-page-surface="wide" className={pageCls}>
-            <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
+            <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <Link to={`${base}/reports`} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-blue hover:text-action-blue mb-2">
                         <ArrowLeft className="w-3.5 h-3.5" /> Trung tâm báo cáo
                     </Link>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <LayoutTemplate className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Báo cáo" icon={<LayoutTemplate className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Mẫu báo cáo quy chuẩn
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">
                         Bố cục theo thể thức Nghị định 30/2020: đầu văn bản, logo, thân báo cáo, khối ký, nơi nhận. Mẫu dùng khi xuất "bản quy chuẩn".
                     </p>
                 </div>
@@ -94,7 +94,7 @@ const ReportTemplates = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {!templates && <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-slate-blue">Đang tải dữ liệu…</td></tr>}
+                            {!templates && <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-slate-blue">Đang tải dữ liệu...</td></tr>}
                             {templates?.length === 0 && !error && (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-10 text-center text-xs text-slate-blue space-y-3">

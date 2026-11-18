@@ -1,3 +1,4 @@
+import { changeFilter } from '../../testUtils/filterSelection';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import VehicleRegistrations from './VehicleRegistrations';
 import { getAdminVehicleRegistrations, getUsers } from '../../service/sysAdminServices';
@@ -36,7 +37,7 @@ test('owner card opens an API-backed owner filter and clears it when closed', as
     render(<VehicleRegistrations />);
     await loaded();
     fireEvent.click(screen.getByRole('button', { name: /Số chủ xe/ }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Chủ xe' }), { target: { value: 'Lan' } });
+    changeFilter(screen.getByRole('textbox', { name: 'Chủ xe' }), { target: { value: 'Lan' } });
     await waitFor(() => expect(getAdminVehicleRegistrations).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, owner: 'Lan' })));
     fireEvent.click(screen.getByRole('button', { name: /Số chủ xe/ }));
     await waitFor(() => expect(getAdminVehicleRegistrations).toHaveBeenLastCalledWith(expect.objectContaining({ owner: '' })));
@@ -46,10 +47,10 @@ test('owner card opens an API-backed owner filter and clears it when closed', as
 test('total card clears combined filters to show all vehicles', async () => {
     render(<VehicleRegistrations />);
     await loaded();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '30A' } });
-    fireEvent.change(screen.getByLabelText('Loại phương tiện'), { target: { value: 'CAR' } });
+    changeFilter(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '30A' } });
+    changeFilter(screen.getByLabelText('Loại phương tiện'), { target: { value: 'car' } });
     fireEvent.click(screen.getByRole('button', { name: /Đang hoạt động/ }));
-    await waitFor(() => expect(getAdminVehicleRegistrations).toHaveBeenLastCalledWith(expect.objectContaining({ search: '30A', vehicleType: 'CAR', status: 'active' })));
+    await waitFor(() => expect(getAdminVehicleRegistrations).toHaveBeenLastCalledWith(expect.objectContaining({ search: '30A', vehicleType: 'car', status: 'active' })));
     fireEvent.click(screen.getByRole('button', { name: /Tổng phương tiện/ }));
     await waitFor(() => expect(getAdminVehicleRegistrations).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, search: '', vehicleType: '', status: '', owner: '' })));
     expect(screen.getByRole('button', { name: /Tổng phương tiện/ })).toHaveAttribute('aria-pressed', 'true');

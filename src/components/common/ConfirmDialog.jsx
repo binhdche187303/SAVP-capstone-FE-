@@ -37,7 +37,7 @@ const ConfirmDialog = ({
                     </div>
                     <div>
                         <h3 className="font-bold text-midnight-indigo text-base">Xác nhận thao tác</h3>
-                        <p className="text-sm text-slate-blue mt-1 leading-relaxed">{message}</p>
+                        <p className="text-sm text-slate-blue mt-1 leading-relaxed whitespace-pre-line">{message}</p>
                     </div>
                 </div>
                 <div className="flex justify-end gap-2.5">

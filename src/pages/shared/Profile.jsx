@@ -1,4 +1,4 @@
-import { User } from 'lucide-react';
+import { User, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -318,7 +318,7 @@ const Profile = () => {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px]">
-                <div className="w-10 h-10 border-4 border-action-blue border-t-transparent rounded-full animate-spin"></div>
+                <Loader2 className="w-10 h-10 text-action-blue animate-spin" />
                 <p className="mt-4 text-slate-blue text-sm font-medium">Đang tải hồ sơ cá nhân...</p>
             </div>
         );

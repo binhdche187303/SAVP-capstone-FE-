@@ -8,11 +8,17 @@ export const getBiometricStatus = async () => get('/me/biometric-status');
  * @param {File} file
  * @param {boolean} consentAccepted
  */
+// Phát khi trạng thái sinh trắc học của chính người dùng thay đổi (vd: vừa nộp ảnh),
+// để menu tài khoản (useFaceStatus) cập nhật ngay mà không cần đăng nhập lại.
+export const BIOMETRIC_STATUS_EVENT = 'biometric-status-changed';
+
 export const submitBiometric = async (file, consentAccepted) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('consentAccepted', consentAccepted ? 'true' : 'false');
-    return post('/me/biometric-submission', formData);
+    const res = await post('/me/biometric-submission', formData);
+    if (res?.success) window.dispatchEvent(new Event(BIOMETRIC_STATUS_EVENT));
+    return res;
 };
 
 /**

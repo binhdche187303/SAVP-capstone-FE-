@@ -1,0 +1,39 @@
+.report-schedule-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+}
+
+.report-schedules-table .report-schedule-actions > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 32px;
+    width: 32px;
+    min-width: 32px !important;
+    height: 32px;
+    padding: 6px;
+}
+
+.report-schedule-actions > button > svg {
+    flex-shrink: 0;
+}
+
+.report-schedules-table th:last-child {
+    text-align: right;
+}
+
+.camai-table-container[data-table-layout="table"] > .report-schedules-table th {
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+}
+
+.camai-table-container[data-table-layout="table"] > .report-schedules-table.report-schedules-table > :is(thead, tbody) > tr > :is(th, td) {
+    padding-inline: 8px !important;
+}
+
+.camai-table-container[data-table-layout="cards"] .report-schedule-actions {
+    justify-content: flex-start;
+}

@@ -1,4 +1,4 @@
-import { AlertCircle, Check, RefreshCw, ScanFace, Shield } from 'lucide-react';
+import { AlertCircle, Check, RefreshCw, ScanFace, Shield, Loader2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserById } from '../../service/managerServices';
@@ -6,6 +6,7 @@ import { submitBiometric, updateSelfAvatar } from '../../service/avatarService';
 
 import { motion } from 'framer-motion';
 import useFaceGuidance from '../../hooks/useFaceGuidance';
+import { getCalendarRoleLabel } from '../../utils/calendarRoleLabel';
 
 /**
  * Face Registration Component for Manager with guided webcam scan
@@ -47,11 +48,16 @@ const ManagerFaceRegistration = () => {
                 getUserById(userObj.id).then(res => {
                     if (res?.success && res.data) {
                         setEmployeeCode(res.data.employeeCode || 'NV002');
+                        // Lấy chức danh mới nhất để tiêu đề hiển thị đúng chức vụ (BGH / Trưởng đơn vị).
+                        setCurrentUser(prev => ({ ...prev, leadershipTitle: res.data.leadershipTitle ?? prev?.leadershipTitle ?? null }));
                     }
                 }).catch(() => {});
             } catch (e) {}
         }
     }, []);
+
+    // Chức vụ hiển thị: thành viên Ban Giám hiệu theo chức danh, còn lại là Trưởng đơn vị (khớp ManagerLayout).
+    const positionLabel = currentUser?.leadershipTitle ? getCalendarRoleLabel(currentUser) : 'Trưởng đơn vị';
 
     // Stop webcam helper
     const stopWebcam = () => {
@@ -170,7 +176,7 @@ const ManagerFaceRegistration = () => {
         intervalMs: 150
     });
 
-    // Huỷ đếm ngược nếu mất điều kiện 'perfect' giữa chừng (che camera, mất mặt, quay đi...)
+    // Hủy đếm ngược nếu mất điều kiện 'perfect' giữa chừng (che camera, mất mặt, quay đi...)
     useEffect(() => {
         if (phase === 'countdown' && guidance.state !== 'perfect') {
             abortCountdown();
@@ -272,7 +278,7 @@ const ManagerFaceRegistration = () => {
                     <ScanFace className="w-3.5 h-3.5" />
                     Sinh trắc học
                 </span>
-                <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Đăng ký dữ liệu khuôn mặt FaceID (Quản lý)</h1>
+                <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Đăng ký dữ liệu khuôn mặt FaceID ({positionLabel})</h1>
                 <p className="text-slate-blue text-sm mt-1">
                     Liên kết khuôn mặt của bạn để sử dụng tính năng điểm danh và kiểm soát ra vào phòng họp.
                 </p>
@@ -426,7 +432,7 @@ const ManagerFaceRegistration = () => {
                             </>
                         ) : (
                             <div className="py-12 text-center text-slate-blue flex flex-col items-center gap-2">
-                                <RefreshCw className="w-8 h-8 text-action-blue animate-spin" />
+                                <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                 <span data-ui-text="primary" className="text-xs font-semibold mt-2">Đang kết nối webcam...</span>
                             </div>
                         )}
@@ -496,7 +502,7 @@ const ManagerFaceRegistration = () => {
             {/* STAGE 3: Submitting */}
             {step === 'submitting' && (
                 <div className="bg-white p-10 rounded-2xl border border-platinum-tint shadow-sm-2 flex flex-col items-center text-center space-y-6">
-                    <div className="w-14 h-14 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                    <Loader2 className="w-14 h-14 text-action-blue animate-spin" />
                     <div className="space-y-2">
                         <h2 className="text-lg font-bold text-midnight-indigo">Đang liên kết dữ liệu sinh trắc học</h2>
                         <p className="text-xs text-slate-blue max-w-sm leading-relaxed">
@@ -547,7 +553,7 @@ const ManagerFaceRegistration = () => {
                     <div className="space-y-2">
                         <h2 className="text-xl font-bold text-midnight-indigo">Đăng ký thành công FaceID</h2>
                         <p className="text-sm text-slate-blue max-w-md mx-auto leading-relaxed">
-                            Khuôn mặt của bạn đã được liên kết thành công vào tài khoản quản lý. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh ra vào các phòng họp VISMA IVA.
+                            Khuôn mặt của bạn đã được liên kết thành công vào tài khoản {positionLabel.toLowerCase()}. Bạn có thể sử dụng dữ liệu sinh trắc học này để điểm danh ra vào các phòng họp VISMA IVA.
                         </p>
                     </div>
 

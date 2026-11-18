@@ -10,11 +10,7 @@ import {
     releaseNoShowRoom,
     getAllNoShowCases
 } from '../../service/businessAdminServices';
-import {
-    Users, AlertTriangle, CheckCircle,
-    XCircle, Clock, Video, Eye, Unlock, RefreshCw,
-    WifiOff, LayoutGrid
-} from 'lucide-react';
+import { Users, AlertTriangle, CheckCircle, XCircle, Clock, Video, Eye, Unlock, RefreshCw, WifiOff, LayoutGrid, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const RealtimeRoomMonitor = () => {
@@ -415,7 +411,7 @@ const RealtimeRoomMonitor = () => {
                                 <tr>
                                     <td colSpan="6" className="px-4 py-6 text-center">
                                         <div className="flex items-center justify-center gap-2 text-slate-blue text-xs">
-                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Đang tải...
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tải...
                                         </div>
                                     </td>
                                 </tr>
@@ -643,7 +639,7 @@ const RealtimeRoomMonitor = () => {
                                         }`}
                                     >
                                         {isProcessing ? (
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            <Loader2 className="w-4 h-4 text-white animate-spin" />
                                         ) : (
                                             'Xác nhận'
                                         )}

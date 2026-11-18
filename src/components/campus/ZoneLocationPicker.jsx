@@ -50,7 +50,7 @@ const ZoneLocationPicker = ({ latitude, longitude, onChange }) => {
             <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold text-slate-blue uppercase">Vị trí trên bản đồ</label>
                 {(latitude !== '' || longitude !== '') && (
-                    <button type="button" onClick={() => onChange('', '')} className="text-xs text-red-500 hover:underline">Xoá vị trí</button>
+                    <button type="button" onClick={() => onChange('', '')} className="text-xs text-red-500 hover:underline">Xóa vị trí</button>
                 )}
             </div>
             <div className="flex gap-4 mb-2">

@@ -104,7 +104,7 @@ const TeacherHome = () => {
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {sessions.length === 0 ? (
                         <p className="col-span-full rounded-xl border border-dashed border-platinum-tint p-8 text-center text-sm text-slate-blue">
-                            {loading ? 'Đang tải…' : 'Ngày này không có buổi dạy.'}
+                            {loading ? 'Đang tải...' : 'Ngày này không có buổi dạy.'}
                         </p>
                     ) : sessions.map(session => {
                         const summary = summaries[session.classId] || EMPTY_SUMMARY;

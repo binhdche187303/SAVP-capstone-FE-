@@ -119,7 +119,7 @@ const ScheduleFormModal = ({ isOpen, initial, lookups = {}, onClose, onSaved }) 
             footer={(
                 <>
                     <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>Hủy</button>
-                    <button type="button" className={btnPrimary} onClick={save} disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu lịch gửi'}</button>
+                    <button type="button" className={btnPrimary} onClick={save} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu lịch gửi'}</button>
                 </>
             )}
         >

@@ -1,3 +1,4 @@
+import PageHeading from '../../components/common/PageHeading';
 import { AlertTriangle, Camera, ExternalLink, Layers, Map as MapIcon, MapPin, RefreshCw, Users } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -208,10 +209,10 @@ const CampusMap = () => {
         <div className="p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        <MapIcon className="w-6 h-6 text-blue-600" /> Bản đồ khuôn viên
-                    </h1>
-                    <p className="text-sm text-gray-500">
+                    <PageHeading as="h1" badge="Khuôn viên" icon={<MapIcon className="w-6 h-6 text-blue-600" />} className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                         Bản đồ khuôn viên
+                    </PageHeading>
+                    <p data-page-description className="text-sm text-gray-500">
                         Vị trí khu vực, trạng thái camera và cảnh báo an ninh. Tự cập nhật mỗi 60 giây.
                     </p>
                 </div>

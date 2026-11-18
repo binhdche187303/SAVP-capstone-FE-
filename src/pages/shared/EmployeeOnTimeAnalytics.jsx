@@ -1,3 +1,5 @@
+import PageHeading from '../../components/common/PageHeading';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import { reportPresetRange } from '../../components/common/ExportReportModal';
 import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
@@ -6,7 +8,7 @@ import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter from '../../components/common/PaginationFooter';
-import { Building2, Clock, Info, RefreshCw, TrendingUp, User, X } from 'lucide-react';
+import { Building2, Clock, Info, RefreshCw, TrendingUp, User, X, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -327,11 +329,10 @@ const EmployeeOnTimeAnalytics = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-platinum-tint pb-5">
                 <div>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <Clock className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Chuyên cần" icon={<Clock className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Tỷ lệ đúng giờ
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">
                         {isManager
                             ? `Số liệu thống kê đi muộn, vắng mặt của phòng ban bạn quản lý${managerDeptName ? `: ${managerDeptName}` : ''}`
                             : 'Xem số liệu thống kê đi muộn, vắng mặt theo phòng ban và tra cứu lịch sử chi tiết của nhân viên.'}
@@ -350,7 +351,7 @@ const EmployeeOnTimeAnalytics = () => {
                             {managerDeptName || 'Phòng ban của bạn'}
                         </div>
                     ) : (
-                        <select
+                        <FilterMultiSelect
                             value={departmentId}
                             onChange={(e) => setDepartmentId(e.target.value)}
                             className="px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-semibold bg-white"
@@ -359,7 +360,7 @@ const EmployeeOnTimeAnalytics = () => {
                             {departments.map(dept => (
                                 <option key={dept.id} value={dept.id}>{dept.departmentName}</option>
                             ))}
-                        </select>
+                        </FilterMultiSelect>
                     )}
                 </div>
 
@@ -376,7 +377,7 @@ const EmployeeOnTimeAnalytics = () => {
                             className="w-full px-3 py-2 bg-slate-50 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-semibold pr-8"
                         />
                         {searchingUsers ? (
-                            <div className="absolute right-2 top-2.5 w-3.5 h-3.5 border-2 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />
+                            <Loader2 className="absolute right-2 top-2.5 w-3.5 h-3.5 text-action-blue animate-spin" />
                         ) : searchQuery && (
                             <button onClick={() => { setSearchQuery(''); setSuggestions([]); }}
                                 className="absolute right-2 top-2 text-slate-blue hover:text-midnight-indigo">
@@ -464,7 +465,7 @@ const EmployeeOnTimeAnalytics = () => {
                                 <p data-ui-text="secondary" className="text-[10px] text-slate-blue mt-0.5">Số lượt đúng giờ · đến muộn · vắng mặt trên tổng lịch bắt buộc</p>
                             </div>
                             {memberLoading && (
-                                <div className="w-4 h-4 border-2 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />
+                                <Loader2 className="w-4 h-4 text-action-blue animate-spin" />
                             )}
                         </div>
                         <div className="overflow-x-auto">

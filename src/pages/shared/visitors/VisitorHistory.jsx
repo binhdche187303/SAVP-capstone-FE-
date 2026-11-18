@@ -1,3 +1,6 @@
+import { totalOf, useFacetCounts } from '../../../hooks/useFilterCounts';
+import PageHeading from '../../../components/common/PageHeading';
+import FilterMultiSelect from '../../../components/common/FilterMultiSelect';
 import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
 import PaginatedCollection from '../../../components/common/PaginatedCollection';
 import ReportExportButton from '../../../components/common/ReportExportButton';
@@ -66,6 +69,10 @@ const VisitorHistory = () => {
         return () => clearTimeout(timer);
     }, [query, filters.q]);
 
+    // Số đếm cạnh lựa chọn ô "Đơn vị tiếp" (theo các bộ lọc khác; hook bỏ qua nếu quá nhiều đơn vị).
+    const deptCounts = useFacetCounts(filters, 'departmentId', lookups.departments.map((d) => d.id),
+        (f) => listVisits({ ...f, page: 1, limit: 1 }).then(totalOf));
+
     const load = useCallback(async () => {
         setLoading(true);
         try {
@@ -116,14 +123,13 @@ const VisitorHistory = () => {
             <ExportModeDialog isOpen={askMode} formats={['xlsx', 'pdf', 'docx']} reportType="visitor" initialRange={{ from: filters.from, to: filters.to }} filterSummary={[filters.q ? `Tìm kiếm: ${filters.q}` : 'Tất cả khách', filters.departmentId ? `Đơn vị: ${lookups.departments.find(item => item.id === filters.departmentId)?.name || filters.departmentId}` : 'Tất cả đơn vị']} onClose={() => setAskMode(false)} onConfirm={runExport} />
             <div className="border-b border-platinum-tint pb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <History className="w-6 h-6 text-action-blue" />
+                    <PageHeading badge="Khách" icon={<History className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Lịch sử khách đến
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">Tra cứu mọi lượt khách theo người, đơn vị và thời gian, kèm các mốc camera ghi nhận.</p>
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">Tra cứu mọi lượt khách theo người, đơn vị và thời gian, kèm các mốc camera ghi nhận.</p>
                 </div>
                 <ReportExportButton label="Xuất báo cáo" busy={exporting} type="button" legacyClassName={btnGhost} onClick={exportExcel} disabled={exporting}>
-                    <Download className="w-4 h-4" /> {exporting ? 'Đang xuất…' : 'Xuất báo cáo'}
+                    <Download className="w-4 h-4" /> {exporting ? 'Đang xuất...' : 'Xuất báo cáo'}
                 </ReportExportButton>
             </div>
 
@@ -138,10 +144,10 @@ const VisitorHistory = () => {
                     </div>
                     <div className="camai-filter-field space-y-1">
                         <label className={labelCls} htmlFor="vh-dep">Đơn vị tiếp</label>
-                        <select id="vh-dep" className={inputCls} value={filters.departmentId} onChange={(e) => change({ departmentId: e.target.value })}>
+                        <FilterMultiSelect id="vh-dep" counts={deptCounts} className={inputCls} value={filters.departmentId} onChange={(e) => change({ departmentId: e.target.value })}>
                             <option value="">Tất cả</option>
                             {lookups.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                        </select>
+                        </FilterMultiSelect>
                     </div>
                 </div>
                 <div className="visitor-list-filter-time">
@@ -175,25 +181,31 @@ const VisitorHistory = () => {
                     <table className="visitor-history-table w-full table-fixed">
                         <colgroup>
                             <col className="w-[9%]" />
-                            <col className="w-[9%]" />
-                            <col className="w-[9%]" />
+                            <col className="w-[10%]" />
+                            <col className="w-[10%]" />
                             <col className="w-[17%]" />
-                            <col className="w-[8%]" />
+                            <col className="w-[9%]" />
                             <col className="w-[9%]" />
                             <col className="w-[9%]" />
                             <col className="w-[5%]" />
-                            <col className="w-[5%]" />
-                            <col className="w-[14%]" />
                             <col className="w-[6%]" />
+                            <col className="w-[11%]" />
+                            <col className="w-[5%]" />
                         </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
-                                {['Giờ hẹn', 'Khách', 'Đơn vị công tác', 'Người gặp / Đơn vị tiếp', 'Mục đích', 'Giờ vào', 'Giờ ra', 'Lưu trú', 'Độ khớp', 'Trạng thái', ''].map((h) => <th key={h} title={h} className={historyThCls}>{h === 'Người gặp / Đơn vị tiếp' ? <><span className="block whitespace-nowrap">Người gặp /</span>{' '}<span className="block whitespace-nowrap">Đơn vị tiếp</span></> : h}</th>)}
+                                {['Giờ hẹn', 'Khách', 'Đơn vị công tác', 'Người gặp / Đơn vị tiếp', 'Mục đích', 'Giờ vào', 'Giờ ra', 'Lưu trú', 'Độ khớp', 'Trạng thái', ''].map((h) => (
+                                    <th key={h} title={h} className={historyThCls}>
+                                        {h === 'Người gặp / Đơn vị tiếp'
+                                            ? <><span className="block whitespace-nowrap">Người gặp /</span>{' '}<span className="block whitespace-nowrap">Đơn vị tiếp</span></>
+                                            : h === 'Độ khớp' ? <span className="visitor-history-nowrap">Độ khớp</span> : h}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
                             {items.length === 0 ? (
-                                <tr><td colSpan={11} className="px-4 py-10 text-center text-xs text-slate-blue">{data ? 'Không có lượt khách nào trong khoảng đã chọn' : 'Đang tải dữ liệu…'}</td></tr>
+                                <tr><td colSpan={11} className="px-4 py-10 text-center text-xs text-slate-blue">{data ? 'Không có lượt khách nào trong khoảng đã chọn' : 'Đang tải dữ liệu...'}</td></tr>
                             ) : items.map((visit) => (
                                 <tr key={visit.id} className="border-b border-pale-gray last:border-0 hover:bg-cloud-mist/40">
                                     <td data-label="Giờ hẹn" className={historyTdCls}>

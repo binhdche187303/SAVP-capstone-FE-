@@ -5,6 +5,7 @@ import {
     Loader2, Search, Trash2, UserPlus, Mail
 } from 'lucide-react';
 import { getUsers } from '../../service/employeeServices';
+import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 import { 
     createMinutesShare, 
     getMinutesShares, 
@@ -29,6 +30,9 @@ const ShareMinutesModal = ({ minutesId, open, onClose }) => {
     const [searchResults, setSearchResults] = useState([]);
     const [searchingUsers, setSearchingUsers] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const debouncedSearchQuery = useDebouncedValue(searchQuery);
+    // Lọc ngay gợi ý đang có trong lúc chờ BE trả kết quả cho từ khoá mới.
+    const visibleResults = useInstantFilter(searchResults, searchQuery, searchQuery !== debouncedSearchQuery || searchingUsers);
 
     // Form submission / actions state
     const [submitting, setSubmitting] = useState(false);
@@ -55,16 +59,18 @@ const ShareMinutesModal = ({ minutesId, open, onClose }) => {
 
     // Fetch users based on search query
     useEffect(() => {
-        if (!searchQuery.trim()) {
+        if (!debouncedSearchQuery.trim()) {
             setSearchResults([]);
+            setSearchingUsers(false);
             return;
         }
 
-        const delayDebounce = setTimeout(async () => {
+        let cancelled = false;
+        (async () => {
             setSearchingUsers(true);
             try {
-                const res = await getUsers({ search: searchQuery });
-                if (res?.success && Array.isArray(res.data)) {
+                const res = await getUsers({ search: debouncedSearchQuery.trim() });
+                if (!cancelled && res?.success && Array.isArray(res.data)) {
                     // Filter out users who already have access
                     const sharedUserIds = shares.map(s => s.userId || s.user_id || s.user?.id);
                     const filtered = res.data.filter(u => !sharedUserIds.includes(u.id));
@@ -73,12 +79,12 @@ const ShareMinutesModal = ({ minutesId, open, onClose }) => {
             } catch (e) {
                 console.error(e);
             } finally {
-                setSearchingUsers(false);
+                if (!cancelled) setSearchingUsers(false);
             }
-        }, 300);
+        })();
 
-        return () => clearTimeout(delayDebounce);
-    }, [searchQuery, shares]);
+        return () => { cancelled = true; };
+    }, [debouncedSearchQuery, shares]);
 
     useEffect(() => {
         if (open) {
@@ -207,9 +213,9 @@ const ShareMinutesModal = ({ minutesId, open, onClose }) => {
                         )}
 
                         {/* Search Results Dropdown */}
-                        {searchResults.length > 0 && !selectedUser && (
+                        {searchQuery.trim() && visibleResults.length > 0 && !selectedUser && (
                             <div className="absolute left-0 right-0 top-[60px] bg-white border border-platinum-tint rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto overflow-x-hidden p-1.5 space-y-1">
-                                {searchResults.map(u => (
+                                {visibleResults.map(u => (
                                     <div
                                         key={u.id}
                                         onClick={() => {

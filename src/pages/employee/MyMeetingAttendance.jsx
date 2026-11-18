@@ -1,9 +1,25 @@
+import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
+import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle, Clock, MapPin, RefreshCw, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Filter, MapPin, RefreshCw, XCircle } from 'lucide-react';
 import { getMyMeetingHistory } from '../../service/employeeServices';
 import { getUserPresence } from '../../service/managerServices';
+import { CALENDAR_TYPES } from '../../mocks/meetingCalendarMock';
+import { filterValues } from '../../utils/filterSelection';
+import { calendarViewRange, dateKey, isSameDay } from '../../utils/calendarRange';
+import { toCalendarTypeApi } from '../../utils/calendarType';
+import './PersonalCalendarFilters.css';
+
+// Bộ lọc giống tab Lịch: trạng thái chỉ gồm cuộc họp đã/đang diễn ra (mới có dữ liệu có mặt).
+const STATUS_OPTIONS = [
+    { value: 'in_progress', label: 'Đang diễn ra' },
+    { value: 'completed', label: 'Đã kết thúc' },
+];
+const ALL_STATUSES = STATUS_OPTIONS.map(o => o.value);
 
 // "Lịch sử tham dự" — điểm danh họp của CHÍNH MÌNH: lịch sử họp đã kết thúc (/me/meetings/history)
 // + thời lượng có mặt IVSS của user hiện tại (BE chỉ cho EMPLOYEE xem bản thân — SELF_ONLY).
@@ -30,12 +46,35 @@ const MyMeetingAttendance = () => {
     const [hasMore, setHasMore] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [typeFilter, setTypeFilter] = useState('');
+    const [viewMode, setViewMode] = useState('month'); // 'day' | 'week' | 'month'
+    const [currentDate, setCurrentDate] = useState(() => new Date());
+
+    // Đổi bộ lọc thì quay về trang 1.
+    const applyFilter = (fn) => { fn(); setPage(1); };
+    const resetFilters = () => applyFilter(() => {
+        setStatusFilter('');
+        setTypeFilter('');
+        setViewMode('month');
+        setCurrentDate(new Date());
+    });
 
     const load = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
-            const res = await getMyMeetingHistory({ status: ['completed'], page, limit: PAGE_SIZE });
+            const range = calendarViewRange(currentDate, viewMode);
+            const statuses = filterValues(statusFilter);
+            const calendarTypes = filterValues(typeFilter).map(toCalendarTypeApi).filter(Boolean);
+            const res = await getMyMeetingHistory({
+                status: statuses.length ? statuses : ALL_STATUSES,
+                ...(calendarTypes.length ? { calendarType: calendarTypes } : {}),
+                from: range.from,
+                to: range.to,
+                page,
+                limit: PAGE_SIZE,
+            });
             if (!res?.success) throw new Error(res?.message || 'Không tải được lịch sử họp.');
             const meetings = res.data?.items || res.data || [];
             const totalPages = res.data?.totalPages ?? res.meta?.totalPages;
@@ -56,16 +95,35 @@ const MyMeetingAttendance = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, PAGE_SIZE]);
+    }, [page, PAGE_SIZE, statusFilter, typeFilter, viewMode, currentDate]);
 
     useEffect(() => { load(); }, [load]);
 
+    // Số đếm cạnh lựa chọn ô Trạng thái / Loại lịch (mỗi ô đếm theo các bộ lọc khác, cùng khoảng ngày).
+    const historyRange = calendarViewRange(currentDate, viewMode);
+    const historyFilters = { status: statusFilter, type: typeFilter, from: historyRange.from, to: historyRange.to };
+    const historyTotal = (f) => {
+        const statuses = filterValues(f.status);
+        const types = filterValues(f.type).map(toCalendarTypeApi).filter(Boolean);
+        return getMyMeetingHistory({
+            status: statuses.length ? statuses : ALL_STATUSES,
+            ...(types.length ? { calendarType: types } : {}),
+            from: f.from,
+            to: f.to,
+            page: 1,
+            limit: 1,
+        }).then(totalOf);
+    };
+    const statusCounts = useFacetCounts(historyFilters, 'status', ALL_STATUSES, historyTotal);
+    const typeCounts = useFacetCounts(historyFilters, 'type', Object.keys(CALENDAR_TYPES), historyTotal);
+
     return (
-        <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-platinum-tint flex items-center justify-between">
+        <div className="space-y-4">
+            {/* Tiêu đề nằm ngoài card — chỉ danh sách cuộc họp có khung */}
+            <div className="flex items-center justify-between gap-3">
                 <div>
                     <h2 className="text-sm font-bold text-midnight-indigo uppercase tracking-wide">Lịch sử tham dự họp</h2>
-                    <p className="text-xs text-slate-blue mt-1">Thời gian có mặt của bạn trong các cuộc họp đã kết thúc (camera nhận diện).</p>
+                    <p className="text-xs text-slate-blue mt-1">Thời gian có mặt của bạn trong các cuộc họp đang diễn ra hoặc đã kết thúc (camera nhận diện).</p>
                 </div>
                 <RefreshButton
                     type="button"
@@ -78,10 +136,48 @@ const MyMeetingAttendance = () => {
                 </RefreshButton>
             </div>
 
+            <FilterBar forceStandard variant="card" className="personal-calendar-filters">
+                <div className="personal-calendar-filter-main">
+                    <FilterField label="Trạng thái cuộc họp">
+                        <FilterMultiSelect singleSelect counts={statusCounts} value={statusFilter} onChange={e => applyFilter(() => setStatusFilter(e.target.value))}>
+                            <option value="">Tất cả trạng thái</option>
+                            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </FilterMultiSelect>
+                    </FilterField>
+                    <FilterField label="Loại lịch">
+                        <FilterMultiSelect counts={typeCounts} value={typeFilter} onChange={e => applyFilter(() => setTypeFilter(e.target.value))}>
+                            <option value="">Tất cả loại lịch</option>
+                            {Object.entries(CALENDAR_TYPES).map(([key, type]) => <option key={key} value={key}>{type.label}</option>)}
+                        </FilterMultiSelect>
+                    </FilterField>
+                </div>
+                <div className="personal-calendar-filter-time">
+                    <TimeRangeButtons label="Khoảng thời gian"
+                        value={viewMode === 'day' ? (isSameDay(currentDate, new Date()) ? 'today' : '') : viewMode}
+                        onChange={mode => applyFilter(() => {
+                            if (mode === 'today') { setViewMode('day'); setCurrentDate(new Date()); }
+                            else setViewMode(mode);
+                        })} options={[["today", "Hôm nay"], ["week", "Tuần"], ["month", "Tháng"]]} />
+                    <FilterField label="Ngày xem lịch">
+                        <input type="date" value={dateKey(currentDate)} onChange={event => {
+                            if (!event.target.value) return;
+                            const date = new Date(`${event.target.value}T00:00:00`);
+                            applyFilter(() => setCurrentDate(date));
+                        }} />
+                    </FilterField>
+                    <button type="button" data-filter-action onClick={resetFilters}
+                        className="personal-calendar-reset px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors">
+                        <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
+                    </button>
+                </div>
+            </FilterBar>
+
+            <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
+
             {error && <div className="m-5 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
 
             {!error && !loading && rows.length === 0 && (
-                <p className="py-12 text-center text-sm text-slate-blue">Bạn chưa có cuộc họp nào đã kết thúc.</p>
+                <p className="py-12 text-center text-sm text-slate-blue">Không có cuộc họp nào khớp với bộ lọc trong khoảng thời gian này.</p>
             )}
 
             <div className="divide-y divide-platinum-tint">
@@ -128,6 +224,7 @@ const MyMeetingAttendance = () => {
                     <button type="button" disabled={!hasMore || loading} onClick={() => setPage(p => p + 1)} className="px-3 py-1.5 rounded-lg border border-platinum-tint text-xs font-semibold disabled:opacity-50">Sau</button>
                 </div>}
                 /></PaginationRegion>}
+            </div>
         </div>
     );
 };

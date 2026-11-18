@@ -191,7 +191,7 @@ export const subscribeToZonePresence = (zoneId, onUpdate) => {
   };
 };
 
-// Gọi khi logout: huỷ socket đang mang token của người dùng cũ và xoá mọi ý
+// Gọi khi logout: hủy socket đang mang token của người dùng cũ và xóa mọi ý
 // định subscribe, để phiên đăng nhập kế tiếp tạo socket mới với token mới.
 export const resetSocket = () => {
   meetingRoomRefs.clear();

@@ -136,7 +136,7 @@ const AttendanceWarningsPanel = ({ semester, subjectCode, administrativeClass, o
                         <tbody>
                             {loading && (
                                 <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-blue">
-                                    <Loader2 className="w-4 h-4 animate-spin inline mr-2" />Đang tính cảnh báo…
+                                    <Loader2 className="w-4 h-4 animate-spin inline mr-2" />Đang tính cảnh báo...
                                 </td></tr>
                             )}
                             {!loading && rows.length === 0 && (

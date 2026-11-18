@@ -4,6 +4,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
 import logo from '../../../assets/images/logo.png';
 import BiometricReminderModal from '../../../components/biometric/BiometricReminderModal';
+import FaceMenuItem, { FaceAlertDot, useFaceStatus } from '../../../components/biometric/FaceMenuItem';
 import UserAvatar from '../../../components/common/UserAvatar';
 import ChangePasswordModal from '../../../components/auth/ChangePasswordModal';
 import NotificationBell from '../../../components/common/NotificationBell';
@@ -176,6 +177,12 @@ const EmployeeLayout = () => {
         navigate('/employee/my-vehicles');
     }, [navigate]);
 
+    const faceInfo = useFaceStatus();
+    const handleFaceRegister = useCallback(() => {
+        setIsProfileMenuOpen(false);
+        navigate('/employee/face-register');
+    }, [navigate]);
+
     const handleChangePassword = useCallback(() => {
         setIsProfileMenuOpen(false);
         setIsChangePasswordOpen(true);
@@ -307,11 +314,14 @@ const EmployeeLayout = () => {
                                     </span>
                                 </div>
 
-                                <UserAvatar
-                                    user={currentUser}
-                                    name={displayName}
-                                    className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20"
-                                />
+                                <span className="relative shrink-0">
+                                    <UserAvatar
+                                        user={currentUser}
+                                        name={displayName}
+                                        className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20"
+                                    />
+                                    <FaceAlertDot faceInfo={faceInfo} />
+                                </span>
 
                                 <svg
                                     className={`w-4 h-4 text-slate-blue transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''
@@ -329,7 +339,7 @@ const EmployeeLayout = () => {
                                 <div
                                     role="menu"
                                     aria-label="User menu"
-                                    className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-outline-gray bg-white shadow-sm-2 overflow-hidden animate-fade-in"
+                                    className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-outline-gray bg-white shadow-sm-2 overflow-hidden animate-fade-in"
                                 >
                                     <div className="px-4 py-3 border-b border-outline-gray bg-cloud-mist">
                                         <p className="text-sm font-semibold text-midnight-indigo truncate">{displayName}</p>
@@ -349,6 +359,8 @@ const EmployeeLayout = () => {
                                             </svg>
                                             Hồ sơ cá nhân
                                         </button>
+
+                                        <FaceMenuItem faceInfo={faceInfo} onClick={handleFaceRegister} />
 
                                         <button
                                             type="button"
@@ -469,7 +481,7 @@ const EmployeeLayout = () => {
             </div>
 
             {/* ========== MAIN CONTENT ========== */}
-            <main data-page-frame="wide" className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
+            <main data-page-frame="contained" className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
                 <Outlet />
                 <BiometricReminderModal />
                 <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />

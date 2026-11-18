@@ -4,7 +4,10 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, Calendar, CheckCircle, CheckCircle2, Clock, Eye, FileText, Info, LayoutGrid, List, MapPin, Search, UserX, Users, X, XCircle } from 'lucide-react';
+import StatisticCard from '../../components/common/StatisticCard';
+import StatisticGrid from '../../components/common/StatisticGrid';
+import './MeetingApprovals.css';
+import { AlertTriangle, Calendar, CheckCircle, CheckCircle2, Clock, Eye, FileText, Filter, Info, LayoutGrid, List, MapPin, Search, UserX, Users, X, XCircle, Loader2 } from 'lucide-react';
 import { htmlToPlainText } from '../../utils/richText';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
@@ -17,6 +20,7 @@ import {
     rejectMeetingRequest
 } from '../../service/managerServices';
 import { subscribeToMeetingRequestUpdates } from '../../utils/socket';
+import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 
 // Lịch tuần UEL: nhãn nhóm lịch của yêu cầu
 const CALENDAR_TYPE_BADGES = {
@@ -42,6 +46,14 @@ const itemVariants = {
     hidden: { opacity: 0, y: 10 },
     show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100 } }
 };
+
+const APPROVAL_STATUSES = [
+    { key: 'pending', label: 'Chờ phê duyệt', icon: Clock, tone: 'warning' },
+    { key: 'approved', label: 'Đã phê duyệt', icon: CheckCircle2, tone: 'success' },
+    { key: 'rejected', label: 'Đã từ chối', icon: XCircle, tone: 'danger' },
+    { key: 'expired', label: 'Hết hạn', icon: AlertTriangle, tone: 'warning' },
+    { key: 'all', label: 'Tất cả yêu cầu', icon: FileText, tone: 'default' },
+];
 
 /**
  * Mức độ xung đột PHÒNG (không tính xung đột người — xem
@@ -336,6 +348,11 @@ const MeetingApprovals = () => {
 
     // List & pagination states
     const [requests, setRequests] = useState([]);
+    const conflictColumnWidth = useMemo(() => {
+        if (requests.some(req => getRoomConflictLevel(req) === 'pending')) return 224;
+        if (requests.some(req => getParticipantConflictInfo(req).hasConflict)) return 176;
+        return 144;
+    }, [requests]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [successMsg, setSuccessMsg] = useState(null);
@@ -346,12 +363,17 @@ const MeetingApprovals = () => {
     // Filter states
     const [statusFilter, setStatusFilter] = useState('pending'); // 'pending' | 'approved' | 'rejected' | 'expired' | 'all'
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchVal, setSearchVal] = useState(''); // Triggered on search submit
+    // Tìm khi gõ: gửi từ khoá lên BE sau khi ngừng gõ, lọc tại chỗ trong lúc chờ.
+    const searchVal = useDebouncedValue(searchQuery);
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    const [statusCounts, setStatusCounts] = useState({});
+    const [countsLoading, setCountsLoading] = useState(true);
+    const countsSequence = useRef(0);
+    const requestsSequence = useRef(0);
 
     // Modal states
     const [selectedRequest, setSelectedRequest] = useState(null);
@@ -367,6 +389,7 @@ const MeetingApprovals = () => {
 
     // Fetch meeting requests
     const fetchRequests = useCallback(async () => {
+        const sequence = ++requestsSequence.current;
         setLoading(true);
         setError(null);
         try {
@@ -379,6 +402,7 @@ const MeetingApprovals = () => {
                 to: toDate || undefined
             };
             const res = await getPendingMeetingRequests(params);
+            if (sequence !== requestsSequence.current) return;
             if (res?.success) {
                 const dataItems = Array.isArray(res.data) ? res.data : (res.data?.items || []);
                 setRequests(dataItems);
@@ -397,23 +421,55 @@ const MeetingApprovals = () => {
                 setError(res?.message || 'Không thể tải danh sách yêu cầu.');
             }
         } catch (err) {
+            if (sequence !== requestsSequence.current) return;
             setRequests([]);
             setError(err?.error?.message || 'Có lỗi xảy ra khi kết nối máy chủ.');
         } finally {
-            setLoading(false);
+            if (sequence === requestsSequence.current) setLoading(false);
         }
     }, [statusFilter, currentPage, searchVal, fromDate, toDate, limit]);
 
+    const visibleRequests = useInstantFilter(requests, searchQuery, searchQuery !== searchVal || loading);
+
+    // Ask for totals, rather than counting only the currently visible page.
+    const fetchStatusCounts = useCallback(async () => {
+        const sequence = ++countsSequence.current;
+        setCountsLoading(true);
+        const results = await Promise.allSettled(APPROVAL_STATUSES.map(async status => {
+            const res = await getPendingMeetingRequests({
+                approvalStatus: status.key, page: 1, limit: 1,
+                q: searchVal.trim() || undefined,
+                from: fromDate || undefined, to: toDate || undefined,
+            });
+            if (!res?.success) return null;
+            const items = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+            return (res.meta || res.data?.meta)?.total ?? items.length;
+        }));
+        if (sequence !== countsSequence.current) return;
+        setStatusCounts(Object.fromEntries(APPROVAL_STATUSES.map((status, index) => [
+            status.key, results[index].status === 'fulfilled' ? results[index].value : null,
+        ])));
+        setCountsLoading(false);
+    }, [searchVal, fromDate, toDate]);
+
+    const refreshRequests = useCallback(() => Promise.all([fetchRequests(), fetchStatusCounts()]), [fetchRequests, fetchStatusCounts]);
+
     useEffect(() => {
         fetchRequests();
+        return () => { requestsSequence.current++; };
     }, [fetchRequests]);
+
+    useEffect(() => {
+        fetchStatusCounts();
+        return () => { countsSequence.current++; };
+    }, [fetchStatusCounts]);
 
     // Realtime: BE bắn `meeting_request.updated` khi có yêu cầu mới/được
     // duyệt/từ chối/hết hạn (room user:{userId}, chỉ join được nếu có quyền
     // meeting_request.read). Dùng ref để giữ fetchRequests mới nhất mà không
     // phải subscribe/unsubscribe lại mỗi khi filter đổi.
-    const fetchRequestsRef = useRef(fetchRequests);
-    fetchRequestsRef.current = fetchRequests;
+    const fetchRequestsRef = useRef(refreshRequests);
+    fetchRequestsRef.current = refreshRequests;
 
     useEffect(() => {
         const unsubscribe = subscribeToMeetingRequestUpdates(() => {
@@ -448,17 +504,9 @@ const MeetingApprovals = () => {
         setCurrentPage(1); // Reset page on tab change
     };
 
-    // Apply Search
-    const handleSearchSubmit = (e) => {
-        e.preventDefault();
-        setSearchVal(searchQuery);
-        setCurrentPage(1);
-    };
-
     // Reset Filters
     const handleResetFilters = () => {
         setSearchQuery('');
-        setSearchVal('');
         setFromDate('');
         setToDate('');
         setCurrentPage(1);
@@ -487,7 +535,7 @@ const MeetingApprovals = () => {
                 setDecisionNote('');
                 setConflictAcknowledged(false);
                 setSelectedRequest(null);
-                fetchRequests();
+                refreshRequests();
             } else {
                 throw new Error(res?.error?.message || res?.message || 'Thao tác phê duyệt thất bại.');
             }
@@ -514,7 +562,7 @@ const MeetingApprovals = () => {
                 setDetailModalOpen(false);
                 setRejectionReason('');
                 setSelectedRequest(null);
-                fetchRequests();
+                refreshRequests();
             } else {
                 throw new Error(res?.error?.message || res?.message || 'Thao tác từ chối thất bại.');
             }
@@ -560,7 +608,7 @@ const MeetingApprovals = () => {
                     </p>
                 </div>
                 <RefreshButton
-                    onClick={() => fetchRequests()}
+                    onClick={refreshRequests}
                     busy={loading}
                 />
             </div>
@@ -597,9 +645,20 @@ const MeetingApprovals = () => {
                 )}
             </AnimatePresence>
 
+            <StatisticGrid columns={5}>
+                {APPROVAL_STATUSES.map(status => (
+                    <StatisticCard key={status.key}
+                        label={status.label} value={statusCounts[status.key]}
+                        icon={status.icon} tone={status.tone} loading={countsLoading}
+                        selected={statusFilter === status.key}
+                        onClick={() => handleTabChange(status.key)}
+                    />
+                ))}
+            </StatisticGrid>
+
             {/* Filters panel */}
             <FilterBar as={motion.div} variant="card" variants={itemVariants} className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
-                <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-end justify-between">
+                <form onSubmit={(e) => e.preventDefault()} className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-end justify-between">
                     <div data-filter-grid data-filter-fields className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 flex-1">
                         {/* Search keyword */}
                         <div className="camai-filter-field relative">
@@ -610,7 +669,7 @@ const MeetingApprovals = () => {
                                     type="text"
                                     placeholder="Tên cuộc họp, người tạo..."
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                                     className="w-full pl-10 pr-4 py-2 border border-platinum-tint rounded-xl text-xs focus:outline-none focus:border-action-blue text-midnight-indigo font-medium"
                                 />
                             </div>
@@ -645,55 +704,31 @@ const MeetingApprovals = () => {
                         <button data-filter-action
                             type="button"
                             onClick={handleResetFilters}
-                            className="px-4 py-2 border border-platinum-tint hover:bg-cloud-mist rounded-xl text-xs font-bold text-slate-blue transition-all"
+                            className="px-4 py-2 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors"
                         >
-                            Đặt lại bộ lọc
-                        </button>
-                        <button data-filter-action
-                            type="submit"
-                            className="px-5 py-2 bg-action-blue hover:bg-action-blue/90 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                        >
-                            <Search className="w-3.5 h-3.5" /> Tìm kiếm
+                            <Filter className="w-4 h-4 inline mr-2" /> Xóa bộ lọc
                         </button>
                     </div>
                 </form>
             </FilterBar>
 
-            {/* Status tabs */}
-            <motion.div variants={itemVariants} className="flex flex-wrap max-w-full border-b border-platinum-tint gap-1 bg-white p-1 rounded-xl border border-platinum-tint/80 shadow-sm w-fit">
-                {[
-                    { key: 'pending', label: 'Chờ phê duyệt' },
-                    { key: 'approved', label: 'Đã phê duyệt' },
-                    { key: 'rejected', label: 'Đã từ chối' },
-                    { key: 'expired', label: 'Hết hạn' },
-                    { key: 'all', label: 'Tất cả yêu cầu' }
-                ].map(tab => (
-                    <button
-                        key={tab.key}
-                        onClick={() => handleTabChange(tab.key)}
-                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${statusFilter === tab.key
-                            ? 'bg-action-blue text-white shadow-sm'
-                            : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist/50'
-                            }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </motion.div>
-
             {/* View Mode Toggle */}
             <motion.div variants={itemVariants} className="flex justify-end mb-2">
                 <div className="flex bg-cloud-mist/30 p-1 rounded-xl border border-platinum-tint shadow-sm">
                     <button
+                        type="button"
+                        aria-pressed={viewMode === 'grid'}
                         onClick={() => setViewMode('grid')}
                         className={`p-2 rounded-lg flex items-center gap-2 text-xs font-bold transition-all ${viewMode === 'grid'
                             ? 'bg-white text-action-blue shadow-sm'
                             : 'text-slate-blue hover:text-midnight-indigo hover:bg-white/50'
                             }`}
                     >
-                        <LayoutGrid className="w-4 h-4" /> Grid
+                        <LayoutGrid className="w-4 h-4" /> Dạng thẻ
                     </button>
                     <button
+                        type="button"
+                        aria-pressed={viewMode === 'list'}
                         onClick={() => setViewMode('list')}
                         className={`p-2 rounded-lg flex items-center gap-2 text-xs font-bold transition-all ${viewMode === 'list'
                             ? 'bg-white text-action-blue shadow-sm'
@@ -708,19 +743,19 @@ const MeetingApprovals = () => {
             {/* Main Requests Container */}
             <motion.div variants={itemVariants} className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
                 <div className={viewMode === 'list' ? 'overflow-x-auto' : ''}>
-                    {loading ? (
+                    {loading && (!searchQuery.trim() || visibleRequests.length === 0) ? (
                         <div className="p-16 flex flex-col items-center justify-center text-slate-blue gap-3">
-                            <div className="w-9 h-9 border-3 border-action-blue border-t-transparent rounded-full animate-spin" />
+                            <Loader2 className="w-9 h-9 text-action-blue animate-spin" />
                             <span data-ui-text="primary" className="text-xs font-bold">Đang tải danh sách yêu cầu đặt lịch họp...</span>
                         </div>
-                    ) : requests.length === 0 ? (
+                    ) : visibleRequests.length === 0 ? (
                         <div className="p-16 text-center text-slate-blue font-medium flex flex-col items-center gap-2.5">
                             <FileText className="w-10 h-10 text-platinum-tint" />
                             <span className="text-sm">Không tìm thấy yêu cầu đặt lịch họp nào phù hợp với bộ lọc hiện tại.</span>
                         </div>
                     ) : viewMode === 'grid' ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-cloud-mist/10">
-                            {requests.map(req => {
+                            {visibleRequests.map(req => {
                                 const conflictLevel = getRoomConflictLevel(req);
                                 const participantInfo = getParticipantConflictInfo(req);
                                 return (
@@ -736,27 +771,27 @@ const MeetingApprovals = () => {
                                             </div>
                                             <div className="flex shrink-0">
                                                 {req.approvalStatus === 'pending' && (
-                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                                         Chờ duyệt
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'approved' && (
-                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                         Đã duyệt
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'rejected' && (
-                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                                                         Từ chối
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'expired' && (
-                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-300 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-300">
                                                         Hết hạn
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'cancelled' && (
-                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-50 text-gray-600 border border-gray-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-50 text-gray-700 border border-gray-200">
                                                         Đã hủy
                                                     </span>
                                                 )}
@@ -878,20 +913,20 @@ const MeetingApprovals = () => {
                             })}
                         </div>
                     ) : (
-                        <ResponsiveTable className="w-full text-left border-collapse min-w-[900px]">
+                        <ResponsiveTable minTableWidth={1036 + conflictColumnWidth} className="w-full text-left border-collapse meeting-approvals-table">
 <colgroup>
-<col style={{ width: '9%' }} />
-<col style={{ width: '21%' }} />
-<col style={{ width: '21%' }} />
-<col style={{ width: '13%' }} />
-<col style={{ width: '13%' }} />
-<col style={{ width: '6%' }} />
-<col style={{ width: '11%' }} />
-<col style={{ width: '6%' }} />
+<col style={{ width: '140px' }} />
+<col />
+<col style={{ width: '15%' }} />
+<col style={{ width: '10%' }} />
+<col style={{ width: '148px' }} />
+<col style={{ width: `${conflictColumnWidth}px` }} />
+<col style={{ width: '144px' }} />
+<col style={{ width: '128px' }} />
 </colgroup>
                             <thead>
                                 <tr className="border-b border-platinum-tint bg-cloud-mist/20 text-xs font-bold text-slate-blue uppercase">
-                                    <th className="p-4 w-32">Mã yêu cầu</th>
+                                    <th className="p-4">Mã yêu cầu</th>
                                     <th className="p-4">Tiêu đề cuộc họp</th>
                                     <th className="p-4">Người tạo</th>
                                     <th className="p-4">Phòng họp</th>
@@ -902,7 +937,7 @@ const MeetingApprovals = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {requests.map(req => {
+                                {visibleRequests.map(req => {
                                     const conflictLevel = getRoomConflictLevel(req);
                                     const participantInfo = getParticipantConflictInfo(req);
                                     return (
@@ -944,7 +979,7 @@ const MeetingApprovals = () => {
                                             </td>
 
                                             {/* Conflict Indicator */}
-                                            <td className="p-4 whitespace-nowrap">
+                                            <td className="p-4 whitespace-nowrap meeting-approval-conflict">
                                                 {conflictLevel === 'conflict' ? (
                                                     <span data-ui-text="badge" className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
                                                         <AlertTriangle className="w-3 h-3 text-red-600 animate-pulse" />
@@ -974,72 +1009,74 @@ const MeetingApprovals = () => {
                                             {/* Status Badge */}
                                             <td className="p-4 whitespace-nowrap">
                                                 {req.approvalStatus === 'pending' && (
-                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                                                         Chờ duyệt
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'approved' && (
-                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                         Đã duyệt
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'rejected' && (
-                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-50 text-rose-600 border border-rose-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                                                         Từ chối
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'expired' && (
-                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-red-50 text-red-600 border border-red-300 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-300">
                                                         Hết hạn
                                                     </span>
                                                 )}
                                                 {req.approvalStatus === 'cancelled' && (
-                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-gray-50 text-gray-600 border border-gray-200 uppercase tracking-wider">
+                                                    <span data-ui-text="badge" className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-50 text-gray-700 border border-gray-200">
                                                         Đã hủy
                                                     </span>
                                                 )}
                                             </td>
 
                                             {/* Actions */}
-                                            <td className="p-4 text-right flex justify-end gap-1.5 items-center">
-                                                {/* View Detail icon always */}
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedRequest(req);
-                                                        setDetailModalOpen(true);
-                                                    }}
-                                                    className="p-1.5 text-slate-blue hover:text-action-blue hover:bg-cloud-mist/50 rounded-lg transition-colors"
-                                                    title="Chi tiết yêu cầu"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                </button>
+                                            <td className="p-4 text-right">
+                                                <div className="meeting-approval-actions">
+                                                    {/* View Detail icon always */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedRequest(req);
+                                                            setDetailModalOpen(true);
+                                                        }}
+                                                        className="p-1.5 text-slate-blue hover:text-action-blue hover:bg-cloud-mist/50 rounded-lg transition-colors"
+                                                        title="Chi tiết yêu cầu"
+                                                    >
+                                                        <Eye className="w-4 h-4" />
+                                                    </button>
 
-                                                {req.approvalStatus === 'pending' && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => {
-                                                                setError(null);
-                                                                setSelectedRequest(req);
-                                                                setApprovalModalOpen(true);
-                                                            }}
-                                                            className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                                                            title="Phê duyệt"
-                                                        >
-                                                            <CheckCircle2 className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setError(null);
-                                                                setSelectedRequest(req);
-                                                                setRejectionModalOpen(true);
-                                                            }}
-                                                            className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                                                            title="Từ chối"
-                                                        >
-                                                            <XCircle className="w-4 h-4" />
-                                                        </button>
-                                                    </>
-                                                )}
+                                                    {req.approvalStatus === 'pending' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setError(null);
+                                                                    setSelectedRequest(req);
+                                                                    setApprovalModalOpen(true);
+                                                                }}
+                                                                className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                                title="Phê duyệt"
+                                                            >
+                                                                <CheckCircle2 className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setError(null);
+                                                                    setSelectedRequest(req);
+                                                                    setRejectionModalOpen(true);
+                                                                }}
+                                                                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                                                title="Từ chối"
+                                                            >
+                                                                <XCircle className="w-4 h-4" />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -1411,7 +1448,7 @@ const MeetingApprovals = () => {
                                             title={getParticipantConflictInfo(selectedRequest).hasConflict && !conflictAcknowledged ? 'Vui lòng tích xác nhận chấp nhận trùng lịch người tham dự' : undefined}
                                             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
                                         >
-                                            {submittingAction && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                            {submittingAction && <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />}
                                             Xác nhận phê duyệt
                                         </button>
                                     </div>
@@ -1472,7 +1509,7 @@ const MeetingApprovals = () => {
                                             disabled={submittingAction || !rejectionReason.trim()}
                                             className="px-4 py-2 bg-red-600 hover:bg-red-750 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
                                         >
-                                            {submittingAction && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                            {submittingAction && <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />}
                                             Xác nhận từ chối
                                         </button>
                                     </div>

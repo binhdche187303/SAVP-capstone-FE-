@@ -4,7 +4,7 @@ import './ResponsiveTable.css';
 
 const AREAS = new Set(['system-admin', 'business-admin', 'manager', 'employee', 'guard']);
 
-const Table = ({ standard, children, className = '', ...props }) => {
+const Table = ({ standard, children, className = '', minTableWidth, ...props }) => {
     const ref = useRef(null);
     useLayoutEffect(() => {
         if (!standard) return undefined;
@@ -17,7 +17,7 @@ const Table = ({ standard, children, className = '', ...props }) => {
                     (cell.querySelector('input[type="checkbox"]') ? 'Chọn' : cell.querySelector('[aria-label]')?.getAttribute('aria-label') || ''))
             );
             const columns = headers.length || Math.max(1, ...[...table.tBodies].flatMap(body => [...body.rows].map(row => row.cells.length)));
-            const layout = container.clientWidth < Math.max(560, columns * 132) ? 'cards' : 'table';
+            const layout = container.clientWidth < (minTableWidth ?? Math.max(560, columns * 132)) ? 'cards' : 'table';
             if (container.dataset.tableLayout !== layout) container.dataset.tableLayout = layout;
             table.setAttribute('role', props.role || 'table');
             [...table.tBodies, ...(table.tFoot ? [table.tFoot] : [])].forEach(body => {
@@ -57,7 +57,7 @@ const Table = ({ standard, children, className = '', ...props }) => {
         const mutations = new MutationObserver(update);
         mutations.observe(table, { childList: true, subtree: true, characterData: true });
         return () => { cancelAnimationFrame(resizeFrame); resize?.disconnect(); window.removeEventListener('resize', update); mutations.disconnect(); };
-    }, [standard, children, props.role]);
+    }, [standard, children, props.role, minTableWidth]);
 
     const table = <table {...props} ref={ref} className={`${className}${standard ? ' camai-responsive-table' : ''}`}>{children}</table>;
     return standard ? <div className="camai-table-container">{table}</div> : table;

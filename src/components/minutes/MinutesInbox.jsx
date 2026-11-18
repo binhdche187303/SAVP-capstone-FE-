@@ -93,7 +93,7 @@ const MinutesInbox = ({ onOpenMinutes, onCount }) => {
     };
 
     if (items === null) {
-        return <div className="py-16 text-center text-xs text-slate-blue">Đang tải…</div>;
+        return <div className="py-16 text-center text-xs text-slate-blue">Đang tải...</div>;
     }
     if (items.length === 0) {
         return (
@@ -251,7 +251,7 @@ const MinutesInbox = ({ onOpenMinutes, onCount }) => {
                                 }}
                                 className="flex items-center gap-1.5 px-5 py-2 text-sm font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
                             >
-                                <Send className="w-4 h-4" /> {busyId === issuing.meetingId ? 'Đang ban hành…' : 'Ban hành'}
+                                <Send className="w-4 h-4" /> {busyId === issuing.meetingId ? 'Đang ban hành...' : 'Ban hành'}
                             </button>
                         </div>
                     </div>
@@ -287,7 +287,7 @@ const MinutesInbox = ({ onOpenMinutes, onCount }) => {
                                 onClick={saveEdit}
                                 className="px-4 py-2 text-xs font-bold rounded-lg bg-action-blue hover:opacity-90 text-white disabled:opacity-50"
                             >
-                                {saving ? 'Đang lưu…' : 'Lưu'}
+                                {saving ? 'Đang lưu...' : 'Lưu'}
                             </button>
                         </div>
                     </div>

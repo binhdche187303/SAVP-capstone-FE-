@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Bell, Car, ChevronDown, KeyRound, LogOut, Shield, ShieldAlert, User, UserCheck, UserRound } from 'lucide-react';
+import { Bell, Car, ChevronDown, KeyRound, LogOut, Menu, Shield, ShieldAlert, User, UserCheck, UserRound, Video, X } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import UserAvatar from '../../components/common/UserAvatar';
 import NotificationBell from '../../components/common/NotificationBell';
 import ChangePasswordModal from '../../components/auth/ChangePasswordModal';
 import BiometricReminderModal from '../../components/biometric/BiometricReminderModal';
+import FaceMenuItem, { FaceAlertDot, useFaceStatus } from '../../components/biometric/FaceMenuItem';
 import { getCurrentUser, logout } from '../../service/authService';
 
 const NAV_ITEMS = [
     { to: '/guard', label: 'Trực cổng', icon: Shield, end: true },
+    { to: '/guard/live', label: 'Camera', icon: Video },
     { to: '/guard/security-alerts', label: 'Cảnh báo an ninh', icon: ShieldAlert },
     { to: '/guard/visitor-alerts', label: 'Cảnh báo khách', icon: UserRound },
     { to: '/guard/anpr', label: 'Xe vào ra', icon: Car },
@@ -27,6 +29,7 @@ const GuardLayout = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const profileMenuRef = useRef(null);
 
     useEffect(() => {
@@ -60,6 +63,7 @@ const GuardLayout = () => {
         navigate('/login', { replace: true });
     }, [navigate]);
 
+    const faceInfo = useFaceStatus();
     const displayName = currentUser?.fullName || currentUser?.full_name || 'Nhân viên bảo vệ';
     return (
         <div className="min-h-screen bg-cloud-mist flex flex-col">
@@ -72,7 +76,7 @@ const GuardLayout = () => {
                             </div>
                             <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden sm:block">VISMA IVA</span>
                         </NavLink>
-                        <nav className="hidden md:flex items-center gap-1">
+                        <nav aria-label="Điều hướng chính" className="hidden xl:flex items-center gap-1">
                             {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
                                 <NavLink
                                     key={to}
@@ -94,11 +98,14 @@ const GuardLayout = () => {
                                     <p className="text-sm font-semibold text-midnight-indigo leading-tight">{displayName}</p>
                                     <p className="text-xs text-slate-blue leading-tight">Bảo vệ</p>
                                 </div>
-                                <UserAvatar user={currentUser} name={displayName} className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20" />
+                                <span className="relative shrink-0">
+                                    <UserAvatar user={currentUser} name={displayName} className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20" />
+                                    <FaceAlertDot faceInfo={faceInfo} />
+                                </span>
                                 <ChevronDown className={`w-4 h-4 text-slate-blue transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             {isProfileMenuOpen && (
-                                <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-outline-gray bg-white shadow-sm-2 overflow-hidden animate-fade-in">
+                                <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-outline-gray bg-white shadow-sm-2 overflow-hidden animate-fade-in">
                                     <div className="px-4 py-3 border-b border-outline-gray bg-cloud-mist">
                                         <p className="text-sm font-semibold text-midnight-indigo truncate">{displayName}</p>
                                         <p className="text-xs text-slate-blue truncate">{currentUser?.email || 'guard@meetingsys.vn'}</p>
@@ -107,6 +114,7 @@ const GuardLayout = () => {
                                         <button type="button" onClick={() => { setIsProfileMenuOpen(false); navigate('/guard/profile'); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <User className="w-4 h-4" /> Hồ sơ cá nhân
                                         </button>
+                                        <FaceMenuItem faceInfo={faceInfo} onClick={() => { setIsProfileMenuOpen(false); navigate('/guard/face-register'); }} />
                                         <button type="button" onClick={() => { setIsProfileMenuOpen(false); navigate('/guard/my-vehicles'); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <Car className="w-4 h-4" /> Xe của tôi
                                         </button>
@@ -120,9 +128,33 @@ const GuardLayout = () => {
                                 </div>
                             )}
                         </div>
+                        {/* Màn nhỏ hơn xl (1280px): thanh menu ẩn, mở điều hướng bằng ngăn kéo. */}
+                        <button type="button" onClick={() => setIsMobileMenuOpen(v => !v)} aria-label={isMobileMenuOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={isMobileMenuOpen}
+                            className="xl:hidden flex items-center justify-center p-2 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist">
+                            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </button>
                     </div>
                 </div>
             </header>
+            <div className={`xl:hidden fixed inset-0 z-40 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <div className="absolute inset-0 bg-midnight-indigo/20 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
+                <nav aria-label="Điều hướng chính" className={`absolute top-16 right-0 bottom-0 w-64 bg-white shadow-xl transition-transform duration-300 ease-in-out transform ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto`}>
+                    <div className="p-4 flex flex-col gap-1">
+                        {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+                            <NavLink
+                                key={to}
+                                to={to}
+                                end={end}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={({ isActive }) => `px-3 py-2.5 rounded-xl text-sm no-underline flex items-center gap-2 ${isActive ? 'bg-blue-50 text-action-blue font-bold' : 'text-slate-blue font-semibold hover:bg-cloud-mist hover:text-midnight-indigo'}`}
+                            >
+                                <Icon className="w-4 h-4" />
+                                {label}
+                            </NavLink>
+                        ))}
+                    </div>
+                </nav>
+            </div>
             <main data-page-frame="wide" className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
                 <Outlet />
                 <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />

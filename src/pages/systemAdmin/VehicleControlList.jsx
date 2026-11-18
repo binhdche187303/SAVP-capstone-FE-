@@ -1,8 +1,11 @@
+import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, Car, CheckCircle, Edit3, Eye, Filter, Plus, ShieldAlert, Trash2, X } from 'lucide-react';
+import ReportActions from '../../components/common/ReportActions';
+import { AlertTriangle, Car, CheckCircle, Edit3, Eye, Filter, Plus, ShieldAlert, Trash2, X, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -123,6 +126,15 @@ const VehicleControlList = () => {
             return () => clearTimeout(timer);
         }
     }, [successMessage, error]);
+
+    // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
+    const countTotal = useCallback(
+        (f) => getVehicleControlList(Object.fromEntries(Object.entries({ ...f, page: 1, limit: 1 }).filter(([, v]) => v !== '' && v != null))).then(totalOf),
+        [],
+    );
+    const list_typeCounts = useFacetCounts(filters, 'list_type', ['blocklist', 'watchlist'], countTotal);
+    const vehicle_typeCounts = useFacetCounts(filters, 'vehicle_type', VEHICLE_TYPE_OPTIONS.map((o) => o.value), countTotal);
+    const activeCounts = useFacetCounts(filters, 'active', ['true', 'false'], countTotal);
 
     const handleFilterChange = (key, value) => {
         // [FIX] Object literal { ...prev, [key]: value, page: 1 } — khi key='page' (đổi
@@ -255,20 +267,20 @@ const VehicleControlList = () => {
                     <p className="text-slate-blue text-sm mt-1">Quản lý danh sách chặn và phương tiện cần giám sát tự động (ANPR).</p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <ReportActions>
                     <button
                         onClick={openCreateModal}
-                        className="inline-flex items-center justify-center px-4 py-2 bg-action-blue text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors duration-200"
+                        className="inline-flex h-9 items-center justify-center px-4 bg-action-blue text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors duration-200"
                     >
                         <Plus className="w-4 h-4 mr-1.5" />
                         Thêm biển số
                     </button>
                     <RefreshButton
                         onClick={() => fetchVehicles()}
-                        title="Tải lại dữ liệu"
+                        title="Làm mới dữ liệu"
                         busy={loading}
                     />
-                </div>
+                </ReportActions>
             </div>
 
             {/* Messages */}
@@ -306,7 +318,7 @@ const VehicleControlList = () => {
                     </div>
                     <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Phân loại</label>
-                        <select
+                        <FilterMultiSelect singleSelect counts={list_typeCounts}
                             value={filters.list_type}
                             onChange={(e) => handleFilterChange('list_type', e.target.value)}
                             className="w-full p-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
@@ -314,12 +326,12 @@ const VehicleControlList = () => {
                             <option value="">Tất cả phân loại</option>
                             <option value="blocklist">Danh sách đen</option>
                             <option value="watchlist">Danh sách theo dõi</option>
-                        </select>
+                        </FilterMultiSelect>
                     </div>
 
                     <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Loại xe</label>
-                        <select
+                        <FilterMultiSelect counts={vehicle_typeCounts}
                             value={filters.vehicle_type}
                             onChange={(e) => handleFilterChange('vehicle_type', e.target.value)}
                             className="w-full p-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
@@ -328,12 +340,12 @@ const VehicleControlList = () => {
                             {VEHICLE_TYPE_OPTIONS.map((o) => (
                                 <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
-                        </select>
+                        </FilterMultiSelect>
                     </div>
 
                     <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Trạng thái</label>
-                        <select
+                        <FilterMultiSelect singleSelect counts={activeCounts}
                             value={filters.active}
                             onChange={(e) => handleFilterChange('active', e.target.value)}
                             className="w-full p-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
@@ -341,7 +353,7 @@ const VehicleControlList = () => {
                             <option value="">Tất cả trạng thái</option>
                             <option value="true">Đang hoạt động</option>
                             <option value="false">Vô hiệu hóa</option>
-                        </select>
+                        </FilterMultiSelect>
                     </div>
                 </div>
             </FilterBar>
@@ -421,12 +433,14 @@ const VehicleControlList = () => {
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center">
                                                     {vehicle.active ? (
-                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[11px] font-bold text-green-700">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Hoạt động
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-extrabold text-emerald-700 bg-emerald-50 border-emerald-200">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                            Hoạt động
                                                         </span>
                                                     ) : (
-                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-blue">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-blue"></div> Vô hiệu
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-extrabold text-red-700 bg-red-50 border-red-200">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                                            Vô hiệu
                                                         </span>
                                                     )}
                                                 </div>
@@ -566,7 +580,7 @@ const VehicleControlList = () => {
                                 disabled={actionLoading}
                                 className="px-5 py-2.5 text-sm font-bold text-white bg-action-blue hover:bg-blue-700 rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 min-w-[120px]"
                             >
-                                {actionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Lưu lại'}
+                                {actionLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : 'Lưu lại'}
                             </button>
                         </div>
                     </motion.div>
@@ -598,7 +612,7 @@ const VehicleControlList = () => {
                                     disabled={actionLoading}
                                     className="flex-1 px-5 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
-                                    {actionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Xóa ngay'}
+                                    {actionLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : 'Xóa ngay'}
                                 </button>
                             </div>
                         </div>

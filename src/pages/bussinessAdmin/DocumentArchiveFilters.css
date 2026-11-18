@@ -5,6 +5,36 @@
 .minutes-archive-filter-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .minutes-archive-filters .camai-filter-field { min-width: 0; width: 100%; }
 .minutes-archive-filter-reset { justify-self: end; white-space: nowrap; }
+.minutes-archive-row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.minutes-archive-table .minutes-archive-detail {
+    flex: 0 0 88px;
+    min-width: 88px !important;
+    height: 36px;
+    justify-content: center;
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+}
+.minutes-archive-row-actions svg { flex-shrink: 0; }
+.minutes-archive-export-slot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 32px;
+    height: 36px;
+}
+.minutes-archive-export-slot > button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 36px;
+}
+.camai-table-container[data-table-layout="cards"] .minutes-archive-row-actions { justify-content: flex-start; }
 @media (max-width: 1000px) { .minutes-archive-filter-time { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 550px) {
     .minutes-archive-filter-main { grid-template-columns: minmax(0, 1fr) auto; }

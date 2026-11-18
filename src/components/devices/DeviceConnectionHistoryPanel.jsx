@@ -1,6 +1,6 @@
 import TimeRangeButtons from '../common/TimeRangeButtons';
 import PaginatedCollection from '../common/PaginatedCollection';
-import { Activity, AlertTriangle, X } from 'lucide-react';
+import { Activity, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -112,7 +112,7 @@ const DeviceConnectionHistoryPanel = ({ device, onClose }) => {
                         options={[[7, '7 ngày'], [30, '30 ngày'], [90, '90 ngày']]} />
                     {loading ? (
                         <div className="flex justify-center py-16">
-                            <div className="w-8 h-8 border-4 border-action-blue/20 border-t-action-blue rounded-full animate-spin" />
+                            <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                         </div>
                     ) : error ? (
                         <p className="text-sm text-red-600">{error}</p>

@@ -1,4 +1,4 @@
-import { get, post } from '../utils/request';
+import { get, post, buildQuery } from '../utils/request';
 
 // ============================================================
 // M1: Security Alerts API
@@ -9,12 +9,7 @@ import { get, post } from '../utils/request';
  * GET /security-alerts
  */
 export const getSecurityAlerts = async (params = {}, options = {}) => {
-    // Lọc bỏ các param rỗng để tránh lỗi 400 Bad Request từ BE
-    const cleanParams = Object.fromEntries(
-        Object.entries(params).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
-    );
-    const query = new URLSearchParams(cleanParams).toString();
-    return await get(`/security-alerts${query ? `?${query}` : ''}`, options);
+    return await get(`/security-alerts${buildQuery(params)}`, options);
 };
 
 /**

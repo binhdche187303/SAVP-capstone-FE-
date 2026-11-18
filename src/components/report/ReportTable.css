@@ -1,0 +1,12 @@
+.camai-table-container[data-table-layout="table"] > .report-room-usage-table.report-room-usage-table > :is(thead, tbody) > tr > :is(th, td) {
+    padding-inline: 8px !important;
+}
+
+.camai-table-container[data-table-layout="table"] > .report-room-usage-table :is(th, th button) {
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+}
+
+.report-room-usage-table th button svg {
+    flex-shrink: 0;
+}

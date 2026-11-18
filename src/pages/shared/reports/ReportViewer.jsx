@@ -1,6 +1,7 @@
+import PageHeading from '../../../components/common/PageHeading';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarClock, FileBarChart } from 'lucide-react';
+import { ArrowLeft, CalendarClock, FileBarChart, Loader2 } from 'lucide-react';
 import { getReportDefinition } from '../../../config/reportDefinitions';
 import { getReportLookups, getReportPreview, exportReport } from '../../../service/reportCenterService';
 import { formatCell } from '../../../utils/reportFormat';
@@ -12,7 +13,7 @@ import ReportChart from '../../../components/report/ReportChart';
 import ReportTable from '../../../components/report/ReportTable';
 import ExportMenu from '../../../components/report/ExportMenu';
 import ScheduleFormModal from '../../../components/report/ScheduleFormModal';
-import { pageCls, cardCls, btnPrimary, btnGhost, errorBoxCls } from '../../../components/common/uiClasses';
+import { pageCls, cardCls, btnPrimary, errorBoxCls } from '../../../components/common/uiClasses';
 
 // S9 (2.13): một trang dùng chung cho 7 loại báo cáo, dựng từ config/reportDefinitions.
 
@@ -124,16 +125,16 @@ const ReportViewer = () => {
                     <Link to={`${base}/reports`} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-blue hover:text-action-blue mb-2">
                         <ArrowLeft className="w-3.5 h-3.5" /> Trung tâm báo cáo
                     </Link>
-                    <h2 data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
-                        <Icon className="w-6 h-6 text-action-blue" />
+                    <PageHeading as="h2" badge="Báo cáo" icon={<Icon className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Báo cáo {definition.title.toLowerCase()}
-                    </h2>
-                    <p className="text-xs text-slate-blue mt-1">{definition.description}</p>
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">{definition.description}</p>
                 </div>
                 <div className="self-center flex flex-wrap items-center gap-2 max-w-full">
                     {canSchedule && (
-                        <button type="button" className={btnGhost} onClick={() => setScheduleOpen(true)}>
-                            <CalendarClock className="w-4 h-4" /> Đặt lịch gửi
+                        // Cùng kiểu với nút "Xuất báo cáo" bên cạnh (cao, cỡ chữ, viền giống nhau).
+                        <button type="button" className="camai-report-export-button" onClick={() => setScheduleOpen(true)}>
+                            <CalendarClock aria-hidden="true" /> Đặt lịch gửi
                         </button>
                     )}
                     <ExportMenu onExport={handleExport} reportType={type} initialRange={{ from: applied.from, to: applied.to }} filterSummary={exportFilterSummary} disabled={loading || Boolean(error)} busyFormat={busyFormat} />
@@ -147,7 +148,7 @@ const ReportViewer = () => {
 
             {!error && !data && (
                 <div className="flex items-center justify-center h-64">
-                    <div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                 </div>
             )}
 

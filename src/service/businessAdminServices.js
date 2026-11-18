@@ -332,7 +332,7 @@ export const updateMeetingRecordingConfig = async (id, data) => {
     return await patch(`/meetings/${id}/recording-config`, data);
 };
 
-export const cancelMeeting = async (meetingId, reason = 'Huỷ bởi quản trị viên') => {
+export const cancelMeeting = async (meetingId, reason = 'Hủy bởi quản trị viên') => {
     // BE DTO (cancel-meeting.dto.ts) dùng field cancellationReason, không phải reason
     return await post(`/meetings/${meetingId}/cancel`, { cancellationReason: reason });
 };

@@ -1,9 +1,10 @@
-import { Activity, Archive, Award, BarChart2, Calendar, ChevronDown, Clock, Car, FileBarChart, FileCheck, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
+import { Activity, Archive, Award, BarChart2, Calendar, ChevronDown, ClipboardCheck, Clock, Car, FileBarChart, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
 import logo from '../../../assets/images/logo.png';
 import BiometricReminderModal from '../../../components/biometric/BiometricReminderModal';
+import FaceMenuItem, { FaceAlertDot, useFaceStatus } from '../../../components/biometric/FaceMenuItem';
 import UserAvatar from '../../../components/common/UserAvatar';
 import ChangePasswordModal from '../../../components/auth/ChangePasswordModal';
 import NotificationBell from '../../../components/common/NotificationBell';
@@ -47,7 +48,7 @@ const STATIC_NAVIGATION_ITEMS = [
             {
                 label: 'Phê duyệt cuộc họp',
                 to: '/manager/meeting-approvals',
-                icon: FileCheck,
+                icon: ClipboardCheck,
                 requiredPermission: 'meeting_request.read',
             },
             {
@@ -203,6 +204,12 @@ const ManagerLayout = () => {
         navigate('/manager/my-vehicles');
     }, [navigate]);
 
+    const faceInfo = useFaceStatus();
+    const handleFaceRegister = useCallback(() => {
+        setIsProfileMenuOpen(false);
+        navigate('/manager/face-register');
+    }, [navigate]);
+
     const handleChangePassword = useCallback(() => {
         setIsProfileMenuOpen(false);
         setIsChangePasswordOpen(true);
@@ -334,11 +341,14 @@ const ManagerLayout = () => {
                                     </span>
                                 </div>
 
-                                <UserAvatar
-                                    user={currentUser}
-                                    name={displayName}
-                                    className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20"
-                                />
+                                <span className="relative shrink-0">
+                                    <UserAvatar
+                                        user={currentUser}
+                                        name={displayName}
+                                        className="w-9 h-9 rounded-full font-bold text-sm ring-2 ring-action-blue/20"
+                                    />
+                                    <FaceAlertDot faceInfo={faceInfo} />
+                                </span>
 
                                 <svg
                                     className={`w-4 h-4 text-slate-blue transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''
@@ -356,7 +366,7 @@ const ManagerLayout = () => {
                                 <div
                                     role="menu"
                                     aria-label="User menu"
-                                    className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-outline-gray bg-white shadow-sm-2 overflow-hidden animate-fade-in"
+                                    className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-outline-gray bg-white shadow-sm-2 overflow-hidden animate-fade-in"
                                 >
                                     <div className="px-4 py-3 border-b border-outline-gray bg-cloud-mist">
                                         <p className="text-sm font-semibold text-midnight-indigo truncate">{displayName}</p>
@@ -376,6 +386,8 @@ const ManagerLayout = () => {
                                             </svg>
                                             Hồ sơ cá nhân
                                         </button>
+
+                                        <FaceMenuItem faceInfo={faceInfo} onClick={handleFaceRegister} />
 
                                         <button
                                             type="button"
@@ -491,7 +503,7 @@ const ManagerLayout = () => {
             </div>
 
             {/* ========== MAIN CONTENT ========== */}
-            <main data-page-frame="wide" className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
+            <main data-page-frame="contained" className="flex-1 w-full max-w-[1440px] mx-auto px-6 lg:px-12 py-6">
                 <Outlet />
                 <BiometricReminderModal />
                 <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />

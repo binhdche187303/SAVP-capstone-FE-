@@ -1,8 +1,11 @@
+import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
+import PageHeading from '../../components/common/PageHeading';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, Bell, BellRing, CheckCircle, Clock, Edit3, Eye, Filter, Mail, Plus, Power, PowerOff, RefreshCw, ShieldAlert, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, Bell, BellRing, CheckCircle, Clock, Edit3, Eye, Filter, Mail, Plus, Power, PowerOff, ShieldAlert, Trash2, Users, X, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -99,6 +102,15 @@ const AlertRules = () => {
         }
     }, [successMessage, error]);
 
+    // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
+    const countTotal = useCallback(
+        (f) => getAlertRules(Object.fromEntries(Object.entries({ ...f, page: 1, limit: 1 }).filter(([, v]) => v !== '' && v != null))).then(totalOf),
+        [],
+    );
+    const alert_typeCounts = useFacetCounts(filters, 'alert_type', ['stranger', 'crowd', 'intrusion', 'person_watchlist_match', 'unknown_vehicle', 'vehicle_unauthorized', 'vehicle_control_match', 'device_error'], countTotal);
+    const zone_idCounts = useFacetCounts(filters, 'zone_id', zones.map((z) => z.id), countTotal);
+    const enabledCounts = useFacetCounts(filters, 'enabled', ['true', 'false'], countTotal);
+
     const handleFilterChange = (key, value) => {
         // [FIX] Object literal { ...prev, [key]: value, page: 1 } — khi key='page' (đổi
         // trang), 'page: 1' viết SAU '[key]: value' trong CÙNG object literal nên đè mất
@@ -171,7 +183,7 @@ const AlertRules = () => {
     const handleChannelToggle = (channel) => {
         setFormData(prev => {
             const currentChannels = Array.isArray(prev.channels) ? prev.channels : [];
-            const newChannels = currentChannels.includes(channel) 
+            const newChannels = currentChannels.includes(channel)
                 ? currentChannels.filter(c => c !== channel)
                 : [...currentChannels, channel];
             return { ...prev, channels: newChannels };
@@ -180,7 +192,7 @@ const AlertRules = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         const errors = {};
         if (!formData.alert_type) {
             errors.alert_type = 'Vui lòng chọn loại sự kiện.';
@@ -296,15 +308,10 @@ const AlertRules = () => {
             {/* HEADER */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-platinum-tint">
                 <div>
-                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-                        <BellRing className="w-3.5 h-3.5" />
-                        Cảnh báo
-                    </span>
-                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight flex items-center">
-                        <ShieldAlert className="w-7 h-7 mr-3 text-action-blue" />
+                    <PageHeading as="h1" badge="Cảnh báo" icon={<ShieldAlert className="w-7 h-7 mr-3 text-action-blue" />} className="text-2xl font-bold text-midnight-indigo tracking-tight flex items-center">
                         Quy tắc cảnh báo
-                    </h1>
-                    <p className="text-slate-blue text-sm mt-1 ml-10">
+                    </PageHeading>
+                    <p data-page-description className="text-slate-blue text-sm mt-1">
                         Định nghĩa các điều kiện tự động kích hoạt cảnh báo an ninh.
                     </p>
                 </div>
@@ -337,8 +344,8 @@ const AlertRules = () => {
             <FilterBar data-filter-grid variant="card" className="bg-white p-4 rounded-2xl shadow-sm border border-platinum-tint grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại sự kiện</label>
-                    <select 
-                        value={filters.alert_type} 
+                    <FilterMultiSelect counts={alert_typeCounts}
+                        value={filters.alert_type}
                         onChange={(e) => handleFilterChange('alert_type', e.target.value)}
                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                     >
@@ -351,12 +358,12 @@ const AlertRules = () => {
                         <option value="vehicle_unauthorized">Xe không được phép</option>
                         <option value="vehicle_control_match">Biển số theo dõi</option>
                         <option value="device_error">Lỗi thiết bị</option>
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Khu vực áp dụng</label>
-                    <select 
-                        value={filters.zone_id} 
+                    <FilterMultiSelect counts={zone_idCounts}
+                        value={filters.zone_id}
                         onChange={(e) => handleFilterChange('zone_id', e.target.value)}
                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                     >
@@ -364,19 +371,19 @@ const AlertRules = () => {
                         {zones.map(z => (
                             <option key={z.id} value={z.id}>{z.zone_name}</option>
                         ))}
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="camai-filter-field relative">
                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Trạng thái</label>
-                    <select 
-                        value={filters.enabled} 
+                    <FilterMultiSelect singleSelect counts={enabledCounts}
+                        value={filters.enabled}
                         onChange={(e) => handleFilterChange('enabled', e.target.value)}
                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                     >
                         <option value="">Tất cả</option>
                         <option value="true">Đang bật</option>
                         <option value="false">Đang tắt</option>
-                    </select>
+                    </FilterMultiSelect>
                 </div>
                 <div className="relative flex items-end">
                     <button data-filter-action
@@ -414,7 +421,7 @@ const AlertRules = () => {
                             {loading && rules.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="p-8 text-center text-slate-blue">
-                                        <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3" />
+                                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" />
                                         Đang tải dữ liệu...
                                     </td>
                                 </tr>
@@ -469,7 +476,7 @@ const AlertRules = () => {
                                             </div>
                                         </td>
                                         <td className="p-4 text-center">
-                                            <button 
+                                            <button
                                                 onClick={() => handleToggleEnable(rule)}
                                                 className={`inline-flex items-center justify-center p-1.5 rounded-full transition-colors ${rule.enabled ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
                                                 title={rule.enabled ? "Tắt quy tắc" : "Bật quy tắc"}
@@ -478,14 +485,14 @@ const AlertRules = () => {
                                             </button>
                                         </td>
                                         <td className="p-4 text-right">
-                                            <button 
+                                            <button
                                                 onClick={() => openEditModal(rule)}
                                                 className="p-1.5 text-slate-400 hover:text-action-blue transition-colors"
                                                 title="Chỉnh sửa"
                                             >
                                                 <Edit3 className="w-4 h-4" />
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={() => confirmDelete(rule.id)}
                                                 className="p-1.5 text-slate-400 hover:text-red-500 transition-colors ml-1"
                                                 title="Xóa quy tắc"
@@ -524,15 +531,15 @@ const AlertRules = () => {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        
+
                         <div className="p-6 overflow-y-auto">
                             <form id="rule-form" onSubmit={handleSubmit} noValidate className="space-y-5">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Loại sự kiện <span className="text-red-500">*</span></label>
-                                    <select 
+                                    <select
                                         required
                                         disabled={modal.type === 'edit'}
-                                        value={formData.alert_type} 
+                                        value={formData.alert_type}
                                         onChange={(e) => handleFormChange('alert_type', e.target.value)}
                                         className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors disabled:opacity-60 ${formErrors.alert_type ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                     >
@@ -552,7 +559,7 @@ const AlertRules = () => {
                                 {formData.alert_type === 'crowd' && (
                                     <div>
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Ngưỡng cảnh báo (Số người) <span className="text-red-500">*</span></label>
-                                        <input 
+                                        <input
                                             type="number"
                                             required
                                             min="1"
@@ -590,8 +597,8 @@ const AlertRules = () => {
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Khung giờ hoạt động (Tùy chọn)</label>
                                     <div className="flex items-center gap-3">
                                         <div className="flex-1">
-                                            <input 
-                                                type="time" lang="en-GB" 
+                                            <input
+                                                type="time" lang="en-GB"
                                                 value={formData.allow_from}
                                                 onChange={(e) => handleFormChange('allow_from', e.target.value)}
                                                 className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.allow_from ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
@@ -600,8 +607,8 @@ const AlertRules = () => {
                                         </div>
                                         <span className="text-slate-blue font-medium mt-1">đến</span>
                                         <div className="flex-1">
-                                            <input 
-                                                type="time" lang="en-GB" 
+                                            <input
+                                                type="time" lang="en-GB"
                                                 value={formData.allow_to}
                                                 onChange={(e) => handleFormChange('allow_to', e.target.value)}
                                                 className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.allow_to ? '!border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
@@ -615,15 +622,15 @@ const AlertRules = () => {
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-2">Kênh thông báo <span className="text-red-500">*</span></label>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <label 
+                                        <label
                                             className={`relative flex flex-col items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                                                formData.channels.includes('in_app') 
-                                                ? 'bg-blue-50/50 border-action-blue text-action-blue shadow-sm' 
+                                                formData.channels.includes('in_app')
+                                                ? 'bg-blue-50/50 border-action-blue text-action-blue shadow-sm'
                                                 : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                                             }`}
                                         >
-                                            <input 
-                                                type="checkbox" 
+                                            <input
+                                                type="checkbox"
                                                 className="sr-only"
                                                 checked={formData.channels.includes('in_app')}
                                                 onChange={() => handleChannelToggle('in_app')}
@@ -636,16 +643,16 @@ const AlertRules = () => {
                                                 </div>
                                             )}
                                         </label>
-                                        
-                                        <label 
+
+                                        <label
                                             className={`relative flex flex-col items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                                                formData.channels.includes('email') 
-                                                ? 'bg-blue-50/50 border-action-blue text-action-blue shadow-sm' 
+                                                formData.channels.includes('email')
+                                                ? 'bg-blue-50/50 border-action-blue text-action-blue shadow-sm'
                                                 : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                                             }`}
                                         >
-                                            <input 
-                                                type="checkbox" 
+                                            <input
+                                                type="checkbox"
                                                 className="sr-only"
                                                 checked={formData.channels.includes('email')}
                                                 onChange={() => handleChannelToggle('email')}
@@ -666,8 +673,8 @@ const AlertRules = () => {
                                     <div className="pt-2">
                                         <label className="flex items-center cursor-pointer">
                                             <div className="relative w-10 h-5 mr-3">
-                                                <input 
-                                                    type="checkbox" 
+                                                <input
+                                                    type="checkbox"
                                                     className="peer sr-only"
                                                     checked={formData.enabled}
                                                     onChange={(e) => handleFormChange('enabled', e.target.checked)}
@@ -681,22 +688,22 @@ const AlertRules = () => {
                                 )}
                             </form>
                         </div>
-                        
+
                         <div className="p-4 border-t border-platinum-tint bg-slate-50 flex justify-end gap-3 shrink-0">
-                            <button 
-                                type="button" 
-                                onClick={() => setModal({ open: false, type: 'create', data: null })} 
+                            <button
+                                type="button"
+                                onClick={() => setModal({ open: false, type: 'create', data: null })}
                                 className="px-5 py-2 text-sm font-semibold text-slate-600 bg-white border border-platinum-tint rounded-xl hover:bg-cloud-mist transition-colors"
                             >
                                 Hủy bỏ
                             </button>
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 form="rule-form"
-                                disabled={actionLoading} 
+                                disabled={actionLoading}
                                 className="px-5 py-2 text-sm font-semibold text-white bg-action-blue rounded-xl hover:bg-glacier-blue transition-colors flex items-center disabled:opacity-70"
                             >
-                                {actionLoading && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                                {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                                 {modal.type === 'create' ? 'Tạo quy tắc' : 'Lưu thay đổi'}
                             </button>
                         </div>
@@ -715,20 +722,20 @@ const AlertRules = () => {
                             </div>
                             <h3 className="text-lg font-bold text-midnight-indigo mb-2">Xóa quy tắc này?</h3>
                             <p className="text-sm text-slate-blue mb-6">Bạn có chắc chắn muốn xóa quy tắc cảnh báo này không? Hành động này không thể hoàn tác.</p>
-                            
+
                             <div className="flex w-full gap-3">
-                                <button 
-                                    onClick={() => setDeleteModal({ open: false, id: null })} 
+                                <button
+                                    onClick={() => setDeleteModal({ open: false, id: null })}
                                     className="flex-1 px-4 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-platinum-tint rounded-xl hover:bg-slate-50 transition-colors"
                                 >
                                     Hủy bỏ
                                 </button>
-                                <button 
+                                <button
                                     onClick={handleDelete}
                                     disabled={actionLoading}
                                     className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors flex items-center justify-center disabled:opacity-70"
                                 >
-                                    {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Xóa ngay'}
+                                    {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xóa ngay'}
                                 </button>
                             </div>
                         </div>

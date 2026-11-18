@@ -23,6 +23,7 @@ import StudentSchedule from '../pages/classroom/StudentSchedule';
 import ClassAttendanceAnalytics from '../pages/classroom/ClassAttendanceAnalytics';
 import GuardLayout from '../pages/guard/GuardLayout';
 import GuardDashboard from '../pages/guard/GuardDashboard';
+import GuardLive from '../pages/guard/GuardLive';
 import VisitorAlerts from '../pages/guard/VisitorAlerts';
 
 // SystemAdmin Layout + Pages
@@ -590,6 +591,10 @@ export const router = [
                 element: <GuardDashboard />
             },
             {
+                path: 'live',
+                element: <GuardLive />
+            },
+            {
                 path: 'security-alerts',
                 element: <SecurityAlerts />
             },
@@ -604,6 +609,10 @@ export const router = [
             {
                 path: 'visitors/desk',
                 element: <VisitorDesk />
+            },
+            {
+                path: 'face-register',
+                element: <EmployeeFaceRegistration />
             },
             {
                 path: 'profile',

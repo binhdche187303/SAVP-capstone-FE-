@@ -116,7 +116,7 @@ const AttendanceViolationConfig = () => {
         await persist({
             list: rules.filter((r) => r.id !== target.id),
             deleteIds: [target.id],
-            successText: `Đã xoá hình thức "${target.ruleName}"`,
+            successText: `Đã xóa hình thức "${target.ruleName}"`,
         });
     };
 
@@ -173,7 +173,7 @@ const AttendanceViolationConfig = () => {
                                 disabled={saving}
                                 className="px-3 py-1.5 rounded-lg border border-platinum-tint text-xs font-semibold text-slate-600 hover:bg-cloud-mist"
                             >
-                                Huỷ
+                                Hủy
                             </button>
                             <button
                                 onClick={() => persist({ late: lateGrace, early: earlyLeave, successText: 'Đã lưu mốc thời gian' })}
@@ -276,7 +276,7 @@ const AttendanceViolationConfig = () => {
                                             {!r.isSystem && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setDeleting(r); }}
-                                                    title="Xoá"
+                                                    title="Xóa"
                                                     className="p-2 rounded-lg text-red-500 hover:bg-red-50"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -382,7 +382,7 @@ const AttendanceViolationConfig = () => {
                                         <p className="text-sm font-bold text-midnight-indigo">Cách ghi nhận: Hệ thống tự ghi nhận</p>
                                         <p className="mt-1 text-xs text-slate-600 leading-relaxed">
                                             Hình thức gốc của hệ thống, ghi nhận tự động theo dữ liệu camera và mốc phút.
-                                            Có thể đổi tên, điểm trừ, điều kiện hoặc tắt, nhưng không xoá được.
+                                            Có thể đổi tên, điểm trừ, điều kiện hoặc tắt, nhưng không xóa được.
                                         </p>
                                     </div>
                                 </div>
@@ -407,7 +407,7 @@ const AttendanceViolationConfig = () => {
                                 disabled={saving}
                                 className="px-4 py-2 rounded-lg border border-platinum-tint bg-white text-sm font-semibold text-slate-600 hover:bg-cloud-mist"
                             >
-                                Huỷ
+                                Hủy
                             </button>
                             <button
                                 onClick={submitForm}
@@ -424,8 +424,8 @@ const AttendanceViolationConfig = () => {
 
             <ConfirmDialog
                 isOpen={!!deleting}
-                message={deleting ? `Xoá hình thức "${deleting.ruleName}"? Điểm đã chốt ở các cuộc họp cũ không thay đổi.` : ''}
-                confirmLabel="Xoá"
+                message={deleting ? `Xóa hình thức "${deleting.ruleName}"? Điểm đã chốt ở các cuộc họp cũ không thay đổi.` : ''}
+                confirmLabel="Xóa"
                 onConfirm={confirmDelete}
                 onCancel={() => setDeleting(null)}
             />

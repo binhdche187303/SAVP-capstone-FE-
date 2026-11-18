@@ -30,6 +30,17 @@ test('cập nhật nhãn khi bộ lọc làm thay đổi các cột', async () =
     expect(screen.getByRole('button', { name: 'Chi tiết' }).closest('td')).toHaveAttribute('data-table-label', 'Thao tác');
 });
 
+test('uses a larger minimum width for tables with long badges and multiple actions', () => {
+    const { container } = render(<ResponsiveTable minTableWidth={1240}>{content(jest.fn())}</ResponsiveTable>);
+    const host = container.querySelector('.camai-table-container');
+    Object.defineProperty(host, 'clientWidth', { configurable: true, value: 1200 });
+    fireEvent(window, new Event('resize'));
+    expect(host).toHaveAttribute('data-table-layout', 'cards');
+    Object.defineProperty(host, 'clientWidth', { configurable: true, value: 1300 });
+    fireEvent(window, new Event('resize'));
+    expect(host).toHaveAttribute('data-table-layout', 'table');
+});
+
 test('giữ tổng cộng có nhãn và bỏ ô căn cột rỗng khi xếp dọc', () => {
     render(<ResponsiveTable><thead><tr><th>Nhân sự</th><th>Số buổi</th><th>Điểm</th></tr></thead>
         <tbody><tr><td>Nguyễn An</td><td>3</td><td>-2</td></tr></tbody>

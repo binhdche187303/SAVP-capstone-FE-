@@ -19,4 +19,4 @@ export const ALERT_TYPE_VI = {
 
 // Fallback cho giá trị alert_type chưa có trong bảng dịch — vẫn hiện được thay vì undefined.
 export const getAlertTypeLabel = (type) =>
-    ALERT_TYPE_VI[type] || type?.replace(/_/g, ' ') || '—';
+    Array.isArray(type) ? type.map(getAlertTypeLabel).join(', ') : ALERT_TYPE_VI[type] || type?.replace(/_/g, ' ') || '—';

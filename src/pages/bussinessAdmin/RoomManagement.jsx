@@ -1,10 +1,13 @@
+import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
+import { filterValues } from '../../utils/filterSelection';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import './RoomManagement.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Clock, DoorOpen, Edit2, Eye, Home, MapPin, Mic, Monitor, Plus, Trash2, Users, Video, Wrench, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Clock, DoorOpen, Edit2, Eye, Home, MapPin, Mic, Monitor, Plus, Trash2, Users, Video, Wrench, X, Loader2 } from 'lucide-react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -72,7 +75,7 @@ const MEETING_STATUS_CONFIG = {
     scheduled: { label: 'Đã lên lịch', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
     in_progress: { label: 'Đang diễn ra', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
     completed: { label: 'Hoàn thành', cls: 'bg-gray-100 text-gray-600 border-gray-200' },
-    cancelled: { label: 'Đã huỷ', cls: 'bg-red-50 text-red-700 border-red-200' },
+    cancelled: { label: 'Đã hủy', cls: 'bg-red-50 text-red-700 border-red-200' },
     pending: { label: 'Chờ xác nhận', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
 };
 
@@ -220,7 +223,7 @@ const RoomManagement = ({ readOnly = false }) => {
                 limit: LIMIT,
                 ...(search.trim() && { q: search.trim() }),
                 ...(statusFilter && { status: statusFilter }),
-                ...(locationFilter && JSON.parse(locationFilter))
+                ...(locationFilter && { locations: filterValues(locationFilter) })
             };
             const res = await getRooms(params);
             if (currentRequest !== requestId.current) return;
@@ -239,6 +242,18 @@ const RoomManagement = ({ readOnly = false }) => {
     }, [page, search, statusFilter, locationFilter, LIMIT]);
 
     useEffect(() => { fetchRoomsList(); return () => { requestId.current += 1; }; }, [fetchRoomsList]);
+
+    // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
+    const roomFilters = useMemo(() => ({ q: search.trim(), status: statusFilter, location: locationFilter }), [search, statusFilter, locationFilter]);
+    const roomTotal = useCallback((f) => getRooms({
+        page: 1,
+        limit: 1,
+        ...(f.q && { q: f.q }),
+        ...(f.status && { status: f.status }),
+        ...(filterValues(f.location).length && { locations: filterValues(f.location) }),
+    }).then(totalOf), []);
+    const roomStatusCounts = useFacetCounts(roomFilters, 'status', ['available', 'occupied', 'reserved', 'maintenance', 'inactive'], roomTotal);
+    const roomLocationCounts = useFacetCounts(roomFilters, 'location', locationOptions.map(o => o.value), roomTotal);
 
     useEffect(() => {
         if (successMessage) {
@@ -315,8 +330,8 @@ const RoomManagement = ({ readOnly = false }) => {
         }
     };
 
-    // Xoá phòng: PHẢI kiểm tra tác động trước (GET .../deletion-impact) — nếu
-    // còn cuộc họp tương lai đã duyệt (status=scheduled), chặn xoá hoàn toàn
+    // Xóa phòng: PHẢI kiểm tra tác động trước (GET .../deletion-impact) — nếu
+    // còn cuộc họp tương lai đã duyệt (status=scheduled), chặn xóa hoàn toàn
     // và hiện danh sách cuộc họp đang chặn (không có ngoại lệ force-delete).
     const handleDelete = async (room) => {
         const roomId = room.id || room.roomId;
@@ -325,7 +340,7 @@ const RoomManagement = ({ readOnly = false }) => {
         try {
             const res = await getRoomDeletionImpact(roomId);
             if (!res?.success) {
-                setError(res?.error?.message || 'Không thể kiểm tra tác động xoá phòng.');
+                setError(res?.error?.message || 'Không thể kiểm tra tác động xóa phòng.');
                 return;
             }
             const impact = res.data || {};
@@ -341,24 +356,24 @@ const RoomManagement = ({ readOnly = false }) => {
                 ? ` Lưu ý: ${impact.pendingMeetingCount} cuộc họp chưa duyệt tại phòng này sẽ bị gỡ địa điểm và người liên quan sẽ được thông báo.`
                 : '';
             setConfirm({
-                message: `Bạn có chắc chắn muốn xoá phòng "${room.roomName}"? Thao tác không thể hoàn tác.${pendingNote}`,
+                message: `Bạn có chắc chắn muốn xóa phòng "${room.roomName}"? Thao tác không thể hoàn tác.${pendingNote}`,
                 onConfirm: async () => {
                     try {
                         const res = await deleteRoom(roomId);
                         if (res?.success) {
-                            setSuccessMessage('Đã xoá phòng họp thành công!');
+                            setSuccessMessage('Đã xóa phòng họp thành công!');
                             fetchRoomsList();
                 fetchFilterOptions();
                         } else {
-                            setError(res?.error?.message || 'Không thể xoá phòng họp.');
+                            setError(res?.error?.message || 'Không thể xóa phòng họp.');
                         }
                     } catch (err) {
-                        setError(err?.error?.message || err?.message || 'Không thể xoá phòng họp.');
+                        setError(err?.error?.message || err?.message || 'Không thể xóa phòng họp.');
                     }
                 }
             });
         } catch (err) {
-            setError(err?.error?.message || err?.message || 'Không thể kiểm tra tác động xoá phòng.');
+            setError(err?.error?.message || err?.message || 'Không thể kiểm tra tác động xóa phòng.');
         } finally {
             setCheckingDeleteImpactId(null);
         }
@@ -371,12 +386,12 @@ const RoomManagement = ({ readOnly = false }) => {
             <ConfirmDialog
                 isOpen={!!confirm}
                 message={confirm?.message}
-                confirmLabel="Xoá phòng họp"
+                confirmLabel="Xóa phòng họp"
                 onConfirm={() => { confirm?.onConfirm(); setConfirm(null); }}
                 onCancel={() => setConfirm(null)}
             />
 
-            {/* Chặn xoá phòng khi còn cuộc họp tương lai đã duyệt (EX2) */}
+            {/* Chặn xóa phòng khi còn cuộc họp tương lai đã duyệt (EX2) */}
             {deleteImpactModal && createPortal(
                 <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl border border-platinum-tint max-w-md w-full p-6 space-y-4 animate-fade-in-up">
@@ -385,9 +400,9 @@ const RoomManagement = ({ readOnly = false }) => {
                                 <AlertCircle className="w-5 h-5" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-midnight-indigo text-base">Không thể xoá phòng "{deleteImpactModal.room?.roomName}"</h3>
+                                <h3 className="font-bold text-midnight-indigo text-base">Không thể xóa phòng "{deleteImpactModal.room?.roomName}"</h3>
                                 <p className="text-sm text-slate-blue mt-1 leading-relaxed">
-                                    Phòng này còn {deleteImpactModal.blockingMeetings.length} cuộc họp đã được duyệt trong tương lai. Vui lòng đổi phòng hoặc huỷ các cuộc họp dưới đây trước khi xoá.
+                                    Phòng này còn {deleteImpactModal.blockingMeetings.length} cuộc họp đã được duyệt trong tương lai. Vui lòng đổi phòng hoặc hủy các cuộc họp dưới đây trước khi xóa.
                                 </p>
                             </div>
                         </div>
@@ -461,11 +476,11 @@ const RoomManagement = ({ readOnly = false }) => {
                             onChange={e => { setSearch(e.target.value); setPage(1); }}
                             className="px-4 py-2 flex-1 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                         /></FilterField>
-                        <FilterField label="Vị trí"><select value={locationFilter} onChange={e => { setLocationFilter(e.target.value); setPage(1); }}>
+                        <FilterField label="Vị trí"><FilterMultiSelect counts={roomLocationCounts} value={locationFilter} onChange={e => { setLocationFilter(e.target.value); setPage(1); }}>
                             <option value="">Tất cả vị trí</option>
                             {locationOptions.map(location => <option key={location.value} value={location.value}>{location.label}</option>)}
-                        </select></FilterField>
-                        <FilterField label="Trạng thái"><select
+                        </FilterMultiSelect></FilterField>
+                        <FilterField label="Trạng thái"><FilterMultiSelect counts={roomStatusCounts}
                             value={statusFilter}
                             onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
                             className="px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue text-slate-blue font-medium min-w-[160px]"
@@ -476,7 +491,7 @@ const RoomManagement = ({ readOnly = false }) => {
                             <option value="reserved">Đã đặt trước</option>
                             <option value="maintenance">Bảo trì</option>
                             <option value="inactive">Ngừng hoạt động</option>
-                        </select></FilterField>
+                        </FilterMultiSelect></FilterField>
                         <RefreshButton
                             onClick={() => { fetchRoomsList(); fetchFilterOptions(); }}
                             busy={loading}
@@ -487,7 +502,7 @@ const RoomManagement = ({ readOnly = false }) => {
                     <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center p-12 min-h-[240px]">
-                                <div className="w-9 h-9 border-4 border-action-blue border-t-transparent rounded-full animate-spin" />
+                                <Loader2 className="w-9 h-9 text-action-blue animate-spin" />
                                 <p className="mt-4 text-slate-blue text-sm">Đang tải danh sách phòng họp...</p>
                             </div>
                         ) : roomsList.length === 0 ? (
@@ -602,10 +617,10 @@ const RoomManagement = ({ readOnly = false }) => {
                                                                         onClick={() => handleDelete(room)}
                                                                         disabled={checkingDeleteImpactId === (room.id || room.roomId)}
                                                                         className="p-1 rounded-lg text-slate-blue hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
-                                                                        title="Xoá phòng"
+                                                                        title="Xóa phòng"
                                                                     >
                                                                         {checkingDeleteImpactId === (room.id || room.roomId)
-                                                                            ? <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                                                                            ? <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
                                                                             : <Trash2 className="w-4 h-4" />}
                                                                     </button>
                                                                 </>
@@ -779,7 +794,7 @@ const RoomManagement = ({ readOnly = false }) => {
                                     onClick={() => setIsModalOpen(false)}
                                     className="px-4 py-2 border border-platinum-tint rounded-xl text-xs font-bold text-slate-blue bg-white hover:bg-cloud-mist"
                                 >
-                                    Huỷ bỏ
+                                    Hủy bỏ
                                 </button>
                                 <button
                                     type="submit"
@@ -820,7 +835,7 @@ const RoomManagement = ({ readOnly = false }) => {
                         <div className="p-6 overflow-y-auto flex-1 space-y-5 relative min-h-[200px]">
                             {loadingDetail && (
                                 <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center z-10 animate-fade-in">
-                                    <div className="w-8 h-8 border-3 border-action-blue border-t-transparent rounded-full animate-spin" />
+                                    <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
                                 </div>
                             )}
 

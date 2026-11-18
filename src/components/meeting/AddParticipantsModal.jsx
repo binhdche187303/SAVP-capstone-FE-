@@ -3,10 +3,7 @@ import PaginatedCollection from '../common/PaginatedCollection';
 import ResponsiveTable from '../common/ResponsiveTable';
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import {
-    Upload, X, FileText, AlertTriangle, CheckCircle,
-    Download, TriangleAlert, Info, Search, UserPlus, Mail, Phone, Building, Loader2
-} from 'lucide-react';
+import { Upload, X, FileText, AlertTriangle, CheckCircle, Download, TriangleAlert, Info, Search, UserPlus, Mail, Phone, Building, Loader2 } from 'lucide-react';
 import {
     downloadParticipantImportTemplate,
     importMeetingParticipants,
@@ -494,7 +491,7 @@ const AddParticipantsModal = ({
                                         className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-blue-700 bg-white border border-blue-200 hover:bg-blue-100 rounded-xl transition-all disabled:opacity-50 whitespace-nowrap self-start"
                                     >
                                         {downloadingTemplate
-                                            ? <div className="w-3 h-3 border-2 border-blue-400/30 border-t-blue-600 rounded-full animate-spin" />
+                                            ? <Loader2 className="w-3 h-3 text-blue-600 animate-spin" />
                                             : <Download className="w-3.5 h-3.5" />
                                         }
                                         Tải mẫu
@@ -705,7 +702,7 @@ const AddParticipantsModal = ({
                                 className="px-5 py-2.5 text-sm font-bold text-white bg-action-blue hover:bg-blue-700 rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2 min-w-[120px] justify-center"
                             >
                                 {manualLoading
-                                    ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ? <Loader2 className="w-4 h-4 text-white animate-spin" />
                                     : <><UserPlus className="w-4 h-4" /> Thêm nội bộ</>
                                 }
                             </button>
@@ -722,7 +719,7 @@ const AddParticipantsModal = ({
                                 className="px-5 py-2.5 text-sm font-bold text-white bg-action-blue hover:bg-blue-700 rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center gap-2 min-w-[120px] justify-center"
                             >
                                 {loading
-                                    ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ? <Loader2 className="w-4 h-4 text-white animate-spin" />
                                     : isPreviewStage
                                         ? <><CheckCircle className="w-4 h-4" /> Xác nhận Import</>
                                         : <><Upload className="w-4 h-4" /> Kiểm tra & Import</>

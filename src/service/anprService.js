@@ -1,4 +1,4 @@
-import { get, post, patch, dele as del } from '../utils/request';
+import { get, post, patch, dele as del, buildQuery } from '../utils/request';
 
 // ============================================================
 // ANPR APIs (UC-ANPR)
@@ -9,7 +9,7 @@ import { get, post, patch, dele as del } from '../utils/request';
  * GET /anpr/vehicle-registrations
  */
 export const getMyVehicles = async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params).slice(1);
     return await get(`/anpr/vehicle-registrations${query ? `?${query}` : ''}`);
 };
 
@@ -70,7 +70,7 @@ export const adminRegisterVehicle = async (data) => {
  * GET /anpr/vehicle-history
  */
 export const getMyVehicleHistory = async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params).slice(1);
     return await get(`/anpr/vehicle-history${query ? `?${query}` : ''}`);
 };
 
@@ -80,7 +80,7 @@ export const getMyVehicleHistory = async (params = {}) => {
  * @param {object} params - { page, limit, matchState }
  */
 export const getAdminVehicleHistory = async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params).slice(1);
     return await get(`/anpr/admin/vehicle-history${query ? `?${query}` : ''}`);
 };
 
@@ -89,7 +89,7 @@ export const getAdminVehicleHistory = async (params = {}) => {
  * GET /anpr/admin/unknown-vehicles
  */
 export const getUnknownVehicles = async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params).slice(1);
     return await get(`/anpr/admin/unknown-vehicles${query ? `?${query}` : ''}`);
 };
 
@@ -119,7 +119,7 @@ export const createVehicleControlRecord = async (data) => {
  * GET /anpr/admin/control-list
  */
 export const getVehicleControlList = async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params).slice(1);
     return await get(`/anpr/admin/control-list${query ? `?${query}` : ''}`);
 };
 
@@ -153,7 +153,7 @@ export const deleteVehicleControlRecord = async (id) => {
 // ============================================================
 
 export const getMyGateAccessHistory = async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params).slice(1);
     return await get(`/gate-access/history${query ? `?${query}` : ''}`);
 };
 

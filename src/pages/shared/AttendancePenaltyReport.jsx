@@ -1,3 +1,5 @@
+import PageHeading from '../../components/common/PageHeading';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import { presetRange } from '../../components/report/ReportFilterBar';
 import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
@@ -20,6 +22,7 @@ import {
     getPenaltyMeetingDetail,
 } from '../../service/managerServices';
 import SharedStatCard, { toneOf } from '../../components/common/StatCard';
+import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 
 const CATEGORY_MAP = {
     present:    { label: 'Có mặt',       cls: 'bg-emerald-50 text-emerald-700' },
@@ -229,6 +232,7 @@ const AttendancePenaltyReport = () => {
     const [meetingDetail, setMeetingDetail] = useState(null);
     const [departmentId, setDepartmentId] = useState('');
     const [search, setSearch] = useState('');
+    const debouncedSearch = useDebouncedValue(search);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [detail, setDetail] = useState(null);
@@ -245,7 +249,7 @@ const AttendancePenaltyReport = () => {
         setLoading(true);
         setError(null);
         try {
-            const params = { ...range, departmentId: departmentId || undefined, search: search.trim() || undefined };
+            const params = { ...range, departmentId: departmentId || undefined, search: debouncedSearch.trim() || undefined };
             const [personal, people, meetings] = await Promise.all([
                 isAdminArea ? null : getMyPenaltyReport(range),
                 scope ? getPenaltySummary(params) : null,
@@ -260,10 +264,15 @@ const AttendancePenaltyReport = () => {
         } finally {
             if (version === loadVersion.current) setLoading(false);
         }
-    }, [range, departmentId, search, isAdminArea, scope]);
+    }, [range, departmentId, debouncedSearch, isAdminArea, scope]);
+
+    // Lọc ngay trên dữ liệu đã tải trong lúc chờ BE trả kết quả cho từ khoá mới.
+    const searchPending = search !== debouncedSearch || loading;
+    const summaryRows = useInstantFilter(summary?.rows, search, searchPending);
+    const meetingRows = useInstantFilter(meetingSummary?.rows, search, searchPending);
 
     useEffect(() => {
-        const t = setTimeout(load, 250);
+        const t = setTimeout(load, 0);
         return () => { clearTimeout(t); loadVersion.current += 1; };
     }, [load]);
 
@@ -378,10 +387,10 @@ const AttendancePenaltyReport = () => {
         <div data-page-surface="wide" className="max-w-7xl mx-auto px-4 py-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                    <h1 className="text-xl font-black text-midnight-indigo flex items-center gap-2">
-                        <Award className="w-6 h-6 text-action-blue" /> Điểm chuyên cần cuộc họp
-                    </h1>
-                    <p className="text-xs text-slate-blue mt-1">
+                    <PageHeading as="h1" badge="Chuyên cần" icon={<Award className="w-6 h-6 text-action-blue" />} className="text-xl font-black text-midnight-indigo flex items-center gap-2">
+                         Điểm chuyên cần cuộc họp
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">
                         Tính các cuộc họp đã kết thúc có điểm danh. Lý do được duyệt = 0 điểm; chờ duyệt hoặc bị từ chối vẫn giữ điểm trừ.
                     </p>
                 </div>
@@ -456,10 +465,10 @@ const AttendancePenaltyReport = () => {
                 <div className="space-y-4">
                     <FilterBar variant="card" className="flex flex-wrap items-center gap-2">
                         {scope === 'school' ? (
-                            <FilterField label="Đơn vị"><select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="px-3 py-2 text-xs rounded-xl border border-platinum-tint bg-white">
+                            <FilterField label="Đơn vị"><FilterMultiSelect value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="px-3 py-2 text-xs rounded-xl border border-platinum-tint bg-white">
                                 <option value="">Tất cả đơn vị</option>
                                 {summary?.departments?.map((d) => <option key={d.id} value={d.id}>{d.departmentName}</option>)}
-                            </select></FilterField>
+                            </FilterMultiSelect></FilterField>
                         ) : (
                             <span data-ui-text="badge" className="px-3 py-2 text-xs font-bold rounded-xl bg-cloud-mist text-midnight-indigo">{summary?.departments?.[0]?.departmentName}</span>
                         )}
@@ -471,7 +480,7 @@ const AttendancePenaltyReport = () => {
 
                     {summary && (
                         <div className="bg-white rounded-2xl border border-platinum-tint overflow-x-auto">
-                            <PaginatedCollection items={summary?.rows} itemLabel="nhân sự">
+                            <PaginatedCollection items={summaryRows} itemLabel="nhân sự">
 {(camaiPageItems, camaiStartIndex) => (
 <ResponsiveTable className="w-full text-sm">
 <colgroup>
@@ -497,7 +506,7 @@ const AttendancePenaltyReport = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-platinum-tint">
-                                    {summary.rows.length === 0 ? (
+                                    {summaryRows.length === 0 ? (
                                         <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-blue text-sm">Không có dữ liệu trong khoảng thời gian này.</td></tr>
                                     ) : camaiPageItems.map((camaiRecord, camaiIndex) => ((r) => (
                                         <tr key={r.userId} onClick={() => openDetail(r)} className="hover:bg-cloud-mist/30 cursor-pointer">
@@ -516,9 +525,9 @@ const AttendancePenaltyReport = () => {
                                             </td>
                                             <td className={`px-4 py-3 text-right font-black ${pointsCls(r.totalPoints)}`}>{fmtPoints(r.totalPoints)}</td>
                                         </tr>
-                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (summary.rows)))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (summaryRows)))}
                                 </tbody>
-                                {summary.rows.length > 0 && (
+                                {summaryRows.length > 0 && (
                                     <tfoot className="bg-cloud-mist/40 text-xs font-bold">
                                         <tr>
                                             <td className="px-4 py-3">Tổng ({summary.totals.people} người)</td>
@@ -544,10 +553,10 @@ const AttendancePenaltyReport = () => {
                 <div className="space-y-4">
                     <FilterBar variant="card" className="flex flex-wrap items-center gap-2">
                         {scope === 'school' ? (
-                            <FilterField label="Đơn vị"><select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="px-3 py-2 text-xs rounded-xl border border-platinum-tint bg-white">
+                            <FilterField label="Đơn vị"><FilterMultiSelect value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="px-3 py-2 text-xs rounded-xl border border-platinum-tint bg-white">
                                 <option value="">Tất cả đơn vị</option>
                                 {meetingSummary?.departments?.map((d) => <option key={d.id} value={d.id}>{d.departmentName}</option>)}
-                            </select></FilterField>
+                            </FilterMultiSelect></FilterField>
                         ) : (
                             <span data-ui-text="badge" className="px-3 py-2 text-xs font-bold rounded-xl bg-cloud-mist text-midnight-indigo">{meetingSummary?.departments?.[0]?.departmentName}</span>
                         )}
@@ -562,7 +571,7 @@ const AttendancePenaltyReport = () => {
 
                     {meetingSummary && (
                         <div className="bg-white rounded-2xl border border-platinum-tint overflow-x-auto">
-                            <PaginatedCollection items={meetingSummary?.rows} itemLabel="cuộc họp">
+                            <PaginatedCollection items={meetingRows} itemLabel="cuộc họp">
 {(camaiPageItems, camaiStartIndex) => (
 <ResponsiveTable className="w-full text-sm">
 <colgroup>
@@ -590,7 +599,7 @@ const AttendancePenaltyReport = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-platinum-tint">
-                                    {meetingSummary.rows.length === 0 ? (
+                                    {meetingRows.length === 0 ? (
                                         <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-blue text-sm">Không có cuộc họp nào có điểm danh trong khoảng thời gian này.</td></tr>
                                     ) : camaiPageItems.map((camaiRecord, camaiIndex) => ((r) => (
                                         <tr key={r.meetingId} onClick={() => openMeetingDetail(r)} className="hover:bg-cloud-mist/30 cursor-pointer">
@@ -613,9 +622,9 @@ const AttendancePenaltyReport = () => {
                                             </td>
                                             <td className={`px-4 py-3 text-right font-black ${pointsCls(r.totalPoints)}`}>{fmtPoints(r.totalPoints)}</td>
                                         </tr>
-                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (meetingSummary.rows)))}
+                                    ))(camaiRecord, camaiStartIndex + camaiIndex, (meetingRows)))}
                                 </tbody>
-                                {meetingSummary.rows.length > 0 && (
+                                {meetingRows.length > 0 && (
                                     <tfoot className="bg-cloud-mist/40 text-xs font-bold">
                                         <tr>
                                             <td className="px-4 py-3">Tổng ({meetingSummary.totals.meetings} cuộc họp)</td>
@@ -638,7 +647,8 @@ const AttendancePenaltyReport = () => {
                 </div>
             )}
 
-            {loading && <p className="text-center text-xs text-slate-blue">Đang tải...</p>}
+            {/* Đang tìm kiếm thì không chèn dòng này (tránh trang dài ra rồi co lại). */}
+            {loading && !search.trim() && <p className="text-center text-xs text-slate-blue">Đang tải...</p>}
 
             {meetingDetail && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm" onClick={() => setMeetingDetail(null)}>

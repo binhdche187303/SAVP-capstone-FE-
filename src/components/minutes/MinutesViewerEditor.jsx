@@ -1,3 +1,4 @@
+import ReportExportButton from '../common/ReportExportButton';
 import TableColumns from '../common/TableColumns';
 import ResponsiveTable from '../common/ResponsiveTable';
 import { useState } from 'react';
@@ -189,7 +190,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
         currentUser.id === minutes.preparedBy
     );
 
-    // BE khoá sửa/xoá khi biên bản đang chờ ký hoặc đã ký duyệt (permissions.signoffLocked)
+    // BE khoá sửa/xóa khi biên bản đang chờ ký hoặc đã ký duyệt (permissions.signoffLocked)
     const locked = !!minutes.permissions?.signoffLocked;
     const canEdit = !locked && (isHost || isSecretary || minutes.permissions?.canEdit) && minutes.status === 'draft';
     // Ban hành: theo BE (chỉ chủ trì; cuộc họp cần trình ký thì phải ký duyệt xong mới ban hành).
@@ -301,7 +302,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                                     onClick={() => setShowDeleteModal(true)}
                                     disabled={minutes.status !== 'draft' || isDeleting}
                                     className="px-3 py-1.5 border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                                    title={minutes.status !== 'draft' ? "Chỉ có thể xoá biên bản ở trạng thái nháp (draft)" : "Xoá biên bản nháp"}
+                                    title={minutes.status !== 'draft' ? "Chỉ có thể xóa biên bản ở trạng thái nháp (draft)" : "Xóa biên bản nháp"}
                                 >
                                     <Trash2 className="w-3.5 h-3.5" /> Xóa
                                 </button>
@@ -345,12 +346,13 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                                         </button>
                                     )}
                                     {canExport && (
-                                        <button
+                                        <ReportExportButton
+                                            label="Xuất file"
                                             onClick={() => setShowExportModal(true)}
-                                            className="px-3 py-1.5 bg-action-blue text-white rounded-xl text-xs font-bold hover:bg-glacier-blue transition-colors flex items-center gap-1.5 shadow-sm"
+                                            legacyClassName="px-3 py-1.5 bg-action-blue text-white rounded-xl text-xs font-bold hover:bg-glacier-blue transition-colors flex items-center gap-1.5 shadow-sm"
                                         >
                                             <Download className="w-3.5 h-3.5" /> Xuất file
-                                        </button>
+                                        </ReportExportButton>
                                     )}
                                 </>
                             )}
@@ -653,7 +655,7 @@ const MinutesViewerEditor = ({ minutes, meetingId, isHost, isSecretary = false, 
                                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                                 className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative z-10"
                             >
-                                <h3 className="text-base font-bold text-midnight-indigo mb-2">Xác nhận xoá biên bản họp nháp</h3>
+                                <h3 className="text-base font-bold text-midnight-indigo mb-2">Xác nhận xóa biên bản họp nháp</h3>
                                 <p className="text-xs text-slate-blue leading-relaxed mb-6">
                                     Bạn có chắc chắn muốn xóa bản nháp của biên bản cuộc họp này? Thao tác này sẽ xóa biên bản và các tài liệu đính kèm liên quan. Hành động này không thể khôi phục lại.
                                 </p>

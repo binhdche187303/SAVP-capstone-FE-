@@ -10,7 +10,7 @@ const TOOLS = [
     { cmd: 'insertUnorderedList', icon: List, title: 'Danh sách dấu chấm' },
     { cmd: 'insertOrderedList', icon: ListOrdered, title: 'Danh sách đánh số' },
     { cmd: 'createLink', icon: Link2, title: 'Chèn liên kết' },
-    { cmd: 'removeFormat', icon: RemoveFormatting, title: 'Xoá định dạng' },
+    { cmd: 'removeFormat', icon: RemoveFormatting, title: 'Xóa định dạng' },
 ];
 
 export default function RichTextEditor({ value, onChange, placeholder, maxLength, minHeight = 96 }) {

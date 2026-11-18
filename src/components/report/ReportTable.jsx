@@ -4,8 +4,13 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 
 import { cardCls, thCls, tdCls } from '../common/uiClasses';
 import { formatCell } from '../../utils/reportFormat';
+import './ReportTable.css';
 
 const NUMERIC = ['number', 'percent', 'hours', 'minutes', 'duration'];
+const ROOM_COLUMN_WIDTHS = {
+    roomName: '18.5%', building: '14%', capacity: '10%', meetingCount: '12%',
+    bookedHours: '8.5%', usedHours: '13.5%', utilizationRate: '12.5%', noShowCount: '11%',
+};
 
 // Give descriptive columns more space than counts, across all report types.
 const columnWeight = col => {
@@ -20,13 +25,14 @@ const columnWeight = col => {
 const ReportTable = ({ columns, rows = [], total = 0, page = 1, limit = 10, sortKey, sortDir, onSort, onPageChange, onPageSizeChange, loading }) => {
 
     const totalWeight = columns.reduce((total, col) => total + columnWeight(col), 0);
+    const isRoomReport = columns.some(col => col.key === 'usedHours') && columns.every(col => ROOM_COLUMN_WIDTHS[col.key]);
 
     return (
         <div className={`${cardCls} overflow-hidden`}>
             <div className="overflow-x-auto">
-                <ResponsiveTable className="w-full">
+                <ResponsiveTable className={`w-full${isRoomReport ? ' report-room-usage-table' : ''}`}>
                     <colgroup>
-                        {columns.map(col => <col key={col.key} style={{ width: `${100 * columnWeight(col) / totalWeight}%` }} />)}
+                        {columns.map(col => <col key={col.key} style={{ width: isRoomReport ? ROOM_COLUMN_WIDTHS[col.key] : `${100 * columnWeight(col) / totalWeight}%` }} />)}
                     </colgroup>
                     <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                         <tr>
@@ -48,7 +54,7 @@ const ReportTable = ({ columns, rows = [], total = 0, page = 1, limit = 10, sort
                         {rows.length === 0 ? (
                             <tr>
                                 <td colSpan={columns.length} className="px-4 py-10 text-center text-xs text-slate-blue">
-                                    {loading ? 'Đang tải dữ liệu…' : 'Không có dữ liệu trong kỳ đã chọn'}
+                                    {loading ? 'Đang tải dữ liệu...' : 'Không có dữ liệu trong kỳ đã chọn'}
                                 </td>
                             </tr>
                         ) : rows.map((row, i) => (

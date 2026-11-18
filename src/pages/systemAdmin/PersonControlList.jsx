@@ -1,8 +1,11 @@
+import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
+import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, CheckCircle, Edit3, Filter, Plus, Search, Trash2, UserX, X } from 'lucide-react';
+import ReportActions from '../../components/common/ReportActions';
+import { AlertTriangle, CheckCircle, Edit3, Filter, Plus, Search, Trash2, UserX, X, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -17,6 +20,7 @@ import { getUsers } from '../../service/businessAdminServices';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { API_BASE_URL } from '../../utils/request';
+import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 
 // Đối chiếu khi nhận diện khuôn mặt chạy theo user_id → bắt buộc chọn user có trong hệ thống.
 const emptyForm = {
@@ -57,6 +61,9 @@ const PersonControlList = () => {
     const [userSearch, setUserSearch] = useState('');
     const [userResults, setUserResults] = useState([]);
     const [userSearching, setUserSearching] = useState(false);
+    const debouncedUserSearch = useDebouncedValue(userSearch);
+    // Lọc ngay gợi ý đang có trong lúc chờ BE trả kết quả cho từ khoá mới.
+    const visibleUserResults = useInstantFilter(userResults, userSearch, userSearch !== debouncedUserSearch || userSearching);
 
     const fetchPersons = useCallback(async (currentFilters = filters) => {
         setLoading(true);
@@ -100,23 +107,33 @@ const PersonControlList = () => {
 
     // Debounce tìm user khi đang mở modal tạo mới
     useEffect(() => {
-        if (!modal.open || modal.type !== 'create' || !userSearch.trim()) {
+        if (!modal.open || modal.type !== 'create' || !debouncedUserSearch.trim()) {
             setUserResults([]);
+            setUserSearching(false);
             return;
         }
-        const timer = setTimeout(async () => {
+        let cancelled = false;
+        (async () => {
             setUserSearching(true);
             try {
-                const res = await getUsers({ search: userSearch.trim(), limit: 8 });
-                setUserResults(res?.success ? (res.data || []) : []);
+                const res = await getUsers({ search: debouncedUserSearch.trim(), limit: 8 });
+                if (!cancelled) setUserResults(res?.success ? (res.data || []) : []);
             } catch {
-                setUserResults([]);
+                if (!cancelled) setUserResults([]);
             } finally {
-                setUserSearching(false);
+                if (!cancelled) setUserSearching(false);
             }
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [userSearch, modal.open, modal.type]);
+        })();
+        return () => { cancelled = true; };
+    }, [debouncedUserSearch, modal.open, modal.type]);
+
+    // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
+    const countTotal = useCallback(
+        (f) => getPersonControlList(Object.fromEntries(Object.entries({ ...f, page: 1, limit: 1 }).filter(([, v]) => v !== '' && v != null))).then(totalOf),
+        [],
+    );
+    const list_typeCounts = useFacetCounts(filters, 'list_type', ['blocklist', 'watchlist'], countTotal);
+    const activeCounts = useFacetCounts(filters, 'active', ['true', 'false'], countTotal);
 
     const handleFilterChange = (key, value) => {
         // Đổi trang thì giữ page mới; đổi filter khác thì về trang 1 (mirror VehicleControlList).
@@ -274,20 +291,20 @@ const PersonControlList = () => {
                     <p className="text-slate-blue text-sm mt-1">Khi camera nhận diện khuôn mặt của người trong danh sách, hệ thống sẽ tạo cảnh báo "Đối tượng theo dõi".</p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <ReportActions>
                     <button
                         onClick={openCreateModal}
-                        className="inline-flex items-center justify-center px-4 py-2 bg-action-blue text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors duration-200"
+                        className="inline-flex h-9 items-center justify-center px-4 bg-action-blue text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors duration-200"
                     >
                         <Plus className="w-4 h-4 mr-1.5" />
                         Thêm đối tượng
                     </button>
                     <RefreshButton
                         onClick={() => fetchPersons()}
-                        title="Tải lại dữ liệu"
+                        title="Làm mới dữ liệu"
                         busy={loading}
                     />
-                </div>
+                </ReportActions>
             </div>
 
             {/* Messages */}
@@ -315,19 +332,19 @@ const PersonControlList = () => {
                 <div data-filter-grid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Phân loại</label>
-                        <select value={filters.list_type} onChange={(e) => handleFilterChange('list_type', e.target.value)} className={inputCls}>
+                        <FilterMultiSelect singleSelect counts={list_typeCounts} value={filters.list_type} onChange={(e) => handleFilterChange('list_type', e.target.value)} className={inputCls}>
                             <option value="">Tất cả phân loại</option>
                             <option value="blocklist">Danh sách đen</option>
                             <option value="watchlist">Danh sách theo dõi</option>
-                        </select>
+                        </FilterMultiSelect>
                     </div>
                     <div className="camai-filter-field space-y-1.5">
                         <label className="text-xs font-bold text-slate-blue uppercase tracking-wider">Trạng thái</label>
-                        <select value={filters.active} onChange={(e) => handleFilterChange('active', e.target.value)} className={inputCls}>
+                        <FilterMultiSelect singleSelect counts={activeCounts} value={filters.active} onChange={(e) => handleFilterChange('active', e.target.value)} className={inputCls}>
                             <option value="">Tất cả trạng thái</option>
                             <option value="true">Đang hoạt động</option>
                             <option value="false">Vô hiệu hóa</option>
-                        </select>
+                        </FilterMultiSelect>
                     </div>
                 </div>
             </FilterBar>
@@ -495,11 +512,11 @@ const PersonControlList = () => {
                                                     onChange={(e) => setUserSearch(e.target.value)}
                                                     className={`w-full pl-9 pr-4 py-2.5 bg-slate-50 border rounded-xl text-sm focus:outline-none focus:bg-white transition-colors ${formErrors.user_id ? 'border-red-500' : 'border-platinum-tint focus:border-action-blue'}`}
                                                 />
-                                                {(userSearching || userResults.length > 0) && (
+                                                {userSearch.trim() && (userSearching || visibleUserResults.length > 0) && (
                                                     <div className="absolute z-10 mt-1 w-full bg-white border border-platinum-tint rounded-xl shadow-lg max-h-56 overflow-y-auto">
-                                                        {userSearching ? (
+                                                        {userSearching && visibleUserResults.length === 0 ? (
                                                             <div className="px-4 py-3 text-xs text-slate-blue">Đang tìm...</div>
-                                                        ) : userResults.map(u => (
+                                                        ) : visibleUserResults.map(u => (
                                                             <button type="button" key={u.id} onClick={() => selectUser(u)} className="w-full text-left px-4 py-2.5 hover:bg-cloud-mist transition-colors">
                                                                 <div data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{u.fullName}</div>
                                                                 <div data-ui-text="secondary" className="text-[11px] text-slate-blue">
@@ -592,7 +609,7 @@ const PersonControlList = () => {
                                 disabled={actionLoading}
                                 className="px-5 py-2.5 text-sm font-bold text-white bg-action-blue hover:bg-blue-700 rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 min-w-[120px]"
                             >
-                                {actionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Lưu lại'}
+                                {actionLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : 'Lưu lại'}
                             </button>
                         </div>
                     </motion.div>
@@ -624,7 +641,7 @@ const PersonControlList = () => {
                                     disabled={actionLoading}
                                     className="flex-1 px-5 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
-                                    {actionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Xóa ngay'}
+                                    {actionLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : 'Xóa ngay'}
                                 </button>
                             </div>
                         </div>

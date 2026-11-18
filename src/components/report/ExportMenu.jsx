@@ -48,7 +48,7 @@ const LegacyExportMenu = ({ onExport, disabled, busyFormat, compact = false, lab
         <div className="relative camai-export-menu" ref={ref}>
             <ReportExportButton label={label} busy={Boolean(busyFormat)} menu aria-expanded={open} type="button" legacyClassName={compact ? COMPACT_BTN : btnPrimary} disabled={disabled || Boolean(busyFormat)} onClick={() => setOpen((v) => !v)}>
                 <Download className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
-                {busyFormat ? 'Đang xuất…' : label}
+                {busyFormat ? 'Đang xuất...' : label}
                 <ChevronDown className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </ReportExportButton>
             {open && (
