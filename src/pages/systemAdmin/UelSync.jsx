@@ -3,19 +3,18 @@ import { syncMessage } from './uelSyncMessages';
 import StatisticCard from '../../components/common/StatisticCard';
 import RefreshButton from '../../components/common/RefreshButton';
 import StatisticGrid from '../../components/common/StatisticGrid';
-import DateInput from '../../components/common/DateInput';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Play, Plus, Trash2, ChevronDown, ChevronRight, DatabaseZap, Search, CircleCheck, CircleX, LoaderCircle, CircleMinus, TriangleAlert, CalendarClock, History, Settings2, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-    UEL_LOOKUP_TYPES,
+    Play, ChevronDown, ChevronRight, DatabaseZap,
+    CircleCheck, CircleX, LoaderCircle, CircleMinus, TriangleAlert, History, Settings2, Download, Loader2,
+} from 'lucide-react';
+import {
     UEL_SYNC_PREVIEW,
     UEL_SYNC_STEPS,
-    getStudyPeriods,
+    downloadUelGaps,
     getUelSyncRuns,
     getUelSyncStatus,
-    lookupUel,
-    replaceStudyPeriods,
     runUelSyncAll,
     stepLabel,
     updateUelSyncSettings,
@@ -26,17 +25,9 @@ import { WEEKDAYS, formatRunAt, nextRunOf, scheduleLabelOf } from '../../utils/u
  * Đồng bộ dữ liệu từ API Đào tạo UEL.
  * - 1 nút "Đồng bộ toàn bộ": BE chạy đủ 6 bước theo thứ tự, tự nhận học kỳ đang học; trang hỏi lại mỗi 2 giây để hiện tiến trình.
  * - Cài đặt tự động: hằng ngày / hằng tuần + giờ chạy; phạm vi (số ngày lịch học, học kỳ tự nhận hoặc chỉ định) dùng chung cho cả nút bấm.
- * - Nâng cao (thu gọn): bảng giờ tiết, tra cứu trực tiếp 1 người / 1 ngày.
  */
 
 const POLL_MS = 2000;
-
-const localDate = (addDays = 0) => {
-    const d = new Date();
-    d.setDate(d.getDate() + addDays);
-    const p = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
 
 const fmtTime = (iso) =>
     iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
@@ -88,8 +79,6 @@ const inputCls =
     'w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo bg-white focus:outline-none focus:ring-2 focus:ring-action-blue/30 focus:border-action-blue disabled:bg-cloud-mist disabled:text-steel-gray';
 const btnPrimary =
     'px-4 py-2 bg-action-blue text-white hover:bg-glacier-blue rounded-xl text-sm font-semibold shadow-sm transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed';
-const btnGhost =
-    'px-3 py-2 border border-platinum-tint bg-white text-slate-blue hover:bg-cloud-mist rounded-xl text-sm font-semibold transition-all duration-200 inline-flex items-center gap-2 disabled:opacity-50';
 const labelCls = 'block text-xs font-bold text-slate-blue mb-1';
 
 // ───────────────────────── Tiến trình 6 bước ─────────────────────────
@@ -140,6 +129,72 @@ const StepTracker = ({ run }) => (
 
 // ───────────────────────── Lịch sử lượt chạy ─────────────────────────
 
+const DEACTIVATED_HINT =
+    'Có trong hệ thống nhưng lần này UEL không còn trả về ⇒ đổi trạng thái, không xóa: cán bộ → nghỉ việc, ' +
+    'đơn vị → ngừng hoạt động, đăng ký HP → đã hủy, buổi học chưa diễn ra → đã hủy.';
+
+const GAP_REASONS = [
+    ['not_assigned', 'UEL chưa phân công giảng viên'],
+    ['ambiguous', 'Tên GV trùng nhiều cán bộ'],
+    ['not_in_staff', 'GV không có trong danh sách nhân sự UEL'],
+    ['pending', 'Đã khớp GV, gán ở lần đồng bộ lớp HP tới'],
+];
+
+/** Tóm tắt dữ liệu cần bổ sung lúc lượt kết thúc + nút xuất Excel danh sách chi tiết (theo dữ liệu hiện tại). */
+const GapsPanel = ({ gaps }) => {
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    const { students, staff, sections } = gaps;
+    const exportFile = async () => {
+        setBusy(true);
+        setError('');
+        try {
+            await downloadUelGaps();
+        } catch {
+            setError('Không xuất được file. Vui lòng thử lại.');
+        } finally {
+            setBusy(false);
+        }
+    };
+    return (
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2.5 text-sm space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold text-midnight-indigo">Dữ liệu cần bổ sung</p>
+                <button
+                    type="button"
+                    onClick={exportFile}
+                    disabled={busy || UEL_SYNC_PREVIEW}
+                    className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-platinum-tint bg-white px-2.5 py-1 text-xs font-semibold text-midnight-indigo hover:bg-cloud-mist disabled:opacity-50"
+                >
+                    {busy ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                    Xuất Excel danh sách
+                </button>
+            </div>
+            <ul className="space-y-1 text-slate-blue">
+                <li>
+                    <span className="font-semibold text-midnight-indigo">{fmtNum(students.noEmail)} / {fmtNum(students.total)} SV chưa có email</span>
+                    {students.groups?.length > 0 && (
+                        <span className="block text-xs">
+                            {students.groups.map((g) => `${g.label === 'Khác' ? 'Khác (liên kết, SĐH, hệ khác)' : g.label}: ${fmtNum(g.noEmail)} / ${fmtNum(g.total)}`).join(' · ')}
+                        </span>
+                    )}
+                </li>
+                <li><span className="font-semibold text-midnight-indigo">{fmtNum(staff.noEmail)} / {fmtNum(staff.total)} cán bộ chưa có email</span></li>
+                <li>
+                    <span className="font-semibold text-midnight-indigo">{fmtNum(sections.noLecturer)} / {fmtNum(sections.total)} lớp HP chưa có giảng viên</span>
+                    <span className="block text-xs">
+                        {GAP_REASONS.filter(([k]) => sections.reasons?.[k]).map(([k, label]) => `${label}: ${fmtNum(sections.reasons[k])}`).join(' · ')}
+                    </span>
+                </li>
+            </ul>
+            <p className="text-xs text-steel-gray">
+                Số liệu lúc lượt kết thúc. File xuất theo dữ liệu hiện tại, có cột trống để bổ sung email / giảng viên.
+            </p>
+            {error && <p className="text-xs text-red-700">{error}</p>}
+        </div>
+    );
+};
+
 const RunRow = ({ run, defaultOpen }) => {
     const [open, setOpen] = useState(defaultOpen);
     const errors = run.results.filter((r) => r.error).length;
@@ -156,6 +211,9 @@ const RunRow = ({ run, defaultOpen }) => {
                 {open ? <ChevronDown className="w-4 h-4 text-slate-blue" /> : <ChevronRight className="w-4 h-4 text-slate-blue" />}
                 <span className="text-sm font-semibold text-midnight-indigo tabular-nums">{fmtTime(run.startedAt)}</span>
                 <StatusPill status={run.status} />
+                {run.interrupted && (
+                    <span className="text-xs font-semibold text-amber-700">Bị gián đoạn (server khởi động lại)</span>
+                )}
                 <span className="text-xs text-slate-blue">
                     {run.trigger === 'schedule' ? 'Tự động' : `Bấm tay${run.requestedByName ? ` · ${run.requestedByName}` : ''}`}
                 </span>
@@ -179,7 +237,9 @@ const RunRow = ({ run, defaultOpen }) => {
                                     <th className="py-1.5 px-3 font-semibold text-right">Lấy về</th>
                                     <th className="py-1.5 px-3 font-semibold text-right">Đã ghi</th>
                                     <th className="py-1.5 px-3 font-semibold text-right">Bỏ qua</th>
-                                    <th className="py-1.5 px-3 font-semibold text-right">Vô hiệu hóa</th>
+                                    <th className="py-1.5 px-3 font-semibold text-right">
+                                        <span title={DEACTIVATED_HINT} className="cursor-help underline decoration-dotted underline-offset-2">Vô hiệu hóa</span>
+                                    </th>
                                     <th className="py-1.5 pl-3 font-semibold">Ghi chú</th>
                                 </tr>
                             </thead>
@@ -211,230 +271,31 @@ const RunRow = ({ run, defaultOpen }) => {
                             </tbody>
                         </ResponsiveTable>
                     </div>
+                    {run.gaps && <GapsPanel gaps={run.gaps} />}
                 </div>
             )}
         </li>
     );
 };
 
-// ───────────────────────── Tra cứu trực tiếp ─────────────────────────
-
-/** Tên cột dễ đọc cho các trường API UEL hay gặp; trường khác giữ nguyên tên gốc. */
-const FIELD_LABELS = {
-    ma_nhan_su: 'Mã cán bộ', ho: 'Họ', ten: 'Tên', ho_ten: 'Họ tên', ngay_sinh: 'Ngày sinh', gioi_tinh: 'Giới tính',
-    email: 'Email', ma_phong_ban: 'Mã đơn vị', ten_phong_ban: 'Đơn vị', ma_quan_ly: 'Quản lý', loai: 'Loại',
-    khong_con_cong_tac: 'Nghỉ việc', cccd: 'CCCD', ma_sinh_vien: 'Mã SV', ten_sinh_vien: 'Tên SV', ho_ten_sinh_vien: 'Tên SV',
-    lop: 'Lớp', khoa: 'Khoa', khoa_hoc: 'Khóa', noi_sinh: 'Nơi sinh', dan_toc: 'Dân tộc', ton_giao: 'Tôn giáo', dia_chi: 'Địa chỉ',
-    ma_lop_hoc_phan: 'Lớp HP', ma_hoc_phan: 'Mã HP', ten_hoc_phan: 'Học phần', so_tin_chi: 'TC', nam_hoc: 'Năm học', hoc_ky: 'HK',
-    ngay_dang_ky: 'Ngày ĐK', hinh_thuc_dang_ky: 'Hình thức ĐK', ngay_hoc: 'Ngày', thu: 'Thứ', tiet_bat_dau: 'Tiết BĐ', so_tiet: 'Số tiết',
-    ma_phong_hoc: 'Phòng', ma_phong: 'Phòng', ten_co_so: 'Cơ sở', ma_lich_hoc: 'Mã buổi', ma_buoi_hoc: 'Mã buổi', buoi_hoc: 'Buổi',
-    ma_giang_vien: 'Mã GV', ten_giang_vien: 'Giảng viên', buoi_hoc_thu: 'Buổi thứ',
-};
-/** Trường dư thừa / nội bộ không cần hiện trong bảng. */
-const HIDDEN_FIELDS = new Set(['stt', 'ma_hinh_thuc_dang_ky', 'ten_phong_hoc', 'ten_phong', 'ma_day_nha', 'ma_co_so', 'ten_day_nha', 'ma_don_vi', 'ten_don_vi']);
-
-const cellText = (v) => (v === null || v === undefined || v === '' ? '—' : typeof v === 'boolean' ? (v ? 'Có' : 'Không') : String(v));
-
-const LookupCard = () => {
-    const [form, setForm] = useState({ type: 'staff', code: '', date: localDate() });
-    const [busy, setBusy] = useState(false);
-    const [result, setResult] = useState(null);
-    const [error, setError] = useState(null);
-    const t = UEL_LOOKUP_TYPES.find((x) => x.key === form.type) ?? UEL_LOOKUP_TYPES[0];
-
-    const columns = useMemo(() => {
-        const keys = [];
-        for (const row of result?.items ?? []) for (const k of Object.keys(row)) if (!HIDDEN_FIELDS.has(k) && !keys.includes(k)) keys.push(k);
-        return keys;
-    }, [result]);
-
-    const submit = async (e) => {
-        e.preventDefault();
-        if (!form.code.trim()) return setError('Nhập mã cần tra cứu.');
-        setBusy(true);
-        setError(null);
-        try {
-            setResult(await lookupUel({ type: form.type, code: form.code.trim(), ...(t.needsDate ? { date: form.date } : {}) }));
-        } catch (err) {
-            setResult(null);
-            setError(errorText(err, 'Không tra cứu được.'));
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    return (
-        <Card title="Tra cứu trực tiếp từ UEL" icon={Search}>
-            <p className="text-xs text-slate-blue">
-                Hỏi thẳng hệ thống của Trường cho 1 người, 1 ngày hoặc 1 buổi. Chỉ xem, không lưu vào hệ thống — dùng để đối chiếu khi dữ liệu đồng bộ có vẻ sai.
-            </p>
-            <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                <label className="block" htmlFor="uel-lk-type">
-                    <span className={labelCls}>Tra cứu</span>
-                    <select id="uel-lk-type" className={inputCls} value={form.type}
-                        onChange={(e) => { setForm({ ...form, type: e.target.value }); setResult(null); setError(null); }}>
-                        {UEL_LOOKUP_TYPES.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
-                    </select>
-                </label>
-                <label className="block" htmlFor="uel-lk-code">
-                    <span className={labelCls}>{t.codeLabel}</span>
-                    <input id="uel-lk-code" className={inputCls} placeholder={t.placeholder} maxLength={50}
-                        value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-                </label>
-                <label className="block" htmlFor="uel-lk-date">
-                    <span className={labelCls}>Ngày</span>
-                    <DateInput id="uel-lk-date" type="date" className={inputCls} disabled={!t.needsDate}
-                        value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-                </label>
-                <button type="submit" disabled={busy} className={btnPrimary}>
-                    <Search className="w-4 h-4" /> {busy ? 'Đang tra...' : 'Tra cứu'}
-                </button>
-            </form>
-            {error && <p className="text-sm text-red-700">{error}</p>}
-            {result && (result.items.length === 0 ? (
-                <p className="text-sm text-steel-gray">Trường không có dữ liệu cho mã này.</p>
-            ) : (
-                <div className="space-y-2">
-                    <p className="text-xs text-slate-blue">
-                        {result.total} dòng{result.truncated ? ` (hiện ${result.items.length} dòng đầu)` : ''} · API <code>{result.api}</code>
-                    </p>
-                    <div className="overflow-x-auto max-h-96 overflow-y-auto border border-platinum-tint/70 rounded-xl">
-                        <PaginatedCollection items={result.items} itemLabel="dòng tra cứu">
-{(camaiPageItems, camaiStartIndex) => (
-<ResponsiveTable className="w-full text-xs">
-                            <thead className="sticky top-0 bg-cloud-mist">
-                                <tr className="text-left text-slate-blue">
-                                    {columns.map((c) => <th key={c} className="py-2 px-2 font-semibold whitespace-nowrap">{FIELD_LABELS[c] ?? c}</th>)}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {camaiPageItems.map((camaiRecord, camaiIndex) => ((row, i) => (
-                                    <tr key={i} className="border-t border-platinum-tint/60">
-                                        {columns.map((c) => <td key={c} className="py-1.5 px-2 whitespace-nowrap text-midnight-indigo">{cellText(row[c])}</td>)}
-                                    </tr>
-                                ))(camaiRecord, camaiStartIndex + camaiIndex, (result.items)))}
-                            </tbody>
-                        </ResponsiveTable>
-)}
-</PaginatedCollection>
-                    </div>
-                </div>
-            ))}
-        </Card>
-    );
-};
-
-// ───────────────────────── Bảng giờ tiết ─────────────────────────
-
-const PeriodsCard = ({ periods: initial, onSaved }) => {
-    const [periods, setPeriods] = useState(initial);
-    const [rows, setRows] = useState(initial);
-    const [saving, setSaving] = useState(false);
-    const [msg, setMsg] = useState(null);
-
-    const setPeriod = (i, field, value) =>
-        setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, [field]: field === 'periodNo' ? Number(value) : value } : r)));
-    const addPeriod = () =>
-        setRows((rs) => {
-            const last = rs[rs.length - 1];
-            return [...rs, { periodNo: (last?.periodNo ?? 0) + 1, startTime: last?.endTime ?? '07:00', endTime: '' }];
-        });
-
-    const save = async () => {
-        setMsg(null);
-        setSaving(true);
-        try {
-            const saved = await replaceStudyPeriods(rows);
-            setPeriods(saved);
-            setRows(saved);
-            onSaved(saved);
-            setMsg({ ok: true, text: `Đã lưu ${saved.length} tiết. Buổi học đã đồng bộ sẽ cập nhật giờ ở lần đồng bộ kế tiếp.` });
-        } catch (e) {
-            setMsg({ ok: false, text: errorText(e, 'Không lưu được bảng giờ tiết.') });
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const dirty = JSON.stringify(rows) !== JSON.stringify(periods);
-
-    return (
-        <Card
-            title="Bảng giờ tiết"
-            icon={CalendarClock}
-            action={
-                <button type="button" onClick={addPeriod} className={btnGhost} disabled={rows.length >= 30}>
-                    <Plus className="w-4 h-4" /> Thêm tiết
-                </button>
-            }
-        >
-            <p className="text-xs text-slate-blue">
-                Giờ buổi học lấy thẳng từ API của Trường. Bảng này chỉ dùng khi một buổi không có giờ, để quy đổi tiết sang giờ.
-            </p>
-            {rows.length === 0 ? (
-                <p className="text-sm text-amber-700">Chưa có tiết nào. Bấm "Thêm tiết" để nhập theo lịch tiết của Trường.</p>
-            ) : (
-                <div className="overflow-x-auto max-h-80 overflow-y-auto">
-                    <PaginatedCollection items={rows} itemLabel="tiết học" resetKey="study-periods" revealAdded>
-{(camaiPageItems, camaiStartIndex) => (
-<ResponsiveTable className="w-full text-sm">
-                        <thead className="sticky top-0 bg-white">
-                            <tr className="text-left text-xs uppercase text-slate-blue">
-                                <th className="py-1.5 pr-2 font-semibold">Tiết</th>
-                                <th className="py-1.5 px-2 font-semibold">Bắt đầu</th>
-                                <th className="py-1.5 px-2 font-semibold">Kết thúc</th>
-                                <th className="py-1.5 pl-2 w-10"><span className="sr-only">Xóa</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((p, i) => (
-                                <tr key={i} className="border-t border-platinum-tint/60">
-                                    <td className="py-1.5 pr-2 w-20">
-                                        <input aria-label="Số tiết" type="number" min={1} max={30} className={inputCls}
-                                            value={p.periodNo} onChange={(e) => setPeriod(i, 'periodNo', e.target.value)} />
-                                    </td>
-                                    <td className="py-1.5 px-2">
-                                        <input aria-label={`Giờ bắt đầu tiết ${p.periodNo}`} type="time" className={inputCls}
-                                            value={p.startTime} onChange={(e) => setPeriod(i, 'startTime', e.target.value)} />
-                                    </td>
-                                    <td className="py-1.5 px-2">
-                                        <input aria-label={`Giờ kết thúc tiết ${p.periodNo}`} type="time" className={inputCls}
-                                            value={p.endTime} onChange={(e) => setPeriod(i, 'endTime', e.target.value)} />
-                                    </td>
-                                    <td className="py-1.5 pl-2">
-                                        <button type="button" aria-label={`Xóa tiết ${p.periodNo}`}
-                                            onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))}
-                                            className="p-2 text-slate-blue hover:text-red-600 rounded-lg">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))(camaiRecord, camaiStartIndex + camaiIndex, (rows)))}
-                        </tbody>
-                    </ResponsiveTable>
-)}
-</PaginatedCollection>
-                </div>
-            )}
-            <div className="flex flex-wrap items-center gap-3">
-                <button type="button" onClick={save} disabled={saving || !dirty} className={btnPrimary}>
-                    {saving ? 'Đang lưu...' : 'Lưu bảng giờ tiết'}
-                </button>
-                {msg && <span className={`text-sm ${msg.ok ? 'text-green-700' : 'text-red-700'}`}>{msg.text}</span>}
-            </div>
-        </Card>
-    );
-};
-
 // ───────────────────────── Cài đặt tự động ─────────────────────────
 
-const DEFAULT_SETTINGS = { autoEnabled: false, frequency: 'daily', weekday: 0, time: '02:00', sessionDaysAhead: 14, termMode: 'auto', namHoc: '', hocKy: '' };
+const DEFAULT_SETTINGS = { autoEnabled: false, frequency: 'daily', weekday: 0, time: '02:00', termMode: 'auto', namHoc: '', hocKy: '', intervalDays: 3 };
+const MIN_INTERVAL_DAYS = 2;
+const MAX_INTERVAL_DAYS = 90;
 
-/** Cài đặt BE trả về (có thể là bản cũ chỉ có namHoc/hocKy/sessionDaysAhead) → form đủ trường. */
+/** 'yyyy-MM-dd' → 'dd/MM/yyyy'; sai dạng → null. */
+const dmy = (iso) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
+};
+
+/** Cài đặt BE trả về (có thể là bản cũ chỉ có namHoc/hocKy) → form đủ trường. */
 const formOf = (s = {}) => {
-    const f = { ...DEFAULT_SETTINGS, ...s };
+    const { sessionDaysAhead: _old, ...rest } = s; // trường cũ, không còn dùng
+    const f = { ...DEFAULT_SETTINGS, ...rest };
     if (!s.termMode) f.termMode = s.namHoc && s.hocKy ? 'fixed' : 'auto';
-    return { ...f, weekday: Number(f.weekday), sessionDaysAhead: Number(f.sessionDaysAhead), namHoc: f.namHoc ?? '', hocKy: f.hocKy ?? '' };
+    return { ...f, weekday: Number(f.weekday), intervalDays: Number(f.intervalDays ?? 3), namHoc: f.namHoc ?? '', hocKy: f.hocKy ?? '' };
 };
 
 const payloadOf = (f) => ({
@@ -442,10 +303,10 @@ const payloadOf = (f) => ({
     frequency: f.frequency,
     weekday: Number(f.weekday),
     time: f.time,
-    sessionDaysAhead: Number(f.sessionDaysAhead),
     termMode: f.termMode,
     namHoc: f.termMode === 'fixed' ? f.namHoc.trim() : '',
     hocKy: f.termMode === 'fixed' ? f.hocKy.trim() : '',
+    intervalDays: Number(f.intervalDays),
 });
 
 const Segmented = ({ value, options, onChange, disabled, name }) => (
@@ -468,7 +329,7 @@ const Segmented = ({ value, options, onChange, disabled, name }) => (
     </div>
 );
 
-const SettingsCard = ({ saved: initial, serverAllowed, onSaved }) => {
+const SettingsCard = ({ saved: initial, serverAllowed, lastRunAt, onSaved }) => {
     const [saved, setSaved] = useState(initial);
     const [form, setForm] = useState(() => formOf(initial));
     const [saving, setSaving] = useState(false);
@@ -479,13 +340,17 @@ const SettingsCard = ({ saved: initial, serverAllowed, onSaved }) => {
 
     const blocker = (() => {
         if (form.autoEnabled && !/^\d{2}:\d{2}$/.test(form.time || '')) return 'Chọn giờ chạy.';
-        const d = Number(form.sessionDaysAhead);
-        if (!Number.isInteger(d) || d < 1 || d > 120) return 'Số ngày lịch học từ 1 đến 120.';
+        if (form.frequency === 'interval') {
+            const n = Number(form.intervalDays);
+            if (!Number.isInteger(n) || n < MIN_INTERVAL_DAYS || n > MAX_INTERVAL_DAYS) {
+                return `Số ngày giữa 2 lần phải từ ${MIN_INTERVAL_DAYS} đến ${MAX_INTERVAL_DAYS}.`;
+            }
+        }
         if (form.termMode === 'fixed' && (!form.namHoc.trim() || !form.hocKy.trim())) return 'Nhập năm học và học kỳ.';
         return null;
     })();
 
-    const next = nextRunOf(form);
+    const next = nextRunOf(form, new Date(), lastRunAt);
 
     const save = async (e) => {
         e.preventDefault();
@@ -532,7 +397,7 @@ const SettingsCard = ({ saved: initial, serverAllowed, onSaved }) => {
                             value={form.frequency}
                             disabled={!form.autoEnabled}
                             onChange={(v) => set({ frequency: v })}
-                            options={[{ value: 'daily', label: 'Hằng ngày' }, { value: 'weekly', label: 'Hằng tuần' }]}
+                            options={[{ value: 'daily', label: 'Hằng ngày' }, { value: 'weekly', label: 'Hằng tuần' }, { value: 'interval', label: 'Mỗi N ngày' }]}
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -544,6 +409,15 @@ const SettingsCard = ({ saved: initial, serverAllowed, onSaved }) => {
                                     {[1, 2, 3, 4, 5, 6, 0].map((d) => <option key={d} value={d}>{WEEKDAYS[d]}</option>)}
                                 </select>
                             </label>
+                        )}
+                        {form.frequency === 'interval' && (
+                            <div>
+                                <label className={labelCls} htmlFor="uel-set-interval">Số ngày giữa 2 lần</label>
+                                <input id="uel-set-interval" type="number" aria-describedby="uel-set-interval-hint" min={MIN_INTERVAL_DAYS} max={MAX_INTERVAL_DAYS} step={1}
+                                    className={inputCls} disabled={!form.autoEnabled}
+                                    value={form.intervalDays} onChange={(e) => set({ intervalDays: e.target.value === '' ? '' : Number(e.target.value) })} />
+                                <p id="uel-set-interval-hint" className="text-[11px] text-steel-gray mt-1">Ví dụ 3, 5, 7; 30 ≈ 1 tháng.</p>
+                            </div>
                         )}
                         <label className="block" htmlFor="uel-set-time">
                             <span className={labelCls}>Giờ chạy</span>
@@ -566,14 +440,7 @@ const SettingsCard = ({ saved: initial, serverAllowed, onSaved }) => {
 
                 <fieldset className="space-y-3 border-t border-platinum-tint/60 pt-4">
                     <legend className="text-xs font-bold text-slate-blue uppercase tracking-wide mb-1">Phạm vi (dùng cho cả nút bấm)</legend>
-                    <label className="block" htmlFor="uel-set-days">
-                        <span className={labelCls}>Lấy lịch học trước</span>
-                        <div className="flex items-center gap-2">
-                            <input id="uel-set-days" type="number" min={1} max={120} className={`${inputCls} w-24`}
-                                value={form.sessionDaysAhead} onChange={(e) => set({ sessionDaysAhead: e.target.value })} />
-                            <span className="text-sm text-slate-blue">ngày, tính từ hôm nay</span>
-                        </div>
-                    </label>
+                    <p className="text-sm text-slate-blue">Lịch học luôn lấy từ hôm nay đến hết năm học (31/08).</p>
                     <div className="space-y-2">
                         <span className={labelCls}>Học kỳ</span>
                         <label className="flex items-start gap-2 text-sm text-midnight-indigo cursor-pointer" htmlFor="uel-term-auto">
@@ -617,12 +484,10 @@ const SettingsCard = ({ saved: initial, serverAllowed, onSaved }) => {
 const UelSync = () => {
     const [status, setStatus] = useState(null);
     const [runs, setRuns] = useState([]);
-    const [periods, setPeriods] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
     const [starting, setStarting] = useState(false);
     const [runError, setRunError] = useState(null);
-    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const refresh = useCallback(async () => {
         const [st, rs] = await Promise.all([getUelSyncStatus(), getUelSyncRuns(100)]);
@@ -635,8 +500,7 @@ const UelSync = () => {
         setLoading(true);
         setLoadError(null);
         try {
-            const [, ps] = await Promise.all([refresh(), getStudyPeriods()]);
-            setPeriods(ps ?? []);
+            await refresh();
         } catch (e) {
             setLoadError(errorText(e, 'Không tải được trạng thái đồng bộ.'));
         } finally {
@@ -712,10 +576,6 @@ const UelSync = () => {
                         Tích hợp
                     </span>
                     <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Đồng bộ dữ liệu Đào tạo UEL</h1>
-                    <p className="text-slate-blue text-sm mt-1 max-w-2xl">
-                        Lấy đơn vị, cán bộ, sinh viên, lớp học phần, đăng ký và lịch học từ hệ thống của Trường. Dữ liệu nhập tay không bị ghi đè;
-                        bản ghi không còn ở Trường chỉ bị vô hiệu hóa, không bị xóa.
-                    </p>
                 </div>
                 <RefreshButton onClick={() => refresh().catch(() => undefined)} busy={isRunning} />
             </div>
@@ -733,7 +593,7 @@ const UelSync = () => {
                     tone={status?.schedule?.enabled ? 'ok' : settings.autoEnabled ? 'warn' : 'neutral'}
                     hint={
                         status?.schedule?.enabled
-                            ? `Lần tới: ${formatRunAt(nextAt ?? nextRunOf(settings))}`
+                            ? `Lần tới: ${formatRunAt(nextAt ?? nextRunOf(settings, new Date(), status?.schedule?.lastRunAt))}`
                             : settings.autoEnabled ? 'Server chưa bật bộ hẹn giờ' : 'Chỉ chạy khi bấm nút'
                     }
                 />
@@ -751,9 +611,9 @@ const UelSync = () => {
                         <p className="text-sm text-midnight-indigo">
                             Một lần bấm chạy đủ 6 bước theo thứ tự. Học kỳ{' '}
                             {settings.termMode === 'fixed' ? <strong>{settings.namHoc} {settings.hocKy}</strong> : 'tự nhận theo thời khóa biểu'},
-                            lịch học {settings.sessionDaysAhead} ngày tới.
+                            lịch học từ hôm nay đến hết năm học{dmy(status?.plan?.toDate) ? ` (đến ${dmy(status.plan.toDate)})` : ''}.
                         </p>
-                        <p className="text-xs text-steel-gray">Chạy nền trên server: có thể rời trang, quay lại vẫn thấy tiến trình.</p>
+                        <p className="text-xs text-steel-gray">Lấy cả năm nên một lượt có thể mất 1–2 giờ. Chạy nền trên server: có thể rời trang, quay lại vẫn thấy tiến trình.</p>
                     </div>
                     <button
                         type="button"
@@ -788,6 +648,7 @@ const UelSync = () => {
                 <SettingsCard
                     saved={status?.settings}
                     serverAllowed={status?.schedule?.serverAllowed}
+                    lastRunAt={status?.schedule?.lastRunAt ?? null}
                     onSaved={() => refresh().catch(() => undefined)}
                 />
                 <Card title="Lịch sử đồng bộ" icon={History} className="lg:col-span-3">
@@ -804,28 +665,6 @@ const UelSync = () => {
                     )}
                 </Card>
             </div>
-
-            <section className="space-y-4">
-                <button
-                    type="button"
-                    onClick={() => setShowAdvanced((v) => !v)}
-                    aria-expanded={showAdvanced}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-slate-blue hover:text-midnight-indigo"
-                >
-                    {showAdvanced ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    Nâng cao: bảng giờ tiết, tra cứu trực tiếp
-                    {!status?.periodCount && <span className="text-xs text-amber-700 font-semibold">· chưa nhập bảng giờ tiết</span>}
-                </button>
-                {showAdvanced && (
-                    <div className="space-y-6">
-                        <PeriodsCard
-                            periods={periods}
-                            onSaved={(saved) => { setPeriods(saved); refresh().catch(() => undefined); }}
-                        />
-                        <LookupCard />
-                    </div>
-                )}
-            </section>
         </div>
     );
 };

@@ -17,7 +17,7 @@ import {
     updateDepartment,
     deactivateDepartment,
     reactivateDepartment,
-    getUsers,
+    getUsersForManagement,
     createUser,
     updateUser,
     updateUserRoles,
@@ -74,6 +74,8 @@ const DepartmentManagement = () => {
     const [membersLimit, setMembersLimit] = useState(10);
     const [membersTotalPages, setMembersTotalPages] = useState(1);
     const [membersTotalCount, setMembersTotalCount] = useState(0);
+    // 'staff' | 'student' — SV được gắn vào khoa nên tách riêng, mặc định xem cán bộ.
+    const [memberType, setMemberType] = useState('staff');
     const [roles, setRoles] = useState([]);
 
     // User management modal control states
@@ -123,7 +125,13 @@ const DepartmentManagement = () => {
         id: d.id || d.departmentId,
         name: d.departmentName || d.name || '',
         memberCount: d.memberCount ?? d.usersCount ?? d._count?.users ?? 0,
+        studentCount: d.studentCount ?? 0,
+        staffCount: d.staffCount ?? Math.max(0, (d.memberCount ?? 0) - (d.studentCount ?? 0)),
     });
+
+    const memberCountLabel = (dept) => (dept.studentCount
+        ? `${dept.staffCount || 0} cán bộ · ${dept.studentCount} SV`
+        : `${dept.staffCount || 0} cán bộ`);
 
     const fetchDepartments = useCallback(async () => {
         setLoading(true);
@@ -171,12 +179,14 @@ const DepartmentManagement = () => {
     }, [fetchDepartments, fetchAllActiveDepartments]);
 
     // Fetch members belonging to a department with pagination
-    const fetchDepartmentMembers = useCallback(async (deptId, pageNum = 1, pageLimit = membersLimit) => {
+    const fetchDepartmentMembers = useCallback(async (deptId, pageNum = 1, pageLimit = membersLimit, type = memberType) => {
         setMembersLoading(true);
         try {
-            const res = await getUsers({ 
-                departmentId: deptId, 
-                page: pageNum, 
+            // GET /users (autocomplete) bỏ qua departmentId ⇒ phải dùng /users/manage.
+            const res = await getUsersForManagement({
+                departmentId: deptId,
+                accountType: type,
+                page: pageNum,
                 limit: pageLimit
             });
             if (res?.success) {
@@ -193,13 +203,14 @@ const DepartmentManagement = () => {
         } finally {
             setMembersLoading(false);
         }
-    }, [membersLimit]);
+    }, [membersLimit, memberType]);
 
     const handleViewMembers = (dept) => {
         setSelectedDept(dept);
         setMembersPage(1);
+        setMemberType('staff');
         setIsMembersModalOpen(true);
-        fetchDepartmentMembers(dept.id, 1);
+        fetchDepartmentMembers(dept.id, 1, membersLimit, 'staff');
     };
 
     // Auto-hide messages
@@ -706,7 +717,7 @@ const DepartmentManagement = () => {
                                                     onClick={() => handleViewMembers(dept)}
                                                     className="inline-flex items-center px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-action-blue rounded-lg text-xs font-semibold transition-colors"
                                                 >
-                                                    {dept.memberCount || 0} nhân sự
+                                                    {memberCountLabel(dept)}
                                                 </button>
                                             </td>
                                             <td className="align-middle py-4 px-6">
@@ -963,6 +974,27 @@ const DepartmentManagement = () => {
                                 </button>
                             </div>
                         </div>
+                        <div className="px-6 pt-4 flex gap-2">
+                            {[
+                                ['staff', `Cán bộ (${selectedDept.staffCount ?? 0})`],
+                                ['student', `Sinh viên (${selectedDept.studentCount ?? 0})`],
+                            ].map(([type, label]) => (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    aria-pressed={memberType === type}
+                                    onClick={() => {
+                                        if (memberType === type) return;
+                                        setMemberType(type);
+                                        setMembersPage(1);
+                                        fetchDepartmentMembers(selectedDept.id, 1, membersLimit, type);
+                                    }}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${memberType === type ? 'bg-action-blue text-white' : 'bg-blue-50 text-action-blue hover:bg-blue-100'}`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
                         <div className="p-6 flex-1 overflow-y-auto flex flex-col min-h-0 justify-between">
                             {membersLoading ? (
                                 <div className="flex flex-col items-center justify-center py-12 flex-1">
@@ -970,7 +1002,7 @@ const DepartmentManagement = () => {
                                     <p className="mt-4 text-slate-blue text-xs">Đang tải danh sách thành viên...</p>
                                 </div>
                             ) : membersList.length === 0 ? (
-                                <p className="text-center text-sm text-slate-blue py-12 flex-1">Phòng ban này chưa có nhân sự nào được phân bổ.</p>
+                                <p className="text-center text-sm text-slate-blue py-12 flex-1">{memberType === 'student' ? 'Phòng ban này không có sinh viên nào.' : 'Phòng ban này chưa có cán bộ nào được phân bổ.'}</p>
                             ) : (
                                 <div className="w-full overflow-x-auto overflow-y-auto flex-1 min-h-0 border border-platinum-tint/60 rounded-xl shadow-sm-1">
                                     <ResponsiveTable className="w-full text-left border-collapse min-w-[750px]">
@@ -1015,11 +1047,17 @@ const DepartmentManagement = () => {
                                                     </td>
                                                     <td className="py-4 px-6">
                                                         <div className="flex flex-wrap gap-1 max-w-[180px]">
-                                                            {user.roles?.map(r => (
-                                                                <span data-ui-text="badge" key={r.id} className="inline-flex text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold whitespace-nowrap">
-                                                                    {r.name}
-                                                                </span>
-                                                            )) || <span className="text-xs text-steel-gray">Chưa phân quyền</span>}
+                                                            {user.roles?.length ? user.roles.map(r => {
+                                                                // /users/manage trả roles là mảng roleCode (string)
+                                                                const code = typeof r === 'string' ? r : (r.roleCode || r.code || '');
+                                                                const ref = roles.find(x => (x.roleCode || x.code || '').toUpperCase() === code.toUpperCase());
+                                                                const label = (typeof r === 'object' && r.name) || ref?.roleName || ref?.name || code;
+                                                                return (
+                                                                    <span data-ui-text="badge" key={code || label} className="inline-flex text-[10px] px-2 py-0.5 bg-blue-50 text-action-blue rounded-full font-bold whitespace-nowrap">
+                                                                        {label}
+                                                                    </span>
+                                                                );
+                                                            }) : <span className="text-xs text-steel-gray">Chưa phân quyền</span>}
                                                         </div>
                                                     </td>
                                                     <td className="py-4 px-6 whitespace-nowrap">

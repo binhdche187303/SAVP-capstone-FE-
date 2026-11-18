@@ -277,13 +277,16 @@ const ANPRManagement = ({ guardMode = false }) => {
     // ============================================
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState('');
+    const [userSearch, setUserSearch] = useState('');
     const [regPlate, setRegPlate] = useState('');
     const [regType, setRegType] = useState('CAR');
     const [regNote, setRegNote] = useState('');
 
-    const fetchUsers = async () => {
+    // Tìm theo tên/email/mã trên toàn bộ người dùng (hàng chục nghìn tài khoản sau đồng bộ UEL),
+    // thay vì nạp 100 người đầu theo thứ tự chữ cái.
+    const fetchUsers = async (search = '') => {
         try {
-            const res = await getUsers({ limit: 100 });
+            const res = await getUsers({ search: search.trim() || undefined, limit: 20 });
             if (res?.success) setUsers(res.data);
         } catch (err) {
             console.error(err);
@@ -390,8 +393,10 @@ const ANPRManagement = ({ guardMode = false }) => {
     const visibleUnknown = useInstantFilter(unknownList, unknownSearch, unknownSearch !== debouncedUnknownSearch || loading);
 
     useEffect(() => {
-        if (!guardMode && activeTab === 'register') fetchUsers();
-    }, [guardMode, activeTab]);
+        if (guardMode || activeTab !== 'register') return undefined;
+        const timer = setTimeout(() => fetchUsers(userSearch), 300);
+        return () => clearTimeout(timer);
+    }, [guardMode, activeTab, userSearch]);
 
     useEffect(() => {
         // Auto-refresh logic for Dashboard (history/unknown)
@@ -912,6 +917,13 @@ const ANPRManagement = ({ guardMode = false }) => {
                     <form onSubmit={handleRegisterVehicle} className="space-y-5">
                         <div>
                             <label className="block text-sm font-bold text-midnight-indigo mb-1.5">Chọn nhân viên *</label>
+                            <input
+                                type="search"
+                                value={userSearch}
+                                onChange={(e) => setUserSearch(e.target.value)}
+                                placeholder="Gõ tên, email hoặc mã nhân viên..."
+                                className="w-full mb-2 bg-white px-4 py-2.5 rounded-xl border border-platinum-tint focus:border-action-blue focus:ring-1 focus:ring-action-blue text-sm outline-none"
+                            />
                             <select
                                 required
                                 value={selectedUser}

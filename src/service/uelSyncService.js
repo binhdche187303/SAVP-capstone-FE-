@@ -40,11 +40,27 @@ export const runUelSync = async (payload) => (await post('/uel-sync/run', payloa
  */
 export const runUelSyncAll = async () => (mock ? mock.runAll() : (await post('/uel-sync/run-all', {})).data);
 
+/**
+ * GET /uel-sync/gaps/export — tải file Excel danh sách cần bổ sung (SV / cán bộ chưa có email,
+ * lớp HP chưa có GV). Dữ liệu lấy theo DB tại thời điểm bấm.
+ */
+export const downloadUelGaps = async () => {
+    const res = await get('/uel-sync/gaps/export', { responseType: 'blob' });
+    const blob = res.data instanceof Blob ? res.data : new Blob([res.data]);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `uel-du-lieu-can-bo-sung-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
 export const getUelSyncSettings = async () => (await get('/uel-sync/settings')).data;
 
 /**
  * PUT /uel-sync/settings —
- * { autoEnabled, frequency: 'daily'|'weekly', weekday: 0 (CN)..6, time: 'HH:mm', sessionDaysAhead: 1..120,
+ * { autoEnabled, frequency: 'daily'|'weekly', weekday: 0 (CN)..6, time: 'HH:mm',
  *   termMode: 'auto'|'fixed', namHoc, hocKy }
  */
 export const updateUelSyncSettings = async (payload) =>

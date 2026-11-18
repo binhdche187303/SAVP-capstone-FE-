@@ -2,8 +2,11 @@
 
 export const WEEKDAYS = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 
-/** settings: { autoEnabled, frequency: 'daily'|'weekly', weekday: 0 (CN)..6, time: 'HH:mm' } */
-export const nextRunOf = (settings, from = new Date()) => {
+/**
+ * settings: { autoEnabled, frequency: 'daily'|'weekly'|'interval', weekday: 0 (CN)..6, time: 'HH:mm', intervalDays }
+ * lastRunAt: giờ bắt đầu (ISO) lượt tự động gần nhất — chỉ dùng cho 'interval' (mỗi N ngày).
+ */
+export const nextRunOf = (settings, from = new Date(), lastRunAt = null) => {
     if (!settings?.autoEnabled) return null;
     const [h, m] = String(settings.time || '02:00').split(':').map(Number);
     const d = new Date(from);
@@ -12,17 +15,24 @@ export const nextRunOf = (settings, from = new Date()) => {
         let diff = (Number(settings.weekday) - d.getDay() + 7) % 7;
         if (diff === 0 && d <= from) diff = 7;
         d.setDate(d.getDate() + diff);
-    } else if (d <= from) {
-        d.setDate(d.getDate() + 1);
+        return d;
+    }
+    if (d <= from) d.setDate(d.getDate() + 1);
+    if (settings.frequency === 'interval' && lastRunAt) {
+        const due = new Date(lastRunAt);
+        due.setDate(due.getDate() + Number(settings.intervalDays || 0));
+        due.setHours(h, m, 0, 0);
+        if (due > d) return due;
     }
     return d;
 };
 
-/** "02:00 hằng ngày" / "02:00 Chủ nhật hằng tuần" */
-export const scheduleLabelOf = (settings) =>
-    settings?.frequency === 'weekly'
-        ? `${settings.time} ${WEEKDAYS[Number(settings.weekday)] ?? ''} hằng tuần`
-        : `${settings?.time ?? '02:00'} hằng ngày`;
+/** "02:00 hằng ngày" / "02:00 Chủ nhật hằng tuần" / "02:00 mỗi 5 ngày" */
+export const scheduleLabelOf = (settings) => {
+    if (settings?.frequency === 'weekly') return `${settings.time} ${WEEKDAYS[Number(settings.weekday)] ?? ''} hằng tuần`;
+    if (settings?.frequency === 'interval') return `${settings.time} mỗi ${settings.intervalDays} ngày`;
+    return `${settings?.time ?? '02:00'} hằng ngày`;
+};
 
 const pad = (n) => String(n).padStart(2, '0');
 /** "Thứ Sáu 13/11/2026 lúc 02:00" */

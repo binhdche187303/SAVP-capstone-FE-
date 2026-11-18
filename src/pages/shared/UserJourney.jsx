@@ -18,7 +18,7 @@ import toast from '../../utils/toast';
 
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
-import { getUsers } from '../../service/businessAdminServices';
+import { getUsers, getUserById } from '../../service/businessAdminServices';
 import { getUserJourney, getMyUserJourney } from '../../service/campusService';
 import './UserJourney.css';
 
@@ -178,18 +178,12 @@ const UserJourney = () => {
         autoLoadedRef.current = true;
         (async () => {
             try {
-                const res = await getUsers({ search: undefined, limit: 50 });
-                const list = res?.success ? (res.data || []) : [];
-                const match = list.find(u => u.id === urlUserId || u.uuid === urlUserId);
-                if (match) {
+                // GET /users không lọc theo id ⇒ lấy thẳng người dùng theo id (DB có hàng chục nghìn tài khoản).
+                const res = await getUserById(urlUserId);
+                const match = res?.success ? res.data : null;
+                if (match?.id) {
                     setSelectedUser(match);
                     setSearchQuery(match.fullName);
-                } else {
-                    const r2 = await getUsers({ id: urlUserId });
-                    if (r2?.success && r2.data?.length > 0) {
-                        setSelectedUser(r2.data[0]);
-                        setSearchQuery(r2.data[0].fullName);
-                    }
                 }
             } catch (_) { /* ignore */ }
         })();
