@@ -421,7 +421,7 @@ const CameraTwin = () => {
                   <section className="rounded-xl border border-[#1e3a5f]/20 bg-[#1e3a5f]/[0.04] p-3">
                     <p data-ui-text="label" className="text-[10px] font-bold uppercase text-slate-500">{block.kind === "room" ? "Phòng" : "Khu vực"}</p>
                     <h3 className="text-sm font-bold text-slate-900">{block.label}</h3>
-                    <p data-ui-text="code" className="font-mono text-[11px] text-slate-500">{block.sub}{block.capacity ? ` · ${block.capacity} chỗ` : ""}</p>
+                    {(block.sub || block.capacity) && <p data-ui-text="code" className="font-mono text-[11px] text-slate-500">{[block.sub, block.capacity ? `${block.capacity} chỗ` : null].filter(Boolean).join(" · ")}</p>}
                     <p data-ui-text="primary" className="mt-2 text-[11px] font-semibold text-slate-600">Camera liên quan ({blockCameras.length})</p>
                     {blockCameras.length === 0 && <p data-ui-text="secondary" className="text-[11px] text-slate-400">Chưa có camera.</p>}
                   </section>

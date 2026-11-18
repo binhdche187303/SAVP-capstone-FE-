@@ -1,0 +1,8 @@
+/* 6 thẻ tổng hợp (Số buổi họp, Đi trễ, Về sớm, Vắng mặt, Có lý do, Tổng điểm trừ) nằm trên 1 hàng
+   khi khung nội dung đủ rộng — lưới chung chỉ xếp 6 cột từ 1440px nên trang này bị tách 2 hàng. */
+@container (min-width: 960px) {
+    .attendance-summary-cards > .camai-stat-grid[data-stat-columns="6"] {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 12px;
+    }
+}

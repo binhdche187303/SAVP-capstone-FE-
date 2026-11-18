@@ -38,7 +38,7 @@
     white-space: nowrap;
     cursor: pointer;
 }
-.camai-time-buttons [data-filter-preset]:hover:not(:disabled) { background: #F1F6FF; }
+.camai-time-buttons [data-filter-preset]:hover:not(:disabled):not([aria-pressed="true"]) { background: #F1F6FF; }
 .camai-time-buttons [data-filter-preset][aria-pressed="true"],
 .camai-filter-bar[data-filter-bar] .camai-time-buttons [data-filter-preset][aria-pressed="true"] {
     border-color: #0066FF;

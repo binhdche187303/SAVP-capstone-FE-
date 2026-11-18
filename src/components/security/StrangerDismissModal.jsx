@@ -22,7 +22,20 @@ const fmtDateTime = (v) =>
 const errMsg = (e, fallback) => e?.error?.message || e?.message || fallback;
 const inputCls = 'px-3 py-2 bg-white border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none';
 
-const StrangerDismissModal = ({ stranger, onClose, onDone }) => {
+const EVENT_BATCH = 100; // BE nhận tối đa 100 eventIds mỗi lần
+
+/** Lượt cần đóng của 1 người lạ: 1 lượt ⇒ dùng luôn latestEventId, nhiều lượt ⇒ hỏi BE. */
+const sightingsOf = async (s) => {
+    if (s.hitCount === 1 && s.latestEventId) return [{ eventId: s.latestEventId, time: s.lastSeen }];
+    const res = await getStrangerSightings(s.deviceId, s.strangerId);
+    return res?.data || [];
+};
+
+/** `stranger` = đóng 1 người lạ; `strangers` = đóng hàng loạt (cùng 1 lý do). */
+const StrangerDismissModal = ({ stranger, strangers, onClose, onDone }) => {
+    const list = strangers?.length ? strangers : [stranger];
+    const first = list[0];
+    const bulk = list.length > 1;
     const [sightings, setSightings] = useState(null);
     const [reason, setReason] = useState('');
     const [note, setNote] = useState('');
@@ -30,10 +43,16 @@ const StrangerDismissModal = ({ stranger, onClose, onDone }) => {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        getStrangerSightings(stranger.deviceId, stranger.strangerId)
-            .then((res) => setSightings(res?.data || []))
-            .catch(() => setSightings([]));
-    }, [stranger]);
+        let alive = true;
+        Promise.all(list.map((s) => sightingsOf(s).catch(() => [])))
+            .then((all) => {
+                if (!alive) return;
+                const merged = all.flat().sort((a, b) => new Date(b.time) - new Date(a.time));
+                setSightings(merged);
+            });
+        return () => { alive = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stranger, strangers]);
 
     const noteRequired = reason === 'other';
     const canSubmit = Boolean(reason) && (!noteRequired || note.trim().length >= 5) && sightings?.length > 0 && !saving;
@@ -44,12 +63,15 @@ const StrangerDismissModal = ({ stranger, onClose, onDone }) => {
         setSaving(true);
         setError('');
         try {
-            await dismissStrangerEvents({
-                eventIds: sightings.map((x) => x.eventId),
-                reason,
-                ...(note.trim() ? { note: note.trim() } : {}),
-            });
-            onDone(`Đã đóng ${sightings.length} lượt — lý do: ${dismissReasonLabel(reason)}.`);
+            const ids = [...new Set(sightings.map((x) => x.eventId))];
+            for (let i = 0; i < ids.length; i += EVENT_BATCH) {
+                await dismissStrangerEvents({
+                    eventIds: ids.slice(i, i + EVENT_BATCH),
+                    reason,
+                    ...(note.trim() ? { note: note.trim() } : {}),
+                });
+            }
+            onDone(`Đã đóng ${bulk ? `${list.length} người lạ (${ids.length} lượt)` : `${ids.length} lượt`} — lý do: ${dismissReasonLabel(reason)}.`);
         } catch (err) {
             setError(errMsg(err, 'Không đóng được cảnh báo. Có thể bạn không có quyền.'));
         } finally {
@@ -62,11 +84,11 @@ const StrangerDismissModal = ({ stranger, onClose, onDone }) => {
             <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-lg p-5 space-y-4 max-h-[92vh] overflow-y-auto">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                        {stranger.snapshotEventId
-                            ? <ThumbnailImage eventId={stranger.snapshotEventId} className="w-16 h-16 shrink-0" />
+                        {first.snapshotEventId
+                            ? <ThumbnailImage eventId={first.snapshotEventId} className="w-16 h-16 shrink-0" />
                             : <div className="w-16 h-16 shrink-0 rounded-lg bg-slate-200 flex items-center justify-center"><UserX className="w-6 h-6 text-slate-400" /></div>}
                         <div className="min-w-0">
-                            <p className="font-extrabold text-midnight-indigo">Đóng cảnh báo người lạ</p>
+                            <p className="font-extrabold text-midnight-indigo">{bulk ? `Đóng cảnh báo ${list.length} người lạ` : 'Đóng cảnh báo người lạ'}</p>
                             <p className="text-xs text-slate-blue">
                                 Ghi nhận lý do để người khác biết vì sao không cần xử lý thêm. Có thể mở lại trong tab “Đã đóng”.
                             </p>
@@ -80,7 +102,7 @@ const StrangerDismissModal = ({ stranger, onClose, onDone }) => {
                         ? 'Đang tải các lượt xuất hiện...'
                         : sightings.length === 0
                             ? 'Không còn lượt nào ở trạng thái chờ xử lý.'
-                            : <>Sẽ đóng <b className="text-midnight-indigo">{sightings.length} lượt</b> (gần nhất {fmtDateTime(sightings[0].time)}).</>}
+                            : <>Sẽ đóng <b className="text-midnight-indigo">{bulk ? `${list.length} người lạ · ` : ''}{sightings.length} lượt</b> (gần nhất {fmtDateTime(sightings[0].time)}).</>}
                 </div>
 
                 <fieldset className="space-y-2">

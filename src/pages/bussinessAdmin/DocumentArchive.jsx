@@ -373,8 +373,8 @@ const DocumentArchive = ({ scope = 'all' }) => {
             {(
                 <div className="flex border-b border-platinum-tint gap-1">
                     {(isSelfScope ? [
-                        { id: 'inbox',   label: 'Cần xử lý', icon: ClipboardList, badge: inboxCount },
                         { id: 'minutes', label: 'Tất cả biên bản', icon: FileText },
+                        { id: 'inbox',   label: 'Cần xử lý', icon: ClipboardList, badge: inboxCount },
                     ] : [
                         { id: 'minutes', label: 'Biên bản họp', icon: FileText },
                         { id: 'media',   label: 'Ghi hình & Âm thanh', icon: Film },

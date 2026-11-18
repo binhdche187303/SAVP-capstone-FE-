@@ -5,6 +5,7 @@ import { Shield, Camera, Image, ArrowLeft, Check, AlertCircle, RefreshCw, Upload
 import { motion, AnimatePresence } from 'framer-motion';
 import useFaceGuidance from '../../hooks/useFaceGuidance';
 import BiometricUploadForm from './BiometricUploadForm';
+import { BIOMETRIC_POPUP_ENABLED } from '../../config/featureFlags';
 
 const STATUS_LABEL = {
     not_uploaded: { label: 'Chưa nộp ảnh', badge: 'bg-amber-50 text-amber-700 border border-amber-200' },
@@ -64,6 +65,8 @@ const BiometricReminderModal = () => {
         let cancelled = false;
 
         const check = async () => {
+            // Tạm tắt hộp thoại bắt buộc FaceID (xem BIOMETRIC_POPUP_ENABLED trong config/featureFlags.js).
+            if (!BIOMETRIC_POPUP_ENABLED) { setLoading(false); return; }
             try {
                 const userStr = localStorage.getItem('user');
                 if (!userStr) { setLoading(false); return; }

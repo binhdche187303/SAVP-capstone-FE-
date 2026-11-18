@@ -14,7 +14,7 @@ import StatisticCard, { statisticTone } from '../../components/common/StatisticC
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, CheckCircle, CheckSquare, Clock, Download, Edit3, Eye, Filter, RefreshCw, Search, Shield, ShieldAlert, Image as ImageIcon, Users, Car, Tag, User, AlertCircle, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, CheckSquare, Clock, Download, Edit3, Eye, Filter, RefreshCw, Search, Shield, ShieldAlert, Image as ImageIcon, Users, Car, Tag, User, AlertCircle, Loader2, WifiOff, Wrench } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -28,6 +28,8 @@ import ExportReportModal from '../../components/common/ExportReportModal';
 import { getZones } from '../../service/zoneServices';
 import { getUserById } from '../../service/sysAdminServices';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
+import SimpleModal from '../../components/common/SimpleModal';
+import { getDeviceErrorDetail } from '../../utils/deviceErrorDetail';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 
 import { getAlertTypeLabel } from '../../constants/alertType';
@@ -70,6 +72,16 @@ const playAlertSound = () => {
 // Biển số nằm ở payload_json gốc (được lưu ngay từ lần vi phạm đầu tiên, occurrence_count=1),
 // KHÔNG chỉ trong payload_json.occurrences[] (chỉ có từ lần vi phạm thứ 2 trở đi).
 const getAlertPlateNumber = (alert) => alert?.payload_json?.plateNumber || null;
+
+// Icon + tiêu đề cho "x lần" theo loại cảnh báo (trước đây luôn là icon người, sai với lỗi thiết bị/xe).
+const OCCURRENCE_META = {
+    device_error: { Icon: WifiOff, title: 'Các lần mất kết nối' },
+    device_maintenance: { Icon: Wrench, title: 'Các lần nhắc bảo trì' },
+    unknown_vehicle: { Icon: Car, title: 'Các lượt xe xuất hiện' },
+    vehicle_unauthorized: { Icon: Car, title: 'Các lượt xe xuất hiện' },
+    vehicle_control_match: { Icon: Car, title: 'Các lượt xe xuất hiện' },
+};
+const occurrenceMeta = (alert) => OCCURRENCE_META[alert?.alert_type] || { Icon: Users, title: 'Chi tiết lượt vi phạm' };
 
 // Extract all valid event snapshot IDs from an alert's payload and source.
 // [FIX] Loại trùng sourceEventId — BE (bumpOccurrence()) có thể ghi 2 entry trùng hệt
@@ -216,6 +228,7 @@ const SecurityAlerts = () => {
     const [snapshotEventId, setSnapshotEventId] = useState(null);
     const [snapshotEventIds, setSnapshotEventIds] = useState([]);
     const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
+    const [deviceListAlert, setDeviceListAlert] = useState(null); // Lỗi thiết bị nhiều camera → modal danh sách
 
     const [isExportOpen, setIsExportOpen] = useState(false);
 
@@ -706,7 +719,6 @@ const SecurityAlerts = () => {
                                             <p className="text-sm font-bold text-midnight-indigo">
                                                 {formatDate(alert.updated_at || alert.triggered_at)}
                                             </p>
-                                            <p data-ui-text="code" className="text-[10px] text-slate-blue/60 mt-1 font-mono">ID: {alert.id.substring(0, 8)}</p>
                                         </td>
                                         <td className="p-4 text-center whitespace-nowrap">
                                             <p className="text-sm font-bold text-midnight-indigo" title="Cập nhật gần nhất">
@@ -733,6 +745,24 @@ const SecurityAlerts = () => {
                                             {getConversions(alert).length > 0 && (
                                                 <p data-ui-text="secondary" className="text-[10px] text-slate-blue">(từ {getAlertTypeLabel(alert.alert_type)})</p>
                                             )}
+                                            {(() => {
+                                                const d = getDeviceErrorDetail(alert);
+                                                if (!d) return null;
+                                                return (
+                                                    <div className="mt-0.5 flex flex-col items-center gap-0.5">
+                                                        <span className="text-xs font-semibold text-red-700">{d.kind}</span>
+                                                        {d.devices.length === 1 && (
+                                                            <span className="text-xs text-slate-blue line-clamp-2">{d.devices[0].name}</span>
+                                                        )}
+                                                        {d.devices.length > 1 && (
+                                                            <button type="button" onClick={() => setDeviceListAlert(alert)}
+                                                                className="text-xs font-semibold text-action-blue underline decoration-dotted underline-offset-2 hover:text-glacier-blue">
+                                                                {d.devices.length} camera · Xem danh sách
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                             <div className="flex flex-col items-center gap-1 mt-1">
                                                 {alert.alert_type === 'vehicle_control_match' && getAlertPlateNumber(alert) && (
                                                     <span data-ui-text="code"
@@ -775,7 +805,7 @@ const SecurityAlerts = () => {
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 transition-colors"
                                                         title="Bấm để xem tất cả lượt vi phạm"
                                                     >
-                                                        <Users className="w-3 h-3" />
+                                                        {React.createElement(occurrenceMeta(alert).Icon, { className: 'w-3 h-3', 'aria-hidden': true })}
                                                         {alert.occurrence_count || alert.occurrenceCount} lần
                                                     </button>
                                                 )}
@@ -899,10 +929,9 @@ const SecurityAlerts = () => {
                                         <p className="text-xs text-slate-blue mb-2">
                                             {count > 1 ? <>Từ <b>{formatDateTime(first)}</b> → <b>{formatDateTime(last)}</b></> : <>Lúc <b>{formatDateTime(first)}</b></>}
                                         </p>
-                                        <PaginatedCollection items={occs} itemLabel="lượt ghi nhận">
-{(camaiPageItems, camaiStartIndex) => (
-<div className="flex flex-wrap gap-2">
-                                            {camaiPageItems.map((camaiRecord, camaiIndex) => ((o, i) => (
+                                        {/* Ảnh nhỏ nên hiện hết trong 1 vùng cuộn, không phân trang */}
+                                        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                                            {occs.map((o, i) => (
                                                 <div key={i} className="flex flex-col items-center w-12">
                                                     <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200 bg-white flex items-center justify-center">
                                                         {o.sourceEventId ? (
@@ -919,18 +948,12 @@ const SecurityAlerts = () => {
                                                             <ImageIcon className="w-4 h-4 text-slate-300" />
                                                         )}
                                                     </div>
-                                                    <span data-ui-text="secondary" className="text-[10px] text-slate-400">#{i + 1}</span>
                                                     {o.watchlistName && (
                                                         <span data-ui-text="secondary" className="text-[9px] text-orange-700 truncate w-full text-center" title={o.watchlistName}>📌 {o.watchlistName}</span>
                                                     )}
                                                 </div>
-                                            ))(camaiRecord, camaiStartIndex + camaiIndex, (occs)))}
+                                            ))}
                                         </div>
-)}
-</PaginatedCollection>
-                                        {count > 1 && (
-                                            <p data-ui-text="secondary" className="text-[11px] text-amber-800 mt-2">💡 Kiểm tra kỹ: các lượt có thể là nhiều người/xe khác nhau. Ghi chú xử lý cho tất cả.</p>
-                                        )}
                                     </div>
                                 );
                             })()}
@@ -994,7 +1017,6 @@ const SecurityAlerts = () => {
                                         : 'Ghi rõ hành động đã thực hiện (VD: Đã mời người lạ ra khỏi phòng...)'}
                                     className="w-full px-4 py-3 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue focus:ring-1 focus:ring-action-blue resize-none"
                                 />
-                                <p className="text-xs text-slate-blue mt-2">Ghi chú này sẽ được lưu lại vĩnh viễn trong Audit Log.</p>
                             </div>
                             <div className="flex justify-end gap-3 pt-4 border-t border-platinum-tint">
                                 <button type="button" onClick={() => setResolveModal({ open: false, alert: null })} className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-platinum-tint rounded-xl hover:bg-slate-50 transition-colors">Hủy bỏ</button>
@@ -1093,8 +1115,8 @@ const SecurityAlerts = () => {
                         <div className="px-6 py-4 border-b border-platinum-tint bg-cloud-mist/30 flex justify-between items-center shrink-0">
                             <div>
                                 <h3 className="font-bold text-midnight-indigo flex items-center gap-2">
-                                    <Users className="w-5 h-5 text-amber-600" />
-                                    Chi tiết lượt vi phạm
+                                    {React.createElement(occurrenceMeta(occurrencesModal.alert).Icon, { className: 'w-5 h-5 text-amber-600', 'aria-hidden': true })}
+                                    {occurrenceMeta(occurrencesModal.alert).title}
                                 </h3>
                                 <p className="text-xs text-slate-blue mt-0.5">
                                     {getTypeDisplay(occurrencesModal.alert)}{getConversions(occurrencesModal.alert).length > 0 && ` (từ ${getAlertTypeLabel(occurrencesModal.alert?.alert_type)})`} — {zones.find(z => z.id === occurrencesModal.alert?.zone_id)?.zone_name || 'Hệ thống'}
@@ -1180,12 +1202,6 @@ const SecurityAlerts = () => {
                                                 </div>
                                             )}
 
-                                            {occ.userId && (
-                                                <p data-ui-text="code" className="text-[10px] text-slate-500 font-mono select-all">
-                                                    ID: {occ.userId}
-                                                </p>
-                                            )}
-
                                             {occ.plateNumber && (
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <Car className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -1260,6 +1276,21 @@ const SecurityAlerts = () => {
                 document.body
             )}
 
+            <SimpleModal
+                isOpen={!!deviceListAlert}
+                size="sm"
+                title={deviceListAlert ? `${getDeviceErrorDetail(deviceListAlert)?.kind} · ${getDeviceErrorDetail(deviceListAlert)?.devices.length} camera` : ''}
+                onClose={() => setDeviceListAlert(null)}
+            >
+                <ul className="divide-y divide-platinum-tint">
+                    {(getDeviceErrorDetail(deviceListAlert)?.devices || []).map((d, i) => (
+                        <li key={`${d.code}-${i}`} className="py-2 flex items-center gap-2">
+                            <WifiOff className="w-4 h-4 text-red-500 shrink-0" aria-hidden="true" />
+                            <span className="text-sm font-semibold text-midnight-indigo">{d.name}</span>
+                        </li>
+                    ))}
+                </ul>
+            </SimpleModal>
             <EventSnapshotModal
                 isOpen={isSnapshotOpen}
                 onClose={() => setIsSnapshotOpen(false)}

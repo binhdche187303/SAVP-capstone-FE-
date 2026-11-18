@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import AttendancePenaltyReport from './AttendancePenaltyReport';
+import AttendancePenaltyReport, { matchesCardFilter } from './AttendancePenaltyReport';
 import { getMyPenaltyReport, getPenaltyMeetingSummary, getPenaltyReportScope, getPenaltySummary } from '../../service/managerServices';
 
 jest.mock('../../service/managerServices', () => ({
@@ -81,4 +81,32 @@ test('personal cards filter actual categories and negative scores, keep totals, 
     fireEvent.click(all);
     expect(all).toHaveAttribute('aria-pressed', 'true');
     expect(await screen.findByText('Đi trễ 1', { exact: true })).toBeInTheDocument();
+});
+
+test('tab Theo nhân sự và Theo cuộc họp có thẻ tổng hợp từ totals, bấm thẻ để lọc bảng', async () => {
+    render(<MemoryRouter initialEntries={['/business-admin/attendance-points']}><AttendancePenaltyReport /></MemoryRouter>);
+    const peopleCard = await screen.findByRole('button', { name: 'Nhân sự' });
+    expect(peopleCard).toHaveTextContent('2');
+    expect(screen.getByRole('button', { name: 'Vắng mặt' })).toHaveTextContent('2');
+    expect(screen.getByRole('button', { name: 'Tổng điểm trừ' })).toHaveTextContent('-4');
+    expect(await screen.findByText('Nguyễn An')).toBeInTheDocument();
+    // Không ai đi trễ → bảng trống với thông báo lọc; Vắng mặt → cả 2 người.
+    fireEvent.click(screen.getByRole('button', { name: 'Đi trễ' }));
+    expect(screen.getByRole('button', { name: 'Đi trễ' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Không có dòng phù hợp với thẻ đang chọn.')).toBeInTheDocument();
+    expect(screen.queryByText('Nguyễn An')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Vắng mặt' }));
+    expect(screen.getByText('Nguyễn An')).toBeInTheDocument();
+    expect(screen.getByText('Trần Bình')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Theo cuộc họp', exact: true }));
+    expect(await screen.findByRole('button', { name: 'Cuộc họp' })).toHaveTextContent('3');
+});
+
+test('matchesCardFilter theo loại vi phạm và điểm trừ', () => {
+    const row = { late: 0, leftEarly: 1, absent: 0, excused: 0, totalPoints: -1 };
+    expect(matchesCardFilter(row, 'all')).toBe(true);
+    expect(matchesCardFilter(row, 'left_early')).toBe(true);
+    expect(matchesCardFilter(row, 'late')).toBe(false);
+    expect(matchesCardFilter(row, 'deducted')).toBe(true);
+    expect(matchesCardFilter({ ...row, totalPoints: 0 }, 'deducted')).toBe(false);
 });

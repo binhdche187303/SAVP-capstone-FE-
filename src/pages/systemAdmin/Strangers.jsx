@@ -9,8 +9,8 @@ import StatisticCard from '../../components/common/StatisticCard';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Filter, Clock, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X } from 'lucide-react';
-import React, { useState, useEffect, useCallback } from 'react';
+import { Filter, Clock, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X, CheckSquare, Square } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,13 +44,33 @@ const daysAgo = (n) =>
 const fmtDateTime = (v) =>
     new Date(v).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
 const keyOf = (s) => `${s.deviceId}|${s.strangerId || ''}`;
+const pad2 = (n) => String(n).padStart(2, '0');
+/** Gom thẻ theo khung giờ (giờ VN) của lần xuất hiện cuối — 1 ngày có thể vài nghìn người lạ. */
+export const groupByHour = (items) => {
+    const out = [];
+    for (const s of items) {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', hourCycle: 'h23',
+        }).formatToParts(new Date(s.lastSeen)).map((x) => [x.type, x.value]));
+        const key = `${parts.year}-${parts.month}-${parts.day}-${parts.hour}`;
+        let g = out[out.length - 1];
+        if (!g || g.key !== key) {
+            g = { key, label: `${parts.hour}:00 – ${pad2(parts.hour)}:59 · ${parts.day}/${parts.month}`, items: [] };
+            out.push(g);
+        }
+        g.items.push(s);
+    }
+    return out;
+};
 const placeOf = (s) => s.roomName || s.zoneName || s.deviceCode || 'Không rõ vị trí';
 const errMsg = (e, fallback) => e?.error?.message || e?.response?.data?.message || e?.message || fallback;
 
 const inputCls = 'px-3 py-2 bg-white border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none';
 
 const Strangers = () => {
-    const [PAGE_SIZE, setPageSize] = useState(12);
+    const [PAGE_SIZE, setPageSize] = useState(24);
+    const [selected, setSelected] = useState({}); // keyOf → stranger (chỉ tab "Chờ xử lý")
+    const [bulkDismiss, setBulkDismiss] = useState(null);
     const [from, setFrom] = useState(daysAgo(6));
     const [to, setTo] = useState(vnToday());
     const [deviceId, setDeviceId] = useState('');
@@ -95,7 +115,7 @@ const Strangers = () => {
                 getStrangerAlerts({ ...base, status: tab, page, limit: PAGE_SIZE }),
                 getStrangerAlerts({ ...base, status: other, page: 1, limit: 1 }).catch(() => null),
             ]);
-            if (res?.success) { setItems(res.data || []); setTotal(res.meta?.total ?? (res.data || []).length); }
+            if (res?.success) { setItems(res.data || []); setTotal(res.meta?.total ?? (res.data || []).length); setSelected({}); }
             else setError(res?.message || 'Không tải được danh sách người lạ.');
             setOtherTotal(otherRes?.success ? (otherRes.meta?.total ?? 0) : null);
         } catch (e) {
@@ -104,6 +124,16 @@ const Strangers = () => {
     }, [from, to, deviceId, tab, page, PAGE_SIZE]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
+
+    const selectedList = useMemo(() => Object.values(selected), [selected]);
+    const allOnPageSelected = items.length > 0 && items.every((s) => selected[keyOf(s)]);
+    const toggleSelect = (s) => setSelected((prev) => {
+        const next = { ...prev };
+        if (next[keyOf(s)]) delete next[keyOf(s)]; else next[keyOf(s)] = s;
+        return next;
+    });
+    const toggleAllOnPage = () => setSelected(allOnPageSelected ? {} : Object.fromEntries(items.map((s) => [keyOf(s), s])));
+    useEffect(() => { setSelected({}); }, [tab]);
 
     // Số đếm cạnh từng camera trong ô lọc (theo khoảng ngày + tab đang xem).
     const deviceCounts = useProbeCounts(
@@ -134,10 +164,11 @@ const Strangers = () => {
             stranger: s,
             sightings: known || [],
             picked: new Set((known || []).map(x => x.eventId)),
-            display_name: s.strangerId ? `Người lạ ${s.strangerId}` : 'Người lạ chưa rõ danh tính',
+            // Không dùng mã nội bộ (snapshot:<uuid>) làm tên — người dùng không đọc được.
+            display_name: `Người lạ · ${placeOf(s)} · ${fmtDateTime(s.lastSeen)}`,
             list_type: 'watchlist',
             priority: s.hitCount >= 3 ? 'high' : 'medium',
-            reason: `Người lạ xuất hiện ${s.hitCount} lần tại ${placeOf(s)}, lần cuối ${fmtDateTime(s.lastSeen)}`,
+            reason: `Xuất hiện ${s.hitCount} lần tại ${placeOf(s)}\nLần cuối: ${fmtDateTime(s.lastSeen)}`,
         });
         // các lượt để bảo vệ tick chọn "cùng 1 người" → cảnh báo chứa lượt đó chuyển sang theo dõi
         if (!known) getStrangerSightings(s.deviceId, s.strangerId).then(res => {
@@ -250,14 +281,41 @@ const Strangers = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {items.map(s => (
-                    <div key={keyOf(s)} className={`bg-white rounded-2xl border overflow-hidden flex flex-col ${tab === 'pending' && s.hitCount >= 3 ? 'border-amber-300' : 'border-platinum-tint'}`}>
+            {tab === 'pending' && items.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-platinum-tint bg-white px-4 py-2.5">
+                    <div className="flex items-center gap-3 text-sm">
+                        <button type="button" onClick={toggleAllOnPage} className="inline-flex items-center gap-1.5 font-semibold text-midnight-indigo hover:text-action-blue">
+                            {allOnPageSelected ? <CheckSquare className="w-4 h-4 text-action-blue" /> : <Square className="w-4 h-4" />}
+                            {allOnPageSelected ? 'Bỏ chọn trang này' : `Chọn cả trang (${items.length})`}
+                        </button>
+                        {selectedList.length > 0 && <span className="text-slate-blue">Đã chọn <b className="text-midnight-indigo">{selectedList.length}</b></span>}
+                    </div>
+                    <button type="button" disabled={!selectedList.length} onClick={() => setBulkDismiss(selectedList)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-midnight-indigo text-white text-xs font-bold disabled:opacity-40">
+                        <ShieldOff className="w-3.5 h-3.5" /> Đóng {selectedList.length || ''} mục đã chọn
+                    </button>
+                </div>
+            )}
+
+            {groupByHour(items).map(g => (
+            <section key={g.key} aria-label={`Người lạ ${g.label}`} className="space-y-2">
+                <h2 className="flex items-center gap-2 text-xs font-bold text-slate-blue">
+                    <Clock className="w-3.5 h-3.5" /> {g.label}
+                    <span className="px-2 py-0.5 rounded-full bg-cloud-mist text-midnight-indigo">{g.items.length} người</span>
+                </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                {g.items.map(s => (
+                    <div key={keyOf(s)} className={`bg-white rounded-2xl border overflow-hidden flex flex-col ${selected[keyOf(s)] ? 'border-action-blue ring-2 ring-action-blue/20' : tab === 'pending' && s.hitCount >= 3 ? 'border-amber-300' : 'border-platinum-tint'}`}>
                         <div className="relative">
+                            {tab === 'pending' && (
+                                <label className="absolute top-2 left-2 z-10 w-6 h-6 rounded-md bg-white/90 shadow flex items-center justify-center cursor-pointer" title="Chọn để đóng hàng loạt">
+                                    <input type="checkbox" checked={!!selected[keyOf(s)]} onChange={() => toggleSelect(s)} aria-label={`Chọn người lạ ${placeOf(s)} ${fmtDateTime(s.lastSeen)}`} className="w-4 h-4 accent-action-blue" />
+                                </label>
+                            )}
                             {s.snapshotEventId ? (
-                                <ThumbnailImage eventId={s.snapshotEventId} className="w-full aspect-square rounded-none border-0" alt="Ảnh người lạ" onClick={() => openDetail(s)} />
+                                <ThumbnailImage eventId={s.snapshotEventId} className="w-full aspect-[4/5] rounded-none border-0" alt="Ảnh người lạ" onClick={() => openDetail(s)} />
                             ) : (
-                                <button onClick={() => openDetail(s)} className="w-full aspect-square bg-slate-100 flex flex-col items-center justify-center text-slate-400 text-xs gap-1">
+                                <button onClick={() => openDetail(s)} className="w-full aspect-[4/5] bg-slate-100 flex flex-col items-center justify-center text-slate-400 text-xs gap-1">
                                     <UserX className="w-8 h-8" /> Không có ảnh
                                 </button>
                             )}
@@ -265,10 +323,9 @@ const Strangers = () => {
                                 {s.hitCount} lần
                             </span>
                         </div>
-                        <div className="p-3 space-y-1 flex-1 min-w-0">
+                        <div className="p-2.5 space-y-0.5 flex-1 min-w-0">
                             <p className="text-sm font-bold text-midnight-indigo truncate" title={placeOf(s)}>{placeOf(s)}</p>
-                            <p className="text-xs text-slate-blue flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" /> Lần cuối {fmtDateTime(s.lastSeen)}</p>
-                            <p data-ui-text="secondary" className="text-[11px] text-slate-400 truncate" title={s.deviceCode}>{s.deviceCode}{s.strangerId ? ` · mã ${s.strangerId}` : ' · thiết bị không gán mã'}</p>
+                            <p className="text-xs text-slate-blue flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" /> {fmtDateTime(s.lastSeen)}</p>
                             {tab === 'dismissed' && (
                                 <div data-ui-text="secondary" className="mt-2 rounded-lg bg-slate-50 border border-slate-100 px-2 py-1.5 text-[11px] text-slate-blue space-y-0.5">
                                     <p className="font-semibold text-midnight-indigo">{dismissReasonLabel(s.dismissReason)}</p>
@@ -280,23 +337,23 @@ const Strangers = () => {
                         <div className="grid grid-cols-3 border-t border-platinum-tint divide-x divide-platinum-tint">
                             {tab === 'pending' ? (
                                 <>
-                                    <button onClick={() => setReviewing(s)} title="AI nhận sai? Xác nhận đây là ai" className="py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 inline-flex items-center justify-center gap-1">
+                                    <button onClick={() => setReviewing(s)} title="AI nhận sai? Xác nhận đây là ai" className="py-2 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 inline-flex items-center justify-center gap-1">
                                         <UserCheck className="w-3.5 h-3.5" /> Là ai?
                                     </button>
-                                    <button onClick={() => openAdd(s)} className="py-2.5 text-xs font-bold text-action-blue hover:bg-blue-50 inline-flex items-center justify-center gap-1">
+                                    <button onClick={() => openAdd(s)} className="py-2 text-[11px] font-bold text-action-blue hover:bg-blue-50 inline-flex items-center justify-center gap-1">
                                         <ShieldPlus className="w-3.5 h-3.5" /> Theo dõi
                                     </button>
-                                    <button onClick={() => setDismissing(s)} title="Đóng cảnh báo — phải ghi lý do" className="py-2.5 text-xs font-semibold text-slate-blue hover:bg-cloud-mist inline-flex items-center justify-center gap-1">
+                                    <button onClick={() => setDismissing(s)} title="Đóng cảnh báo — phải ghi lý do" className="py-2 text-[11px] font-semibold text-slate-blue hover:bg-cloud-mist inline-flex items-center justify-center gap-1">
                                         <ShieldOff className="w-3.5 h-3.5" /> Đóng
                                     </button>
                                 </>
                             ) : (
                                 <>
-                                    <button onClick={() => openDetail(s)} className="py-2.5 text-xs font-semibold text-slate-blue hover:bg-cloud-mist">Chi tiết</button>
-                                    <button onClick={() => setReviewing(s)} title="Xác nhận đây là ai" className="py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 inline-flex items-center justify-center gap-1">
+                                    <button onClick={() => openDetail(s)} className="py-2 text-[11px] font-semibold text-slate-blue hover:bg-cloud-mist">Chi tiết</button>
+                                    <button onClick={() => setReviewing(s)} title="Xác nhận đây là ai" className="py-2 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 inline-flex items-center justify-center gap-1">
                                         <UserCheck className="w-3.5 h-3.5" /> Là ai?
                                     </button>
-                                    <button onClick={() => handleReopen(s)} className="py-2.5 text-xs font-bold text-action-blue hover:bg-blue-50 inline-flex items-center justify-center gap-1">
+                                    <button onClick={() => handleReopen(s)} className="py-2 text-[11px] font-bold text-action-blue hover:bg-blue-50 inline-flex items-center justify-center gap-1">
                                         <RotateCcw className="w-3.5 h-3.5" /> Mở lại
                                     </button>
                                 </>
@@ -305,6 +362,8 @@ const Strangers = () => {
                     </div>
                 ))}
             </div>
+            </section>
+            ))}
 
             {<PaginationRegion legacyVisible={total > PAGE_SIZE}><PaginationFooter currentPage={page} totalPages={Math.ceil(total / PAGE_SIZE)} totalItems={total} pageSize={PAGE_SIZE} itemLabel="người lạ" onPageChange={setPage} loading={loading}  onPageSizeChange={size => { setPageSize(size); setPage(1); }} /></PaginationRegion>}
 
@@ -425,6 +484,14 @@ const Strangers = () => {
                     stranger={reviewing}
                     onClose={() => setReviewing(null)}
                     onDone={(msg) => { setReviewing(null); showToast(msg, 5000); fetchData(); }}
+                />
+            )}
+
+            {bulkDismiss && (
+                <StrangerDismissModal
+                    strangers={bulkDismiss}
+                    onClose={() => setBulkDismiss(null)}
+                    onDone={(msg) => { setBulkDismiss(null); setSelected({}); showToast(msg, 5000); fetchData(); }}
                 />
             )}
 

@@ -61,16 +61,16 @@ const GroupForm = ({ initial, zones = [], onSubmit, onCancel, busy }) => {
     const valid = (initial || (code && !codeError)) && name.trim();
     return (
         <form onSubmit={(e) => { e.preventDefault(); onSubmit({ code, name: name.trim(), desc, zoneId, purpose: purpose.trim() }); }} className="space-y-3">
-            <label className="block text-xs font-bold text-slate-blue uppercase">Mã nhóm
-                <input value={code} onChange={(e) => setCode(e.target.value)} disabled={!!initial} placeholder="VD: TOA-A" maxLength={50}
+            <label className="block text-xs font-bold text-slate-blue uppercase">Mã nhóm{!initial && <span className="text-red-500" aria-hidden="true"> *</span>}
+                <input value={code} onChange={(e) => setCode(e.target.value)} disabled={!!initial} placeholder="VD: TOA-A" maxLength={50} aria-required={!initial}
                     aria-invalid={!!codeError}
                     className={`mt-1 w-full px-3 py-2 border rounded-xl text-sm font-normal disabled:bg-slate-50 ${codeError ? '!border-red-500' : 'border-platinum-tint'}`} />
                 {codeError
                     ? <span data-ui-text="secondary" role="alert" className="text-[11px] normal-case font-normal text-red-600">{codeError}</span>
                     : !initial && <span data-ui-text="secondary" className="text-[11px] normal-case font-normal text-slate-500">Chữ, số, "_" hoặc "-" (2–50 ký tự), không đổi được sau khi tạo.</span>}
             </label>
-            <label className="block text-xs font-bold text-slate-blue uppercase">Tên nhóm
-                <input value={name} onChange={(e) => setName(e.target.value)} maxLength={150} placeholder="VD: Camera tòa A"
+            <label className="block text-xs font-bold text-slate-blue uppercase">Tên nhóm<span className="text-red-500" aria-hidden="true"> *</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} maxLength={150} placeholder="VD: Camera tòa A" aria-required="true"
                     className="mt-1 w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm font-normal" />
             </label>
             <label className="block text-xs font-bold text-slate-blue uppercase">Khu vực phụ trách

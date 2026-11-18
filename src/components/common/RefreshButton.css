@@ -22,3 +22,17 @@
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
+
+/* Giờ làm mới nằm cạnh nút (bên trái) thay vì bên dưới — dùng cho header thấp. */
+.camai-refresh-control--inline {
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Điều khiển đi kèm (vd ô ngày) đứng cùng hàng với nút; giờ làm mới nằm dưới cả cụm. */
+.camai-refresh-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}

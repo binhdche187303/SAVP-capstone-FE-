@@ -206,7 +206,7 @@ const RoomAccessLogs = () => {
             const data = res.data;
             const list = Array.isArray(data) ? data : data?.rooms || data?.items || [];
             setRooms(list);
-            setSelectedRoomId(previous => filterValues(previous).length && filterValues(previous).every(id => list.some(room => (room.id || room.roomId) === id)) ? previous : list[0]?.id || list[0]?.roomId || '');
+            setSelectedRoomId(previous => filterValues(previous).length && filterValues(previous).every(id => list.some(room => (room.id || room.roomId) === id)) ? previous : ''); // mặc định Tất cả phòng
         } catch (err) {
             setRooms([]); setSelectedRoomId('');
             setRoomsError(err?.message || 'Không tải được danh sách phòng họp.');
@@ -794,6 +794,7 @@ const RoomAccessLogs = () => {
                                 onChange={(e) => setSelectedRoomId(e.target.value)}
                                 className="w-full pl-9 pr-3 py-2.5 bg-cloud-mist border border-platinum-tint rounded-xl text-sm text-midnight-indigo font-semibold appearance-none focus:ring-2 focus:ring-action-blue/20 focus:border-action-blue outline-none transition-all"
                             >
+                                <option value="">Tất cả phòng</option>
                                 {rooms.map((r, i) => {
                                     const name = r.roomName || r.room_name || '';
                                     const site = r.siteName || r.site_name;
@@ -906,9 +907,10 @@ const RoomAccessLogs = () => {
                 <div className="overflow-x-auto">
                     <ResponsiveTable className="w-full text-left text-sm">
                         <colgroup>
+                            {/* Ngày, Giờ, Người, [Phòng], Hướng, Trạng thái, Ảnh, Camera, Độ tin cậy, Cuộc họp */}
                             {(showRoomColumn
-                                ? [8, 7, 22, 11, 7, 10, 11, 6, 6, 12]
-                                : [9, 8, 22, 7, 10, 11, 9, 7, 17]
+                                ? [9, 7, 16, 12, 7, 11, 7, 12, 8, 11]
+                                : [9, 8, 18, 8, 12, 8, 14, 9, 14]
                             ).map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
                         </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">

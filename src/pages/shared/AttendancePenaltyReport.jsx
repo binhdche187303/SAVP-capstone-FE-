@@ -7,6 +7,7 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import ReportExportAction from '../../components/common/ReportExportAction';
 import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
+import './AttendancePenaltyReport.css';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -65,6 +66,15 @@ const ExportButton = ({ onClick, disabled }) => (
         <Download className="w-3.5 h-3.5" /> Xuất Excel
     </ReportExportAction>
 );
+// Lọc dòng tổng hợp (nhân sự / cuộc họp) theo thẻ: dòng có ít nhất 1 lượt thuộc loại đó.
+const ROW_FIELD = { late: 'late', left_early: 'leftEarly', absent: 'absent', excused: 'excused' };
+export const matchesCardFilter = (row, filter) => {
+    if (!filter || filter === 'all') return true;
+    if (filter === 'deducted') return Number(row.totalPoints) < 0;
+    return Number(row[ROW_FIELD[filter]] || 0) > 0;
+};
+const FILTERED_EMPTY = 'Không có dòng phù hợp với thẻ đang chọn.';
+
 const fmtPoints = (p) => (p > 0 ? `+${p}` : `${p}`);
 const pointsCls = (p) => (p < 0 ? 'text-rose-600' : 'text-emerald-600');
 
@@ -78,7 +88,7 @@ const SummaryCards = ({ s, label = 'Số buổi họp', selected, onSelect }) =>
         { filter: 'deducted', label: 'Tổng điểm trừ', value: fmtPoints(s.totalPoints), icon: AlertTriangle, cls: 'text-rose-600 bg-rose-50' },
     ];
     return (
-        <StatisticGrid columns={6} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <StatisticGrid columns={6} className="attendance-summary-cards grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {cards.map((c) => (
                 <StatisticCard key={c.label} label={c.label} value={c.value} icon={c.icon} tone={statisticTone(c.cls)}
                     {...(onSelect ? { onClick: () => onSelect(c.filter), selected: selected === c.filter, 'aria-label': c.label } : {})}
@@ -121,18 +131,18 @@ export const MeetingRows = ({ items, basePath, title, showReason = true, categor
                     <tr><td colSpan={showReason ? 5 : 4} className="px-4 py-8 text-center text-slate-blue text-sm">{emptyMessage}</td></tr>
                 ) : camaiPageItems.map((camaiRecord, camaiIndex) => ((i) => (
                     <tr key={i.meetingId} className="hover:bg-cloud-mist/20">
-                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{fmtDate(i.startTime)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-midnight-indigo tabular-nums">{fmtDate(i.startTime)}</td>
                         <td className="px-4 py-3">
-                            <Link to={`${basePath}/meeting/${i.meetingId}`} className="font-bold text-xs text-midnight-indigo hover:text-action-blue">{i.title}</Link>
-                            <p data-ui-text="secondary" className="text-[10px] text-slate-400">{i.meetingCode}</p>
+                            <Link to={`${basePath}/meeting/${i.meetingId}`} className="font-semibold text-sm text-midnight-indigo hover:text-action-blue">{i.title}</Link>
+                            <p data-ui-text="secondary" className="text-xs text-slate-blue mt-0.5">{i.meetingCode}</p>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                            <span data-ui-text="badge" className={`text-[10px] font-bold px-2 py-0.5 rounded ${CATEGORY_MAP[i.category]?.cls || ''}`}>
+                            <span data-ui-text="badge" className={`text-xs font-semibold px-2 py-0.5 rounded ${CATEGORY_MAP[i.category]?.cls || ''}`}>
                                 {CATEGORY_MAP[i.category]?.label || i.category}
                                 {i.category === 'late' && i.lateMinutes ? ` (${i.lateMinutes}p)` : ''}
                             </span>
                         </td>
-                        {showReason && <td className="px-4 py-3 text-[11px] text-slate-600 max-w-[260px]">
+                        {showReason && <td className="px-4 py-3 text-xs text-slate-600 max-w-[260px]">
                             {i.excuseStatus ? (
                                 <>
                                     <span className="font-bold">{EXCUSE_MAP[i.excuseStatus]}</span>
@@ -143,7 +153,7 @@ export const MeetingRows = ({ items, basePath, title, showReason = true, categor
                                 </>
                             ) : '--'}
                         </td>}
-                        <td className={`px-4 py-3 text-right font-black ${pointsCls(i.points)}`}>{fmtPoints(i.points)}</td>
+                        <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${pointsCls(i.points)}`}>{fmtPoints(i.points)}</td>
                     </tr>
                 ))(camaiRecord, camaiStartIndex + camaiIndex, (items)))}
             </tbody>
@@ -182,15 +192,15 @@ const ParticipantRows = ({ items }) => (
                 ) : camaiPageItems.map((camaiRecord, camaiIndex) => ((i) => (
                     <tr key={i.userId} className="hover:bg-cloud-mist/20">
                         <td className="px-4 py-3">
-                            <p data-ui-text="primary" className="font-bold text-xs text-midnight-indigo">{i.fullName}</p>
-                            <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{[i.employeeCode, i.departmentName].filter(Boolean).join(' • ') || i.email}</p>
+                            <p data-ui-text="primary" className="font-semibold text-sm text-midnight-indigo">{i.fullName}</p>
+                            <p data-ui-text="secondary" className="text-xs text-slate-blue mt-0.5">{[i.employeeCode, i.departmentName].filter(Boolean).join(' • ') || i.email}</p>
                         </td>
-                        <td className="px-3 py-3 text-center text-xs">{fmtTime(i.checkInTime) || '--'}</td>
-                        <td className="px-3 py-3 text-center text-xs">{fmtTime(i.checkOutTime) || '--'}</td>
+                        <td className="px-3 py-3 text-center text-sm tabular-nums text-midnight-indigo">{fmtTime(i.checkInTime) || '--'}</td>
+                        <td className="px-3 py-3 text-center text-sm tabular-nums text-midnight-indigo">{fmtTime(i.checkOutTime) || '--'}</td>
                         <td className="px-3 py-3 whitespace-nowrap">
-                            <span data-ui-text="badge" className={`text-[10px] font-bold px-2 py-0.5 rounded ${CATEGORY_MAP[i.category]?.cls || ''}`}>{categoryText(i)}</span>
+                            <span data-ui-text="badge" className={`text-xs font-semibold px-2 py-0.5 rounded ${CATEGORY_MAP[i.category]?.cls || ''}`}>{categoryText(i)}</span>
                         </td>
-                        <td className="px-3 py-3 text-[11px] text-slate-600 max-w-[280px]">
+                        <td className="px-3 py-3 text-xs text-slate-600 max-w-[280px]">
                             {i.excuseStatus && (
                                 <>
                                     <span className="font-bold">{EXCUSE_MAP[i.excuseStatus]}</span>
@@ -203,7 +213,7 @@ const ParticipantRows = ({ items }) => (
                             {i.note && <span className="block break-words text-slate-blue">Ghi chú: {i.note}</span>}
                             {!i.excuseStatus && !i.note && '--'}
                         </td>
-                        <td className={`px-4 py-3 text-right font-black ${pointsCls(i.points)}`}>{fmtPoints(i.points)}</td>
+                        <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${pointsCls(i.points)}`}>{fmtPoints(i.points)}</td>
                     </tr>
                 ))(camaiRecord, camaiStartIndex + camaiIndex, (items)))}
             </tbody>
@@ -268,8 +278,12 @@ const AttendancePenaltyReport = () => {
 
     // Lọc ngay trên dữ liệu đã tải trong lúc chờ BE trả kết quả cho từ khoá mới.
     const searchPending = search !== debouncedSearch || loading;
-    const summaryRows = useInstantFilter(summary?.rows, search, searchPending);
-    const meetingRows = useInstantFilter(meetingSummary?.rows, search, searchPending);
+    const searchedSummaryRows = useInstantFilter(summary?.rows, search, searchPending);
+    const searchedMeetingRows = useInstantFilter(meetingSummary?.rows, search, searchPending);
+    const [summaryFilter, setSummaryFilter] = useState('all');
+    const [meetingFilter, setMeetingFilter] = useState('all');
+    const summaryRows = useMemo(() => searchedSummaryRows.filter((r) => matchesCardFilter(r, summaryFilter)), [searchedSummaryRows, summaryFilter]);
+    const meetingRows = useMemo(() => searchedMeetingRows.filter((r) => matchesCardFilter(r, meetingFilter)), [searchedMeetingRows, meetingFilter]);
 
     useEffect(() => {
         const t = setTimeout(load, 0);
@@ -431,21 +445,26 @@ const AttendancePenaltyReport = () => {
             </FilterBar>
 
             {tabs.length > 1 && (
-                <StatisticGrid columns={tabs.length} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" role="group" aria-label="Chế độ xem điểm chuyên cần">
+                // Chế độ xem dạng tab (thay cho 3 thẻ lớn) — số trên tab là số bản ghi của chế độ đó.
+                <div className="flex flex-wrap border-b border-platinum-tint gap-1" role="group" aria-label="Chế độ xem điểm chuyên cần">
                     {tabs.map((t) => (
-                        <StatisticCard
+                        <button
                             key={t.id}
-                            label={t.label}
-                            value={t.value}
-                            helper={t.description}
-                            icon={t.icon}
-                            loading={loading}
-                            selected={tab === t.id}
-                            aria-label={t.name || t.label}
+                            type="button"
                             onClick={() => setTab(t.id)}
-                        />
+                            aria-pressed={tab === t.id}
+                            aria-label={t.name || t.label}
+                            title={t.description}
+                            className={`inline-flex items-center gap-2 px-4 py-2.5 -mb-px border-b-2 text-sm font-semibold transition-colors ${tab === t.id ? 'border-action-blue text-action-blue' : 'border-transparent text-slate-blue hover:text-midnight-indigo'}`}
+                        >
+                            <t.icon className="w-4 h-4" aria-hidden="true" />
+                            {t.label}
+                            <span className={`min-w-[22px] h-5 px-1.5 rounded-full text-[11px] font-bold inline-flex items-center justify-center ${tab === t.id ? 'bg-blue-50 text-action-blue' : 'bg-cloud-mist text-slate-blue'}`}>
+                                {loading ? '…' : t.value}
+                            </span>
+                        </button>
                     ))}
-                </StatisticGrid>
+                </div>
             )}
 
             {error && <div data-ui-text="badge" className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-medium">{error}</div>}
@@ -477,10 +496,13 @@ const AttendancePenaltyReport = () => {
                             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tên, email" className="pl-8 pr-3 py-2 text-xs rounded-xl border border-platinum-tint w-56" />
                         </div></FilterField>
                     </FilterBar>
+                    {summary?.totals && (
+                        <SummaryCards s={{ ...summary.totals, totalMeetings: summary.totals.people }} label="Nhân sự" selected={summaryFilter} onSelect={setSummaryFilter} />
+                    )}
 
                     {summary && (
                         <div className="bg-white rounded-2xl border border-platinum-tint overflow-x-auto">
-                            <PaginatedCollection items={summaryRows} itemLabel="nhân sự">
+                            <PaginatedCollection key={summaryFilter} items={summaryRows} itemLabel="nhân sự">
 {(camaiPageItems, camaiStartIndex) => (
 <ResponsiveTable className="w-full text-sm">
 <colgroup>
@@ -507,37 +529,37 @@ const AttendancePenaltyReport = () => {
                                 </thead>
                                 <tbody className="divide-y divide-platinum-tint">
                                     {summaryRows.length === 0 ? (
-                                        <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-blue text-sm">Không có dữ liệu trong khoảng thời gian này.</td></tr>
+                                        <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-blue text-sm">{summaryFilter === 'all' ? 'Không có dữ liệu trong khoảng thời gian này.' : FILTERED_EMPTY}</td></tr>
                                     ) : camaiPageItems.map((camaiRecord, camaiIndex) => ((r) => (
                                         <tr key={r.userId} onClick={() => openDetail(r)} className="hover:bg-cloud-mist/30 cursor-pointer">
                                             <td className="px-4 py-3">
-                                                <p data-ui-text="primary" className="font-bold text-xs text-midnight-indigo">{r.fullName}</p>
-                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{r.departmentName || 'Chưa cung cấp'}{r.positionTitle ? ` • ${r.positionTitle}` : ''}</p>
+                                                <p data-ui-text="primary" className="font-semibold text-sm text-midnight-indigo">{r.fullName}</p>
+                                                <p data-ui-text="secondary" className="text-xs text-slate-blue mt-0.5">{r.departmentName || 'Chưa cung cấp'}{r.positionTitle ? ` • ${r.positionTitle}` : ''}</p>
                                             </td>
-                                            <td className="px-3 py-3 text-center text-xs font-bold">{r.totalMeetings}</td>
-                                            <td className="px-3 py-3 text-center text-xs">{r.present}</td>
-                                            <td className="px-3 py-3 text-center text-xs text-amber-700">{r.late || '-'}</td>
-                                            <td className="px-3 py-3 text-center text-xs text-orange-700">{r.leftEarly || '-'}</td>
-                                            <td className="px-3 py-3 text-center text-xs text-rose-700">{r.absent || '-'}</td>
-                                            <td className="px-3 py-3 text-center text-xs text-sky-700">
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-midnight-indigo">{r.totalMeetings}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-midnight-indigo">{r.present}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-amber-700">{r.late || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-orange-700">{r.leftEarly || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-rose-700">{r.absent || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-sky-700">
                                                 {r.excused || '-'}
-                                                {r.pendingExcuses > 0 && <span data-ui-text="secondary" className="block text-[9px] text-amber-600">{r.pendingExcuses} chờ duyệt</span>}
+                                                {r.pendingExcuses > 0 && <span data-ui-text="secondary" className="block text-[11px] font-medium text-amber-600">{r.pendingExcuses} chờ duyệt</span>}
                                             </td>
-                                            <td className={`px-4 py-3 text-right font-black ${pointsCls(r.totalPoints)}`}>{fmtPoints(r.totalPoints)}</td>
+                                            <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${pointsCls(r.totalPoints)}`}>{fmtPoints(r.totalPoints)}</td>
                                         </tr>
                                     ))(camaiRecord, camaiStartIndex + camaiIndex, (summaryRows)))}
                                 </tbody>
                                 {summaryRows.length > 0 && (
-                                    <tfoot className="bg-cloud-mist/40 text-xs font-bold">
+                                    <tfoot className="bg-cloud-mist/40 text-sm font-bold text-midnight-indigo">
                                         <tr>
                                             <td className="px-4 py-3">Tổng ({summary.totals.people} người)</td>
-                                            <td />
-                                            <td />
-                                            <td className="px-3 py-3 text-center text-amber-700">{summary.totals.late}</td>
-                                            <td className="px-3 py-3 text-center text-orange-700">{summary.totals.leftEarly}</td>
-                                            <td className="px-3 py-3 text-center text-rose-700">{summary.totals.absent}</td>
-                                            <td className="px-3 py-3 text-center text-sky-700">{summary.totals.excused}</td>
-                                            <td className={`px-4 py-3 text-right font-black ${pointsCls(summary.totals.totalPoints)}`}>{fmtPoints(summary.totals.totalPoints)}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums">{(summaryRows || []).reduce((n, row) => n + Number(row.totalMeetings || 0), 0)}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums">{(summaryRows || []).reduce((n, row) => n + Number(row.present || 0), 0)}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums text-amber-700">{summary.totals.late}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums text-orange-700">{summary.totals.leftEarly}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums text-rose-700">{summary.totals.absent}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums text-sky-700">{summary.totals.excused}</td>
+                                            <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${pointsCls(summary.totals.totalPoints)}`}>{fmtPoints(summary.totals.totalPoints)}</td>
                                         </tr>
                                     </tfoot>
                                 )}
@@ -565,13 +587,16 @@ const AttendancePenaltyReport = () => {
                             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tên, mã cuộc họp" className="pl-8 pr-3 py-2 text-xs rounded-xl border border-platinum-tint w-56" />
                         </div></FilterField>
                     </FilterBar>
+                    {meetingSummary?.totals && (
+                        <SummaryCards s={{ ...meetingSummary.totals, totalMeetings: meetingSummary.totals.meetings }} label="Cuộc họp" selected={meetingFilter} onSelect={setMeetingFilter} />
+                    )}
                     {scope === 'unit' && (
                         <p data-ui-text="secondary" className="text-[11px] text-slate-blue">Số liệu chỉ tính thành viên thuộc đơn vị của bạn.</p>
                     )}
 
                     {meetingSummary && (
                         <div className="bg-white rounded-2xl border border-platinum-tint overflow-x-auto">
-                            <PaginatedCollection items={meetingRows} itemLabel="cuộc họp">
+                            <PaginatedCollection key={meetingFilter} items={meetingRows} itemLabel="cuộc họp">
 {(camaiPageItems, camaiStartIndex) => (
 <ResponsiveTable className="w-full text-sm">
 <colgroup>
@@ -600,42 +625,42 @@ const AttendancePenaltyReport = () => {
                                 </thead>
                                 <tbody className="divide-y divide-platinum-tint">
                                     {meetingRows.length === 0 ? (
-                                        <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-blue text-sm">Không có cuộc họp nào có điểm danh trong khoảng thời gian này.</td></tr>
+                                        <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-blue text-sm">{meetingFilter === 'all' ? 'Không có cuộc họp nào có điểm danh trong khoảng thời gian này.' : FILTERED_EMPTY}</td></tr>
                                     ) : camaiPageItems.map((camaiRecord, camaiIndex) => ((r) => (
                                         <tr key={r.meetingId} onClick={() => openMeetingDetail(r)} className="hover:bg-cloud-mist/30 cursor-pointer">
                                             <td className="px-4 py-3">
-                                                <p data-ui-text="primary" className="font-bold text-xs text-midnight-indigo">{r.title}</p>
-                                                <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{[r.roomName, r.hostName && `Chủ trì: ${r.hostName}`].filter(Boolean).join(' • ')}</p>
+                                                <p data-ui-text="primary" className="font-semibold text-sm text-midnight-indigo">{r.title}</p>
+                                                <p data-ui-text="secondary" className="text-xs text-slate-blue mt-0.5">{[r.roomName, r.hostName && `Chủ trì: ${r.hostName}`].filter(Boolean).join(' • ')}</p>
                                             </td>
-                                            <td className="px-3 py-3 whitespace-nowrap text-xs text-slate-600">
+                                            <td className="px-3 py-3 whitespace-nowrap text-sm text-midnight-indigo">
                                                 {fmtDate(r.startTime)}
-                                                <span data-ui-text="primary" className="block text-[10px] text-slate-blue">{fmtTime(r.startTime)}{r.endTime ? ` – ${fmtTime(r.endTime)}` : ''}</span>
+                                                <span data-ui-text="secondary" className="block text-xs text-slate-blue">{fmtTime(r.startTime)}{r.endTime ? ` – ${fmtTime(r.endTime)}` : ''}</span>
                                             </td>
-                                            <td className="px-3 py-3 text-center text-xs font-bold">{r.invited}</td>
-                                            <td className="px-3 py-3 text-center text-xs">{r.present}</td>
-                                            <td className="px-3 py-3 text-center text-xs text-amber-700">{r.late || '-'}</td>
-                                            <td className="px-3 py-3 text-center text-xs text-orange-700">{r.leftEarly || '-'}</td>
-                                            <td className="px-3 py-3 text-center text-xs text-rose-700">{r.absent || '-'}</td>
-                                            <td className="px-3 py-3 text-center text-xs text-sky-700">
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-midnight-indigo">{r.invited}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-midnight-indigo">{r.present}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-amber-700">{r.late || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-orange-700">{r.leftEarly || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-rose-700">{r.absent || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-sm font-semibold tabular-nums text-sky-700">
                                                 {r.excused || '-'}
-                                                {r.pendingExcuses > 0 && <span data-ui-text="secondary" className="block text-[9px] text-amber-600">{r.pendingExcuses} chờ duyệt</span>}
+                                                {r.pendingExcuses > 0 && <span data-ui-text="secondary" className="block text-[11px] font-medium text-amber-600">{r.pendingExcuses} chờ duyệt</span>}
                                             </td>
-                                            <td className={`px-4 py-3 text-right font-black ${pointsCls(r.totalPoints)}`}>{fmtPoints(r.totalPoints)}</td>
+                                            <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${pointsCls(r.totalPoints)}`}>{fmtPoints(r.totalPoints)}</td>
                                         </tr>
                                     ))(camaiRecord, camaiStartIndex + camaiIndex, (meetingRows)))}
                                 </tbody>
                                 {meetingRows.length > 0 && (
-                                    <tfoot className="bg-cloud-mist/40 text-xs font-bold">
+                                    <tfoot className="bg-cloud-mist/40 text-sm font-bold text-midnight-indigo">
                                         <tr>
                                             <td className="px-4 py-3">Tổng ({meetingSummary.totals.meetings} cuộc họp)</td>
                                             <td />
-                                            <td className="px-3 py-3 text-center">{meetingSummary.totals.invited}</td>
-                                            <td />
-                                            <td className="px-3 py-3 text-center text-amber-700">{meetingSummary.totals.late}</td>
-                                            <td className="px-3 py-3 text-center text-orange-700">{meetingSummary.totals.leftEarly}</td>
-                                            <td className="px-3 py-3 text-center text-rose-700">{meetingSummary.totals.absent}</td>
-                                            <td className="px-3 py-3 text-center text-sky-700">{meetingSummary.totals.excused}</td>
-                                            <td className={`px-4 py-3 text-right font-black ${pointsCls(meetingSummary.totals.totalPoints)}`}>{fmtPoints(meetingSummary.totals.totalPoints)}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums">{meetingSummary.totals.invited}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums">{(meetingRows || []).reduce((n, row) => n + Number(row.present || 0), 0)}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums text-amber-700">{meetingSummary.totals.late}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums text-orange-700">{meetingSummary.totals.leftEarly}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums text-rose-700">{meetingSummary.totals.absent}</td>
+                                            <td className="px-3 py-3 text-center tabular-nums text-sky-700">{meetingSummary.totals.excused}</td>
+                                            <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${pointsCls(meetingSummary.totals.totalPoints)}`}>{fmtPoints(meetingSummary.totals.totalPoints)}</td>
                                         </tr>
                                     </tfoot>
                                 )}

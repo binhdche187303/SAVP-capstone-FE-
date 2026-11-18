@@ -33,6 +33,19 @@ const emptyForm = {
     active: true
 };
 
+// Bản ghi cũ lưu tên "Người lạ snapshot:<uuid>" — chỉ đổi cách hiển thị, không sửa dữ liệu.
+const INTERNAL_STRANGER_NAME = /^Người lạ\s+(?:snapshot|event):([0-9a-f]{6})[0-9a-f-]*$/i;
+export const displayNameOf = (name) => {
+    const m = INTERNAL_STRANGER_NAME.exec(String(name || '').trim());
+    return m ? { title: 'Người lạ chưa rõ danh tính' } : { title: name || '—' };
+};
+/** Lý do → các ý ngắn để hiện dạng gạch đầu dòng (tách theo xuống dòng, ";", " · ", ", lần cuối"). */
+export const reasonPoints = (reason) => String(reason || '')
+    .split(/\n|;|\s·\s|,\s*(?=lần cuối)/i)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => x.charAt(0).toUpperCase() + x.slice(1));
+
 const PersonControlList = () => {
     const [persons, setPersons] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -413,33 +426,39 @@ const PersonControlList = () => {
                                                             />
                                                         </a>
                                                     )}
-                                                    <div>
-                                                        <div className="font-extrabold text-midnight-indigo">{person.display_name}</div>
-                                                        <div data-ui-text="primary" className="text-[11px] text-slate-blue mt-0.5">Cập nhật: {formatDate(person.updated_at)}</div>
+                                                    <div className="min-w-0">
+                                                        <div className="text-sm font-bold text-midnight-indigo break-words" title={person.display_name}>
+                                                            {displayNameOf(person.display_name).title}
+                                                        </div>
+                                                        <div data-ui-text="secondary" className="text-xs text-slate-blue mt-0.5">Cập nhật: {formatDate(person.updated_at)}</div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${listType.color}`}>
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${listType.color}`}>
                                                     {listType.label}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span data-ui-text="badge" className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${priority.color}`}>
+                                                <span data-ui-text="badge" className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${priority.color}`}>
                                                     {priority.label}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-xs text-slate-blue max-w-xs truncate text-left" title={person.reason || ''}>
-                                                {person.reason || 'Chưa cung cấp'}
+                                            <td className="px-6 py-3 text-sm text-slate-700 max-w-sm text-left" title={person.reason || ''}>
+                                                {reasonPoints(person.reason).length > 1 ? (
+                                                    <ul className="list-disc pl-4 space-y-0.5 marker:text-slate-400">
+                                                        {reasonPoints(person.reason).map((point, i) => <li key={i}>{point}</li>)}
+                                                    </ul>
+                                                ) : (reasonPoints(person.reason)[0] || 'Chưa cung cấp')}
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center">
                                                     {person.active ? (
-                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[11px] font-bold text-green-700">
+                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700">
                                                             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Hoạt động
                                                         </span>
                                                     ) : (
-                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-blue">
+                                                        <span data-ui-text="secondary" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-blue">
                                                             <div className="w-1.5 h-1.5 rounded-full bg-slate-blue"></div> Vô hiệu
                                                         </span>
                                                     )}

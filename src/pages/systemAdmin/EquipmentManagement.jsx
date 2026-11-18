@@ -148,6 +148,11 @@ const EquipmentManagement = () => {
     );
     const typeCounts = useFacetCounts(equipmentFilters, 'equipmentType', ['camera', 'microphone', 'display', 'speaker', 'capture_agent'], equipmentTotal);
     const healthCounts = useFacetCounts(equipmentFilters, 'healthStatus', ['healthy', 'warning', 'faulty', 'offline'], equipmentTotal);
+    const sortedRooms = useMemo(
+        () => [...rooms].sort((a, b) => (a.roomName || '').localeCompare(b.roomName || '', 'vi')),
+        [rooms],
+    );
+    const roomCounts = useFacetCounts(equipmentFilters, 'currentRoomId', sortedRooms.map(room => room.roomId), equipmentTotal);
 
     const fetchRooms = async () => {
         try {
@@ -559,20 +564,18 @@ const EquipmentManagement = () => {
                         <option value="faulty">Lỗi</option>
                         <option value="offline">Mất kết nối (Offline)</option>
                     </FilterMultiSelect></FilterField>
-                    <FilterField label="Phòng gắn"><select
+                    <FilterField label="Phòng gắn"><FilterMultiSelect counts={roomCounts}
                         value={roomId}
                         onChange={(e) => { setRoomId(e.target.value); setPage(1); }}
                         className="w-full px-3 py-2 bg-white border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                     >
                         <option value="">Tất cả phòng</option>
-                        {[...rooms]
-                            .sort((a, b) => (a.roomName || '').localeCompare(b.roomName || '', 'vi'))
-                            .map((room) => (
-                                <option key={room.roomId} value={room.roomId}>
-                                    {room.roomName}
-                                </option>
-                            ))}
-                    </select></FilterField>
+                        {sortedRooms.map((room) => (
+                            <option key={room.roomId} value={room.roomId}>
+                                {room.roomName}
+                            </option>
+                        ))}
+                    </FilterMultiSelect></FilterField>
                     <RefreshButton
                         onClick={fetchEquipments}
                         title="Làm mới"
@@ -583,17 +586,15 @@ const EquipmentManagement = () => {
                 <div className="flex-1 min-w-0 w-full overflow-x-auto overflow-y-auto">
                     <ResponsiveTable className="w-full text-left min-w-[1100px]">
 <colgroup>
-<col style={{ width: '24%' }} />
-<col style={{ width: '23%' }} />
-<col style={{ width: '12%' }} />
-<col style={{ width: '11%' }} />
-<col style={{ width: '17%' }} />
+<col style={{ width: '31%' }} />
+<col style={{ width: '14%' }} />
 <col style={{ width: '13%' }} />
+<col style={{ width: '27%' }} />
+<col style={{ width: '15%' }} />
 </colgroup>
                         <thead className="sticky top-0 bg-white shadow-sm z-10">
                             <tr className="border-b border-platinum-tint text-xs font-bold text-slate-blue uppercase tracking-wider">
                                 <th className="p-4">Thiết bị</th>
-                                <th className="p-4">Mã định danh</th>
                                 <th className="p-4">Loại</th>
                                 <th className="p-4">Tình trạng</th>
                                 <th className="p-4">Phòng gắn</th>
@@ -605,7 +606,6 @@ const EquipmentManagement = () => {
                                 Array(5).fill(0).map((_, idx) => (
                                     <tr key={idx} className="animate-pulse">
                                         <td className="p-4"><div className="h-4 bg-cloud-mist rounded w-32"></div></td>
-                                        <td className="p-4"><div className="h-4 bg-cloud-mist rounded w-24"></div></td>
                                         <td className="p-4"><div className="h-4 bg-cloud-mist rounded w-20"></div></td>
                                         <td className="p-4"><div className="h-4 bg-cloud-mist rounded w-16"></div></td>
                                         <td className="p-4"><div className="h-4 bg-cloud-mist rounded w-24"></div></td>
@@ -614,7 +614,7 @@ const EquipmentManagement = () => {
                                 ))
                             ) : visibleEquipments.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="p-12 text-center">
+                                    <td colSpan="5" className="p-12 text-center">
                                         <div className="flex flex-col items-center justify-center text-slate-blue">
                                             <Package className="w-12 h-12 mb-3 opacity-50" />
                                             <p className="text-sm font-medium">Không tìm thấy thiết bị nào.</p>
@@ -637,10 +637,6 @@ const EquipmentManagement = () => {
                                                     <p className="text-xs text-slate-blue line-clamp-1">{eq.brand || 'Chưa cung cấp'} - {eq.model || 'Chưa cung cấp'}</p>
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td className="p-4 whitespace-nowrap">
-                                            <p className="text-sm font-medium text-midnight-indigo">{eq.equipmentCode}</p>
-                                            <p className="text-xs text-slate-blue">SN: {eq.serialNumber || 'Chưa cung cấp'}</p>
                                         </td>
                                         <td className="p-4 text-sm whitespace-nowrap">
                                             <span className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-semibold ${typeMeta.badge}`}>

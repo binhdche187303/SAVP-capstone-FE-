@@ -559,24 +559,27 @@ const CameraLayout = () => {
                       stroke={st.stroke}
                       strokeWidth={2}
                     />
+                    {/* Tên nằm sát góc dưới-trái; có dòng phụ (mã phòng) thì đẩy tên lên 1 dòng */}
                     <text
                       x={b.x + 10}
-                      y={b.y + b.h - 24}
+                      y={b.y + b.h - (b.sub ? 24 : 10)}
                       fontSize={13}
                       fontWeight={700}
                       fill="#1e1b4b"
                     >
                       {b.label}
                     </text>
-                    <text
-                      x={b.x + 10}
-                      y={b.y + b.h - 9}
-                      fontSize={10}
-                      fill="#64748b"
-                      fontFamily="monospace"
-                    >
-                      {b.sub}
-                    </text>
+                    {b.sub && (
+                      <text
+                        x={b.x + 10}
+                        y={b.y + b.h - 9}
+                        fontSize={10}
+                        fill="#64748b"
+                        fontFamily="monospace"
+                      >
+                        {b.sub}
+                      </text>
+                    )}
                   </g>
                 );
               })}
