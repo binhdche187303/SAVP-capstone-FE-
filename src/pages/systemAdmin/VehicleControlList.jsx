@@ -17,15 +17,8 @@ import {
     deleteVehicleControl,
     resyncVehicleControl
 } from '../../service/sysAdminServices';
+import { HGV_SYNC } from '../../utils/hgvisionSync';
 import { motion, AnimatePresence } from 'framer-motion';
-
-
-// Trạng thái đồng bộ biển số sang HGVision (null = chưa dùng HGVision → không hiển thị).
-const HGV_SYNC = {
-    synced: { text: 'Đã đồng bộ HGVision', cls: 'text-emerald-700' },
-    pending: { text: 'Chưa đồng bộ HGVision (ghi đang tắt)', cls: 'text-amber-700' },
-    failed: { text: 'Đồng bộ HGVision lỗi', cls: 'text-red-700' },
-};
 
 // Loại phương tiện (tùy chọn) — khớp CONTROL_LIST_VEHICLE_TYPES ở BE. Chỉ để mô tả/lọc,
 // KHÔNG dùng để kiểm tra định dạng biển số.

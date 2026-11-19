@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import toast from '../../utils/toast';
+import { HGV_SYNC } from '../../utils/hgvisionSync';
 import { getMyVehicles, createMyVehicle, updateMyVehicle, toggleMyVehicleStatus, deleteMyVehicle } from '../../service/anprService';
 
 const MyVehicles = () => {
@@ -194,6 +195,14 @@ const MyVehicles = () => {
                                             }`}>
                                                 {vehicle.status === 'active' ? 'Đang hoạt động' : 'Tạm vô hiệu'}
                                             </span>
+                                            {HGV_SYNC[vehicle.hgvision_sync_status] && (
+                                                <div
+                                                    className={`mt-1 text-[11px] font-semibold ${HGV_SYNC[vehicle.hgvision_sync_status].cls}`}
+                                                    title={vehicle.hgvision_sync_error || ''}
+                                                >
+                                                    {HGV_SYNC[vehicle.hgvision_sync_status].text}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="py-4 px-6 text-sm text-slate-blue max-w-xs truncate">
                                             {vehicle.note || 'Chưa cung cấp'}

@@ -6,7 +6,7 @@ import StatisticCard, { statisticTone } from '../../components/common/StatisticC
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, Briefcase, Car, CheckCircle2, Filter, Mail, Phone, Search, User, Users, X, XCircle, ChevronDown, Loader2 } from 'lucide-react';
+import { AlertTriangle, Briefcase, Car, CheckCircle2, Filter, Mail, Phone, Search, User, Users, X, XCircle, ChevronDown, Loader2, RefreshCw } from 'lucide-react';
 import { FaBicycle, FaCar, FaMotorcycle } from 'react-icons/fa';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -16,7 +16,12 @@ import {
     getAdminVehicleRegistrations,
     getUserById,
     getUsers,
+    resyncVehicleRegistration,
+    resyncAllVehicleRegistrations,
 } from '../../service/sysAdminServices';
+import { HGV_SYNC } from '../../utils/hgvisionSync';
+import { hasPermission } from '../../utils/permissionUtils';
+import toast from '../../utils/toast';
 
 
 import UserAvatar from '../../components/common/UserAvatar';
@@ -85,6 +90,11 @@ const VehicleRegistrations = () => {
     const [ownerDetailLoading, setOwnerDetailLoading] = useState(false);
     const [isOwnerModalOpen,   setIsOwnerModalOpen]   = useState(false);
 
+    const [syncingId, setSyncingId] = useState(null);
+    const [bulkSyncing, setBulkSyncing] = useState(false);
+    // Cùng quyền với BE (anpr.vehicle.admin_register) — không có quyền thì ẩn nút.
+    const canSync = hasPermission('anpr.vehicle.admin_register');
+
     // ── data fetch ──────────────────────────────────────────────────────────
 
     const fetchRegistrations = useCallback(async (currentFilters = filters, silent = false) => {
@@ -106,6 +116,51 @@ const VehicleRegistrations = () => {
     }, [filters]);
 
     useEffect(() => { fetchRegistrations(filters); }, [filters, fetchRegistrations]);
+
+    // Đẩy hàng loạt xe chưa đồng bộ (đăng ký trước khi có tính năng / lỗi / lúc cờ ghi tắt).
+    const handleResyncAll = async () => {
+        setBulkSyncing(true);
+        try {
+            const res = await resyncAllVehicleRegistrations();
+            const d = res?.data;
+            if (!res?.success) {
+                setError(res?.message || 'Không đồng bộ được sang HGVision.');
+            } else if (!d?.enabled) {
+                toast.info('Hệ thống chưa dùng HGVision (CAMERA_PROVIDER khác hgvision).');
+            } else if (d.total === 0) {
+                toast.success('Mọi xe đăng ký đều đã đồng bộ HGVision.');
+            } else {
+                const parts = [`Đã đồng bộ ${d.synced}/${d.total} xe sang HGVision`];
+                if (d.failed) parts.push(`${d.failed} lỗi`);
+                if (d.pending) parts.push(`${d.pending} chưa ghi (cờ ghi đang tắt)`);
+                if (d.remaining) parts.push(`còn ${d.remaining} xe — bấm lại để đẩy tiếp`);
+                (d.failed || d.pending ? toast.warning : toast.success)(parts.join(', ') + '.');
+            }
+            fetchRegistrations(filters, true);
+        } catch (err) {
+            setError(err?.message || 'Lỗi kết nối khi đồng bộ.');
+        } finally {
+            setBulkSyncing(false);
+        }
+    };
+
+    const handleResync = async (reg) => {
+        setSyncingId(reg.id);
+        try {
+            const res = await resyncVehicleRegistration(reg.id);
+            const status = res?.data?.hgvision_sync_status;
+            if (!res?.success) {
+                setError(res?.message || 'Không đồng bộ được sang HGVision.');
+            } else if (status !== 'synced') {
+                setError(res?.data?.hgvision_sync_error || HGV_SYNC[status]?.text || 'Chưa đồng bộ được sang HGVision.');
+            }
+            fetchRegistrations(filters, true);
+        } catch (err) {
+            setError(err?.message || 'Lỗi kết nối khi đồng bộ.');
+        } finally {
+            setSyncingId(null);
+        }
+    };
 
     // usersMap — one-time, for avatar resolution
     useEffect(() => {
@@ -186,11 +241,25 @@ const VehicleRegistrations = () => {
                     <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Lịch sử Đăng ký Xe</h1>
                     <p className="text-slate-blue text-sm mt-1">Toàn bộ phương tiện đã đăng ký — tra cứu theo chủ xe, biển số hoặc loại xe.</p>
                 </div>
-                <RefreshButton
-                    onClick={() => fetchRegistrations()}
-                    title="Làm mới dữ liệu"
-                    busy={loading}
-                />
+                <div className="flex items-center gap-2">
+                    {canSync && (
+                        <button
+                            type="button"
+                            onClick={handleResyncAll}
+                            disabled={bulkSyncing}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-platinum-tint bg-white text-sm font-bold text-midnight-indigo hover:bg-cloud-mist/40 transition-colors disabled:opacity-50"
+                            title="Đẩy các xe chưa đồng bộ sang HGVision (Bình thường, chủ xe theo tài khoản)"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${bulkSyncing ? 'animate-spin' : ''}`} />
+                            Đồng bộ HGVision
+                        </button>
+                    )}
+                    <RefreshButton
+                        onClick={() => fetchRegistrations()}
+                        title="Làm mới dữ liệu"
+                        busy={loading}
+                    />
+                </div>
             </div>
 
             {/* ── Stat cards ── */}
@@ -427,6 +496,25 @@ const VehicleRegistrations = () => {
                                                         <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
                                                         {sm.label}
                                                     </span>
+                                                    {HGV_SYNC[reg.hgvision_sync_status] && (
+                                                        <div
+                                                            className={`mt-1 flex items-center justify-center gap-1 text-[11px] font-semibold ${HGV_SYNC[reg.hgvision_sync_status].cls}`}
+                                                            title={reg.hgvision_sync_error || ''}
+                                                        >
+                                                            {HGV_SYNC[reg.hgvision_sync_status].text}
+                                                            {canSync && ['failed', 'pending'].includes(reg.hgvision_sync_status) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleResync(reg)}
+                                                                    disabled={syncingId === reg.id}
+                                                                    className="p-1 text-slate-blue hover:text-amber-600 hover:bg-amber-50 rounded transition-colors disabled:opacity-50"
+                                                                    title="Đồng bộ lại sang HGVision"
+                                                                >
+                                                                    <RefreshCw className={`w-3.5 h-3.5 ${syncingId === reg.id ? 'animate-spin' : ''}`} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </motion.tr>
                                         );
