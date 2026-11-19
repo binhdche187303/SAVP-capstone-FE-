@@ -605,6 +605,16 @@ export const resyncVehicleControl = async (id) => {
     return await post(`/anpr/admin/control-list/${id}/hgvision-sync`, {});
 };
 
+/** Đồng bộ lại 1 xe đăng ký sang HGVision. POST /anpr/admin/vehicle-registrations/:id/hgvision-sync */
+export const resyncVehicleRegistration = async (id) => {
+    return await post(`/anpr/admin/vehicle-registrations/${id}/hgvision-sync`, {});
+};
+
+/** Đẩy hàng loạt xe đăng ký chưa đồng bộ sang HGVision. POST /anpr/admin/vehicle-registrations/hgvision-sync */
+export const resyncAllVehicleRegistrations = async () => {
+    return await post(`/anpr/admin/vehicle-registrations/hgvision-sync`, {});
+};
+
 export const getAdminVehicleRegistrations = async (params = {}) => {
     // BE nhận `vehicle_type` (snake_case); `vehicleType` sẽ bị whitelist bỏ qua.
     const { vehicleType, ...rest } = params;
