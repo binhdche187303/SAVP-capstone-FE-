@@ -5,7 +5,7 @@ import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
 import ReportActions from '../../components/common/ReportActions';
-import { AlertTriangle, Car, CheckCircle, Edit3, Eye, Filter, Plus, ShieldAlert, Trash2, X, Loader2 } from 'lucide-react';
+import { AlertTriangle, Car, CheckCircle, Edit3, Eye, Filter, Plus, ShieldAlert, Trash2, X, Loader2, RefreshCw } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -14,10 +14,18 @@ import {
     getVehicleControlList,
     createVehicleControl,
     updateVehicleControl,
-    deleteVehicleControl
+    deleteVehicleControl,
+    resyncVehicleControl
 } from '../../service/sysAdminServices';
 import { motion, AnimatePresence } from 'framer-motion';
 
+
+// Trạng thái đồng bộ biển số sang HGVision (null = chưa dùng HGVision → không hiển thị).
+const HGV_SYNC = {
+    synced: { text: 'Đã đồng bộ HGVision', cls: 'text-emerald-700' },
+    pending: { text: 'Chưa đồng bộ HGVision (ghi đang tắt)', cls: 'text-amber-700' },
+    failed: { text: 'Đồng bộ HGVision lỗi', cls: 'text-red-700' },
+};
 
 // Loại phương tiện (tùy chọn) — khớp CONTROL_LIST_VEHICLE_TYPES ở BE. Chỉ để mô tả/lọc,
 // KHÔNG dùng để kiểm tra định dạng biển số.
@@ -215,6 +223,26 @@ const VehicleControlList = () => {
             }
         } catch (err) {
             setError(getErrorMessage(err, 'Lỗi hệ thống.'));
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleResync = async (vehicle) => {
+        setActionLoading(true);
+        try {
+            const res = await resyncVehicleControl(vehicle.id);
+            const status = res?.data?.hgvision_sync_status;
+            if (res?.success && status === 'synced') {
+                setSuccessMessage(`Đã đồng bộ biển ${vehicle.plate_number} sang HGVision.`);
+            } else if (res?.success) {
+                setError(res?.data?.hgvision_sync_error || HGV_SYNC[status]?.text || 'Chưa đồng bộ được sang HGVision.');
+            } else {
+                setError(getErrorMessage(res, 'Không đồng bộ được sang HGVision.'));
+            }
+            fetchVehicles();
+        } catch (err) {
+            setError(getErrorMessage(err, 'Lỗi kết nối khi đồng bộ.'));
         } finally {
             setActionLoading(false);
         }
@@ -444,9 +472,22 @@ const VehicleControlList = () => {
                                                         </span>
                                                     )}
                                                 </div>
+                                                {HGV_SYNC[vehicle.hgvision_sync_status] && (
+                                                    <div
+                                                        className={`mt-1 text-[11px] font-semibold ${HGV_SYNC[vehicle.hgvision_sync_status].cls}`}
+                                                        title={vehicle.hgvision_sync_error || ''}
+                                                    >
+                                                        {HGV_SYNC[vehicle.hgvision_sync_status].text}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
+                                                    {['failed', 'pending'].includes(vehicle.hgvision_sync_status) && (
+                                                        <button onClick={() => handleResync(vehicle)} disabled={actionLoading} className="p-1.5 text-slate-blue hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title="Đồng bộ lại sang HGVision">
+                                                            <RefreshCw className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                     <button onClick={() => openEditModal(vehicle)} className="p-1.5 text-slate-blue hover:text-action-blue hover:bg-blue-50 rounded-lg transition-colors" title="Sửa">
                                                         <Edit3 className="w-4 h-4" />
                                                     </button>

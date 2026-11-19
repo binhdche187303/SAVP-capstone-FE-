@@ -600,6 +600,11 @@ export const deleteVehicleControl = async (id) => {
     return await dele(`/anpr/admin/control-list/${id}`);
 };
 
+/** Đồng bộ lại 1 biển số kiểm soát sang HGVision. POST /anpr/admin/control-list/:id/hgvision-sync */
+export const resyncVehicleControl = async (id) => {
+    return await post(`/anpr/admin/control-list/${id}/hgvision-sync`, {});
+};
+
 export const getAdminVehicleRegistrations = async (params = {}) => {
     // BE nhận `vehicle_type` (snake_case); `vehicleType` sẽ bị whitelist bỏ qua.
     const { vehicleType, ...rest } = params;
