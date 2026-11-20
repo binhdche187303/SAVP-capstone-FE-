@@ -449,7 +449,7 @@ const PersonControlList = () => {
                                                     <ul className="list-disc pl-4 space-y-0.5 marker:text-slate-400">
                                                         {reasonPoints(person.reason).map((point, i) => <li key={i}>{point}</li>)}
                                                     </ul>
-                                                ) : (reasonPoints(person.reason)[0] || 'Chưa cung cấp')}
+                                                ) : (reasonPoints(person.reason)[0] || '-')}
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center">

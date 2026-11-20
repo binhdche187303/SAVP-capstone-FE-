@@ -449,7 +449,7 @@ const VehicleControlList = () => {
                                                 {getVehicleTypeLabel(vehicle.vehicle_type)}
                                             </td>
                                             <td className="px-6 py-4 text-xs text-slate-blue max-w-xs truncate text-left" title={vehicle.reason}>
-                                                {vehicle.reason || 'Chưa cung cấp'}
+                                                {vehicle.reason || '-'}
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex justify-center">

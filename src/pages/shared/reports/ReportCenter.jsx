@@ -68,9 +68,6 @@ const ReportCenter = () => {
                     <PageHeading badge="Báo cáo" icon={<FileBarChart className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Trung tâm báo cáo
                     </PageHeading>
-                    <p data-page-description className="text-xs text-slate-blue mt-1">
-                        Xem, xuất PDF / Excel / Word và đặt lịch gửi tự động cho 7 báo cáo quản trị.
-                    </p>
                 </div>
                 {base !== '/manager' && (
                     <Link to={`${base}/report-templates`} className={btnGhost}>
