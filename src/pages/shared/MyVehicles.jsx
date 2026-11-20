@@ -158,7 +158,7 @@ const MyVehicles = () => {
                     <PaginatedCollection items={vehicles} itemLabel="phương tiện">
 {(camaiPageItems, camaiStartIndex) => (
 <ResponsiveTable className="w-full text-left border-collapse">
-<TableColumns widths={[23, 18, 18, 31, 10]} />
+<TableColumns widths={[20, 16, 18, 26, 20]} />
                         <thead>
                             <tr className="bg-cloud-mist border-b border-platinum-tint">
                                 <th className="py-4 px-6 text-xs font-bold text-slate-blue uppercase tracking-wider">Biển số xe</th>
@@ -211,27 +211,33 @@ const MyVehicles = () => {
                                             )}
                                         </td>
                                         <td className="py-4 px-6 text-sm text-slate-blue max-w-xs truncate">
-                                            {vehicle.note || 'Chưa cung cấp'}
+                                            {vehicle.note || '-'}
                                         </td>
-                                        <td className="py-4 px-6 text-right space-x-2">
-                                            <button 
-                                                onClick={() => handleToggleStatus(vehicle)}
-                                                className="text-xs font-semibold px-3 py-1.5 rounded bg-cloud-mist text-slate-blue hover:text-midnight-indigo border border-outline-gray transition-colors"
-                                            >
-                                                {vehicle.status === 'active' ? 'Tạm dừng' : 'Kích hoạt'}
-                                            </button>
-                                            <button 
-                                                onClick={() => handleOpenModal(vehicle)}
-                                                className="text-xs font-semibold px-3 py-1.5 rounded bg-cloud-mist text-action-blue hover:bg-action-blue hover:text-white border border-platinum-tint transition-colors"
-                                            >
-                                                Sửa
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDelete(vehicle.id)}
-                                                className="text-xs font-semibold px-3 py-1.5 rounded bg-cloud-mist text-red-600 hover:bg-red-50 hover:text-red-700 border border-red-100 transition-colors"
-                                            >
-                                                Xóa
-                                            </button>
+                                        <td className="py-4 px-6">
+                                            {/* Thao tác dạng chữ, không viền, cùng 1 hàng: Sửa · Tạm dừng/Kích hoạt · Xóa */}
+                                            <div className="flex items-center justify-end gap-4 whitespace-nowrap text-sm font-semibold">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenModal(vehicle)}
+                                                    className="text-action-blue hover:underline"
+                                                >
+                                                    Sửa
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleToggleStatus(vehicle)}
+                                                    className="text-slate-blue hover:text-midnight-indigo hover:underline"
+                                                >
+                                                    {vehicle.status === 'active' ? 'Tạm dừng' : 'Kích hoạt'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDelete(vehicle.id)}
+                                                    className="text-red-600 hover:text-red-700 hover:underline"
+                                                >
+                                                    Xóa
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))(camaiRecord, camaiStartIndex + camaiIndex, (vehicles)))
@@ -269,9 +275,6 @@ const MyVehicles = () => {
                                     className="w-full px-4 py-2.5 rounded-xl border border-platinum-tint focus:border-action-blue focus:ring-1 focus:ring-action-blue text-sm font-mono outline-none"
                                 />
                                 <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-1">Viết liền hoặc có dấu gạch ngang đều được (Hệ thống sẽ tự chuẩn hóa).</p>
-                                {currentVehicle && (
-                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-0.5">Đổi biển: hệ thống nhận diện sẽ gỡ biển cũ và thêm biển mới.</p>
-                                )}
                             </div>
                             
                             <div>

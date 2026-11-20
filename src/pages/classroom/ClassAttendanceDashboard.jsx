@@ -1020,7 +1020,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                                                 </span>
                                                 {(event.actorName || cameraText) && <p className="text-[11px] text-slate-blue mt-0.5">{event.actorName || cameraText}</p>}
                                             </td>
-                                            <td className="px-4 py-2.5 text-xs text-slate-blue">{event.reason || 'Chưa cung cấp'}</td>
+                                            <td className="px-4 py-2.5 text-xs text-slate-blue">{event.reason || '-'}</td>
                                         </tr>
                                     );
                                 })}
