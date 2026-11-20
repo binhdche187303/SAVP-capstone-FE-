@@ -13,7 +13,7 @@ const real = async (fn) => {
         const res = await fn();
         return res?.success ? res : { success: false, message: res?.message || 'Thao tác không thành công' };
     } catch (error) {
-        return { success: false, message: error?.error?.message || error?.message || 'Không kết nối được máy chủ', code: error?.error?.code };
+        return { success: false, message: error?.error?.message || error?.message || 'Không kết nối được máy chủ', code: error?.error?.code, details: error?.error?.details };
     }
 };
 
@@ -22,7 +22,7 @@ const call = async (mockFn, realFn) => {
     try {
         return { success: true, data: await mockFn() };
     } catch (error) {
-        return { success: false, message: error.message };
+        return { success: false, message: error.message, code: error.code, details: error.details };
     }
 };
 
@@ -39,9 +39,6 @@ export const createTemplate = (payload) => call(() => mock.createTemplate(payloa
 
 export const updateTemplate = (id, payload) =>
     call(() => mock.updateTemplate(id, payload), () => patch(`/report-templates/${id}`, payload, QUIET));
-
-export const duplicateTemplate = (id) =>
-    call(() => mock.duplicateTemplate(id), () => post(`/report-templates/${id}/duplicate`, undefined, QUIET));
 
 export const deleteTemplate = (id) => call(() => mock.deleteTemplate(id), () => dele(`/report-templates/${id}`, QUIET));
 

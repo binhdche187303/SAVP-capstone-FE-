@@ -67,10 +67,10 @@ const ExportModeDialog = ({ isOpen, format, formats, reportType, onClose, onConf
             if (stale) return;
             if (res?.success) {
                 // Không có loại (trang ngoài Trung tâm báo cáo) → chỉ mẫu áp dụng cho "Tất cả báo cáo".
-                const list = reportType ? res.data : res.data.filter((t) => t.reportType == null);
+                const list = reportType ? res.data : res.data.filter((t) => !t.reportTypes?.length);
                 setTemplates(list);
-                // BE xếp sẵn: mẫu riêng của loại trước, mẫu mặc định trước.
-                pickTemplate(list.find((t) => t.isDefault) || list[0] || null);
+                // BE xếp sẵn: mẫu riêng của loại trước, rồi mẫu "Tất cả báo cáo" → mẫu đầu là mẫu dùng.
+                pickTemplate(list[0] || null);
             } else {
                 setTemplates([]);
                 setLoadError(res?.message || 'Không tải được danh sách mẫu');
@@ -80,6 +80,9 @@ const ExportModeDialog = ({ isOpen, format, formats, reportType, onClose, onConf
     }, [isOpen, reportType, allowStandard]);
 
     const hasTemplates = Boolean(templates?.length);
+    // Có mẫu riêng của loại thì chỉ dùng mẫu riêng; không thì mẫu "Tất cả báo cáo".
+    const specific = (templates || []).filter((t) => t.reportTypes?.length);
+    const choices = specific.length ? specific : templates || [];
     const slots = template ? template.layout.signatures.filter((s) => s.mode !== 'hidden') : [];
     const setSigner = (slotId, patch) => setSigners((prev) => ({ ...prev, [slotId]: { ...prev[slotId], ...patch } }));
 
@@ -197,9 +200,14 @@ const ExportModeDialog = ({ isOpen, format, formats, reportType, onClose, onConf
                     <div className="space-y-4 border-t border-platinum-tint pt-4">
                         <div className="space-y-1">
                             <label className={labelCls} htmlFor="export-template">Mẫu báo cáo</label>
-                            <select id="export-template" className={`${inputCls} w-full`} value={templateId} onChange={(e) => pickTemplate(templates.find((t) => t.id === e.target.value))}>
-                                {templates.map((t) => <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (mặc định)' : ''}</option>)}
-                            </select>
+                            {/* Mỗi loại một mẫu → chỉ hiện tên; vẫn cho chọn nếu còn mẫu trùng từ trước khi có luật. */}
+                            {choices.length > 1 ? (
+                                <select id="export-template" className={`${inputCls} w-full`} value={templateId} onChange={(e) => pickTemplate(choices.find((t) => t.id === e.target.value))}>
+                                    {choices.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                            ) : (
+                                <p id="export-template" className="text-xs font-semibold text-midnight-indigo">{template.name}</p>
+                            )}
                         </div>
 
                         <div className="space-y-2">

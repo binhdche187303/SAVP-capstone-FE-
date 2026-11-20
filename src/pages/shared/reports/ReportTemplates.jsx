@@ -2,25 +2,29 @@ import PageHeading from '../../../components/common/PageHeading';
 import ResponsiveTable from '../../../components/common/ResponsiveTable';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, LayoutTemplate, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { ArrowLeft, LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react';
 import { getReportDefinition } from '../../../config/reportDefinitions';
-import { listTemplates, duplicateTemplate, deleteTemplate } from '../../../service/reportTemplateService';
+import { listTemplates, deleteTemplate } from '../../../service/reportTemplateService';
+import { templatesFull } from '../../../components/report/template/templateScope';
 import { formatDateTime } from '../../../utils/reportFormat';
 import toast from '../../../utils/toast';
 import useAreaBase from '../../../hooks/useAreaBase';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
-import { SIGNATURE_MODE_LABELS } from '../../../components/report/template/layoutModel';
 import { pageCls, cardCls, btnPrimary, thCls, tdCls, errorBoxCls } from '../../../components/common/uiClasses';
 
-// Danh sách mẫu báo cáo quy chuẩn (NĐ 30/2020). Mẫu "dùng chung" áp cho mọi loại báo cáo;
-// mẫu riêng chỉ hiện khi xuất đúng loại đó.
+// Danh sách mẫu báo cáo quy chuẩn (NĐ 30/2020). Mỗi loại báo cáo tối đa một mẫu riêng, cộng một mẫu
+// "Tất cả báo cáo" dùng cho loại chưa có mẫu riêng — nên không có cờ mặc định, không nhân bản.
 const iconBtn = 'p-1.5 rounded-lg text-slate-blue hover:bg-cloud-mist hover:text-action-blue disabled:opacity-40';
 
-const signatureSummary = (layout) => {
-    const slots = layout.signatures.filter((s) => s.mode !== 'hidden');
-    if (!slots.length) return 'Không in khối ký';
-    return slots.map((s) => `${s.title} (${SIGNATURE_MODE_LABELS[s.mode].toLowerCase()})`).join(' · ');
-};
+const chipCls = 'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold leading-5';
+
+const AppliesTo = ({ types }) => (
+    <span className="flex flex-wrap gap-1">
+        {types?.length
+            ? types.map((t) => <span key={t} data-ui-text="badge" className={`${chipCls} bg-blue-50 text-action-blue`}>{getReportDefinition(t)?.title || t}</span>)
+            : <span data-ui-text="badge" className={`${chipCls} bg-cloud-mist text-midnight-indigo`}>Tất cả báo cáo</span>}
+    </span>
+);
 
 const ReportTemplates = () => {
     const base = useAreaBase();
@@ -55,6 +59,7 @@ const ReportTemplates = () => {
         }
     };
 
+    const full = templatesFull(templates);
     const createNew = () => navigate(`${base}/report-templates/new`);
 
     return (
@@ -71,7 +76,8 @@ const ReportTemplates = () => {
                         Bố cục theo thể thức Nghị định 30/2020: đầu văn bản, logo, thân báo cáo, khối ký, nơi nhận. Mẫu dùng khi xuất "bản quy chuẩn".
                     </p>
                 </div>
-                <button type="button" className={btnPrimary} onClick={createNew}>
+                <button type="button" className={btnPrimary} onClick={createNew} disabled={full}
+                    title={full ? 'Mọi loại báo cáo đều đã có mẫu — hãy sửa mẫu hiện có' : undefined}>
                     <Plus className="w-4 h-4" /> Tạo mẫu
                 </button>
             </div>
@@ -83,21 +89,20 @@ const ReportTemplates = () => {
                     <ResponsiveTable className="w-full">
 <colgroup>
 <col style={{ width: '38%' }} />
-<col style={{ width: '26%' }} />
-<col style={{ width: '10%' }} />
+<col style={{ width: '36%' }} />
 <col style={{ width: '16%' }} />
 <col style={{ width: '10%' }} />
 </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
-                                {['Tên mẫu', 'Áp dụng cho', 'Khối ký', 'Cập nhật', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
+                                {['Tên mẫu', 'Áp dụng cho', 'Cập nhật', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
                             </tr>
                         </thead>
                         <tbody>
-                            {!templates && <tr><td colSpan={5} className="px-4 py-10 text-center text-xs text-slate-blue">Đang tải dữ liệu...</td></tr>}
+                            {!templates && <tr><td colSpan={4} className="px-4 py-10 text-center text-xs text-slate-blue">Đang tải dữ liệu...</td></tr>}
                             {templates?.length === 0 && !error && (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-10 text-center text-xs text-slate-blue space-y-3">
+                                    <td colSpan={4} className="px-4 py-10 text-center text-xs text-slate-blue space-y-3">
                                         <p>Chưa có mẫu nào. Khi chưa có mẫu, người dùng chỉ xuất được bản thường.</p>
                                         <button data-ui-text="primary" type="button" className={btnPrimary} onClick={createNew}>Tạo mẫu từ bố cục chuẩn NĐ 30</button>
                                     </td>
@@ -105,25 +110,18 @@ const ReportTemplates = () => {
                             )}
                             {templates?.map((template) => (
                                 <tr key={template.id} className="border-b border-pale-gray last:border-0">
-                                    <td className={`${tdCls} font-semibold`}>
-                                        <Link to={`${base}/report-templates/${template.id}`} className="hover:text-action-blue hover:underline">{template.name}</Link>
-                                        {template.isDefault && (
-                                            <span data-ui-text="badge" className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[11px] font-semibold align-middle">
-                                                <Star className="w-3 h-3" /> Mặc định
-                                            </span>
-                                        )}
+                                    <td className={`${tdCls} !whitespace-normal align-middle`}>
+                                        <Link to={`${base}/report-templates/${template.id}`} className="font-semibold text-midnight-indigo hover:text-action-blue hover:underline">{template.name}</Link>
                                     </td>
-                                    <td className={tdCls}>{template.reportType ? getReportDefinition(template.reportType)?.title || template.reportType : 'Tất cả báo cáo'}</td>
-                                    <td className={`${tdCls} !whitespace-normal text-slate-blue`}>{signatureSummary(template.layout)}</td>
-                                    <td className={tdCls}>
+                                    <td className={`${tdCls} !whitespace-normal align-middle`}><AppliesTo types={template.reportTypes} /></td>
+                                    <td className={`${tdCls} align-middle`}>
                                         {formatDateTime(template.updatedAt)}
                                         {template.updatedByName && <span data-ui-text="secondary" className="block text-[10px] text-slate-blue">{template.updatedByName}</span>}
                                     </td>
                                     <td className={`${tdCls} text-right`}>
                                         <span className="inline-flex items-center gap-1">
                                             <Link to={`${base}/report-templates/${template.id}`} className={iconBtn} aria-label={`Sửa ${template.name}`} title="Sửa"><Pencil className="w-4 h-4" /></Link>
-                                            <button type="button" className={iconBtn} aria-label={`Nhân bản ${template.name}`} title="Nhân bản" disabled={busyId === template.id} onClick={() => act(template.id, () => duplicateTemplate(template.id), () => toast.success('Đã nhân bản mẫu'))}><Copy className="w-4 h-4" /></button>
-                                            <button type="button" className={`${iconBtn} hover:text-red-600`} aria-label={`Xóa ${template.name}`} title="Xóa" onClick={() => setConfirm(template)}><Trash2 className="w-4 h-4" /></button>
+                                            <button type="button" className={`${iconBtn} hover:text-red-600`} aria-label={`Xóa ${template.name}`} title="Xóa" disabled={busyId === template.id} onClick={() => setConfirm(template)}><Trash2 className="w-4 h-4" /></button>
                                         </span>
                                     </td>
                                 </tr>
