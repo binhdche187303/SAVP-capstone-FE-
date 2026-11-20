@@ -6,7 +6,7 @@ import StatisticCard, { statisticTone } from '../../components/common/StatisticC
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, Briefcase, Car, CheckCircle2, Filter, Mail, Phone, Search, User, Users, X, XCircle, ChevronDown, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Briefcase, Car, CheckCircle2, Filter, Mail, Phone, Search, User, Users, X, XCircle, ChevronDown, Loader2, RefreshCw, ScanSearch } from 'lucide-react';
 import { FaBicycle, FaCar, FaMotorcycle } from 'react-icons/fa';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -18,8 +18,9 @@ import {
     getUsers,
     resyncVehicleRegistration,
     resyncAllVehicleRegistrations,
+    reconcileHgvisionPlates,
 } from '../../service/sysAdminServices';
-import { HGV_SYNC } from '../../utils/hgvisionSync';
+import { HGV_SYNC, HGV_RESYNCABLE, resyncTitle } from '../../utils/hgvisionSync';
 import { hasPermission } from '../../utils/permissionUtils';
 import toast from '../../utils/toast';
 
@@ -92,6 +93,7 @@ const VehicleRegistrations = () => {
 
     const [syncingId, setSyncingId] = useState(null);
     const [bulkSyncing, setBulkSyncing] = useState(false);
+    const [reconciling, setReconciling] = useState(false);
     // Cùng quyền với BE (anpr.vehicle.admin_register) — không có quyền thì ẩn nút.
     const canSync = hasPermission('anpr.vehicle.admin_register');
 
@@ -141,6 +143,39 @@ const VehicleRegistrations = () => {
             setError(err?.message || 'Lỗi kết nối khi đồng bộ.');
         } finally {
             setBulkSyncing(false);
+        }
+    };
+
+    // Đối soát ngay SAVP ↔ HGVision (job tự chạy định kỳ; nút này để khỏi chờ).
+    const handleReconcile = async () => {
+        setReconciling(true);
+        try {
+            const res = await reconcileHgvisionPlates();
+            const d = res?.data;
+            if (!res?.success) {
+                setError(res?.message || 'Không đối soát được với HGVision.');
+            } else if (!d?.enabled) {
+                toast.info('Hệ thống chưa dùng HGVision (CAMERA_PROVIDER khác hgvision).');
+            } else if (d.busy) {
+                toast.info('Đang đối soát, vui lòng chờ chút rồi thử lại.');
+            } else if (d.aborted) {
+                toast.warning(d.aborted);
+            } else {
+                const parts = [];
+                if (d.restored) parts.push(`khôi phục ${d.restored} biển bị xoá`);
+                if (d.removed) parts.push(`xoá ${d.removed} biển thừa`);
+                if (d.pushed) parts.push(`đẩy lại ${d.pushed} xe`);
+                if (d.mismatched) parts.push(`${d.mismatched} biển lệch với hệ thống nhận diện`);
+                if (d.missing) parts.push(`${d.missing} biển bị xoá chưa khôi phục (cờ ghi đang tắt)`);
+                if (d.failed) parts.push(`${d.failed} lỗi`);
+                if (!parts.length) toast.success(`Đã đối soát ${d.checked} biển — khớp với HGVision.`);
+                else (d.mismatched || d.missing || d.failed ? toast.warning : toast.success)(`Đối soát xong: ${parts.join(', ')}.`);
+            }
+            fetchRegistrations(filters, true);
+        } catch (err) {
+            setError(err?.message || 'Lỗi kết nối khi đối soát.');
+        } finally {
+            setReconciling(false);
         }
     };
 
@@ -252,6 +287,18 @@ const VehicleRegistrations = () => {
                         >
                             <RefreshCw className={`w-4 h-4 ${bulkSyncing ? 'animate-spin' : ''}`} />
                             Đồng bộ HGVision
+                        </button>
+                    )}
+                    {canSync && (
+                        <button
+                            type="button"
+                            onClick={handleReconcile}
+                            disabled={reconciling}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-platinum-tint bg-white text-sm font-bold text-midnight-indigo hover:bg-cloud-mist/40 transition-colors disabled:opacity-50"
+                            title="So danh sách biển với HGVision: khôi phục biển bị xoá, báo biển lệch, xoá biển thừa (tự chạy mỗi 15 phút)"
+                        >
+                            <ScanSearch className={`w-4 h-4 ${reconciling ? 'animate-pulse' : ''}`} />
+                            Đối soát ngay
                         </button>
                     )}
                     <RefreshButton
@@ -502,13 +549,13 @@ const VehicleRegistrations = () => {
                                                             title={reg.hgvision_sync_error || ''}
                                                         >
                                                             {HGV_SYNC[reg.hgvision_sync_status].text}
-                                                            {canSync && ['failed', 'pending'].includes(reg.hgvision_sync_status) && (
+                                                            {canSync && HGV_RESYNCABLE.includes(reg.hgvision_sync_status) && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleResync(reg)}
                                                                     disabled={syncingId === reg.id}
                                                                     className="p-1 text-slate-blue hover:text-amber-600 hover:bg-amber-50 rounded transition-colors disabled:opacity-50"
-                                                                    title="Đồng bộ lại sang HGVision"
+                                                                    title={resyncTitle(reg.hgvision_sync_status)}
                                                                 >
                                                                     <RefreshCw className={`w-3.5 h-3.5 ${syncingId === reg.id ? 'animate-spin' : ''}`} />
                                                                 </button>

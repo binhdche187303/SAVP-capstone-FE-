@@ -615,6 +615,11 @@ export const resyncAllVehicleRegistrations = async () => {
     return await post(`/anpr/admin/vehicle-registrations/hgvision-sync`, {});
 };
 
+// Đối soát ngay biển số SAVP ↔ HGVision (khôi phục bị xoá / báo lệch / xoá thừa).
+export const reconcileHgvisionPlates = async () => {
+    return await post(`/anpr/admin/vehicle-registrations/hgvision-reconcile`, {});
+};
+
 export const getAdminVehicleRegistrations = async (params = {}) => {
     // BE nhận `vehicle_type` (snake_case); `vehicleType` sẽ bị whitelist bỏ qua.
     const { vehicleType, ...rest } = params;

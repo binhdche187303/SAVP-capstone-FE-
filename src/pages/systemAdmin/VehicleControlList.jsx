@@ -17,7 +17,7 @@ import {
     deleteVehicleControl,
     resyncVehicleControl
 } from '../../service/sysAdminServices';
-import { HGV_SYNC } from '../../utils/hgvisionSync';
+import { HGV_SYNC, HGV_RESYNCABLE, resyncTitle } from '../../utils/hgvisionSync';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Loại phương tiện (tùy chọn) — khớp CONTROL_LIST_VEHICLE_TYPES ở BE. Chỉ để mô tả/lọc,
@@ -476,8 +476,8 @@ const VehicleControlList = () => {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {['failed', 'pending'].includes(vehicle.hgvision_sync_status) && (
-                                                        <button onClick={() => handleResync(vehicle)} disabled={actionLoading} className="p-1.5 text-slate-blue hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title="Đồng bộ lại sang HGVision">
+                                                    {HGV_RESYNCABLE.includes(vehicle.hgvision_sync_status) && (
+                                                        <button onClick={() => handleResync(vehicle)} disabled={actionLoading} className="p-1.5 text-slate-blue hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50" title={resyncTitle(vehicle.hgvision_sync_status)}>
                                                             <RefreshCw className="w-4 h-4" />
                                                         </button>
                                                     )}
