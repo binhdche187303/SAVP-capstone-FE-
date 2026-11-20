@@ -214,6 +214,11 @@ export const router = [
                 element: <Navigate to="/system-admin/camera-map-3d" replace />
             },
             {
+                // Phân quyền 2 tầng: SYSTEM_ADMIN cấp/gỡ mọi role (kể cả role quản trị).
+                path: 'users',
+                element: <BusinessUserManagement mode="system-admin" />
+            },
+            {
                 path: 'roles-permissions',
                 element: <RolePermissionManagement />
             },

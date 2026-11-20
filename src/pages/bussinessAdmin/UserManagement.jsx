@@ -60,6 +60,8 @@ const ROLE_LABELS = {
     GUARD: 'Bảo vệ',
 };
 
+const ADMIN_ROLE_CODES = ['SYSTEM_ADMIN', 'BUSINESS_ADMIN'];
+
 const normalizeRoleCode = (role) => (
     typeof role === 'string'
         ? role
@@ -84,6 +86,7 @@ const hasRole = (user, roleCode) => (user?.roles || []).some((role) => normalize
  */
 const UserManagement = ({ mode = 'business-admin' }) => {
     const isSystemAdminMode = mode === 'system-admin';
+    const editRoleIdsOrigRef = useRef([]);
     // States
     const [usersList, setUsersList] = useState([]);
     const [departments, setDepartments] = useState([]);
@@ -259,6 +262,10 @@ const UserManagement = ({ mode = 'business-admin' }) => {
         return types.length !== 1 || (types[0] === 'student' ? code === 'STUDENT' : code !== 'STUDENT');
     });
     const isStudentList = selectedAccountType === 'student';
+    // Phân quyền 2 tầng: chỉ SYSTEM_ADMIN cấp/gỡ role quản trị (BE cũng chặn).
+    const assignableRoles = isSystemAdminMode
+        ? roles
+        : roles.filter((role) => !ADMIN_ROLE_CODES.includes(normalizeRoleCode(role)));
 
     // Số đếm cạnh lựa chọn của từng ô lọc (mỗi ô đếm theo các bộ lọc khác).
     // Ô Phòng ban / Lớp hành chính quá nhiều lựa chọn nên hook tự bỏ qua (tránh dồn yêu cầu lên BE).
@@ -524,6 +531,14 @@ const UserManagement = ({ mode = 'business-admin' }) => {
         setError(null);
         setSuccessMessage(null);
         try {
+            const orig = editRoleIdsOrigRef.current;
+            const rolesChanged = orig.length !== formData.roleIds.length
+                || formData.roleIds.some((id) => !orig.includes(id));
+            // Gán role trước, rồi mới lưu hồ sơ: đặt chức danh BGH ở bước sau sẽ tự kèm MANAGER (BE),
+            // không bị lần gán role ghi đè mất.
+            if (rolesChanged) {
+                await updateUserRoles(selectedUser.id, { roleIds: formData.roleIds });
+            }
             const res = isSystemAdminMode
                 ? null
                 : await updateUser(selectedUser.id, {
@@ -536,9 +551,6 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                     ...(calendarRoleOrig && formData.leadershipTitle !== calendarRoleOrig.leadershipTitle
                         ? { leadershipTitle: formData.leadershipTitle || null } : {}),
                 });
-            if (isSystemAdminMode) {
-                await updateUserRoles(selectedUser.id, { roleIds: formData.roleIds });
-            }
 
             if (isSystemAdminMode || res?.success) {
                 setSuccessMessage(isSystemAdminMode ? 'Cập nhật vai trò thành công!' : 'Cập nhật tài khoản thành công!');
@@ -729,6 +741,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                 return r.id || roles.find(role => (role.roleCode || role.role_code || '').toUpperCase() === rCode)?.id;
             })
             .filter(Boolean);
+        editRoleIdsOrigRef.current = roleIds;
 
         setFormData({
             email: user.email,
@@ -1319,7 +1332,7 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                 <div>
                                     <label className={`block text-xs font-bold uppercase mb-1 ${formErrors.roleIds ? 'text-red-500' : 'text-slate-blue'}`}>Gán vai trò <span className="text-red-500">*</span></label>
                                     <div className="space-y-2 mt-1">
-                                        {roles.map(r => (
+                                        {assignableRoles.map(r => (
                                             <label key={r.id} className="flex items-center gap-2 text-sm text-midnight-indigo font-medium cursor-pointer">
                                                 <input
                                                     type="checkbox"
@@ -1613,24 +1626,27 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                     </div>
                                 </>
                             )}
-                            {isSystemAdminMode && (
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Vai trò</label>
-                                    <div className="space-y-2 mt-1">
-                                        {roles.map(r => (
-                                            <label key={r.id} className="flex items-center gap-2 text-sm text-midnight-indigo font-medium cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.roleIds.includes(r.id)}
-                                                    onChange={() => handleRoleCheckboxChange(r.id)}
-                                                    className="rounded text-action-blue focus:ring-action-blue"
-                                                />
-                                                {formatRoleLabel(r, roles)}
-                                            </label>
-                                        ))}
-                                    </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Vai trò</label>
+                                <div className="space-y-2 mt-1">
+                                    {assignableRoles.map(r => (
+                                        <label key={r.id} className="flex items-center gap-2 text-sm text-midnight-indigo font-medium cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.roleIds.includes(r.id)}
+                                                onChange={() => handleRoleCheckboxChange(r.id)}
+                                                className="rounded text-action-blue focus:ring-action-blue"
+                                            />
+                                            {formatRoleLabel(r, roles)}
+                                        </label>
+                                    ))}
                                 </div>
-                            )}
+                                {!isSystemAdminMode && (
+                                    <p data-ui-text="secondary" className="text-xs text-slate-blue mt-1">
+                                        Vai trò quản trị do Quản trị hệ thống cấp.
+                                    </p>
+                                )}
+                            </div>
 
                             <div className="pt-4 flex justify-end gap-3 border-t border-platinum-tint mt-4">
                                 <button

@@ -32,6 +32,7 @@ const STATIC_NAVIGATION_ITEMS = [
         isDropdown: true,
         icon: RiSettings3Line,
         children: [
+            { label: 'Tài khoản & Vai trò',   to: '/system-admin/users',              icon: RiShieldUserLine },
             { label: 'Vai trò & Phân quyền',  to: '/system-admin/roles-permissions', icon: RiShieldLine },
             { label: 'Cấu hình hệ thống',     to: '/system-admin/settings',           icon: RiSettings2Line },
             { label: 'Đồng bộ dữ liệu UEL',   to: '/system-admin/uel-sync',           icon: RiDatabase2Line, requiredPermission: 'admin.manage_config' },

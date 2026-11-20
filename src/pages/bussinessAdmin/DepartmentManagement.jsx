@@ -5,7 +5,7 @@ import PaginationFooter, { PaginationRegion } from '../../components/common/Pagi
 import { Building, RefreshCw, Power, Lock, Loader2 } from 'lucide-react';
 import { PARTNER_DEPARTMENT_ID } from '../../constants/partnerAccount';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -34,6 +34,20 @@ import {
  * UC-ACC-08: Department Management (Create, Edit, List, Delete) for BusinessAdmin
  * Integrated Department Members Modal with full User Management capabilities
  */
+const ROLE_LABELS = {
+    SYSTEM_ADMIN: 'Quản trị hệ thống',
+    BUSINESS_ADMIN: 'Quản trị nghiệp vụ',
+    MANAGER: 'Trưởng nhóm / Quản lý',
+    EMPLOYEE: 'Cán bộ, viên chức',
+    TEACHER: 'Giảng viên',
+    STUDENT: 'Sinh viên',
+    GUARD: 'Bảo vệ',
+};
+// Phân quyền 2 tầng: màn này của Quản trị nghiệp vụ — không cấp/gỡ role quản trị (BE cũng chặn).
+const ADMIN_ROLE_CODES = ['SYSTEM_ADMIN', 'BUSINESS_ADMIN'];
+const roleCodeOf = (r) => (typeof r === 'string' ? r : (r?.roleCode || r?.code || '')).toUpperCase();
+const roleLabelOf = (r) => ROLE_LABELS[roleCodeOf(r)] || r?.roleName || r?.name || roleCodeOf(r);
+
 const DepartmentManagement = () => {
     // Org States
     const [departmentsList, setDepartmentsList] = useState([]);
@@ -77,6 +91,12 @@ const DepartmentManagement = () => {
     // 'staff' | 'student' — SV được gắn vào khoa nên tách riêng, mặc định xem cán bộ.
     const [memberType, setMemberType] = useState('staff');
     const [roles, setRoles] = useState([]);
+    const assignableRoles = roles.filter((r) => !ADMIN_ROLE_CODES.includes(roleCodeOf(r)));
+    const editRoleIdsOrigRef = useRef([]);
+    // roles của thành viên có thể là roleCode (string) hoặc object {id, roleCode} ⇒ quy về id role.
+    const roleIdsOf = (user) => (user?.roles || [])
+        .map((r) => (typeof r === 'object' && r.id) || roles.find((x) => roleCodeOf(x) === roleCodeOf(r))?.id)
+        .filter(Boolean);
 
     // User management modal control states
     const [isUserCreateModalOpen, setIsUserCreateModalOpen] = useState(false);
@@ -421,8 +441,8 @@ const DepartmentManagement = () => {
         });
     };
 
-    const handleRoleCheckboxChange = (roleId) => {
-        const id = Number(roleId);
+    // id role/phòng ban là UUID string — không ép Number (ra NaN).
+    const handleRoleCheckboxChange = (id) => {
         setUserFormData(prev => {
             const exists = prev.roleIds.includes(id);
             const newRoles = exists
@@ -445,8 +465,9 @@ const DepartmentManagement = () => {
             fullName: user.fullName,
             phone: user.phoneNumber || user.phone || '',
             departmentId: user.departments?.[0]?.id || (selectedDept ? String(selectedDept.id) : ''),
-            roleIds: user.roles?.map(r => r.id) || []
+            roleIds: roleIdsOf(user)
         });
+        editRoleIdsOrigRef.current = roleIdsOf(user);
         setIsUserEditModalOpen(true);
     };
 
@@ -458,8 +479,8 @@ const DepartmentManagement = () => {
                 email: userFormData.email,
                 fullName: userFormData.fullName,
                 phoneNumber: userFormData.phone,
-                departmentId: selectedDept ? Number(selectedDept.id) : null,
-                roleIds: userFormData.roleIds.map(Number)
+                departmentId: selectedDept ? selectedDept.id : null,
+                roleIds: userFormData.roleIds
             });
             if (res?.success) {
                 setSuccessMessage('Tạo tài khoản người dùng thành công!');
@@ -479,12 +500,17 @@ const DepartmentManagement = () => {
         setError(null);
         setSuccessMessage(null);
         try {
+            const orig = editRoleIdsOrigRef.current;
+            const rolesChanged = orig.length !== userFormData.roleIds.length
+                || userFormData.roleIds.some((id) => !orig.includes(id));
+            if (rolesChanged) {
+                await updateUserRoles(selectedUser.id, { roleIds: userFormData.roleIds });
+            }
             const res = await updateUser(selectedUser.id, {
                 fullName: userFormData.fullName,
                 phoneNumber: userFormData.phone,
-                departmentId: userFormData.departmentId ? Number(userFormData.departmentId) : null
+                departmentId: userFormData.departmentId || null
             });
-            await updateUserRoles(selectedUser.id, { roleIds: userFormData.roleIds.map(Number) });
 
             if (res?.success) {
                 setSuccessMessage('Cập nhật tài khoản thành công!');
@@ -1222,7 +1248,7 @@ const DepartmentManagement = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Vai trò (Role)</label>
                                 <div className="space-y-2 mt-1">
-                                    {roles.map(r => (
+                                    {assignableRoles.map(r => (
                                         <label key={r.id} className="flex items-center gap-2 text-sm text-midnight-indigo font-medium cursor-pointer">
                                             <input
                                                 type="checkbox"
@@ -1230,7 +1256,7 @@ const DepartmentManagement = () => {
                                                 onChange={() => handleRoleCheckboxChange(r.id)}
                                                 className="rounded text-action-blue focus:ring-action-blue"
                                             />
-                                            {r.name}
+                                            {roleLabelOf(r)}
                                         </label>
                                     ))}
                                 </div>
@@ -1324,7 +1350,7 @@ const DepartmentManagement = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Vai trò (Role)</label>
                                 <div className="space-y-2 mt-1">
-                                    {roles.map(r => (
+                                    {assignableRoles.map(r => (
                                         <label key={r.id} className="flex items-center gap-2 text-sm text-midnight-indigo font-medium cursor-pointer">
                                             <input
                                                 type="checkbox"
@@ -1332,7 +1358,7 @@ const DepartmentManagement = () => {
                                                 onChange={() => handleRoleCheckboxChange(r.id)}
                                                 className="rounded text-action-blue focus:ring-action-blue"
                                             />
-                                            {r.name}
+                                            {roleLabelOf(r)}
                                         </label>
                                     ))}
                                 </div>
