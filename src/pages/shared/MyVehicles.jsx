@@ -72,14 +72,20 @@ const MyVehicles = () => {
         const payload = { plate_raw: plateNumber, vehicle_type: vehicleType, note };
         try {
             if (currentVehicle) {
-                await updateMyVehicle(currentVehicle.id, payload);
+                const res = await updateMyVehicle(currentVehicle.id, payload);
+                const newPlate = res?.data?.plate_number;
+                toast.success(newPlate && newPlate !== currentVehicle.plate_number
+                    ? `Đã đổi biển số sang ${newPlate}.`
+                    : 'Đã cập nhật phương tiện.');
             } else {
                 await createMyVehicle(payload);
+                toast.success('Đã đăng ký phương tiện.');
             }
             handleCloseModal();
             fetchVehicles();
         } catch (err) {
-            toast.error('Có lỗi xảy ra: ' + (err.message || 'Vui lòng kiểm tra lại.'));
+            // Lỗi từ BE (biển trùng / sai định dạng…) đã được request.js hiện toast — tránh báo 2 lần.
+            if (!err?.error) toast.error('Có lỗi xảy ra: ' + (err?.message || 'Vui lòng kiểm tra lại.'));
         }
     };
 
@@ -263,6 +269,9 @@ const MyVehicles = () => {
                                     className="w-full px-4 py-2.5 rounded-xl border border-platinum-tint focus:border-action-blue focus:ring-1 focus:ring-action-blue text-sm font-mono outline-none"
                                 />
                                 <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-1">Viết liền hoặc có dấu gạch ngang đều được (Hệ thống sẽ tự chuẩn hóa).</p>
+                                {currentVehicle && (
+                                    <p data-ui-text="secondary" className="text-[11px] text-slate-blue mt-0.5">Đổi biển: hệ thống nhận diện sẽ gỡ biển cũ và thêm biển mới.</p>
+                                )}
                             </div>
                             
                             <div>
