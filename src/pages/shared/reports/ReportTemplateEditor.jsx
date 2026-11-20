@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowDown, ArrowLeft, ArrowUp, Eye, EyeOff, FileSpreadsheet, FileText, FileType2, GripVertical, Lock, Plus, Save, Trash2, Loader2 } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Eye, EyeOff, FileSpreadsheet, FileText, FileType2, GripVertical, Lock, Plus, Save, Trash2, Loader2 } from 'lucide-react';
 import { REPORT_DEFINITIONS, REPORT_TYPES, getReportDefinition } from '../../../config/reportDefinitions';
-import { createTemplate, getTemplate, getTemplateDefaults, previewTemplate, updateTemplate } from '../../../service/reportTemplateService';
+import { createTemplate, getTemplate, getTemplateDefaults, listTemplates, previewTemplate, updateTemplate } from '../../../service/reportTemplateService';
+import { findNameConflict, findScopeConflict, hasGeneralTemplate, takenTypes } from '../../../components/report/template/templateScope';
 import toast from '../../../utils/toast';
 import useAreaBase from '../../../hooks/useAreaBase';
 import SimpleModal from '../../../components/common/SimpleModal';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
+import MultiSelectDropdown from '../../../components/common/MultiSelectDropdown';
 import TemplateCanvas from '../../../components/report/template/TemplateCanvas';
 import TemplateInspector from '../../../components/report/template/TemplateInspector';
 import useBlockDrag from '../../../components/report/template/useBlockDrag';
@@ -17,6 +19,7 @@ import { btnGhost, btnPrimary, cardCls, errorBoxCls, inputCls, labelCls, spinner
 
 // Trình cấu hình mẫu báo cáo quy chuẩn: danh sách phần (trái) — trang A4 (giữa) — thuộc tính (phải).
 // Phần cố định theo NĐ 30 chỉ chỉnh nội dung; khối thân văn bản kéo thả / thêm / ẩn được.
+
 const snapshot = (form) => JSON.stringify({ ...form, layout: cleanLayout(form.layout) });
 const rowBtn = 'p-1 rounded-md text-slate-blue hover:bg-cloud-mist hover:text-action-blue disabled:opacity-30 disabled:hover:bg-transparent';
 
@@ -51,21 +54,28 @@ const ReportTemplateEditor = () => {
     const [previewing, setPreviewing] = useState(null);
     const [pdfUrl, setPdfUrl] = useState(null);
     const [leaveConfirm, setLeaveConfirm] = useState(false);
+    // Các mẫu khác — để báo trùng loại / trùng tên ngay khi chọn (BE vẫn chặn lần cuối).
+    const [others, setOthers] = useState([]);
     const localUrls = useRef([]);
 
     useEffect(() => {
         let stale = false;
         setForm(null);
         setLoadError(null);
-        (isNew ? getTemplateDefaults() : getTemplate(id)).then((res) => {
+        Promise.all([isNew ? getTemplateDefaults() : getTemplate(id), listTemplates()]).then(([res, listRes]) => {
             if (stale) return;
             if (!res?.success) { setLoadError(res?.message || 'Không tải được mẫu báo cáo'); return; }
+            const all = listRes?.success ? listRes.data : [];
+            setOthers(all.filter((t) => t.id !== id));
+            // Mẫu mới: đã có mẫu "Tất cả báo cáo" thì chọn sẵn loại đầu tiên chưa có mẫu.
+            const taken = takenTypes(all);
+            const firstFree = REPORT_TYPES.find((t) => !taken[t]);
             const next = isNew
-                ? { name: 'Mẫu báo cáo mới', reportType: null, isDefault: false, layout: res.data.layout }
-                : { name: res.data.name, reportType: res.data.reportType, isDefault: res.data.isDefault, layout: res.data.layout };
+                ? { name: 'Mẫu báo cáo mới', reportTypes: hasGeneralTemplate(all) && firstFree ? [firstFree] : [], layout: res.data.layout }
+                : { name: res.data.name, reportTypes: res.data.reportTypes || [], layout: res.data.layout };
             setForm(next);
             setSavedSnap(snapshot(next));
-            if (!isNew) setAssetUrls((prev) => ({ ...res.data.assetUrls, ...prev }));
+            setAssetUrls((prev) => ({ ...(res.data.assetUrls || {}), ...prev }));
         });
         return () => { stale = true; };
     }, [id, isNew]);
@@ -86,8 +96,22 @@ const ReportTemplateEditor = () => {
     const change = useCallback((path, value) => setLayout((l) => setIn(l, path, value)), [setLayout]);
     const onMove = useCallback((dragId, beforeId) => setLayout((l) => ({ ...l, body: moveBlock(l.body, dragId, beforeId) })), [setLayout]);
     const drag = useBlockDrag(layout?.body || [], onMove);
-    const definition = useMemo(() => getReportDefinition(form?.reportType) || null, [form?.reportType]);
+    // Xem trước bằng dữ liệu mẫu của loại đầu tiên được chọn (mẫu dùng chung → không có dữ liệu riêng).
+    const sampleType = form?.reportTypes?.[0] || null;
+    const definition = useMemo(() => getReportDefinition(sampleType) || null, [sampleType]);
     const numbers = useMemo(() => (layout ? sectionNumbers(layout.body) : {}), [layout]);
+
+    // Mỗi loại tối đa một mẫu riêng + một mẫu "Tất cả báo cáo"; tên không trùng. Chỉ báo phần đã đổi
+    // (mẫu cũ trùng từ trước khi có luật vẫn sửa được nội dung) — giống BE.
+    const typeOptions = useMemo(() => {
+        const taken = takenTypes(others);
+        return REPORT_TYPES.map((t) => ({ value: t, label: REPORT_DEFINITIONS[t].title, hint: taken[t] ? `Đã có mẫu: ${taken[t].name}` : undefined }));
+    }, [others]);
+    const saved = useMemo(() => (savedSnap ? JSON.parse(savedSnap) : null), [savedSnap]);
+    const norm = (v) => String(v || '').trim().toLocaleLowerCase('vi');
+    const typesChanged = isNew || !saved || saved.reportTypes.length !== form?.reportTypes.length || saved.reportTypes.some((t) => !form?.reportTypes.includes(t));
+    const scopeHit = form && typesChanged ? findScopeConflict(others, form.reportTypes) : null;
+    const nameHit = form && (isNew || norm(saved?.name) !== norm(form.name)) ? findNameConflict(others, form.name) : null;
 
     const addAsset = (mediaFileId, url) => {
         localUrls.current.push(url);
@@ -110,12 +134,13 @@ const ReportTemplateEditor = () => {
         const clean = cleanLayout(form.layout);
         const problem = validateLayout(clean);
         if (problem) { toast.error(problem); return; }
+        if (scopeHit || nameHit) { toast.error('Mẫu bị trùng — xem cảnh báo phía trên'); return; }
         setSaving(true);
-        const payload = { name, reportType: form.reportType || null, isDefault: form.isDefault, layout: clean };
+        const payload = { name, reportTypes: form.reportTypes, layout: clean };
         const res = isNew ? await createTemplate(payload) : await updateTemplate(id, payload);
         setSaving(false);
         if (!res?.success) { toast.error(res?.message || 'Không lưu được mẫu'); return; }
-        const next = { name: res.data.name, reportType: res.data.reportType, isDefault: res.data.isDefault, layout: res.data.layout };
+        const next = { name: res.data.name, reportTypes: res.data.reportTypes || [], layout: res.data.layout };
         setForm(next);
         setSavedSnap(snapshot(next));
         setAssetUrls((prev) => ({ ...prev, ...res.data.assetUrls }));
@@ -125,7 +150,7 @@ const ReportTemplateEditor = () => {
 
     const preview = async (format) => {
         setPreviewing(format);
-        const res = await previewTemplate({ layout: cleanLayout(form.layout), format, reportType: form.reportType || undefined });
+        const res = await previewTemplate({ layout: cleanLayout(form.layout), format, reportType: sampleType || undefined });
         setPreviewing(null);
         if (!res?.success || !res.data) { toast.error(res?.message || 'Không dựng được bản xem thử'); return; }
         const url = URL.createObjectURL(res.data);
@@ -168,25 +193,44 @@ const ReportTemplateEditor = () => {
                     <span data-ui-text="label" className={labelCls}>Tên mẫu</span>
                     <input type="text" className={`${inputCls} w-full`} value={form.name} maxLength={LIMITS.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
                 </label>
-                <label className="space-y-1">
+                <div className="space-y-1">
                     <span data-ui-text="label" className={labelCls}>Áp dụng cho</span>
-                    <select className={inputCls} value={form.reportType || ''} onChange={(e) => setForm((f) => ({ ...f, reportType: e.target.value || null }))}>
-                        <option value="">Tất cả báo cáo</option>
-                        {REPORT_TYPES.map((t) => <option key={t} value={t}>{REPORT_DEFINITIONS[t].title}</option>)}
-                    </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-midnight-indigo self-center cursor-pointer" title="Mẫu được chọn sẵn khi xuất bản quy chuẩn">
-                    <input type="checkbox" className="w-4 h-4 accent-[#006BFF]" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
-                    Mẫu mặc định
-                </label>
+                    <MultiSelectDropdown
+                        options={typeOptions}
+                        selected={form.reportTypes}
+                        // Chọn đủ mọi loại = mẫu dùng chung (lưu mảng rỗng) để loại báo cáo thêm sau cũng dùng được.
+                        onChange={(next) => setForm((f) => ({ ...f, reportTypes: next.length === REPORT_TYPES.length ? [] : REPORT_TYPES.filter((t) => next.includes(t)) }))}
+                        allLabel="Tất cả báo cáo"
+                        unitLabel="loại báo cáo"
+                        searchPlaceholder="Tìm loại báo cáo…"
+                        ariaLabel="Áp dụng cho loại báo cáo"
+                        panelWidthClass="w-[280px]"
+                    />
+                </div>
                 <div className="flex items-center gap-2 ml-auto">
                     {dirty && <span data-ui-text="badge" className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">Chưa lưu</span>}
                     <button type="button" className={btnGhost} disabled={Boolean(previewing)} onClick={() => preview('pdf')}><FileText className="w-4 h-4" /> {previewing === 'pdf' ? 'Đang dựng...' : 'Xem thử PDF'}</button>
                     <button type="button" className={`${btnGhost} !px-3`} disabled={Boolean(previewing)} onClick={() => preview('docx')} title="Tải bản xem thử Word"><FileType2 className="w-4 h-4" /> Word</button>
                     <button type="button" className={`${btnGhost} !px-3`} disabled={Boolean(previewing)} onClick={() => preview('xlsx')} title="Tải bản xem thử Excel"><FileSpreadsheet className="w-4 h-4" /> Excel</button>
-                    <button type="button" className={btnPrimary} disabled={saving || (!dirty && !isNew)} onClick={save}><Save className="w-4 h-4" /> {saving ? 'Đang lưu...' : 'Lưu mẫu'}</button>
+                    <button type="button" className={btnPrimary} disabled={saving || (!dirty && !isNew) || Boolean(scopeHit || nameHit)} onClick={save}><Save className="w-4 h-4" /> {saving ? 'Đang lưu...' : 'Lưu mẫu'}</button>
                 </div>
             </div>
+
+            {(scopeHit || nameHit) && (
+                <div role="alert" data-testid="template-conflict" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    {scopeHit ? (
+                        <span className="flex-1">
+                            {scopeHit.overlap.length
+                                ? <>Loại {scopeHit.overlap.map((t) => `"${REPORT_DEFINITIONS[t]?.title || t}"`).join(', ')} đã có mẫu <b>{scopeHit.template.name}</b>. Mỗi loại báo cáo chỉ có một mẫu — bỏ loại này hoặc sửa mẫu hiện có.</>
+                                : <>Đã có mẫu <b>{scopeHit.template.name}</b> cho "Tất cả báo cáo". Hãy chọn loại báo cáo cụ thể hoặc sửa mẫu hiện có.</>}
+                        </span>
+                    ) : (
+                        <span className="flex-1">Đã có mẫu tên <b>{nameHit.name}</b> — vui lòng đặt tên khác.</span>
+                    )}
+                    <Link to={`${base}/report-templates/${(scopeHit?.template || nameHit).id}`} className="font-semibold text-action-blue hover:underline">Sửa mẫu hiện có</Link>
+                </div>
+            )}
 
             <div className="grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)_320px] lg:grid-cols-[210px_minmax(0,1fr)]">
                 <aside className={`${cardCls} p-3 space-y-0.5 self-start xl:sticky xl:top-4`} aria-label="Các phần của mẫu">
