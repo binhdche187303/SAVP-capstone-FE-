@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { getAccessToken } from '../utils/request';
 import { hasPermission as hasRequiredPermission } from '../utils/permissionUtils';
+import { getScreenPermission } from '../config/screenRegistry';
 
 /**
  * Normalizes roles from various possible shapes in API response
@@ -61,6 +62,14 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermission }) => {
 
     // 4. Check permission-level access (for screens tied to a specific permission)
     if (requiredPermission && !hasRequiredPermission(requiredPermission)) {
+        return <Navigate to="/403" replace />;
+    }
+
+    // 4b. Quyền của màn hình theo config/screenRegistry.js — gõ thẳng URL mà thiếu quyền thì 403,
+    //     khớp với việc menu đã ẩn mục đó (trước đây chỉ vài route khai requiredPermission).
+    const screenPermission = getScreenPermission(location.pathname);
+    // Phiên cũ chưa có user.permissions thì bỏ qua (BE vẫn chặn) để không khoá nhầm người dùng.
+    if (screenPermission && Array.isArray(user.permissions) && !hasRequiredPermission(screenPermission)) {
         return <Navigate to="/403" replace />;
     }
 

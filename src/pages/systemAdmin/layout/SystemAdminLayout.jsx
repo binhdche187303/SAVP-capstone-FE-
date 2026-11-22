@@ -10,7 +10,7 @@ import {
     RiBarChartBoxLine, RiFileChartLine,
     RiUserReceivedLine, RiContactsBookLine,
     RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine, RiGroupLine, RiBuilding2Line,
-    RiDatabase2Line, RiLayout4Line
+    RiDatabase2Line, RiLayout4Line, RiTableLine
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -34,6 +34,7 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Tài khoản & Vai trò',   to: '/system-admin/users',              icon: RiShieldUserLine },
             { label: 'Vai trò & Phân quyền',  to: '/system-admin/roles-permissions', icon: RiShieldLine },
+            { label: 'Bảng phân quyền',       to: '/system-admin/permission-matrix', icon: RiTableLine },
             { label: 'Cấu hình hệ thống',     to: '/system-admin/settings',           icon: RiSettings2Line },
             { label: 'Đồng bộ dữ liệu UEL',   to: '/system-admin/uel-sync',           icon: RiDatabase2Line, requiredPermission: 'admin.manage_config' },
             { label: 'Nhật ký hệ thống',      to: '/system-admin/audit-logs',         icon: RiFileListLine },
@@ -80,7 +81,7 @@ const STATIC_NAVIGATION_ITEMS = [
         icon: RiMapPin2Line,
         children: [
             { label: 'Hiện diện khuôn viên',          to: '/system-admin/gate-presence',        icon: RiTimeLine },
-            { label: 'Lịch sử di chuyển theo người',  to: '/system-admin/user-journey',         icon: RiMapPinLine },
+            { label: 'Lịch sử di chuyển',             to: '/system-admin/user-journey',         icon: RiMapPinLine },
             { label: 'Truy vết theo camera / khu vực', to: '/system-admin/camera-trace',        icon: RiRouteLine, requiredPermission: 'zones.gate_log.read' },
             { label: 'Lưu lượng & Heatmap',           to: '/system-admin/zone-traffic',         icon: RiFireLine },
         ],
@@ -118,7 +119,9 @@ const SystemAdminLayout = () => {
 
     const navigationItems = useMemo(
         () => [...filterStaticNavigation(STATIC_NAVIGATION_ITEMS), ...buildDynamicNavigation('system-admin')],
-        [],
+        // Tính lại khi /auth/me trả quyền mới (setCurrentUser) — trước đây [] nên menu giữ quyền cũ.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [currentUser],
     );
 
     // Load + refresh user

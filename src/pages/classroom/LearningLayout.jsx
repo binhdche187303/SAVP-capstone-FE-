@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, Archive, Calendar, CalendarDays, Car, ChevronDown, FileText, GraduationCap, Home, KeyRound, LayoutGrid, LogOut, Film, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, X } from 'lucide-react';
+import RoleSwitcherMenu from '../../components/common/RoleSwitcherMenu';
+import { Activity, Archive, Award, BarChart2, Calendar, CalendarDays, Car, ChevronDown, ClipboardCheck, FileText, GraduationCap, Home, KeyRound, LayoutGrid, LogOut, Film, MapPin, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, X } from 'lucide-react';
+import { filterStaticNavigation } from '../../utils/buildDynamicNavigation';
 import logo from '../../assets/images/logo.png';
 import { getCurrentUser, logout } from '../../service/authService';
 import { useFaceStatus } from '../../components/biometric/FaceMenuItem';
@@ -77,7 +79,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
 
     // Thanh trên chỉ giữ việc dùng hằng ngày; mục cài đặt một lần (khuôn mặt, xe) nằm trong menu tài khoản.
     // Giảng viên là cán bộ: ngoài giảng dạy còn họp, báo hỏng thiết bị, đón khách như Nhân viên.
-    const navItems = role === 'teacher' ? [
+    const rawNavItems = role === 'teacher' ? [
         { label: 'Trang chủ', to: basePath, end: true, icon: Home },
         {
             label: 'Giảng dạy',
@@ -96,14 +98,19 @@ const LearningLayout = ({ role = 'teacher' }) => {
                 { label: 'Lịch cá nhân', to: `${basePath}/my-schedule`, icon: Calendar },
                 // Ẩn khi MEETING_BOOKING_ENABLED=false — lịch họp đăng ký trên VPĐT, SAVP chỉ hiển thị + điểm danh.
                 ...(MEETING_BOOKING_ENABLED ? [{ label: 'Đăng ký họp', to: `${basePath}/book`, icon: PlusCircle }] : []),
+                // Văn thư đơn vị kiêm giảng viên: quyền duyệt do BE cấp theo cờ is_unit_clerk.
+                { label: 'Duyệt lịch họp', to: `${basePath}/meeting-approvals`, icon: ClipboardCheck },
                 { label: 'Kho biên bản', to: `${basePath}/minutes`, icon: Archive },
                 { label: 'Tài liệu họp', to: `${basePath}/meeting-documents`, icon: FileText },
+                { label: 'Điểm chuyên cần cuộc họp', to: `${basePath}/attendance-points`, icon: Award },
             ],
         },
         {
             label: 'Tiện ích',
             icon: LayoutGrid,
             children: [
+                { label: 'Thống kê cá nhân', to: `${basePath}/personal-statistics`, icon: BarChart2 },
+                { label: 'Lịch sử di chuyển', to: `${basePath}/user-journey`, icon: MapPin },
                 { label: 'Khách của tôi', to: `${basePath}/my-visitors`, icon: UserCheck },
                 { label: 'Báo hỏng thiết bị', to: `${basePath}/equipments`, icon: Monitor },
             ],
@@ -113,6 +120,8 @@ const LearningLayout = ({ role = 'teacher' }) => {
         { label: 'Chuyên cần', to: `${basePath}/attendance`, icon: UserCheck },
         { label: 'Lịch học', to: `${basePath}/schedule`, icon: CalendarDays },
     ];
+    // Ẩn mục user không đủ quyền (quyền lấy từ config/screenRegistry.js theo đường dẫn).
+    const navItems = filterStaticNavigation(rawNavItems.map(item => (item.children ? { ...item, isDropdown: true } : item)));
     const faceInfo = useFaceStatus();
     const goTo = (path) => { setIsProfileMenuOpen(false); navigate(path); };
     const isGroupActive = (item) => item.children.some(c => location.pathname.startsWith(c.to));
@@ -210,6 +219,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
                                         <button type="button" onClick={() => goTo(`${basePath}/my-vehicles`)} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <Car className="w-4 h-4" /> Xe của tôi
                                         </button>
+                                        <RoleSwitcherMenu onNavigate={() => setIsProfileMenuOpen(false)} />
                                         <button type="button" onClick={handleChangePassword} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <KeyRound className="w-4 h-4" /> Đổi mật khẩu
                                         </button>

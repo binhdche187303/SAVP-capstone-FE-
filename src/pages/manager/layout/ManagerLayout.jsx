@@ -1,6 +1,7 @@
 import { Activity, Archive, Award, BarChart2, Calendar, ChevronDown, ClipboardCheck, Clock, Car, FileBarChart, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import RoleSwitcherMenu from '../../../components/common/RoleSwitcherMenu';
 import { logout, getCurrentUser } from '../../../service/authService';
 import logo from '../../../assets/images/logo.png';
 import BiometricReminderModal from '../../../components/biometric/BiometricReminderModal';
@@ -46,10 +47,10 @@ const STATIC_NAVIGATION_ITEMS = [
                 icon: PlusCircle,
             }] : []),
             {
-                label: 'Phê duyệt cuộc họp',
+                // Cùng nhãn + cùng quyền (meeting_request.approve, khai ở screenRegistry) với Cán bộ / Giảng viên.
+                label: 'Duyệt lịch họp',
                 to: '/manager/meeting-approvals',
                 icon: ClipboardCheck,
-                requiredPermission: 'meeting_request.read',
             },
             {
                 label: 'Kho biên bản',
@@ -398,6 +399,8 @@ const ManagerLayout = () => {
                                             <Car className="w-4 h-4" />
                                             Xe của tôi
                                         </button>
+
+                                        <RoleSwitcherMenu onNavigate={() => setIsProfileMenuOpen(false)} />
 
                                         <button
                                             type="button"

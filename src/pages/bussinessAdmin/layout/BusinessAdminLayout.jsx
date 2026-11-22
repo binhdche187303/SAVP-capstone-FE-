@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
 import logo from '../../../assets/images/logo.png';
@@ -6,6 +6,7 @@ import BiometricReminderModal from '../../../components/biometric/BiometricRemin
 import ChangePasswordModal from '../../../components/auth/ChangePasswordModal';
 import BusinessAdminSidebar from './BusinessAdminSidebar';
 import { RiMenuLine } from 'react-icons/ri';
+import { buildDynamicNavigation, filterStaticNavigation } from '../../../utils/buildDynamicNavigation';
 import {
     Activity,
     LayoutTemplate,
@@ -114,7 +115,9 @@ const BusinessAdminLayout = () => {
     const [currentUser, setCurrentUser]                   = useState(null);
 
     const navigate = useNavigate();
-    const navigationItems = STATIC_NAVIGATION_ITEMS;
+    // Lọc theo quyền qua config/screenRegistry.js; currentUser đổi khi /auth/me trả quyền mới.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const navigationItems = useMemo(() => [...filterStaticNavigation(STATIC_NAVIGATION_ITEMS), ...buildDynamicNavigation('bussiness-admin')], [currentUser]);
 
     // Load + refresh user
     useEffect(() => {

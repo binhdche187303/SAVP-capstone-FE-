@@ -103,7 +103,10 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
 
 
     // Load the number of meetings today.
+    // Chỉ tab overview hiển thị thẻ "Họp trong ngày"; tab analytics (vd. /teacher/personal-statistics)
+    // không gọi API này — GV không có campus_dashboard.employee_summary.read nên sẽ bị toast 403.
     useEffect(() => {
+        if (activeTab !== 'overview') return undefined;
         let isMounted = true;
         setCampusSummaryLoading(true);
         getEmployeeSummary()
@@ -119,7 +122,7 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
                 if (isMounted) setCampusSummaryLoading(false);
             });
         return () => { isMounted = false; };
-    }, []);
+    }, [activeTab]);
 
     // Load Overview Data
     useEffect(() => {

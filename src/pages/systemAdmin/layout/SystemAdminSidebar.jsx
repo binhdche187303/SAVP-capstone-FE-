@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import RoleSwitcherMenu from '../../../components/common/RoleSwitcherMenu';
 import { RiArrowDownSLine, RiMenuFoldLine, RiMenuUnfoldLine } from 'react-icons/ri';
 import UserAvatar from '../../../components/common/UserAvatar';
 import NotificationBell from '../../../components/common/NotificationBell';
@@ -317,6 +318,8 @@ const SystemAdminSidebar = ({
                                 </svg>
                                 Hồ sơ cá nhân
                             </button>
+
+                            <RoleSwitcherMenu onNavigate={() => setOpenDropdown(null)} />
 
                             <button
                                 type="button"

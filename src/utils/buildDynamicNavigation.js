@@ -1,5 +1,6 @@
 import { NAVIGATION_REGISTRY, GROUP_META } from '../config/navigationRegistry';
 import { hasPermission } from './permissionUtils';
+import { getScreenPermission } from '../config/screenRegistry';
 
 // Builds the dynamic slice of a layout's navigationItems array from the permission
 // registry, in the same shape the layouts already render (flat item, or
@@ -43,14 +44,21 @@ export const buildDynamicNavigation = (area) => {
 // `requiredPermission` are always kept (existing behavior unchanged — hasPermission(undefined)
 // is true). A dropdown whose children are all filtered out is dropped so no empty group button
 // remains in the navbar.
+//
+// [2026-11-20] Mục không khai `requiredPermission` sẽ lấy quyền từ config/screenRegistry.js theo
+// đường dẫn `to` — nhờ vậy gỡ quyền ở màn Vai trò & Phân quyền thì menu ẩn theo, không còn cảnh
+// "thấy menu nhưng bấm vào 403". Muốn bỏ qua registry cho một mục, đặt `requiredPermission: null`.
+const itemPermission = (item) =>
+    item.requiredPermission !== undefined ? item.requiredPermission : getScreenPermission(item.to);
+
 export const filterStaticNavigation = (items) => {
     return items
         .map(item => {
             if (item.isDropdown) {
-                const children = item.children.filter(child => hasPermission(child.requiredPermission));
+                const children = item.children.filter(child => hasPermission(itemPermission(child)));
                 return children.length > 0 ? { ...item, children } : null;
             }
-            return hasPermission(item.requiredPermission) ? item : null;
+            return hasPermission(itemPermission(item)) ? item : null;
         })
         .filter(Boolean);
 };

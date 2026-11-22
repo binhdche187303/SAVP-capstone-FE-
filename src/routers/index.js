@@ -37,6 +37,7 @@ import CameraRecording from '../pages/systemAdmin/CameraRecording';
 import EquipmentManagement from '../pages/systemAdmin/EquipmentManagement';
 import ZoneManagement from '../pages/systemAdmin/ZoneManagement';
 import RolePermissionManagement from '../pages/systemAdmin/RolePermissionManagement';
+import PermissionMatrix from '../pages/systemAdmin/PermissionMatrix';
 import SystemSettings from '../pages/systemAdmin/SystemSettings';
 import UelSync from '../pages/systemAdmin/UelSync';
 import Profile from '../pages/shared/Profile';
@@ -221,6 +222,10 @@ export const router = [
             {
                 path: 'roles-permissions',
                 element: <RolePermissionManagement />
+            },
+            {
+                path: 'permission-matrix',
+                element: <PermissionMatrix />
             },
             {
                 path: 'settings',
@@ -703,6 +708,22 @@ export const router = [
             {
                 path: 'minutes',
                 element: <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-action-blue border-t-transparent rounded-full animate-spin"/></div>}><DocumentArchive scope="self" /></Suspense>
+            },
+            {
+                path: 'meeting-approvals',
+                element: <ProtectedRoute requiredPermission="meeting_request.approve"><ManagerMeetingApprovals /></ProtectedRoute>
+            },
+            {
+                path: 'attendance-points',
+                element: <AttendancePenaltyReport />
+            },
+            {
+                path: 'personal-statistics',
+                element: <EmployeeHomePage view="analytics" />
+            },
+            {
+                path: 'user-journey',
+                element: <UserJourney />
             },
             {
                 path: 'meeting-documents',

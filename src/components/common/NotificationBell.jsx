@@ -8,6 +8,7 @@ import NoShowInlineAction from './NoShowInlineAction';
 import { subscribeToNotificationUpdates } from '../../utils/socket';
 import { emitNotificationBanner } from '../../utils/notificationBanner';
 import { getAlertTypeLabel } from '../../constants/alertType';
+import { hasPermission } from '../../utils/permissionUtils';
 
 const stripHtml = (html) => {
     if (!html) return '';
@@ -61,7 +62,9 @@ const NotificationBell = ({
 
     // EMPLOYEE không có permission security_alert.read (đúng thiết kế BE, xem Plan.md mục 1)
     // — gọi /security-alerts ở role này chỉ gây 403 vô ích, nên bỏ qua hẳn lời gọi.
-    const canReadSecurityAlerts = !['/employee', '/teacher', '/student', '/guard'].includes(basePath);
+    // Kiểm cả quyền: SA tắt security_alert.read trong Bảng phân quyền thì chuông không gọi API nữa.
+    const canReadSecurityAlerts = !['/employee', '/teacher', '/student', '/guard'].includes(basePath)
+        && hasPermission('security_alert.read');
 
     const fetchFeed = useCallback(async () => {
         setLoading(true);

@@ -9,11 +9,11 @@ import {
     getRoles, getPermissions, getRolePermissions,
     assignRolePermissions, revokeRolePermission, createRole, deleteRole
 } from '../../service/permissionServices';
-import { PERMISSION_MODULE_STATUS } from '../../config/permissionModuleStatus';
+import { getPermissionScreenStatus } from '../../config/permissionModuleStatus';
 import { PERMISSION_DEPENDENCIES } from '../../config/permissionDependencies';
 
 const MODULE_STATUS_LABEL = {
-    partial: 'Chức năng chưa hoàn thiện',
+    partial: 'Vai trò này không có màn hình',
     missing: 'Chưa có màn hình',
     orphaned: 'Quyền không còn được sử dụng',
     unknown: 'Cần kiểm tra thêm',
@@ -25,7 +25,7 @@ const MODULE_STATUS_LABEL = {
 // (accounts/constants/permission-module-allowlist.constant.ts, danh sách validate khi tạo
 // permission mới). Giữ nguyên 20 key cũ (không xóa — 1 số như 'zone_management' có thể vẫn
 // khớp permission cũ chưa kiểm hết), chỉ THÊM các moduleCode thật còn thiếu.
-const MODULE_TRANSLATIONS = {
+export const MODULE_TRANSLATIONS = {
     'system_management': 'Quản trị hệ thống',
     'gate_access': 'Kiểm soát ra vào',
     'GATE_ACCESS': 'Kiểm soát ra vào',
@@ -35,6 +35,11 @@ const MODULE_TRANSLATIONS = {
     'attendance_management': 'Quản lý điểm danh',
     'meeting_management': 'Quản lý phòng họp',
     'CLASSROOM': 'Lớp học',
+    'classroom': 'Lớp học',
+    'guest-access': 'Khách mời cuộc họp',
+    'hgvision': 'Camera HGVision',
+    'live-meeting': 'Cuộc họp trực tiếp',
+    'meeting': 'Cuộc họp',
     'zone_management': 'Quản lý khu vực',
     'iot': 'Thiết bị IoT / Camera',
     'ivss': 'Hệ thống Camera (IVSS)',
@@ -75,7 +80,7 @@ const MODULE_TRANSLATIONS = {
     'system': 'Hệ thống'
 };
 
-const PERMISSION_NAME_TRANSLATIONS = {
+export const PERMISSION_NAME_TRANSLATIONS = {
     'report.security_alert.export': 'Xuất báo cáo sự kiện an ninh',
     'report.vehicle.export': 'Xuất báo cáo phương tiện',
     'report.gate_access.export': 'Xuất báo cáo ra vào khuôn viên',
@@ -89,7 +94,8 @@ const PERMISSION_NAME_TRANSLATIONS = {
     'class.attendance.stats.read': 'Xem thống kê chuyên cần lớp học',
     'class.attendance.manage': 'Quản lý điểm danh lớp học',
     'class.attendance.export': 'Xuất bảng chuyên cần lớp học',
-    'class.attendance.read.self': 'Xem chuyên cần cá nhân'
+    'class.attendance.read.self': 'Xem chuyên cần cá nhân',
+    'class.attendance.read.all': 'Xem chuyên cần mọi lớp học (không giới hạn lớp mình dạy)'
 };
 
 const ROLE_TRANSLATIONS = {
@@ -667,7 +673,7 @@ const RolePermissionManagement = () => {
                                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {visiblePermissions
                                                         .map(p => {
-                                                        const moduleStatus = PERMISSION_MODULE_STATUS[p.moduleCode];
+                                                        const moduleStatus = getPermissionScreenStatus(p.permissionCode, selectedRole?.roleCode);
                                                         return (
                                                         <label key={p.id} className="flex items-start space-x-3 cursor-pointer group">
                                                             <div className="flex-shrink-0 pt-0.5">
@@ -675,6 +681,7 @@ const RolePermissionManagement = () => {
                                                                     type="checkbox"
                                                                     disabled={!permissionsReady || Boolean(catalogError)}
                                                                     className="w-4 h-4 text-action-blue border-platinum-tint rounded rounded focus:ring-action-blue"
+                                                                    aria-label={getDisplayPermissionName(p)}
                                                                     checked={rolePermissions.includes(p.id)}
                                                                     onChange={() => handleTogglePermission(p.id)}
                                                                 />

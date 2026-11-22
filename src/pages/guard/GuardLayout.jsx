@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import RoleSwitcherMenu from '../../components/common/RoleSwitcherMenu';
 import { Bell, Car, ChevronDown, KeyRound, LogOut, Menu, Shield, ShieldAlert, User, UserCheck, UserRound, Video, X } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -8,6 +9,7 @@ import ChangePasswordModal from '../../components/auth/ChangePasswordModal';
 import BiometricReminderModal from '../../components/biometric/BiometricReminderModal';
 import FaceMenuItem, { FaceAlertDot, useFaceStatus } from '../../components/biometric/FaceMenuItem';
 import { getCurrentUser, logout } from '../../service/authService';
+import { filterStaticNavigation } from '../../utils/buildDynamicNavigation';
 
 const NAV_ITEMS = [
     { to: '/guard', label: 'Trực cổng', icon: Shield, end: true },
@@ -79,7 +81,7 @@ const GuardLayout = () => {
                         </NavLink>
                     </div>
                     <nav aria-label="Điều hướng chính" className="hidden xl:flex items-center gap-1.5 flex-nowrap">
-                        {NAV_ITEMS.map(({ to, label, end }) => (
+                        {filterStaticNavigation(NAV_ITEMS).map(({ to, label, end }) => (
                             <NavLink
                                 key={to}
                                 to={to}
@@ -119,6 +121,7 @@ const GuardLayout = () => {
                                         <button type="button" onClick={() => { setIsProfileMenuOpen(false); navigate('/guard/my-vehicles'); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <Car className="w-4 h-4" /> Xe của tôi
                                         </button>
+                                        <RoleSwitcherMenu onNavigate={() => setIsProfileMenuOpen(false)} />
                                         <button type="button" onClick={() => { setIsProfileMenuOpen(false); setIsChangePasswordOpen(true); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <KeyRound className="w-4 h-4" /> Đổi mật khẩu
                                         </button>
@@ -141,7 +144,7 @@ const GuardLayout = () => {
                 <div className="absolute inset-0 bg-midnight-indigo/20 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
                 <nav aria-label="Điều hướng chính" className={`absolute top-16 right-0 bottom-0 w-64 bg-white shadow-xl transition-transform duration-300 ease-in-out transform ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'} overflow-y-auto`}>
                     <div className="p-4 flex flex-col gap-1">
-                        {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+                        {filterStaticNavigation(NAV_ITEMS).map(({ to, label, icon: Icon, end }) => (
                             <NavLink
                                 key={to}
                                 to={to}
