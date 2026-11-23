@@ -260,7 +260,8 @@ const handleResponse = async (response, options = {}) => {
         contentType.includes('excel') ||
         contentType.includes('pdf') ||
         contentType.includes('octet-stream') ||
-        contentType.includes('image')
+        contentType.includes('image') ||
+        contentType.includes('video')
     ) {
         try {
             const blob = await response.blob();

@@ -8,8 +8,10 @@ const RETRY_MS = 5000;
 /**
  * Phát HLS qua proxy BE. Mọi request playlist/segment gắn Bearer token hiện tại
  * (đọc lại mỗi lần nên token được refresh vẫn dùng được). Lỗi mạng → tự thử lại.
+ * `vod`: phát lại đoạn ghi (không phải live) — 404 nghĩa là không có đoạn ghi, không thử lại.
+ * `onTimeUpdate(seconds)`, `onEnded()`: theo dõi vị trí phát (dùng cho thanh thời gian xem lại).
  */
-const HlsPlayer = ({ src, muted = true, controls = false, className = '', title }) => {
+const HlsPlayer = ({ src, muted = true, controls = false, className = '', title, vod = false, onTimeUpdate, onEnded }) => {
     const videoRef = useRef(null);
     const [state, setState] = useState('loading'); // loading | playing | error
     const [errorText, setErrorText] = useState('');
@@ -52,12 +54,13 @@ const HlsPlayer = ({ src, muted = true, controls = false, className = '', title 
             setState('error');
             setErrorText(
                 code === 403 ? 'Bạn chưa được cấp quyền xem camera.'
-                    : code === 404 ? 'Camera chưa có luồng trực tiếp.'
+                    : code === 404 ? (vod ? 'Không có đoạn ghi hình trong khoảng này.' : 'Camera chưa có luồng trực tiếp.')
+                    : vod && code === 400 ? 'Khoảng thời gian không hợp lệ.'
                         : code === 503 ? 'Không kết nối được máy chủ camera.'
                             : code === 502 ? 'Máy chủ camera không trả luồng video — đang thử lại…'
                             : 'Mất luồng video — đang thử lại…',
             );
-            if (code !== 403) {
+            if (code !== 403 && !(vod && (code === 404 || code === 400))) {
                 retryTimer = setTimeout(() => {
                     setState('loading');
                     hls.loadSource(src);
@@ -72,7 +75,7 @@ const HlsPlayer = ({ src, muted = true, controls = false, className = '', title 
             clearTimeout(retryTimer);
             hls.destroy();
         };
-    }, [src]);
+    }, [src, vod]);
 
     return (
         <div className={`relative bg-slate-900 overflow-hidden ${className}`}>
@@ -83,6 +86,8 @@ const HlsPlayer = ({ src, muted = true, controls = false, className = '', title 
                 playsInline
                 autoPlay
                 title={title}
+                onTimeUpdate={onTimeUpdate ? (e) => onTimeUpdate(e.currentTarget.currentTime) : undefined}
+                onEnded={onEnded}
                 className="w-full h-full object-contain bg-black"
             />
             {state === 'loading' && (
