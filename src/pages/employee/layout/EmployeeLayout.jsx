@@ -1,6 +1,6 @@
-import { Calendar, ChevronDown, FileText, Home, PlusCircle, Menu, X, MapPin, Archive, Monitor, UserCheck, ClipboardCheck, Award, BarChart2 } from 'lucide-react';
+import { Calendar, ChevronDown, FileText, Home, PlusCircle, Menu, X, MapPin, Archive, Monitor, UserCheck, ClipboardCheck, Award, BarChart2, LayoutGrid } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
 import logo from '../../../assets/images/logo.png';
 import BiometricReminderModal from '../../../components/biometric/BiometricReminderModal';
@@ -58,36 +58,27 @@ const STATIC_NAVIGATION_ITEMS = [
                 icon: Archive
             },
             {
-                label: 'Điểm chuyên cần cuộc họp',
-                to: '/employee/attendance-points',
-                icon: Award
+                label: 'Tài liệu họp',
+                to: '/employee/recordings',
+                icon: FileText
             }
         ]
-    },
-    {
-        label: 'Tài liệu họp',
-        to: '/employee/recordings',
-        icon: FileText
-    },
-    {
-        label: 'Thống kê cá nhân',
-        to: '/employee/personal-statistics',
-        icon: BarChart2
-    },
-    {
-        label: 'Báo hỏng thiết bị',
-        to: '/employee/equipments',
-        icon: Monitor
-    },
-    {
-        label: 'Lịch sử di chuyển',
-        to: '/employee/user-journey',
-        icon: MapPin
     },
     {
         label: 'Khách của tôi',
         to: '/employee/my-visitors',
         icon: UserCheck
+    },
+    {
+        label: 'Tiện ích',
+        isDropdown: true,
+        icon: LayoutGrid,
+        children: [
+            { label: 'Thống kê cá nhân', to: '/employee/personal-statistics', icon: BarChart2 },
+            { label: 'Điểm chuyên cần cuộc họp', to: '/employee/attendance-points', icon: Award },
+            { label: 'Lịch sử di chuyển', to: '/employee/user-journey', icon: MapPin },
+            { label: 'Báo hỏng thiết bị', to: '/employee/equipments', icon: Monitor },
+        ]
     }
 ];
 
@@ -106,6 +97,7 @@ const EmployeeLayout = () => {
     const profileMenuRef = useRef(null);
     const navRef = useRef(null);
     const navigate = useNavigate();
+    const { pathname } = useLocation();
 
     const navigationItems = [...filterStaticNavigation(STATIC_NAVIGATION_ITEMS), ...buildDynamicNavigation('employee')];
 
@@ -227,7 +219,8 @@ const EmployeeLayout = () => {
                                     >
                                         <button
                                             onClick={() => setOpenDropdown(openDropdown === item.label ? null : item.label)}
-                                            className="px-1.5 2xl:px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist flex items-center gap-1.5 bg-transparent border-0"
+                                            aria-expanded={openDropdown === item.label}
+                                            className={`px-1.5 2xl:px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:text-midnight-indigo hover:bg-cloud-mist flex items-center gap-1.5 border-0 ${item.children.some(child => pathname === child.to || pathname.startsWith(`${child.to}/`)) ? 'text-action-blue bg-blue-50 font-bold' : 'text-slate-blue bg-transparent'}`}
                                         >
                                             {item.icon && <item.icon className="w-4 h-4 shrink-0 text-slate-400" />}
                                             <span>{item.label}</span>
