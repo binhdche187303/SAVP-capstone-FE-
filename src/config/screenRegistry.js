@@ -72,6 +72,7 @@ export const SCREENS = [
     { key: 'zones', label: 'Khu vực giám sát', paths: { 'system-admin': '/system-admin/zones' }, permission: 'zones.zone.read',
         covers: ['zones.zone.create', 'zones.zone.update', 'zones.zone.delete', 'zones.zone.assign_device'] },
     { key: 'guard-live', label: 'Camera trực tiếp', paths: { guard: '/guard/live' }, permission: 'hgvision.camera.read' },
+    { key: 'guard-playback', label: 'Xem lại camera', paths: { guard: '/guard/playback' }, permission: 'hgvision.camera.read' },
 
     // ---------- Ra vào ----------
     { key: 'anpr', label: 'Kiểm soát ra vào cổng', paths: { 'system-admin': '/system-admin/anpr-management', guard: '/guard/anpr' }, permission: ['anpr.vehicle.history_view', 'gate.access.read'],

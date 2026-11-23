@@ -24,6 +24,7 @@ import ClassAttendanceAnalytics from '../pages/classroom/ClassAttendanceAnalytic
 import GuardLayout from '../pages/guard/GuardLayout';
 import GuardDashboard from '../pages/guard/GuardDashboard';
 import GuardLive from '../pages/guard/GuardLive';
+import GuardPlayback from '../pages/guard/GuardPlayback';
 import VisitorAlerts from '../pages/guard/VisitorAlerts';
 
 // SystemAdmin Layout + Pages
@@ -603,6 +604,10 @@ export const router = [
             {
                 path: 'live',
                 element: <GuardLive />
+            },
+            {
+                path: 'playback',
+                element: <GuardPlayback />
             },
             {
                 path: 'security-alerts',
