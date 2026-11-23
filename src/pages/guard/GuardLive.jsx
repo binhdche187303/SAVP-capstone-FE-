@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, Camera, ChevronDown, Download, ImageDown, Loader2, Filter, Grid2x2, MapPin, Search, Square, Wifi, WifiOff } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, AlertTriangle, Camera, ChevronDown, ChevronLeft, ChevronRight, Download, ImageDown, Loader2, Filter, Grid2x2, Grid3x3, MapPin, Maximize2, Minimize2, Search, Square, Wifi, WifiOff } from 'lucide-react';
 import RefreshButton from '../../components/common/RefreshButton';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard from '../../components/common/StatisticCard';
@@ -12,7 +12,8 @@ import HlsPlayer from '../../components/camera/HlsPlayer';
 import { captureHgSnapshot, getHgCameraLogs, getHgCameras, getHgSnapshotFile, getHgSnapshots, toBackendUrl } from '../../service/hgvisionService';
 
 const REFRESH_MS = 10000;
-const GRID_MAX = 4;
+/** Số camera mỗi trang lưới: 2×2 hoặc 3×3 (mỗi ô là 1 luồng video trực tiếp). */
+const GRID_SIZES = [4, 9];
 export const NO_ZONE = 'Chưa gán khu vực';
 
 /** Khu vực hiển thị: khu vực SAVP gán cho camera, sau đó nhóm HGVision, cuối cùng là "chưa gán". */
@@ -153,10 +154,16 @@ const GuardLive = () => {
     const [status, setStatus] = useState('');
     // Khu vực đang mở trong danh sách: mặc định đóng, bấm vào khu vực mới liệt kê camera.
     const [openZones, setOpenZones] = useState({});
-    const [capturing, setCapturing] = useState(false);
+    const [capturing, setCapturing] = useState(null);
     const [snapshotVersion, setSnapshotVersion] = useState(0);
     const [keyword, setKeyword] = useState('');
     const [layout, setLayout] = useState('single'); // single | grid
+    const [gridPage, setGridPage] = useState(1);
+    // Khu vực đang xem dạng lưới (bấm tên khu vực ở danh sách) — null = lưới mọi camera trực tuyến.
+    const [gridZone, setGridZone] = useState(null);
+    const [gridSize, setGridSize] = useState(GRID_SIZES[0]);
+    // Đổi bộ lọc / cỡ lưới → về trang 1 của lưới.
+    useEffect(() => { setGridPage(1); }, [keyword, zone, status, gridZone, gridSize]);
     const [selected, setSelected] = useState(null);
 
     const load = useCallback(async () => {
@@ -221,12 +228,13 @@ const GuardLive = () => {
     const autoOpen = !!keyword.trim() || !!zone;
     const isZoneOpen = (z) => openZones[z] ?? (autoOpen || z === currentZone);
     const canCapture = !!current && current.status === 'online' && !!current.liveUrl;
-    const takeSnapshot = async () => {
-        if (!current || capturing) return;
-        setCapturing(true);
+    // Chụp ảnh 1 camera (camera đang xem, hoặc 1 ô trong lưới). capturing = tên camera đang chụp.
+    const snapshotCamera = async (cam) => {
+        if (!cam || capturing) return;
+        setCapturing(cam.name);
         try {
             // BE chụp từ luồng live, lưu lịch sử; sau đó tải file về máy.
-            const res = await captureHgSnapshot(current.name);
+            const res = await captureHgSnapshot(cam.name);
             const snap = res?.data;
             if (!snap?.id) throw res;
             setSnapshotVersion((v) => v + 1);
@@ -238,8 +246,40 @@ const GuardLive = () => {
             setCapturing(false);
         }
     };
-    const toggleZone = (z) => setOpenZones((prev) => ({ ...prev, [z]: !isZoneOpen(z) }));
-    const gridCams = filtered.filter((c) => c.status === 'online' && c.liveUrl).slice(0, GRID_MAX);
+    const takeSnapshot = () => snapshotCamera(current);
+    // Bấm khu vực: mở/đóng danh sách camera của khu vực; khi MỞ thì màn hình xem chuyển sang lưới camera của khu vực đó.
+    const toggleZone = (z) => {
+        const opening = !isZoneOpen(z);
+        setOpenZones((prev) => ({ ...prev, [z]: opening }));
+        if (opening) { setGridZone(z); setLayout('grid'); } else if (gridZone === z) setGridZone(null);
+    };
+    const showAllGrid = () => { setGridZone(null); setLayout('grid'); };
+
+    // Toàn màn hình cho CẢ lưới camera (không chỉ 1 camera): dùng Fullscreen API trên khối lưới; Esc / nút để thoát.
+    const wallRef = useRef(null);
+    const [wallFullscreen, setWallFullscreen] = useState(false);
+    useEffect(() => {
+        const onChange = () => setWallFullscreen(Boolean(wallRef.current) && document.fullscreenElement === wallRef.current);
+        document.addEventListener('fullscreenchange', onChange);
+        return () => document.removeEventListener('fullscreenchange', onChange);
+    }, []);
+    // Nút phân trang: ghi rõ màu mũi tên (trước đây mũi tên kế thừa chữ trắng khi toàn màn hình → trắng trên nền trắng, mất mũi tên).
+    const pagerButton = wallFullscreen
+        ? 'border-white/20 bg-white/10 text-white hover:bg-white/20'
+        : 'border-platinum-tint bg-white text-midnight-indigo hover:bg-cloud-mist';
+    const toggleWallFullscreen = () => {
+        if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+        else wallRef.current?.requestFullscreen?.().catch(() => toast.error('Trình duyệt không cho phép xem toàn màn hình.'));
+    };
+    // Lưới: mỗi trang gridSize camera (giới hạn số luồng video mở cùng lúc), chuyển trang để xem hết.
+    // Lưới khu vực hiện MỌI camera của khu vực (camera mất kết nối hiện ô báo lỗi); lưới chung chỉ camera trực tuyến.
+    const liveCams = gridZone
+        ? filtered.filter((c) => zoneOf(c) === gridZone)
+        : filtered.filter((c) => c.status === 'online' && c.liveUrl);
+    const gridPages = Math.max(1, Math.ceil(liveCams.length / gridSize));
+    const safeGridPage = Math.min(gridPage, gridPages);
+    const gridStart = (safeGridPage - 1) * gridSize;
+    const gridCams = liveCams.slice(gridStart, gridStart + gridSize);
     const online = cameras.filter((c) => c.status === 'online').length;
     const weak = cameras.filter((c) => stateOf(c) === 'weak').length;
     const toggleStatus = (value) => setStatus((prev) => (prev === value ? '' : value));
@@ -301,7 +341,17 @@ const GuardLive = () => {
                     <div className="flex items-center gap-2">
                         <div className="flex rounded-xl border border-platinum-tint overflow-hidden" role="group" aria-label="Bố cục">
                             <button type="button" title="1 camera" aria-pressed={layout === 'single'} onClick={() => setLayout('single')} className={`h-10 w-10 flex items-center justify-center ${layout === 'single' ? 'bg-action-blue text-white' : 'bg-white text-slate-blue'}`}><Square className="w-4 h-4" /></button>
-                            <button type="button" title={`Lưới ${GRID_MAX} camera`} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')} className={`h-10 w-10 flex items-center justify-center ${layout === 'grid' ? 'bg-action-blue text-white' : 'bg-white text-slate-blue'}`}><Grid2x2 className="w-4 h-4" /></button>
+                            {GRID_SIZES.map((size) => {
+                                const active = layout === 'grid' && gridSize === size;
+                                const Icon = size === 9 ? Grid3x3 : Grid2x2;
+                                return (
+                                    <button key={size} type="button" title={`Lưới ${size} camera/trang`} aria-pressed={active}
+                                        onClick={() => { setGridSize(size); if (layout !== 'grid') showAllGrid(); }}
+                                        className={`h-10 w-10 flex items-center justify-center ${active ? 'bg-action-blue text-white' : 'bg-white text-slate-blue'}`}>
+                                        <Icon className="w-4 h-4" />
+                                    </button>
+                                );
+                            })}
                         </div>
                         <button type="button" data-filter-action onClick={clearFilters} disabled={!hasFilter} className="flex-1 h-10 px-4 bg-cloud-mist/50 text-slate-blue font-semibold rounded-xl text-sm hover:bg-cloud-mist border border-platinum-tint transition-colors disabled:opacity-50"><Filter className="w-4 h-4 inline mr-2" />Xóa bộ lọc</button>
                     </div>
@@ -311,18 +361,90 @@ const GuardLive = () => {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
                 <section aria-label="Màn hình xem" className="xl:col-span-2 bg-white rounded-2xl border border-platinum-tint shadow-sm-2 p-4 space-y-4">
                     {layout === 'grid' ? (
-                        gridCams.length === 0 ? (
-                            <div className="aspect-video rounded-xl bg-cloud-mist flex items-center justify-center text-sm text-slate-blue">Không có camera trực tuyến để xem.</div>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-2">
-                                {gridCams.map((c) => (
-                                    <button key={c.name} type="button" onClick={() => { setSelected(c.name); setLayout('single'); }} className="relative text-left rounded-xl overflow-hidden">
-                                        <HlsPlayer src={toBackendUrl(c.liveUrl)} title={c.name} className="aspect-video" />
-                                        <span className="absolute left-2 top-2 px-2 py-0.5 rounded-md bg-black/60 text-white text-[11px] font-bold">{c.name}</span>
+                        // Khối lưới camera: nút "Toàn màn hình" phóng to CẢ lưới (Fullscreen API), Esc để thoát.
+                        <div ref={wallRef} className={wallFullscreen ? 'h-screen bg-slate-950 p-3 flex flex-col gap-2 overflow-auto' : 'space-y-4'}>
+                        <div className="flex items-center justify-between gap-2">
+                            <h2 className={`text-base font-bold flex items-center gap-2 min-w-0 ${wallFullscreen ? 'text-white' : 'text-midnight-indigo'}`}>
+                                <MapPin className="w-5 h-5 text-action-blue shrink-0" />
+                                <span className="truncate">{gridZone || 'Tất cả camera trực tuyến'}</span>
+                                <span className={`text-xs font-semibold whitespace-nowrap ${wallFullscreen ? 'text-white/70' : 'text-slate-blue'}`}>· {liveCams.length} camera</span>
+                            </h2>
+                            <div className="flex items-center gap-3 shrink-0">
+                                {gridZone && (
+                                    <button type="button" onClick={showAllGrid} className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold whitespace-nowrap ${wallFullscreen ? 'bg-action-blue text-white hover:bg-blue-600' : 'border border-action-blue/30 bg-blue-50 text-action-blue hover:bg-blue-100'}`}>
+                                        <Grid3x3 className="w-3.5 h-3.5" /> Xem tất cả camera
                                     </button>
-                                ))}
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={toggleWallFullscreen}
+                                    title={wallFullscreen ? 'Thoát toàn màn hình (Esc)' : 'Xem toàn màn hình cả lưới camera'}
+                                    className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold ${wallFullscreen ? 'border-white/20 bg-white/10 text-white hover:bg-white/20' : 'border-platinum-tint bg-white text-midnight-indigo hover:bg-cloud-mist'}`}
+                                >
+                                    {wallFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                                    {wallFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
+                                </button>
                             </div>
-                        )
+                        </div>
+                        {gridCams.length === 0 ? (
+                            <div className="aspect-video rounded-xl bg-cloud-mist flex items-center justify-center text-sm text-slate-blue">
+                                {gridZone ? 'Khu vực này chưa có camera phù hợp.' : 'Không có camera trực tuyến để xem.'}
+                            </div>
+                        ) : (
+                            <>
+                                {/* Toàn màn hình: giới hạn bề ngang theo chiều cao màn để cả lưới (2 hoặc 3 hàng 16:9) vừa khít, không phải cuộn. */}
+                                <div
+                                    className={`grid gap-2 ${gridSize === 9 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'} ${wallFullscreen ? 'w-full mx-auto' : ''}`}
+                                    style={wallFullscreen ? { maxWidth: `calc((100vh - ${liveCams.length > gridSize ? 110 : 70}px) * 16 / 9)` } : undefined}
+                                >
+                                    {gridCams.map((c) => {
+                                        const tileOnline = c.status === 'online' && !!c.liveUrl;
+                                        return (
+                                        <div key={c.name} className="group relative">
+                                        <button type="button" onClick={() => { setSelected(c.name); setLayout('single'); }} className={`relative block w-full text-left overflow-hidden ${gridSize === 9 ? 'rounded-lg' : 'rounded-xl'}`}>
+                                            {c.status === 'online' && c.liveUrl ? (
+                                                <HlsPlayer src={toBackendUrl(c.liveUrl)} title={c.name} className="aspect-video" />
+                                            ) : (
+                                                <div className="aspect-video bg-slate-900 flex flex-col items-center justify-center gap-1.5 text-white/80 text-xs">
+                                                    <WifiOff className="w-6 h-6" /> Mất kết nối
+                                                </div>
+                                            )}
+                                            <span className={`absolute left-1.5 top-1.5 max-w-[calc(100%-48px)] truncate px-2 py-0.5 rounded-md bg-black/60 text-white font-bold ${gridSize === 9 ? 'text-[10px]' : 'text-[11px]'}`}>{c.name}</span>
+                                        </button>
+                                        {/* Chụp ảnh ngay trên ô (không phải mở từng camera); hiện khi rê chuột, luôn hiện khi toàn màn hình. */}
+                                        {tileOnline && (
+                                            <button
+                                                type="button"
+                                                onClick={() => snapshotCamera(c)}
+                                                disabled={Boolean(capturing)}
+                                                aria-label={`Chụp ảnh ${c.name}`}
+                                                title="Chụp ảnh camera này"
+                                                className={`absolute right-1.5 top-1.5 h-7 w-7 inline-flex items-center justify-center rounded-md bg-black/60 text-white hover:bg-action-blue disabled:opacity-60 transition-opacity ${wallFullscreen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+                                            >
+                                                {capturing === c.name ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageDown className="w-3.5 h-3.5" />}
+                                            </button>
+                                        )}
+                                        </div>
+                                        );
+                                    })}
+                                    {/* Trang cuối thiếu camera: thêm ô màn đen để lưới luôn đủ 2×2 / 3×3 → khung và nút phân trang không nhảy vị trí. */}
+                                    {liveCams.length > gridSize && Array.from({ length: gridSize - gridCams.length }, (_, i) => (
+                                        <div key={`empty-${i}`} aria-hidden="true" className={`aspect-video bg-black ${gridSize === 9 ? 'rounded-lg' : 'rounded-xl'}`} />
+                                    ))}
+                                </div>
+                                {liveCams.length > gridSize && (
+                                    <div className={`flex items-center justify-between gap-3 text-xs ${wallFullscreen ? 'mt-auto text-white/80' : 'text-slate-blue'}`}>
+                                        <span>Hiển thị {gridStart + 1}–{gridStart + gridCams.length} / {liveCams.length} camera{gridZone ? '' : ' trực tuyến'}</span>
+                                        <div className="flex items-center gap-2">
+                                            <button type="button" aria-label="Trang trước" onClick={() => setGridPage(safeGridPage - 1)} disabled={safeGridPage <= 1} className={`h-8 w-8 inline-flex items-center justify-center rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed ${pagerButton}`}><ChevronLeft className="w-4 h-4" /></button>
+                                            <span className={`font-semibold ${wallFullscreen ? 'text-white' : 'text-midnight-indigo'}`}>Trang {safeGridPage}/{gridPages}</span>
+                                            <button type="button" aria-label="Trang sau" onClick={() => setGridPage(safeGridPage + 1)} disabled={safeGridPage >= gridPages} className={`h-8 w-8 inline-flex items-center justify-center rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed ${pagerButton}`}><ChevronRight className="w-4 h-4" /></button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                        </div>
                     ) : current ? (
                         <>
                             <div className="flex items-center justify-between gap-2">
@@ -333,7 +455,7 @@ const GuardLive = () => {
                                     <button
                                         type="button"
                                         onClick={takeSnapshot}
-                                        disabled={!canCapture || capturing}
+                                        disabled={!canCapture || Boolean(capturing)}
                                         title={canCapture ? 'Chụp ảnh màn hình camera' : 'Camera đang mất kết nối'}
                                         className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-platinum-tint bg-white px-2.5 text-xs font-semibold text-midnight-indigo hover:bg-cloud-mist disabled:opacity-50 disabled:cursor-not-allowed"
                                     >

@@ -445,7 +445,7 @@ const UserJourney = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-platinum-tint pb-5">
                 <div className="min-w-0">
-                    <PageHeading badge="Hành trình" icon={<Map />} className="text-2xl font-bold text-midnight-indigo tracking-tight">Lịch sử di chuyển theo người</PageHeading>
+                    <PageHeading forceStandard badge="Hành trình" icon={<Map />} className="text-2xl font-bold text-midnight-indigo tracking-tight">Lịch sử di chuyển theo người</PageHeading>
                     <p data-page-description className="text-slate-blue text-sm mt-1">
                         {isSelfOnly
                             ? 'Xem lại hành trình di chuyển (ra/vào cổng, phòng họp, khu vực) của bạn trong ngày.'
@@ -466,8 +466,9 @@ const UserJourney = () => {
             </div>
 
             {/* Filter controls */}
-            <FilterBar variant="card" className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-2">
-                <div data-filter-grid={isSelfOnly ? undefined : true} className={isSelfOnly ? "grid grid-cols-1 xl:grid-cols-3 gap-4 items-end" : "grid grid-cols-1 md:grid-cols-2 gap-5"}>
+            <FilterBar forceStandard variant="card" className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm-2">
+                {/* Tự xem hành trình: dùng hàng "khoảng thời gian" chuẩn (nút nhanh 28rem + 2 ô ngày) như các màn lọc khác → nút không rớt dòng. */}
+                <div data-filter-grid={isSelfOnly ? undefined : true} className={isSelfOnly ? "camai-filter-period-row" : "grid grid-cols-1 md:grid-cols-2 gap-5"}>
 
                     {/* User search / Display own user profile */}
                     {isSelfOnly ? (
@@ -553,8 +554,8 @@ const UserJourney = () => {
 
                     {/* Date picker */}
                     {isSelfOnly ? (
-                        <div className="xl:col-span-2 min-w-0">
-                            <div className="grid grid-cols-2 gap-4">
+                        <div className="min-w-0">
+                            <div className="camai-filter-period-dates">
                                 <FilterField label="Từ ngày">
                                     <input type="date" value={date} max={dateTo || getVNTodayString()}
                                         onChange={e => e.target.value && setDate(e.target.value)} />
@@ -663,7 +664,7 @@ const UserJourney = () => {
             ) : (
                 <div className="space-y-6">
 
-                    <StatisticGrid columns={4}>
+                    <StatisticGrid forceStandard columns={4}>
                         {[
                             ['', 'Tất cả sự kiện', Clock, 'default'],
                             ['gate', 'Cổng', Car, 'success'],
@@ -690,7 +691,7 @@ const UserJourney = () => {
                             </span>
                         </div>
 
-                        <FilterBar variant="card" className="journey-place-filters mb-6">
+                        <FilterBar forceStandard variant="card" className="journey-place-filters mb-6">
                             <FilterField label="Vị trí">
                                 <FilterMultiSelect counts={placeCounts} value={placeFilter} onChange={e => setPlaceFilter(e.target.value)} disabled={placeOptions.length === 0}>
                                     <option value="">Tất cả vị trí</option>

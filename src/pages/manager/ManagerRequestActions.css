@@ -7,22 +7,28 @@
 
 .manager-pending-requests-table.manager-pending-requests-table .manager-request-actions > button {
     flex-shrink: 0;
-    height: 36px;
+    height: 32px;
     justify-content: center;
     white-space: nowrap !important;
     text-wrap: nowrap !important;
 }
 
 .manager-request-actions > .manager-request-approve {
-    width: 112px;
-    min-width: 112px !important;
+    width: 100px;
+    min-width: 100px !important;
 }
 
 .manager-request-actions > .manager-request-reject {
-    width: 96px;
-    min-width: 96px !important;
+    width: 84px;
+    min-width: 84px !important;
 }
 
 .manager-request-actions svg { flex-shrink: 0; }
 
 .camai-table-container[data-table-layout="cards"] .manager-request-actions { justify-content: flex-start; }
+.camai-responsive-table.manager-pending-requests-table td.manager-request-code {
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+    overflow-wrap: normal;
+    word-break: normal;
+}

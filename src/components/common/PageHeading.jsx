@@ -16,11 +16,12 @@ const Heading = ({ standard, as: Tag = 'h1', icon, badge, children, className = 
         </div>
     );
 };
-const RoutedHeading = props => {
+const RoutedHeading = ({ forceStandard, ...props }) => {
     const { pathname } = useLocation();
-    return <Heading {...props} standard={STANDARD_AREAS.has(pathname.split('/')[1])} />;
+    return <Heading {...props} standard={forceStandard || STANDARD_AREAS.has(pathname.split('/')[1])} />;
 };
 
-export default function PageHeading(props) {
-    return useInRouterContext() ? <RoutedHeading {...props} /> : <Heading {...props} standard />;
+// forceStandard: màn dùng chung mở từ khu Giảng viên/Sinh viên vẫn dùng tiêu đề chuẩn (giống FilterBar).
+export default function PageHeading({ forceStandard = false, ...props }) {
+    return useInRouterContext() ? <RoutedHeading {...props} forceStandard={forceStandard} /> : <Heading {...props} standard />;
 }

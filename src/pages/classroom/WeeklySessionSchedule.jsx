@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BookOpen, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Clock, MapPin, RefreshCw, School, UserRound, Users } from 'lucide-react';
+import { AlertCircle, BookOpen, CalendarClock, CheckCircle2, XCircle, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Clock, MapPin, RefreshCw, School, UserRound, Users } from 'lucide-react';
 import MultiSelectDropdown from '../../components/common/MultiSelectDropdown';
 import { fetchClassSessions } from '../../service/classAttendanceService';
 
@@ -32,15 +32,67 @@ const STATUS_BADGE = {
     completed: { label: 'Đã xong', className: 'bg-slate-200 text-slate-700' }
 };
 
-// Lưới giờ của xem tuần: px cho mỗi giờ; khung mặc định 7h–17h, nới ra nếu có buổi ngoài khung.
-const HOUR_HEIGHT = 64;
+// Xem tuần dạng lưới thời gian (kiểu Google Calendar): cột trái là mốc giờ, thẻ đặt đúng giờ bắt đầu và cao theo
+// thời lượng. Thẻ đủ cao hiện đủ thông tin; thẻ thấp tự gọn dòng (không cắt ngang chữ), đầy đủ ở tooltip.
+const HOUR_HEIGHT = 40;
 const DEFAULT_START_HOUR = 7;
-const DEFAULT_END_HOUR = 17;
+const DEFAULT_END_HOUR = 22; // buổi tối UEL kết thúc 21:05–21:35 → lưới luôn tới 22:00
+const CARD_LINE = 16;
+const CARD_PADDING = 14;
+// Khung tiết UEL (suy từ dữ liệu TKB đã đồng bộ): mỗi tiết 50 phút, nghỉ 15 phút sau tiết 3, 6, 9.
+// UEL tính cả nửa tiết (VD 07:00–11:00 = "Tiết 1–4.5") nhưng chỉ trả số tiết làm tròn → tiết kết thúc tính lại từ giờ thật.
+const PERIOD_STARTS = ['07:00', '07:50', '08:40', '09:45', '10:35', '11:25', '12:30', '13:20', '14:10', '15:15', '16:05', '16:55', '17:45', '18:35', '19:25', '20:15', '21:05'];
+const PERIOD_MINUTES = 50;
 const toMinutes = time => {
     const match = String(time || '').match(/(\d{1,2}):(\d{2})/);
     return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 };
-
+const PERIOD_START_MINUTES = PERIOD_STARTS.map(toMinutes);
+// Tiết chứa một mốc giờ (tiết cuối cùng bắt đầu trước hoặc đúng mốc đó).
+const periodAt = minutes => {
+    let period = 1;
+    PERIOD_START_MINUTES.forEach((start, index) => { if (minutes >= start) period = index + 1; });
+    return period;
+};
+// Tiết kết thúc (bội 0.5) từ giờ kết thúc: 11:00 nằm giữa tiết 5 → 4.5; 11:25 hết tiết 5 → 5.
+const periodEndAt = minutes => {
+    const period = periodAt(minutes - 1);
+    const used = (minutes - PERIOD_START_MINUTES[period - 1]) / PERIOD_MINUTES;
+    return period - 1 + Math.max(0.5, Math.min(1, Math.round(used * 2) / 2));
+};
+// [tiết đầu, tiết cuối] của buổi: tiết đầu ưu tiên periodStart của UEL; tiết cuối tính từ giờ kết thúc thật
+// (không có giờ thì dùng periodCount).
+const periodSpan = session => {
+    const start = Number(session.periodStart);
+    const from = start > 0 ? start : periodAt(toMinutes(session.startTime) ?? 0);
+    const endMinutes = toMinutes(session.endTime);
+    if (endMinutes !== null) return [from, Math.max(from, periodEndAt(endMinutes))];
+    const count = Number(session.periodCount);
+    return [from, from + Math.max(1, count || 1) - 1];
+};
+// Xếp các buổi trùng giờ trong 1 ngày thành các làn song song (hiếm gặp).
+const layoutDay = items => {
+    const placed = items
+        .map(item => {
+            const start = toMinutes(item.startTime);
+            const end = toMinutes(item.endTime);
+            return start === null ? null : { item, start, end: end !== null && end > start ? end : start + 60 };
+        })
+        .filter(Boolean)
+        .sort((x, y) => x.start - y.start || y.end - x.end);
+    const laneEnds = [];
+    placed.forEach(entry => {
+        let lane = laneEnds.findIndex(end => end <= entry.start);
+        if (lane === -1) { lane = laneEnds.length; laneEnds.push(entry.end); } else laneEnds[lane] = entry.end;
+        entry.lane = lane;
+    });
+    return { placed, lanes: Math.max(1, laneEnds.length) };
+};
+const formatPeriod = value => String(value); // giữ dấu chấm như app UEL ("Tiết 1–4.5")
+const periodRange = session => {
+    const [from, to] = periodSpan(session);
+    return from === to ? `Tiết ${formatPeriod(from)}` : `Tiết ${formatPeriod(from)}–${formatPeriod(to)}`;
+};
 // "A.310 - Cơ sở chính" → { name: 'A.310', campus: 'Cơ sở chính' }.
 const splitRoom = room => {
     const text = String(room || '').trim();
@@ -48,41 +100,30 @@ const splitRoom = room => {
     return index > 0 ? { name: text.slice(0, index), campus: text.slice(index + 3) } : { name: text, campus: '' };
 };
 
-// Xếp các buổi trùng giờ trong 1 ngày thành các làn song song.
-const layoutDay = items => {
-    const placed = items
-        .map(s => {
-            const start = toMinutes(s.startTime);
-            const end = toMinutes(s.endTime);
-            return start === null ? null : { s, start, end: end !== null && end > start ? end : start + 60 };
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.start - b.start || b.end - a.end);
-    const laneEnds = [];
-    placed.forEach(item => {
-        let lane = laneEnds.findIndex(end => end <= item.start);
-        if (lane === -1) { lane = laneEnds.length; laneEnds.push(item.end); } else laneEnds[lane] = item.end;
-        item.lane = lane;
-    });
-    return { placed, lanes: Math.max(1, laneEnds.length) };
-};
-
 // Mỗi môn một màu cố định (theo mã môn) để nhìn lịch tháng dễ phân biệt.
 const SUBJECT_COLORS = [
-    'bg-blue-50 text-blue-700 border-blue-200',
-    'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'bg-amber-50 text-amber-800 border-amber-200',
-    'bg-violet-50 text-violet-700 border-violet-200',
-    'bg-rose-50 text-rose-700 border-rose-200',
-    'bg-cyan-50 text-cyan-700 border-cyan-200',
-    'bg-orange-50 text-orange-700 border-orange-200',
-    'bg-lime-50 text-lime-800 border-lime-200'
+    'bg-blue-100/80 text-blue-800 border-blue-200 border-l-blue-600',
+    'bg-emerald-100/80 text-emerald-800 border-emerald-200 border-l-emerald-600',
+    'bg-amber-100/80 text-amber-900 border-amber-200 border-l-amber-500',
+    'bg-violet-100/80 text-violet-800 border-violet-200 border-l-violet-600',
+    'bg-rose-100/80 text-rose-800 border-rose-200 border-l-rose-600',
+    'bg-cyan-100/80 text-cyan-800 border-cyan-200 border-l-cyan-600',
+    'bg-orange-100/80 text-orange-800 border-orange-200 border-l-orange-500',
+    'bg-lime-100/80 text-lime-900 border-lime-200 border-l-lime-600'
 ];
 const subjectColor = code => {
     const text = String(code || '');
     let hash = 0;
     for (let i = 0; i < text.length; i += 1) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
     return SUBJECT_COLORS[hash % SUBJECT_COLORS.length];
+};
+
+const SUBJECT_ACCENTS = ['border-l-rose-400', 'border-l-cyan-400', 'border-l-violet-400', 'border-l-amber-400', 'border-l-emerald-400', 'border-l-blue-400', 'border-l-orange-400', 'border-l-lime-500'];
+const subjectAccent = code => {
+    const text = String(code || '');
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+    return SUBJECT_ACCENTS[hash % SUBJECT_ACCENTS.length];
 };
 
 const VIEW_OPTIONS = [
@@ -106,6 +147,12 @@ const WeeklySessionSchedule = ({ variant, badge, title, subtitle }) => {
     const [refreshKey, setRefreshKey] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    // Giờ hiện tại (cập nhật mỗi phút) để tô buổi đang diễn ra và vạch "bây giờ" trên lịch tuần.
+    const [now, setNow] = useState(() => new Date());
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 60 * 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     const isMonth = view === 'month';
     // Tuần: 7 ngày từ thứ 2. Tháng: lưới 6 tuần bắt đầu từ thứ 2 của tuần chứa ngày 1.
@@ -192,7 +239,8 @@ const WeeklySessionSchedule = ({ variant, badge, title, subtitle }) => {
     const activeCount = isMonth
         ? visible.filter(s => s.status !== 'cancelled' && new Date(`${s.date}T00:00:00`).getMonth() === anchor.getMonth()).length
         : visible.filter(s => s.status !== 'cancelled').length;
-    const todayKey = toDateKey(new Date());
+    const todayKey = toDateKey(now);
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
     const shift = direction => setAnchor(date => (isMonth
         ? new Date(date.getFullYear(), date.getMonth() + direction, 1)
         : addDays(date, 7 * direction)));
@@ -206,37 +254,111 @@ const WeeklySessionSchedule = ({ variant, badge, title, subtitle }) => {
     // Cả khoảng đang xem cùng 1 cơ sở → không lặp tên cơ sở trên từng thẻ, chỉ ghi 1 lần ở thanh tuần.
     const campuses = [...new Set(visible.map(s => splitRoom(s.room).campus).filter(Boolean))];
     const sharedCampus = campuses.length === 1 ? campuses[0] : '';
-    const roomLabel = room => {
-        if (!room) return 'Chưa có phòng';
-        const { name, campus } = splitRoom(room);
-        return sharedCampus && campus === sharedCampus ? name : room;
+
+    // Thẻ: tên môn → tiết · giờ → phòng · cơ sở → lớp · sĩ số (sinh viên: giảng viên) → trạng thái.
+    // lines = số dòng vừa chiều cao thẻ: ≥ 5 mỗi mục 1 dòng (≥ 6 thì tên môn dài được 2 dòng);
+    // 3–4 gộp phòng + lớp, trạng thái thu về icon; ≤ 2 chỉ tên môn + giờ.
+    // floating: bản đầy đủ bung ra khi rê chuột / bấm vào thẻ ngắn (bản sao để xem, ẩn với trình đọc màn hình).
+    const renderSessionCard = (s, dateKey, lines = 7, floating = false) => {
+        const cancelled = s.status === 'cancelled';
+        const start = toMinutes(s.startTime);
+        const end = toMinutes(s.endTime) ?? (start ?? 0) + 60;
+        const isNow = !cancelled && dateKey === todayKey && start !== null && nowMinutes >= start && nowMinutes < end;
+        const isPast = !cancelled && !isNow && (dateKey < todayKey || (dateKey === todayKey && nowMinutes >= end));
+        const isDone = !cancelled && (isPast || s.status === 'completed');
+        // Mọi thẻ đều có trạng thái: Đang dạy / Đã xong / Đã hủy / Sắp diễn ra (tính theo giờ vì UEL không cập nhật).
+        const statusLabel = isNow ? (isTeacher ? 'Đang dạy' : 'Đang học') : isDone ? STATUS_BADGE.completed.label : cancelled ? STATUS_BADGE.cancelled.label : 'Sắp diễn ra';
+        const statusTone = isNow ? 'text-action-blue' : isDone ? 'text-emerald-600' : cancelled ? 'text-red-600' : 'text-violet-600'; // Sắp diễn ra: tím (đỏ đã dùng cho Đã hủy, cam cho dòng giờ)
+        const statusIcon = isNow
+            ? <span className="w-1.5 h-1.5 mx-[3px] rounded-full bg-action-blue animate-pulse" />
+            : isDone ? <CheckCircle2 className="w-3 h-3" /> : cancelled ? <XCircle className="w-3 h-3" /> : <CalendarClock className="w-3 h-3" />;
+        const subject = s.subject || s.subjectCode;
+        const { name: roomName, campus } = splitRoom(s.room);
+        // Cơ sở viết gọn để phòng luôn nằm 1 dòng: "Trường Cán bộ quản lý NN và PTNN II (DMA)" → mã "DMA"; phòng đã
+        // mang mã đó ("DMA B3.2") thì khỏi lặp. Cả tuần chung 1 cơ sở → bỏ (đã ghi ở thanh tuần). Đủ tên ở tooltip.
+        const campusShort = campus.match(/\(([^)]+)\)\s*$/)?.[1] || campus;
+        const showCampus = campus && campus !== sharedCampus && !roomName.toUpperCase().startsWith(`${campusShort.toUpperCase()} `);
+        const place = !s.room ? 'Chưa có phòng' : showCampus ? `${roomName} · ${campusShort}` : roomName;
+        // Tên môn dài (> ~24 ký tự) được 2 dòng khi thẻ ≥ 5 dòng; thẻ đúng 5 dòng thì nhường dòng trạng thái
+        // (trạng thái thu về icon cuối dòng giờ) để tên môn không bị cắt.
+        const titleTwoLines = lines >= 5 && subject.length > 24;
+        const statusInline = lines <= 2 || (lines === 5 && titleTwoLines);
+        // Còn dư dòng (thẻ dài) thì cho phòng xuống 2 dòng thay vì cắt "…" (VD "Phòng học online 016 · Cơ sở chính").
+        const placeTwoLines = lines >= 6 + (titleTwoLines ? 1 : 0) && place.length > 22;
+        const people = isTeacher ? `${s.classCode} · ${s.studentCount} SV` : (s.teacher || 'Chưa có giảng viên');
+        const row = 'flex items-center gap-1 min-w-0 whitespace-nowrap';
+        return (
+            <div
+                key={s.id}
+                aria-current={isNow && !floating ? 'time' : undefined}
+                title={floating ? undefined : [periodRange(s), `${s.startTime} - ${s.endTime}`, subject, s.classCode, s.room || 'Chưa có phòng', statusLabel].filter(Boolean).join(' · ')}
+                className={`${floating ? 'shadow-xl' : 'h-full overflow-hidden'} rounded-md border border-platinum-tint border-l-4 px-2 py-1.5 text-[11px] leading-[16px] ${cancelled ? 'border-l-red-400 bg-red-50/60' : `${subjectAccent(s.subjectCode)} ${isNow ? 'bg-blue-50' : 'bg-white'}`} ${isNow ? 'ring-2 ring-action-blue shadow-sm' : ''}`}
+            >
+                <p className={`${titleTwoLines ? 'line-clamp-2 break-words' : 'truncate'} font-bold ${cancelled ? 'text-red-600 line-through' : 'text-action-blue'}`}>{subject}</p>
+                <p className={`${row} font-semibold`}>
+                    <Clock className="w-3 h-3 shrink-0 text-slate-blue" />
+                    <span className={`truncate ${cancelled ? 'text-red-500' : 'text-amber-600'}`}>{periodRange(s)} · {s.startTime}–{s.endTime}</span>
+                    {statusInline && <span className={`ml-auto shrink-0 ${statusTone}`} title={statusLabel}>{statusIcon}</span>}
+                </p>
+                {lines >= 5 && (
+                    <>
+                        <p className={`${placeTwoLines ? 'flex items-start gap-1 min-w-0' : row} font-semibold text-slate-blue`}>
+                            <MapPin className={`w-3 h-3 shrink-0 ${placeTwoLines ? 'mt-0.5' : ''}`} />
+                            <span className={placeTwoLines ? 'min-w-0 line-clamp-2 break-words' : 'truncate'}>{place}</span>
+                        </p>
+                        <p className={`${row} font-semibold text-slate-blue`}>
+                            {isTeacher ? <Users className="w-3 h-3 shrink-0" /> : <UserRound className="w-3 h-3 shrink-0" />}
+                            <span className="truncate">{people}</span>
+                        </p>
+                        {!statusInline && <p className={`${row} font-bold ${statusTone}`}>{statusIcon}<span className="truncate">{statusLabel}</span></p>}
+                    </>
+                )}
+                {lines >= 3 && lines <= 4 && (
+                    <>
+                        <p className={`${row} font-semibold text-slate-blue`}>
+                            <MapPin className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{place} · {people}</span>
+                            {lines === 3 && <span className={`ml-auto shrink-0 ${statusTone}`} title={statusLabel}>{statusIcon}</span>}
+                        </p>
+                        {lines === 4 && <p className={`${row} font-bold ${statusTone}`}>{statusIcon}<span className="truncate">{statusLabel}</span></p>}
+                    </>
+                )}
+            </div>
+        );
     };
 
+    // Lưới thời gian: cột giờ bên trái (mỗi giờ HOUR_HEIGHT px), 7 cột ngày; thẻ đặt tuyệt đối theo phút.
     const renderWeek = () => {
-        const minutes = visible.flatMap(s => [toMinutes(s.startTime), toMinutes(s.endTime)]).filter(value => value !== null);
+        const minutes = visible.flatMap(item => [toMinutes(item.startTime), toMinutes(item.endTime)]).filter(value => value !== null);
         const startHour = Math.min(DEFAULT_START_HOUR, ...minutes.map(value => Math.floor(value / 60)));
-        const endHour = Math.max(DEFAULT_END_HOUR, ...minutes.map(value => Math.ceil(value / 60)));
+        const endHour = Math.min(24, Math.max(DEFAULT_END_HOUR, ...minutes.map(value => Math.ceil(value / 60))));
         const hours = Array.from({ length: endHour - startHour }, (_, index) => startHour + index);
         const gridHeight = hours.length * HOUR_HEIGHT;
+        const columns = { gridTemplateColumns: '56px repeat(7, minmax(0, 1fr))' };
+        const showNowLine = days.some(date => toDateKey(date) === todayKey) && nowMinutes >= startHour * 60 && nowMinutes <= endHour * 60;
         return (
             <div className="bg-white border border-platinum-tint rounded-xl overflow-x-auto">
                 <div className="min-w-[960px]">
-                    <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] border-b border-platinum-tint bg-cloud-mist/30 sticky top-0 z-10">
-                        <span />
+                    <div className="grid" style={columns}>
+                        <span className="bg-blue-50 border-b border-blue-100" />
                         {days.map((date, index) => {
-                            const isToday = toDateKey(date) === todayKey;
+                            const dateKey = toDateKey(date);
+                            const isToday = dateKey === todayKey;
+                            const count = (byDate.get(dateKey) || []).length;
                             return (
-                                <div key={toDateKey(date)} className={`px-2 py-2 text-center border-l border-platinum-tint ${isToday ? 'bg-blue-50' : ''}`}>
-                                    <p className={`text-xs font-bold ${isToday ? 'text-action-blue' : 'text-midnight-indigo'}`}>{DAY_LABELS[index]}</p>
-                                    <p className={`text-[11px] ${isToday ? 'text-action-blue font-semibold' : 'text-slate-blue'}`}>{formatDayMonth(date)}</p>
-                                </div>
+                                // Khung thứ có màu: ngày thường nền xanh nhạt, hôm nay nền xanh đậm chữ trắng.
+                                <header key={dateKey} className={`px-2 py-2.5 text-center border-b border-l ${isToday ? 'bg-action-blue border-action-blue' : 'bg-blue-50 border-blue-100'}`}>
+                                    <p className={`text-[13px] font-bold ${isToday ? 'text-white' : 'text-midnight-indigo'}`}>{DAY_LABELS[index]}</p>
+                                    <p className={`text-[11px] font-semibold ${isToday ? 'text-white/90' : 'text-action-blue'}`}>{formatDayMonth(date)}{count > 0 && ` · ${count} buổi`}</p>
+                                </header>
                             );
                         })}
                     </div>
-                    <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] relative" style={{ height: gridHeight }}>
+                    <div className="grid" style={{ ...columns, height: gridHeight }}>
                         <div className="relative">
-                            {hours.map((hour, index) => (
-                                <span key={hour} className={`absolute right-2 text-[10px] font-semibold text-slate-blue ${index === 0 ? 'mt-1' : '-translate-y-1/2'}`} style={{ top: index * HOUR_HEIGHT }}>
+                            {/* Mốc cuối (22:00) nằm sát đáy bảng → đặt chữ phía trên đường đáy, không nới thêm khoảng trống. */}
+                            {[...hours, endHour].map((hour, index) => (
+                                <span key={hour} className="absolute right-2 text-[11px] font-semibold text-slate-blue" style={{ top: index * HOUR_HEIGHT + (index === 0 ? 2 : index === hours.length ? -16 : -7) }}>
                                     {`${String(hour).padStart(2, '0')}:00`}
                                 </span>
                             ))}
@@ -248,39 +370,39 @@ const WeeklySessionSchedule = ({ variant, badge, title, subtitle }) => {
                             return (
                                 <div key={dateKey} className={`relative border-l border-platinum-tint ${isToday ? 'bg-blue-50/30' : ''}`}>
                                     {hours.map((hour, index) => (
-                                        <span key={hour} className="absolute inset-x-0 border-t border-platinum-tint/60" style={{ top: index * HOUR_HEIGHT }} />
+                                        <span key={hour} className="absolute inset-x-0 border-t border-platinum-tint/70" style={{ top: index * HOUR_HEIGHT }} />
                                     ))}
-                                    {placed.map(({ s, start, end, lane }) => {
-                                        const badgeInfo = STATUS_BADGE[s.status];
+                                    {isToday && showNowLine && (
+                                        <div aria-hidden="true" className="absolute inset-x-0 z-20 pointer-events-none" style={{ top: ((nowMinutes - startHour * 60) / 60) * HOUR_HEIGHT }}>
+                                            <span className="absolute -left-1 -top-[4px] w-2 h-2 rounded-full bg-red-500" />
+                                            <span className="block border-t-2 border-red-500" />
+                                        </div>
+                                    )}
+                                    {placed.map(({ item, start, end, lane }) => {
                                         const top = ((start - startHour * 60) / 60) * HOUR_HEIGHT;
-                                        const height = Math.max(28, ((end - start) / 60) * HOUR_HEIGHT - 2);
-                                        const cancelled = s.status === 'cancelled';
+                                        const height = Math.max(24, ((end - start) / 60) * HOUR_HEIGHT - 3);
+                                        const lines = Math.max(1, Math.floor((height - CARD_PADDING) / CARD_LINE));
                                         return (
+                                            // Thẻ ngắn (< 6 dòng, thiếu thông tin): rê chuột / bấm (Tab) thì bung bản đầy đủ đè lên ô bên dưới;
+                                            // thẻ gần cuối bảng thì bung lên trên để không bị khung bảng che.
                                             <div
-                                                key={s.id}
-                                                title={`${s.startTime} - ${s.endTime} · ${s.subject || s.subjectCode} · ${s.classCode} · ${s.room || 'Chưa có phòng'}`}
-                                                className={`absolute rounded-lg border px-2 py-1.5 overflow-hidden ${cancelled ? 'border-red-200 bg-red-50 opacity-70' : subjectColor(s.subjectCode)}`}
+                                                key={item.id}
+                                                tabIndex={lines < 6 ? 0 : undefined}
+                                                className={`group absolute z-10 hover:z-30 focus:z-30 outline-none ${lines < 6 ? 'cursor-pointer' : ''}`}
                                                 style={{ top: top + 1, height, left: `calc(${(lane / lanes) * 100}% + 3px)`, width: `calc(${100 / lanes}% - 6px)` }}
                                             >
-                                                <div className="flex items-start justify-between gap-1">
-                                                    <p className={`text-[11px] font-bold leading-tight line-clamp-2 text-midnight-indigo ${cancelled ? 'line-through' : ''}`}>{s.subject || s.subjectCode}</p>
-                                                    {badgeInfo && <span className={`shrink-0 px-1 py-px rounded text-[9px] font-bold ${badgeInfo.className}`}>{badgeInfo.label}</span>}
-                                                </div>
-                                                <p className="text-[10px] font-semibold mt-0.5 flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" /> {s.startTime} - {s.endTime}</p>
-                                                <p className="text-[10px] text-slate-blue mt-0.5 truncate">{s.classCode}</p>
-                                                <p className="text-[10px] text-slate-blue mt-0.5 flex items-center gap-1 min-w-0"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{roomLabel(s.room)}</span></p>
-                                                {isTeacher
-                                                    ? <p className="text-[10px] text-slate-blue mt-0.5 flex items-center gap-1"><Users className="w-3 h-3 shrink-0" /> {s.studentCount} SV</p>
-                                                    : <p className="text-[10px] text-slate-blue mt-0.5 flex items-center gap-1 min-w-0"><UserRound className="w-3 h-3 shrink-0" /><span className="truncate">{s.teacher || 'Chưa có giảng viên'}</span></p>}
+                                                {renderSessionCard(item, dateKey, lines)}
+                                                {lines < 6 && (
+                                                    <div aria-hidden="true" className={`hidden group-hover:block group-focus:block absolute inset-x-0 min-w-[200px] ${top + 150 > gridHeight ? 'bottom-0' : 'top-0'}`}>
+                                                        {renderSessionCard(item, dateKey, 9, true)}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
                                 </div>
                             );
                         })}
-                        {!loading && visible.length === 0 && (
-                            <p className="absolute inset-0 flex items-center justify-center text-sm text-slate-blue pointer-events-none">Không có lịch trong tuần này</p>
-                        )}
                     </div>
                 </div>
             </div>
@@ -341,7 +463,7 @@ const WeeklySessionSchedule = ({ variant, badge, title, subtitle }) => {
                 <div>
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-action-blue text-[11px] font-bold"><CalendarDays className="w-4 h-4" /> {badge}</span>
                     <h1 className="text-xl font-bold text-midnight-indigo tracking-tight mt-3">{title}</h1>
-                    <p className="text-xs text-slate-blue mt-1">{subtitle}</p>
+                    {subtitle && <p className="text-xs text-slate-blue mt-1">{subtitle}</p>}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:shrink-0">
                     <div className="flex items-center gap-1 bg-cloud-mist rounded-lg p-1" role="group" aria-label="Chế độ xem lịch">

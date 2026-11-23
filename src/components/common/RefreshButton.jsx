@@ -63,16 +63,17 @@ const Button = ({ standard, inline = false, before, showTime = true, busy = fals
     );
 };
 
-const RoutedButton = (props) => {
+const RoutedButton = ({ forceStandard = false, ...props }) => {
     const { pathname } = useLocation();
-    return <Button {...props} standard={STANDARD_AREAS.has(pathname.split('/')[1])} />;
+    return <Button {...props} standard={forceStandard || STANDARD_AREAS.has(pathname.split('/')[1])} />;
 };
 
 // Shared screens retain their existing button markup for Teacher and Student.
 // Callers supply the original presentation only when those roles share a screen.
 const RefreshButton = (props) => {
     const inRouter = useInRouterContext();
-    return inRouter ? <RoutedButton {...props} /> : <Button {...props} standard />;
+    const { forceStandard, ...buttonProps } = props;
+    return inRouter ? <RoutedButton {...props} /> : <Button {...buttonProps} standard />;
 };
 
 export default RefreshButton;

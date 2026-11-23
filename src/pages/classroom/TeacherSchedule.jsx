@@ -5,7 +5,6 @@ const TeacherSchedule = () => (
         variant="teacher"
         badge="Lịch dạy"
         title="Lịch dạy của tôi"
-        subtitle="Các buổi dạy theo tuần hoặc tháng (đồng bộ từ thời khóa biểu UEL)."
     />
 );
 

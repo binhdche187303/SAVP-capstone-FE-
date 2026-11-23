@@ -80,8 +80,57 @@ test('tìm không dấu theo tên hoặc khu vực; chọn camera mất kết n�
 test('bố cục lưới chỉ phát camera đang online', async () => {
     renderPage();
     await screen.findByTestId('player');
-    fireEvent.click(screen.getByTitle('Lưới 4 camera'));
+    fireEvent.click(screen.getByTitle('Lưới 4 camera/trang'));
     expect(screen.getAllByTestId('player').map((p) => p.textContent)).toEqual(['Cong chinh', 'Sanh A']);
+    // ≤ 4 camera trực tuyến → không cần phân trang.
+    expect(screen.queryByRole('button', { name: 'Trang sau' })).not.toBeInTheDocument();
+});
+
+test('bấm khu vực → mở danh sách camera và màn hình xem chuyển sang lưới camera của khu vực đó', async () => {
+    const zoneCams = [
+        ...cams,
+        { name: 'Sanh B', index: 4, group: 'Sanh', zoneId: 'z1', zoneName: 'Sảnh bảo vệ', status: 'offline', health: { level: 'offline', reasons: [] }, liveUrl: '/live/b.m3u8' },
+    ];
+    getHgCameras.mockResolvedValue({ success: true, data: zoneCams, meta: { total: 4, online: 2 } });
+    renderPage();
+    await screen.findByTestId('player');
+    const list = within(screen.getByRole('region', { name: 'Danh sách camera' }));
+    const lobby = list.getByRole('group', { name: 'Khu vực Sảnh bảo vệ' });
+    fireEvent.click(within(lobby).getByRole('button', { name: /Sảnh bảo vệ/ }));
+    // Danh sách khu vực mở ra
+    expect(lobby).toHaveTextContent('Sanh A');
+    expect(lobby).toHaveTextContent('Sanh B');
+    // Màn hình xem: lưới đúng camera của khu vực (camera mất kết nối hiện ô báo lỗi, không mở luồng)
+    const viewer = within(screen.getByRole('region', { name: 'Màn hình xem' }));
+    expect(viewer.getByText('· 2 camera')).toBeInTheDocument();
+    expect(viewer.getAllByTestId('player').map((p) => p.textContent)).toEqual(['Sanh A']);
+    expect(viewer.getByText('Sanh B')).toBeInTheDocument();
+    expect(viewer.getByText('Mất kết nối')).toBeInTheDocument();
+    // Quay lại lưới mọi camera trực tuyến
+    fireEvent.click(viewer.getByRole('button', { name: 'Xem tất cả camera' }));
+    expect(screen.getAllByTestId('player').map((p) => p.textContent)).toEqual(['Cong chinh', 'Sanh A']);
+});
+
+test('lưới hơn 4 camera trực tuyến → chia trang, chuyển trang để xem camera thứ 5', async () => {
+    const many = ['Cam 1', 'Cam 2', 'Cam 3', 'Cam 4', 'Cam 5'].map((name, i) => ({
+        name, index: i + 1, group: 'Cong', status: 'online', health: { level: 'good', reasons: [] }, liveUrl: `/live/${i + 1}/index.m3u8`,
+    }));
+    getHgCameras.mockResolvedValue({ success: true, data: many, meta: { total: 5, online: 5 } });
+    renderPage();
+    await screen.findByTestId('player');
+    fireEvent.click(screen.getByTitle('Lưới 4 camera/trang'));
+    expect(screen.getAllByTestId('player').map((p) => p.textContent)).toEqual(['Cam 1', 'Cam 2', 'Cam 3', 'Cam 4']);
+    expect(screen.getByText('Hiển thị 1–4 / 5 camera trực tuyến')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trang trước' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
+    expect(screen.getAllByTestId('player').map((p) => p.textContent)).toEqual(['Cam 5']);
+    expect(screen.getByText('Trang 2/2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trang sau' })).toBeDisabled();
+    // Chuyển sang lưới 3×3 → cả 5 camera trên 1 trang, không còn phân trang.
+    fireEvent.click(screen.getByTitle('Lưới 9 camera/trang'));
+    expect(screen.getByTitle('Lưới 9 camera/trang')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getAllByTestId('player')).toHaveLength(5);
+    expect(screen.queryByRole('button', { name: 'Trang sau' })).not.toBeInTheDocument();
 });
 
 test('báo lỗi rõ khi máy chủ chưa cấu hình HGVision', async () => {
@@ -108,4 +157,30 @@ test('chụp ảnh camera đang xem; camera mất kết nối thì khóa nút', 
     fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: 'bai xe' } });
     expect(await screen.findByText('Camera đang mất kết nối')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Chụp ảnh' })).toBeDisabled();
+});
+
+test('nút Toàn màn hình phóng to cả lưới camera (không chỉ 1 camera)', async () => {
+    renderPage();
+    await screen.findByTestId('player');
+    fireEvent.click(screen.getByTitle('Lưới 4 camera/trang'));
+    const viewer = within(screen.getByRole('region', { name: 'Màn hình xem' }));
+    let target = null;
+    const request = jest.fn(function requestFullscreen() { target = this; return Promise.resolve(); });
+    HTMLElement.prototype.requestFullscreen = request;
+    fireEvent.click(viewer.getByRole('button', { name: /Toàn màn hình/ }));
+    expect(request).toHaveBeenCalledTimes(1);
+    // Phần tử được phóng to chứa cả lưới (2 camera trực tuyến), không phải 1 player.
+    expect(within(target).getAllByTestId('player')).toHaveLength(2);
+    delete HTMLElement.prototype.requestFullscreen;
+});
+
+test('chụp ảnh ngay trên ô của lưới camera', async () => {
+    renderPage();
+    await screen.findByTestId('player');
+    fireEvent.click(screen.getByTitle('Lưới 4 camera/trang'));
+    fireEvent.click(screen.getByRole('button', { name: 'Chụp ảnh Sanh A' }));
+    await waitFor(() => expect(captureHgSnapshot).toHaveBeenCalledWith('Sanh A'));
+    await waitFor(() => expect(downloadBlob).toHaveBeenCalled());
+    // Camera mất kết nối không có nút chụp.
+    expect(screen.queryByRole('button', { name: 'Chụp ảnh Bai xe' })).not.toBeInTheDocument();
 });

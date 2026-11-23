@@ -93,3 +93,9 @@ test('xem dạng danh sách vẫn có', async () => {
     await waitFor(() => expect(getNotifications).toHaveBeenCalledWith(expect.objectContaining({ page: 1 })));
     expect(await screen.findByText(/Biển số 10DS10086/)).toBeInTheDocument();
 });
+
+test('hiển thị hộp thư trống khi API chưa có thông báo', async () => {
+    getNotificationGroups.mockResolvedValue({ success: true, data: [], meta: { total: 0, totalPages: 1 } });
+    view();
+    expect(await screen.findByText('Hộp thư thông báo trống')).toBeInTheDocument();
+});

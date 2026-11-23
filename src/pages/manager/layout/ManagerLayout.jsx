@@ -1,7 +1,6 @@
 import { Activity, Archive, Award, BarChart2, Calendar, ChevronDown, ClipboardCheck, Clock, Car, FileBarChart, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import RoleSwitcherMenu from '../../../components/common/RoleSwitcherMenu';
 import { logout, getCurrentUser } from '../../../service/authService';
 import logo from '../../../assets/images/logo.png';
 import BiometricReminderModal from '../../../components/biometric/BiometricReminderModal';
@@ -400,7 +399,6 @@ const ManagerLayout = () => {
                                             Xe của tôi
                                         </button>
 
-                                        <RoleSwitcherMenu onNavigate={() => setIsProfileMenuOpen(false)} />
 
                                         <button
                                             type="button"

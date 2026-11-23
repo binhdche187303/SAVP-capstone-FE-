@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import RoleSwitcherMenu from '../../components/common/RoleSwitcherMenu';
 import { Bell, Car, ChevronDown, KeyRound, LogOut, Menu, Shield, ShieldAlert, User, UserCheck, UserRound, Video, X } from 'lucide-react';
 import logo from '../../assets/images/logo.png';
 import UserAvatar from '../../components/common/UserAvatar';
@@ -111,7 +110,7 @@ const GuardLayout = () => {
                                 <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-outline-gray bg-white shadow-sm-2 overflow-hidden animate-fade-in">
                                     <div className="px-4 py-3 border-b border-outline-gray bg-cloud-mist">
                                         <p className="text-sm font-semibold text-midnight-indigo truncate">{displayName}</p>
-                                        <p className="text-xs text-slate-blue truncate">{currentUser?.email || 'guard@meetingsys.vn'}</p>
+                                        <p className="text-xs text-slate-blue truncate">{currentUser?.email || 'guard@uel.edu.vn'}</p>
                                     </div>
                                     <div className="py-1">
                                         <button type="button" onClick={() => { setIsProfileMenuOpen(false); navigate('/guard/profile'); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
@@ -121,7 +120,6 @@ const GuardLayout = () => {
                                         <button type="button" onClick={() => { setIsProfileMenuOpen(false); navigate('/guard/my-vehicles'); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <Car className="w-4 h-4" /> Xe của tôi
                                         </button>
-                                        <RoleSwitcherMenu onNavigate={() => setIsProfileMenuOpen(false)} />
                                         <button type="button" onClick={() => { setIsProfileMenuOpen(false); setIsChangePasswordOpen(true); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <KeyRound className="w-4 h-4" /> Đổi mật khẩu
                                         </button>

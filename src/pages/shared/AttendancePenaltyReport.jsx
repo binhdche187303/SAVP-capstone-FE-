@@ -418,7 +418,7 @@ const AttendancePenaltyReport = () => {
                 )}
             </div>
 
-            <FilterBar variant="card" className="flex flex-wrap items-end gap-4">
+            <FilterBar forceStandard variant="card" className="flex flex-wrap items-end gap-4">
 
                 <div className="camai-filter-period-row">
                     <TimeRangeButtons label="Lọc nhanh" value={rangePreset} onChange={preset => {
@@ -482,7 +482,7 @@ const AttendancePenaltyReport = () => {
 
             {tab === 'summary' && scope && (
                 <div className="space-y-4">
-                    <FilterBar variant="card" className="flex flex-wrap items-center gap-2">
+                    <FilterBar forceStandard variant="card" className="flex flex-wrap items-center gap-2">
                         {scope === 'school' ? (
                             <FilterField label="Đơn vị"><FilterMultiSelect value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="px-3 py-2 text-xs rounded-xl border border-platinum-tint bg-white">
                                 <option value="">Tất cả đơn vị</option>
@@ -573,7 +573,7 @@ const AttendancePenaltyReport = () => {
 
             {tab === 'meetings' && scope && (
                 <div className="space-y-4">
-                    <FilterBar variant="card" className="flex flex-wrap items-center gap-2">
+                    <FilterBar forceStandard variant="card" className="flex flex-wrap items-center gap-2">
                         {scope === 'school' ? (
                             <FilterField label="Đơn vị"><FilterMultiSelect value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="px-3 py-2 text-xs rounded-xl border border-platinum-tint bg-white">
                                 <option value="">Tất cả đơn vị</option>
