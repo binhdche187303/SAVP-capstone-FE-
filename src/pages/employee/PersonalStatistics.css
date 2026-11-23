@@ -35,3 +35,10 @@
 @media (max-width: 550px) { .personal-stats-header, .personal-stats-charts .personal-stats-chart { padding: 16px; } }
 .personal-points-chart-empty { padding: 32px 0; color: #476788; }
 .personal-points-line-chart { width: 100%; min-width: 0; margin-top: 16px; }
+
+/* Kiểu chữ chuẩn ngay trong màn (khu Giảng viên/Sinh viên không bật typography chuẩn toàn cục). */
+.personal-stats-header > h1 { font-size: 24px; font-weight: 700; line-height: 32px; }
+.personal-stats-header > p { font-size: 14px; line-height: 20px; }
+.personal-stats-section-heading h2, .personal-points-section h2 { font-size: 16px; font-weight: 700; line-height: 24px; }
+.personal-stats-section-heading > p { font-size: 14px; line-height: 20px; }
+.personal-stats-chart h3 { font-size: 14px; font-weight: 700; }

@@ -130,7 +130,7 @@ const MyVehicles = () => {
                     </span>
                     <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Phương tiện cá nhân</h1>
                     <p className="text-slate-blue text-sm mt-1">
-                        Quản lý biển số xe của bạn để tự động nhận diện (ANPR) khi ra vào bãi đỗ.
+                        Quản lý biển số xe của bạn để tự động nhận diện khi ra vào bãi đỗ.
                     </p>
                 </div>
                 <button

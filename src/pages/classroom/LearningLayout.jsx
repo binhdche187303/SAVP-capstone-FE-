@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import RoleSwitcherMenu from '../../components/common/RoleSwitcherMenu';
 import { Activity, Archive, Award, BarChart2, Calendar, CalendarDays, Car, ChevronDown, ClipboardCheck, FileText, GraduationCap, Home, KeyRound, LayoutGrid, LogOut, Film, MapPin, Menu, Monitor, PlusCircle, ScanFace, User, UserCheck, X } from 'lucide-react';
 import { filterStaticNavigation } from '../../utils/buildDynamicNavigation';
 import logo from '../../assets/images/logo.png';
@@ -205,21 +204,20 @@ const LearningLayout = ({ role = 'teacher' }) => {
                                             <p className="text-sm font-semibold text-midnight-indigo truncate">{displayName}</p>
                                             <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-blue-50 text-action-blue text-[10px] font-bold">{displayRole}</span>
                                         </div>
-                                        <p className="text-xs text-slate-blue truncate">{currentUser?.email || (role === 'student' ? 'student@meetingsys.vn' : 'teacher@meetingsys.vn')}</p>
+                                        <p className="text-xs text-slate-blue truncate">{currentUser?.email || (role === 'student' ? 'student@uel.edu.vn' : 'teacher@uel.edu.vn')}</p>
                                     </div>
                                     <div className="py-1">
                                         <button type="button" onClick={handleProfile} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <User className="w-4 h-4" /> Hồ sơ cá nhân
                                         </button>
                                         <button type="button" onClick={() => goTo(`${basePath}/face-register`)} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
-                                            <ScanFace className="w-4 h-4" />
+                                            <ScanFace className="w-4 h-4 shrink-0" />
                                             <span className="flex-1 whitespace-nowrap">Khuôn mặt</span>
                                             {faceInfo && <span className={`shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded-md border text-[10px] font-bold ${faceInfo.className}`}>{faceInfo.label}</span>}
                                         </button>
                                         <button type="button" onClick={() => goTo(`${basePath}/my-vehicles`)} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <Car className="w-4 h-4" /> Xe của tôi
                                         </button>
-                                        <RoleSwitcherMenu onNavigate={() => setIsProfileMenuOpen(false)} />
                                         <button type="button" onClick={handleChangePassword} className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist">
                                             <KeyRound className="w-4 h-4" /> Đổi mật khẩu
                                         </button>

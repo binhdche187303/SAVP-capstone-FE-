@@ -1,7 +1,6 @@
 import { Calendar, ChevronDown, FileText, Home, PlusCircle, Menu, X, MapPin, Archive, Monitor, UserCheck, ClipboardCheck, Award, BarChart2 } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import RoleSwitcherMenu from '../../../components/common/RoleSwitcherMenu';
 import { logout, getCurrentUser } from '../../../service/authService';
 import logo from '../../../assets/images/logo.png';
 import BiometricReminderModal from '../../../components/biometric/BiometricReminderModal';
@@ -378,7 +377,6 @@ const EmployeeLayout = () => {
                                             Xe của tôi
                                         </button>
 
-                                        <RoleSwitcherMenu onNavigate={() => setIsProfileMenuOpen(false)} />
 
                                         <button
                                             type="button"

@@ -546,13 +546,19 @@ const BiometricSubmissionsReview = () => {
 
     return (
         <div className="space-y-6 animate-fade-in-up">
-            <div>
-                <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Phê duyệt
-                </span>
-                <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Duyệt ảnh sinh trắc học FaceID</h1>
-                <p className="text-slate-blue text-sm mt-1">Xem xét và duyệt/từ chối ảnh sinh trắc học do người dùng gửi lên.</p>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Phê duyệt
+                    </span>
+                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Duyệt ảnh sinh trắc học FaceID</h1>
+                    <p className="text-slate-blue text-sm mt-1">Xem xét và duyệt/từ chối ảnh sinh trắc học do người dùng gửi lên.</p>
+                </div>
+                <RefreshButton
+                    onClick={handleRefresh}
+                    busy={loading}
+                />
             </div>
 
             {successMessage && (
@@ -628,11 +634,6 @@ const BiometricSubmissionsReview = () => {
                         <option key={klass.value} value={klass.value}>{klass.label}</option>
                     ))}
                 </FilterMultiSelect></FilterField>
-
-                <RefreshButton
-                    onClick={handleRefresh}
-                    busy={loading}
-                />
             </FilterBar>
 
             {/* Table */}

@@ -649,7 +649,7 @@ const ManagerHomePage = () => {
                                     icon={TrendingUp}
                                     tone="blue"
                                     title="Trạng thái phòng"
-                                    description="Xem thông tin và hình ảnh hiện diện thực tế (Occupancy) tại các phòng."
+                                    description="Xem thông tin và hình ảnh hiện diện thực tế tại các phòng."
                                     action="Xem phòng họp"
                                 />
 
@@ -686,7 +686,7 @@ const ManagerHomePage = () => {
                                 <ReportActions>
                                     <button
                                         onClick={() => navigate('/manager/meeting-approvals')}
-                                        className="px-3.5 py-1.5 bg-action-blue/10 hover:bg-action-blue text-action-blue hover:text-white rounded-xl text-xs font-bold transition-all"
+                                        className="inline-flex h-9 items-center justify-center whitespace-nowrap px-3.5 bg-action-blue/10 hover:bg-action-blue text-action-blue hover:text-white rounded-xl text-xs font-bold transition-all"
                                     >
                                         Quản lý chi tiết
                                     </button>
@@ -707,7 +707,7 @@ const ManagerHomePage = () => {
 {(camaiPageItems, camaiStartIndex) => (
 <ResponsiveTable className="w-full text-left border-collapse manager-pending-requests-table">
 <colgroup>
-<col style={{ width: '11%' }} />
+<col style={{ width: '172px' }} />
 <col />
 <col style={{ width: '16%' }} />
 <col style={{ width: '10%' }} />
@@ -731,7 +731,7 @@ const ManagerHomePage = () => {
                                                 const hasConflict = getRequestHasConflict(req);
                                                 return (
                                                     <tr key={req.id} className="border-b border-platinum-tint/60 text-sm hover:bg-cloud-mist/20 transition-colors">
-                                                        <td className="p-4 font-mono text-xs text-midnight-indigo font-bold">{req.requestCode}</td>
+                                                        <td className="manager-request-code p-4 font-mono text-xs text-midnight-indigo font-bold">{req.requestCode}</td>
                                                         <td className="p-4 font-semibold text-midnight-indigo">
                                                             {req.meeting?.title || 'Cuộc họp phòng ban'}
                                                         </td>

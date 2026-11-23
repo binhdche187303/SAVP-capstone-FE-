@@ -1,4 +1,5 @@
 import FilterBar from '../../components/common/FilterBar';
+import DateInput from '../../components/common/DateInput';
 import PaginationFooter from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
 import ReportActions from '../../components/common/ReportActions';
@@ -89,6 +90,7 @@ const TYPE_LABEL = {
     minutes_distribution: 'Phân phối biên bản',
     account_welcome: 'Chào mừng tài khoản mới',
 };
+
 
 const groupLabelOf = (group) => TYPE_LABEL[group.type]
     || String(group.latest?.subject || group.type).replace(/^(Cảnh báo|Thông báo):\s*/i, '');
@@ -480,19 +482,18 @@ const Notifications = () => {
     const inputCls = 'h-9 w-full rounded-xl border border-platinum-tint bg-white px-3 text-xs text-midnight-indigo focus:border-action-blue focus:outline-none focus:ring-1 focus:ring-action-blue';
 
     return (
-        <div data-page-surface="wide" className="space-y-6 max-w-4xl mx-auto">
+        <div data-page-surface="wide" className="space-y-4 max-w-4xl mx-auto">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                    <span data-ui-text="badge" className="inline-flex w-fit items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue !mb-2">
                         <Bell className="w-3.5 h-3.5" />
                         Trung tâm thông báo
                     </span>
-                    <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Thông báo hệ thống</h1>
-                    <p className="text-slate-blue text-sm">Thông báo được gom theo loại và ngày; mở từng nhóm để xem chi tiết.</p>
+                    <h1 className="!m-0 text-2xl font-extrabold text-midnight-indigo tracking-tight">Thông báo hệ thống</h1>
                 </div>
 
-                <ReportActions>
+                <ReportActions className="!self-start sm:mt-7">
                     <button
                         onClick={handleMarkAllAsRead}
                         className="inline-flex h-9 items-center justify-center px-4 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist rounded-xl text-xs font-bold shadow-sm transition-all duration-200"
@@ -501,6 +502,7 @@ const Notifications = () => {
                         Đọc tất cả
                     </button>
                     <RefreshButton
+                        forceStandard
                         onClick={refresh}
                         legacyClassName="p-2 border border-platinum-tint bg-white text-slate-blue hover:text-midnight-indigo rounded-xl hover:bg-cloud-mist transition-colors duration-200"
                         title="Làm mới thông báo"
@@ -528,7 +530,7 @@ const Notifications = () => {
             {/* Trạng thái đọc + cách xem */}
             <FilterBar variant="card" className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="inline-flex flex-wrap rounded-xl border border-platinum-tint bg-white p-1 shadow-sm">
                         {[
                             { key: '', label: 'Tất cả thông báo' },
                             { key: 'unread', label: 'Chưa đọc' },
@@ -539,7 +541,7 @@ const Notifications = () => {
                                 type="button"
                                 aria-pressed={readTab === tab.key}
                                 onClick={() => setReadTab(tab.key)}
-                                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${readTab === tab.key
+                                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${readTab === tab.key
                                     ? 'bg-action-blue text-white shadow-sm'
                                     : 'text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist'
                                 }`}
@@ -558,7 +560,7 @@ const Notifications = () => {
                                 type="button"
                                 aria-pressed={viewMode === key}
                                 onClick={() => setViewMode(key)}
-                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold ${viewMode === key ? 'bg-cloud-mist text-midnight-indigo' : 'text-slate-blue hover:text-midnight-indigo'}`}
+                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold ${viewMode === key ? 'bg-action-blue text-white shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`}
                             >
                                 <Icon className="w-3.5 h-3.5" />{label}
                             </button>
@@ -566,14 +568,14 @@ const Notifications = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
                     <select aria-label="Loại thông báo" value={category} onChange={e => setCategory(e.target.value)} className={inputCls}>
                         <option value="">Tất cả loại</option>
                         {TYPE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
                     </select>
-                    <input aria-label="Từ ngày" type="date" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} className={inputCls} />
-                    <input aria-label="Đến ngày" type="date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} className={inputCls} />
-                    <div className="relative">
+                    <DateInput forceStandard aria-label="Từ ngày" type="date" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} className={inputCls} />
+                    <DateInput forceStandard aria-label="Đến ngày" type="date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} className={inputCls} />
+                    <div className="relative order-first sm:col-span-2">
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-steel-gray" />
                         <input
                             aria-label="Tìm kiếm"
@@ -581,7 +583,7 @@ const Notifications = () => {
                             value={searchInput}
                             onChange={e => setSearchInput(e.target.value)}
                             placeholder="Biển số, tên camera, nội dung..."
-                            className={`${inputCls} pl-8`}
+                            className={`${inputCls} !pl-9`}
                         />
                     </div>
                 </div>

@@ -7,9 +7,10 @@ const Grid = ({ standard, columns = 4, className = '', children, ...props }) => 
         <div {...props} className="camai-stat-grid" data-stat-columns={columns}>{children}</div>
     </div>
 ) : <div {...props} className={className}>{children}</div>;
-const Routed = props => {
+const Routed = ({ forceStandard, ...props }) => {
     const { pathname } = useLocation();
-    return <Grid {...props} standard={AREAS.has(pathname.split('/')[1])} />;
+    return <Grid {...props} standard={forceStandard || AREAS.has(pathname.split('/')[1])} />;
 };
-const StatisticGrid = props => useInRouterContext() ? <Routed {...props} /> : <Grid {...props} standard />;
+// forceStandard: màn dùng chung mở từ khu Giảng viên/Sinh viên vẫn muốn lưới thẻ chuẩn (giống FilterBar).
+const StatisticGrid = ({ forceStandard = false, ...props }) => useInRouterContext() ? <Routed {...props} forceStandard={forceStandard} /> : <Grid {...props} standard />;
 export default StatisticGrid;

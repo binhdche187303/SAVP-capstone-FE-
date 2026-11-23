@@ -195,6 +195,64 @@ const GapsPanel = ({ gaps }) => {
     );
 };
 
+// Gộp cảnh báo trùng câu (VD 51 ngày lịch học cùng lỗi kết nối) → [{ text, count }].
+const groupWarnings = (warnings = []) => {
+    const groups = [];
+    const byText = new Map();
+    warnings.forEach((w) => {
+        const text = syncMessage(w);
+        if (byText.has(text)) byText.get(text).count += 1;
+        else { const g = { text, count: 1 }; byText.set(text, g); groups.push(g); }
+    });
+    return groups;
+};
+
+// 1 bước đồng bộ. Cảnh báo không bung trong ô "Ghi chú" hẹp (chữ xuống dòng rất dài) mà mở ở 1 dòng phụ
+// trải hết bề ngang bảng, câu trùng gộp "×N", khung tối đa ~10 dòng (cuộn bên trong nếu nhiều hơn).
+const StepRow = ({ r }) => {
+    const [open, setOpen] = useState(false);
+    const groups = groupWarnings(r.warnings);
+    return (
+        <>
+            <tr className="border-t border-platinum-tint/60 align-top">
+                <td className="py-2 pr-3 text-midnight-indigo">
+                    <p className="font-semibold whitespace-nowrap">{stepLabel(r.step)}</p>
+                    {r.term && <p className="text-[11px] font-medium text-slate-blue whitespace-nowrap">{r.term}</p>}
+                </td>
+                <td className="py-2 px-3 text-right">{fmtNum(r.fetched)}</td>
+                <td className="py-2 px-3 text-right">{fmtNum(r.upserted)}</td>
+                <td className={`py-2 px-3 text-right ${r.skipped ? 'text-amber-700 font-semibold' : ''}`}>{fmtNum(r.skipped)}</td>
+                <td className="py-2 px-3 text-right">{fmtNum(r.deactivated)}</td>
+                <td className="py-2 pl-3">
+                    {r.error && <p className="text-red-700 font-medium">{syncMessage(r.error)}</p>}
+                    {groups.length > 0 && (
+                        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:underline whitespace-nowrap">
+                            {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                            {r.warnings.length} cảnh báo{groups.length < r.warnings.length ? ` · ${groups.length} loại` : ''}
+                        </button>
+                    )}
+                    {!r.error && !groups.length && <span className="text-steel-gray">—</span>}
+                </td>
+            </tr>
+            {open && (
+                <tr>
+                    <td colSpan={6} className="pb-2">
+                        <ul className="max-h-40 overflow-auto rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 space-y-1 text-xs text-slate-blue">
+                            {groups.map((g) => (
+                                <li key={g.text} className="flex items-start gap-2">
+                                    <span className="mt-1.5 w-1 h-1 rounded-full bg-amber-500 shrink-0" />
+                                    <span className="flex-1">{g.text}</span>
+                                    {g.count > 1 && <span className="shrink-0 px-1 rounded bg-amber-100 text-amber-800 font-bold">×{g.count}</span>}
+                                </li>
+                            ))}
+                        </ul>
+                    </td>
+                </tr>
+            )}
+        </>
+    );
+};
+
 const RunRow = ({ run, defaultOpen }) => {
     const [open, setOpen] = useState(defaultOpen);
     const errors = run.results.filter((r) => r.error).length;
@@ -230,7 +288,18 @@ const RunRow = ({ run, defaultOpen }) => {
                         {o.fromDate && <>Lịch học {o.fromDate} → {o.toDate}.</>}
                     </p>
                     <div className="overflow-x-auto">
-                        <ResponsiveTable className="w-full text-sm">
+                        {/* Bảng 6 cột số ngắn → giữ dạng bảng tới 480px (mặc định ~790px mới đủ nên bị chuyển thành thẻ, màn rất dài). */}
+                        <ResponsiveTable className="w-full text-sm" minTableWidth={480}>
+                            {/* Bảng dùng chung ép table-layout: fixed (các cột chia đều) → cột Bước quá hẹp, "Lớp học phần" /
+                                "2026-2027 SDH-HK01" bị ngắt giữa chừng. Đặt bề rộng: cột Bước rộng hơn, cột số vừa đủ. */}
+                            <colgroup>
+                                <col style={{ width: '27%' }} />
+                                <col style={{ width: '12%' }} />
+                                <col style={{ width: '12%' }} />
+                                <col style={{ width: '11%' }} />
+                                <col style={{ width: '13%' }} />
+                                <col />
+                            </colgroup>
                             <thead>
                                 <tr className="text-left text-xs uppercase text-slate-blue">
                                     <th className="py-1.5 pr-3 font-semibold">Bước</th>
@@ -247,27 +316,8 @@ const RunRow = ({ run, defaultOpen }) => {
                                 {run.results.length === 0 && (
                                     <tr><td colSpan={6} className="py-2 text-steel-gray">Chưa có kết quả.</td></tr>
                                 )}
-                                {run.results.map((r) => (
-                                    <tr key={r.step} className="border-t border-platinum-tint/60 align-top">
-                                        <td className="py-2 pr-3 font-semibold text-midnight-indigo whitespace-nowrap">{stepLabel(r.step)}</td>
-                                        <td className="py-2 px-3 text-right">{fmtNum(r.fetched)}</td>
-                                        <td className="py-2 px-3 text-right">{fmtNum(r.upserted)}</td>
-                                        <td className={`py-2 px-3 text-right ${r.skipped ? 'text-amber-700 font-semibold' : ''}`}>{fmtNum(r.skipped)}</td>
-                                        <td className="py-2 px-3 text-right">{fmtNum(r.deactivated)}</td>
-                                        <td className="py-2 pl-3 min-w-[200px]">
-                                            {r.error && <p className="text-red-700 font-medium">{syncMessage(r.error)}</p>}
-                                            {r.warnings?.length > 0 && (
-                                                <details className="text-xs text-slate-blue">
-                                                    <summary className="cursor-pointer text-amber-700 font-semibold">{r.warnings.length} cảnh báo</summary>
-                                                    <ul className="mt-1 space-y-0.5 list-disc pl-4">
-                                                        {r.warnings.map((w, i) => <li key={i}>{syncMessage(w)}</li>)}
-                                                    </ul>
-                                                </details>
-                                            )}
-                                            {!r.error && !r.warnings?.length && <span className="text-steel-gray">—</span>}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {/* Lớp HP / đăng ký HP chạy riêng từng học kỳ → cùng tên bước, ghi kèm học kỳ (r.term) để không tưởng bị lặp. */}
+                                {run.results.map((r, i) => <StepRow key={`${r.step}-${r.term ?? ''}-${i}`} r={r} />)}
                             </tbody>
                         </ResponsiveTable>
                     </div>

@@ -494,7 +494,7 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
                         transition={{ duration: 0.2 }}
                         className="space-y-5"
                     >
-                        <FilterBar variant="card" className="personal-stats-filters">
+                        <FilterBar forceStandard variant="card" className="personal-stats-filters">
                             <CalendarRangePresets from={analyticsRange.from} to={analyticsRange.to} onChange={setAnalyticsRange} />
                             <FilterField label="Từ ngày"><input type="date" value={analyticsRange.from} max={analyticsRange.to || undefined}
                                 onChange={e => setAnalyticsRange(prev => ({ ...prev, from: e.target.value }))} /></FilterField>
@@ -508,7 +508,7 @@ const EmployeeHomePage = ({ view = 'overview' }) => {
                                 <h2>Tổng quan tham dự</h2>
                                 <p data-ui-text="secondary">Số liệu trong khoảng thời gian đang chọn.</p>
                             </div>
-                            <StatisticGrid columns={4}>
+                            <StatisticGrid forceStandard columns={4}>
                                 <StatisticCard label="Cuộc họp đã tham gia" icon={Calendar} loading={analyticsLoading}
                                     value={analyticsData ? analyticsData.onTimeCount + analyticsData.lateCount : '—'}
                                     helper={analyticsData ? `Trên ${analyticsData.totalRequired} cuộc họp bắt buộc` : 'Chưa tải được dữ liệu tham dự'} />

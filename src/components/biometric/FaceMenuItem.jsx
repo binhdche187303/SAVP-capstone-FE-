@@ -51,7 +51,7 @@ const FaceMenuItem = ({ faceInfo, onClick }) => (
         onClick={onClick}
         className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm text-midnight-indigo hover:bg-cloud-mist transition-colors duration-150"
     >
-        <ScanFace className="w-4 h-4" />
+        <ScanFace className="w-4 h-4 shrink-0" />
         <span className="flex-1 whitespace-nowrap">Khuôn mặt</span>
         {faceInfo && (
             <span className={`shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded-md border text-[10px] font-bold ${faceInfo.className}`}>
