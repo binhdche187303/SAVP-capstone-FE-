@@ -63,8 +63,8 @@ test('shows the receiver name instead of an account ID and handles unavailable n
         { id: 'missing', alert_type: 'visitor_overstay', status: 'acknowledged', severity: 'medium', acknowledged_by: 'unavailable-account-id', acknowledged_by_name: null },
     ] : [] }));
     render(<MemoryRouter initialEntries={['/guard/visitor-alerts']}><VisitorAlerts /></MemoryRouter>);
-    expect(await screen.findByText('Bởi: Trần Quốc Admin')).toBeInTheDocument();
-    expect(screen.getByText('Bởi: Chưa có thông tin người tiếp nhận')).toBeInTheDocument();
+    expect(await screen.findByText('Trần Quốc Admin')).toBeInTheDocument();
+    expect(screen.queryByText(/Bởi:/)).not.toBeInTheDocument();
     expect(screen.queryByText(new RegExp(actorId))).not.toBeInTheDocument();
     expect(screen.queryByText(/unavailable-account-id/)).not.toBeInTheDocument();
 });

@@ -31,3 +31,31 @@
 @container (max-width: 860px) {
     .security-alert-time-filters { grid-template-columns: minmax(0, 1fr); }
 }
+.camai-responsive-table.visitor-alerts-table td [data-ui-text="badge"],
+.camai-responsive-table.visitor-alerts-table td .visitor-alert-nowrap {
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.camai-responsive-table.visitor-alerts-table td [data-ui-text="badge"] {
+    width: max-content;
+    max-width: none;
+    flex-shrink: 0;
+}
+
+.camai-responsive-table.visitor-alerts-table td:last-child button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 20px;
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+    flex-shrink: 0;
+    width: max-content;
+    max-width: none;
+}
