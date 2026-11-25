@@ -1,6 +1,6 @@
-import { Activity, Archive, Award, BarChart2, Calendar, ChevronDown, ClipboardCheck, Clock, Car, FileBarChart, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X } from 'lucide-react';
+import { Activity, Archive, Award, BarChart2, Calendar, ChevronDown, ClipboardCheck, Clock, Car, FileBarChart, FileText, Flame, Home, MapPin, Monitor, PlusCircle, Menu, UserCheck, X, LayoutGrid } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { logout, getCurrentUser } from '../../../service/authService';
 import logo from '../../../assets/images/logo.png';
 import BiometricReminderModal from '../../../components/biometric/BiometricReminderModal';
@@ -56,27 +56,26 @@ const STATIC_NAVIGATION_ITEMS = [
                 to: '/manager/minutes',
                 icon: Archive,
             },
+            {
+                label: 'Tài liệu họp',
+                to: '/manager/recordings',
+                icon: FileText,
+            },
         ],
-    },
-    {
-        label: 'Tài liệu họp',
-        to: '/manager/recordings',
-        icon: FileText,
-    },
-    {
-        label: 'Báo hỏng thiết bị',
-        to: '/manager/equipments',
-        icon: Monitor,
-    },
-    {
-        label: 'Lịch sử di chuyển',
-        to: '/manager/user-journey',
-        icon: MapPin,
     },
     {
         label: 'Khách của tôi',
         to: '/manager/my-visitors',
         icon: UserCheck,
+    },
+    {
+        label: 'Tiện ích',
+        isDropdown: true,
+        icon: LayoutGrid,
+        children: [
+            { label: 'Lịch sử di chuyển', to: '/manager/user-journey', icon: MapPin },
+            { label: 'Báo hỏng thiết bị', to: '/manager/equipments', icon: Monitor },
+        ],
     },
     {
         label: 'Báo cáo',
@@ -126,6 +125,7 @@ const ManagerLayout = () => {
     const profileMenuRef = useRef(null);
     const navRef = useRef(null);
     const navigate = useNavigate();
+    const { pathname } = useLocation();
 
     // BGH không thuộc đơn vị nào ⇒ không có yêu cầu họp để phê duyệt (P.HC duyệt lịch trường).
     const hideForLeader = (items) => (isSchoolLeader(currentUser) && !currentUser?.departmentId
@@ -219,10 +219,10 @@ const ManagerLayout = () => {
     const displayRole = getLeaderRoleLabel(currentUser) || 'Trưởng đơn vị';
 
     return (
-        <div className="min-h-screen flex flex-col bg-cloud-mist">
+        <div className="min-h-screen flex flex-col bg-cloud-mist overflow-x-clip">
             {/* ========== NAVBAR ========== */}
             <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-platinum-tint">
-                <div className="max-w-[1440px] mx-auto flex items-center justify-between h-16 px-6 lg:px-12">
+                <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4 h-16 px-6 lg:px-12">
                     {/* Left: Logo + Nav */}
                     <div className="flex items-center gap-6">
                         {/* Logo */}
@@ -254,7 +254,8 @@ const ManagerLayout = () => {
                                     >
                                         <button
                                             onClick={() => setOpenDropdown(openDropdown === item.label ? null : item.label)}
-                                            className="px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 text-slate-blue hover:text-midnight-indigo hover:bg-cloud-mist whitespace-nowrap flex items-center gap-1.5"
+                                            aria-expanded={openDropdown === item.label}
+                                            className={`px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:text-midnight-indigo hover:bg-cloud-mist whitespace-nowrap flex items-center gap-1.5 ${item.children.some(child => pathname === child.to || pathname.startsWith(`${child.to}/`)) ? 'text-action-blue bg-blue-50 font-bold' : 'text-slate-blue'}`}
                                         >
                                             {item.icon && <item.icon className="hidden 2xl:block w-4 h-4 text-slate-400" />}
                                             <span>{item.label}</span>
@@ -332,8 +333,8 @@ const ManagerLayout = () => {
                                 onClick={() => setIsProfileMenuOpen((prev) => !prev)}
                                 className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-cloud-mist transition-colors duration-200"
                             >
-                                <div className="hidden sm:flex flex-col items-end">
-                                    <span className="text-sm font-semibold text-midnight-indigo leading-tight">
+                                <div className="hidden sm:flex flex-col items-end min-w-0 max-w-[180px]">
+                                    <span className="text-sm font-semibold text-midnight-indigo leading-tight truncate max-w-full" title={displayName}>
                                         {displayName}
                                     </span>
                                     <span className="text-xs text-slate-blue leading-tight">

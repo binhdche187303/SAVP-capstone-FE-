@@ -1,17 +1,23 @@
-import { Loader2 } from 'lucide-react';
 import useConfirm from '../../hooks/useConfirm';
 import {
   Activity,
+  Camera,
   ImagePlus,
+  Layers3,
   LayoutGrid,
   Move,
   RotateCcw,
   Save,
   Trash2,
+  Wifi,
+  WifiOff,
+  Loader2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DeviceConnectionHistoryPanel from "../../components/devices/DeviceConnectionHistoryPanel";
+import PageHeading from "../../components/common/PageHeading";
+import KpiTiles from "../../components/report/KpiTiles";
 import { CAMERA_TYPES } from "../../mocks/cameraMock";
 import { getCampusMap } from "../../service/campusService";
 import {
@@ -32,6 +38,8 @@ import {
   savedLayout,
   zoneFloorKey,
 } from "../../utils/floorPlan";
+import { btnGhost, btnPrimary, errorBoxCls, pageCls } from "../../components/common/uiClasses";
+import "./CameraLayout.css";
 
 // 2.2.4 Sơ đồ lắp đặt camera theo tầng.
 // Thật (BE): zone (building/floor), phòng (areaName), camera theo zone (campus map), trạng thái camera.
@@ -85,6 +93,18 @@ const fovPath = (angle, r = 80, spread = 30) => {
   return `M0,0 L${r * Math.cos(a1)},${r * Math.sin(a1)} A${r},${r} 0 0,1 ${r * Math.cos(a2)},${r * Math.sin(a2)} Z`;
 };
 
+// BE giới hạn limit tối đa 100/trang → tải đủ mọi trang, không thì camera/zone/phòng sau trang 1 bị mất khỏi sơ đồ.
+const fetchAllPages = async (fn) => {
+  const first = await fn({ limit: 100, page: 1 });
+  const totalPages = Number(first?.meta?.totalPages) || 1;
+  if (totalPages <= 1) return first;
+  const rest = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, i) => fn({ limit: 100, page: i + 2 })),
+  );
+  const items = (r) => (Array.isArray(r?.data) ? r.data : r?.data?.items || []);
+  return { ...first, data: [first, ...rest].flatMap(items) };
+};
+
 const CameraLayout = () => {
   const [confirm, confirmDialog] = useConfirm();
   const [zones, setZones] = useState([]);
@@ -105,6 +125,14 @@ const CameraLayout = () => {
   const [planImageUrl, setPlanImageUrl] = useState(null);
   const [showBlocks, setShowBlocks] = useState(false);
   const [planBusy, setPlanBusy] = useState(false);
+  // Lọc theo chú thích: null = tất cả; 'anpr' = camera biển số; còn lại = mã trạng thái.
+  const [legendFilter, setLegendFilter] = useState(null);
+  const toggleLegend = (k) => setLegendFilter((cur) => (cur === k ? null : k));
+  const matchLegend = (d) =>
+    !legendFilter ||
+    (legendFilter === "anpr"
+      ? d.device_type === "anpr_camera"
+      : d.status === legendFilter);
   const svgRef = useRef(null);
   const planInputRef = useRef(null);
 
@@ -125,9 +153,9 @@ const CameraLayout = () => {
     loadFloorPlans();
     try {
       const [zRes, rRes, dRes, mRes] = await Promise.all([
-        getZones({ limit: 100 }),
-        getRooms({ limit: 100 }),
-        getDevices({ limit: 100 }),
+        fetchAllPages(getZones),
+        fetchAllPages(getRooms),
+        fetchAllPages(getDevices),
         getCampusMap(),
       ]);
       const list = (res) =>
@@ -395,21 +423,53 @@ const CameraLayout = () => {
     };
   };
 
+  const cameraDevices = useMemo(
+    () => devices.filter((device) => CAMERA_TYPES.includes(device.device_type)),
+    [devices],
+  );
+  const cameraStatusItems = [
+    {
+      key: "total",
+      label: "Tổng camera",
+      value: cameraDevices.length,
+      icon: Camera,
+      tone: "blue",
+    },
+    {
+      key: "online",
+      label: "Đang trực tuyến",
+      value: cameraDevices.filter((device) => device.status === "online").length,
+      icon: Wifi,
+      tone: "green",
+    },
+    {
+      key: "offline",
+      label: "Ngoại tuyến",
+      value: cameraDevices.filter((device) => device.status === "offline").length,
+      icon: WifiOff,
+      tone: "red",
+    },
+    {
+      key: "floors",
+      label: "Tầng đã khai báo",
+      value: floors.length,
+      icon: Layers3,
+      tone: "slate",
+    },
+  ];
+
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+    <div data-page-surface="wide" className={`${pageCls} camera-layout-page animate-fade-in-up`}>
+      <div className="camera-layout-heading border-b border-platinum-tint pb-5 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-            <LayoutGrid className="w-3.5 h-3.5" /> Camera AI
-          </span>
-          <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">
+          <PageHeading badge="Camera AI" icon={<LayoutGrid className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
             Sơ đồ lắp đặt camera
-          </h1>
-          <p className="text-slate-blue text-sm mt-1">
+          </PageHeading>
+          <p data-page-description className="text-xs text-slate-blue mt-1">
             Vị trí, hướng nhìn và trạng thái camera theo từng tầng.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="camera-layout-actions flex flex-wrap items-center gap-2">
           {editMode ? (
             <>
               <input
@@ -420,9 +480,10 @@ const CameraLayout = () => {
                 onChange={handlePlanFile}
               />
               <button
+                type="button"
                 onClick={() => planInputRef.current?.click()}
                 disabled={planBusy}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-action-blue border border-action-blue/30 hover:bg-blue-50 disabled:opacity-50"
+                className={btnGhost}
               >
                 <ImagePlus className="w-3.5 h-3.5" />{" "}
                 {planBusy
@@ -433,34 +494,38 @@ const CameraLayout = () => {
               </button>
               {currentPlan && (
                 <button
+                  type="button"
                   onClick={handleRemovePlan}
                   disabled={planBusy}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Xóa ảnh
                 </button>
               )}
               <button
+                type="button"
                 onClick={handleReset}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-blue border border-platinum-tint hover:bg-cloud-mist"
+                className={btnGhost}
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Về mặc định
               </button>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-action-blue hover:bg-glacier-blue disabled:opacity-50"
+                className={btnPrimary}
               >
                 <Save className="w-3.5 h-3.5" /> Lưu vị trí{dirty ? " *" : ""}
               </button>
             </>
           ) : (
             <button
+              type="button"
               onClick={() => setEditMode(true)}
               // Vẫn cho vào khi tầng chưa có camera: để tải ảnh mặt bằng trước.
               disabled={!current}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-action-blue border border-action-blue/30 hover:bg-blue-50 disabled:opacity-50"
+              className={btnGhost}
             >
               <Move className="w-3.5 h-3.5" /> Chỉnh vị trí
             </button>
@@ -468,14 +533,16 @@ const CameraLayout = () => {
         </div>
       </div>
 
+      <KpiTiles items={cameraStatusItems} maxVisible={4} ariaLabel="Thống kê camera theo trạng thái" />
+
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+        <div className={errorBoxCls}>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="flex justify-center py-20 bg-white rounded-2xl border border-platinum-tint">
+        <div className="flex justify-center py-20 bg-white rounded-2xl border border-platinum-tint shadow-sm">
           <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
         </div>
       ) : floors.length === 0 ? (
@@ -483,11 +550,15 @@ const CameraLayout = () => {
           Chưa có khu vực nào khai báo Tòa nhà + Tầng.
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_260px] gap-4">
-          <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 p-2 h-fit">
-            <p data-ui-text="label" className="px-2 py-1.5 text-[11px] font-bold uppercase text-slate-blue">
-              Tầng
-            </p>
+        <div className="camera-layout-workspace">
+          <div className="camera-layout-floor-card">
+            <div className="camera-layout-card-heading">
+              <div>
+                <p data-ui-text="label">Tầng</p>
+                <span>{floors.length} tầng đã khai báo</span>
+              </div>
+            </div>
+            <div className="camera-layout-floor-list">
             {floors.map((f) => {
               const s = floorStats(f);
               const active = f.key === current.key;
@@ -514,9 +585,18 @@ const CameraLayout = () => {
                 </button>
               );
             })}
+            </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 p-3">
+          <div className="camera-layout-map-card">
+            <div className="camera-layout-card-heading camera-layout-map-heading">
+              <div>
+                <p data-ui-text="label">Mặt bằng đang xem</p>
+                <h2>{current.key}</h2>
+              </div>
+              <span className="camera-layout-count">{placed.length} camera</span>
+            </div>
+            <div className="camera-layout-canvas">
             <svg
               ref={svgRef}
               viewBox={`0 0 ${W} ${plan.height}`}
@@ -587,10 +667,12 @@ const CameraLayout = () => {
                 const color =
                   STATUS_COLOR[c.device.status] || STATUS_COLOR.disabled;
                 const isSel = c.device.id === selectedId;
+                const dimmed = !matchLegend(c.device);
                 return (
                   <g
                     key={c.device.id}
                     transform={`translate(${c.x},${c.y})`}
+                    opacity={dimmed ? 0.12 : 1}
                     className={editMode ? "cursor-move" : "cursor-pointer"}
                     onPointerDown={(e) => {
                       e.stopPropagation();
@@ -652,20 +734,34 @@ const CameraLayout = () => {
                 );
               })}
             </svg>
-            <div data-ui-text="secondary" className="flex flex-wrap gap-4 px-2 pt-2 text-[11px] text-slate-blue">
+            </div>
+            <div data-ui-text="secondary" className="camera-layout-legend flex flex-wrap gap-4 text-[11px] text-slate-blue">
               {Object.entries(STATUS_LABEL).map(([k, label]) => (
-                <span key={k} className="flex items-center gap-1.5">
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => toggleLegend(k)}
+                  aria-pressed={legendFilter === k}
+                  title={legendFilter === k ? "Bỏ lọc" : `Chỉ hiện camera ${label.toLowerCase()}`}
+                  className={`flex items-center gap-1.5 px-2 py-0.5 -mx-2 rounded-full transition-colors hover:bg-cloud-mist ${legendFilter === k ? "bg-cloud-mist ring-1 ring-action-blue text-midnight-indigo font-semibold" : legendFilter ? "opacity-50" : ""}`}
+                >
                   <span
                     className="w-2.5 h-2.5 rounded-full"
                     style={{ background: STATUS_COLOR[k] }}
                   />{" "}
                   {label}
-                </span>
+                </button>
               ))}
-              <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => toggleLegend("anpr")}
+                aria-pressed={legendFilter === "anpr"}
+                title={legendFilter === "anpr" ? "Bỏ lọc" : "Chỉ hiện camera biển số"}
+                className={`flex items-center gap-1.5 px-2 py-0.5 -mx-2 rounded-full transition-colors hover:bg-cloud-mist ${legendFilter === "anpr" ? "bg-cloud-mist ring-1 ring-action-blue text-midnight-indigo font-semibold" : legendFilter ? "opacity-50" : ""}`}
+              >
                 <span className="w-2.5 h-2.5 rounded-full border-2 border-orange-600" />{" "}
                 Camera biển số
-              </span>
+              </button>
               {currentPlan && (
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
@@ -687,7 +783,13 @@ const CameraLayout = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 p-4 h-fit">
+          <div className="camera-layout-detail-card">
+            <div className="camera-layout-card-heading">
+              <div>
+                <p data-ui-text="label">Chi tiết camera</p>
+                <span>{selected ? "Thiết bị đang chọn" : "Chọn camera trên sơ đồ"}</span>
+              </div>
+            </div>
             {placed.length === 0 ? (
               // Camera chỉ lên sơ đồ khi được gán vào khu vực (campus map) hoặc phòng của tầng.
               <div className="space-y-3">
@@ -790,7 +892,7 @@ const CameraLayout = () => {
                     <Activity className="w-3.5 h-3.5" /> Lịch sử kết nối
                   </button>
                   <Link
-                    to="/system-admin/devices"
+                    to={`/system-admin/devices?focus=${selected.device.id}`}
                     className="text-center px-3 py-2 rounded-xl text-xs font-semibold text-slate-blue hover:bg-cloud-mist"
                   >
                     Mở trang thiết bị

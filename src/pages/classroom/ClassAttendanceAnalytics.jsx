@@ -5,16 +5,15 @@ import './ClassAttendanceAnalyticsFilters.css';
 import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import TableColumns from '../../components/common/TableColumns';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
-import StatisticGrid from '../../components/common/StatisticGrid';
+import KpiTiles from '../../components/report/KpiTiles';
 import DateInput from '../../components/common/DateInput';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter from '../../components/common/PaginationFooter';
 import ReportExportAction from '../../components/common/ReportExportAction';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, AlertTriangle, BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronRight, Download, Filter, Users } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart3, BookOpen, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Download, Filter, UserX, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { exportSemesterClassAttendanceCsv, fetchClassAttendanceClasses, fetchTeacherClassAttendanceReport } from '../../service/classAttendanceService';
-import SharedStatCard from '../../components/common/StatCard';
 import ClassStudentAttendanceModal from './ClassStudentAttendanceModal';
 import AttendanceWarningsPanel from './AttendanceWarningsPanel';
 import Pagination from '../../components/common/Pagination';
@@ -149,10 +148,6 @@ const EMPTY_REPORT = {
     period: null,
     totals: { totalSessions: 0, attended: 0, onTime: 0, late: 0, absent: 0, sessionsHeld: 0, rate: 0 }
 };
-
-const StatCard = ({ label, value, helper, tone, ...props }) => (
-    <SharedStatCard label={label} value={value} hint={helper} tone={tone} {...props} />
-);
 
 // Mỗi lớp HP tách thành các dòng con theo lớp hành chính (đã lọc 1 lớp HC thì giữ 1 dòng).
 const splitByAdminClass = (item) => {
@@ -377,6 +372,56 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
 
     const filteredReportRows = useMemo(() => cardFilter === 'all' ? report.rows : report.rows.filter(row => Number(row[cardFilter]) > 0), [report.rows, cardFilter]);
     const selectCard = key => { setCardFilter(previous => previous === key ? 'all' : key); setClassPage(1); };
+    const attendanceSummaryItems = [
+        {
+            key: 'all',
+            label: 'Lượt cần điểm danh',
+            value: report.totals.totalSessions,
+            hint: `Sĩ số × buổi đã diễn ra (${report.totals.sessionsHeld} buổi)${report.totals.unmarkedSessions ? ` · ${report.totals.unmarkedSessions} buổi chưa điểm danh, không tính` : ''}`,
+            icon: BookOpen,
+            tone: 'blue',
+            active: cardFilter === 'all',
+            onClick: () => { setCardFilter('all'); setClassPage(1); },
+        },
+        {
+            key: 'attended',
+            label: 'Có mặt',
+            value: report.totals.attended,
+            hint: `${report.totals.rate}% số lượt`,
+            icon: Users,
+            tone: 'green',
+            active: cardFilter === 'attended',
+            onClick: () => selectCard('attended'),
+        },
+        {
+            key: 'onTime',
+            label: 'Đúng giờ',
+            value: report.totals.onTime,
+            icon: CheckCircle2,
+            tone: 'green',
+            active: cardFilter === 'onTime',
+            onClick: () => selectCard('onTime'),
+        },
+        {
+            key: 'late',
+            label: 'Đi muộn',
+            value: report.totals.late,
+            icon: Clock3,
+            tone: 'amber',
+            active: cardFilter === 'late',
+            onClick: () => selectCard('late'),
+        },
+        {
+            key: 'absent',
+            label: 'Vắng',
+            value: report.totals.absent,
+            hint: 'Không có lượt quét/điểm danh',
+            icon: UserX,
+            tone: 'red',
+            active: cardFilter === 'absent',
+            onClick: () => selectCard('absent'),
+        },
+    ];
     // Cây Môn học → Lớp học phần cho bảng "Danh sách chuyên cần"; phân trang theo môn.
     // Biểu đồ / tổng số vẫn dùng toàn bộ lớp.
     const subjectGroups = useMemo(() => groupRowsBySubject(filteredReportRows), [filteredReportRows]);
@@ -524,6 +569,10 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
                 <div role="alert" className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">{loadError}</div>
             )}
 
+            {tab === 'overview' && (
+                <KpiTiles items={attendanceSummaryItems} maxVisible={4} ariaLabel="Lọc chuyên cần theo thẻ" />
+            )}
+
             <FilterBar variant="card" forceStandard className="class-attendance-analytics-filters bg-white rounded-2xl border border-platinum-tint p-4 shadow-sm">
             <div className="class-attendance-analytics-filter-main">
                 <div className="camai-filter-field" >
@@ -595,18 +644,6 @@ const ClassAttendanceAnalytics = ({ mode = 'admin' }) => {
             )}
 
             {tab === 'overview' && (<>
-            <StatisticGrid columns={5} className="grid grid-cols-1 md:grid-cols-5 gap-4" role="group" aria-label="Lọc chuyên cần theo thẻ">
-                <StatCard
-                    label="Lượt cần điểm danh" onClick={() => { setCardFilter('all'); setClassPage(1); }} active={cardFilter === 'all'}
-                    value={report.totals.totalSessions}
-                    helper={`Sĩ số × buổi đã diễn ra (${report.totals.sessionsHeld} buổi)${report.totals.unmarkedSessions ? ` · ${report.totals.unmarkedSessions} buổi chưa điểm danh, không tính` : ''}`}
-                />
-                <StatCard label="Có mặt" onClick={() => selectCard('attended')} active={cardFilter === 'attended'} value={report.totals.attended} helper={`${report.totals.rate}% số lượt`} tone="green" />
-                <StatCard label="Đúng giờ" onClick={() => selectCard('onTime')} active={cardFilter === 'onTime'} value={report.totals.onTime} tone="green" />
-                <StatCard label="Đi muộn" onClick={() => selectCard('late')} active={cardFilter === 'late'} value={report.totals.late} tone="amber" />
-                <StatCard label="Vắng" onClick={() => selectCard('absent')} active={cardFilter === 'absent'} value={report.totals.absent} helper="Không có lượt quét/điểm danh" tone="red" />
-            </StatisticGrid>
-
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                 <div className="bg-white rounded-2xl border border-platinum-tint p-5 shadow-sm flex flex-col">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">

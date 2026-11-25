@@ -4,9 +4,9 @@ import { presetRange } from '../../components/report/ReportFilterBar';
 import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
-import StatisticGrid from '../../components/common/StatisticGrid';
 import ReportExportAction from '../../components/common/ReportExportAction';
-import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
+import KpiTiles from '../../components/report/KpiTiles';
+import { pageCls } from '../../components/common/uiClasses';
 import './AttendancePenaltyReport.css';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -22,7 +22,6 @@ import {
     getPenaltyMeetingSummary,
     getPenaltyMeetingDetail,
 } from '../../service/managerServices';
-import SharedStatCard, { toneOf } from '../../components/common/StatCard';
 import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 
 const CATEGORY_MAP = {
@@ -80,31 +79,27 @@ const pointsCls = (p) => (p < 0 ? 'text-rose-600' : 'text-emerald-600');
 
 const SummaryCards = ({ s, label = 'Số buổi họp', selected, onSelect }) => {
     const cards = [
-        { filter: 'all', label, value: s.totalMeetings, icon: Users, cls: 'text-action-blue bg-blue-50' },
-        { filter: 'late', label: 'Đi trễ', value: s.late, icon: Clock, cls: 'text-amber-600 bg-amber-50' },
-        { filter: 'left_early', label: 'Về sớm', value: s.leftEarly, icon: LogOut, cls: 'text-orange-600 bg-orange-50' },
-        { filter: 'absent', label: 'Vắng mặt', value: s.absent, icon: XCircle, cls: 'text-rose-600 bg-rose-50' },
-        { filter: 'excused', label: 'Có lý do', value: s.excused, icon: CheckCircle, cls: 'text-sky-600 bg-sky-50' },
-        { filter: 'deducted', label: 'Tổng điểm trừ', value: fmtPoints(s.totalPoints), icon: AlertTriangle, cls: 'text-rose-600 bg-rose-50' },
+        { filter: 'all', label, value: s.totalMeetings, icon: Users, tone: 'blue' },
+        { filter: 'late', label: 'Đi trễ', value: s.late, icon: Clock, tone: 'amber' },
+        { filter: 'left_early', label: 'Về sớm', value: s.leftEarly, icon: LogOut, tone: 'amber' },
+        { filter: 'absent', label: 'Vắng mặt', value: s.absent, icon: XCircle, tone: 'red' },
+        { filter: 'excused', label: 'Có lý do', value: s.excused, icon: CheckCircle, tone: 'blue' },
+        { filter: 'deducted', label: 'Tổng điểm trừ', value: fmtPoints(s.totalPoints), icon: AlertTriangle, tone: 'red' },
     ];
     return (
-        <StatisticGrid columns={6} className="attendance-summary-cards grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {cards.map((c) => (
-                <StatisticCard key={c.label} label={c.label} value={c.value} icon={c.icon} tone={statisticTone(c.cls)}
-                    {...(onSelect ? { onClick: () => onSelect(c.filter), selected: selected === c.filter, 'aria-label': c.label } : {})}
-                    legacy={(
-                <div key={c.label} className="bg-white rounded-2xl border border-platinum-tint p-4 flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.cls}`}>
-                        <c.icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-bold uppercase text-slate-blue">{c.label}</p>
-                        <p className="text-xl font-black text-midnight-indigo">{c.value}</p>
-                    </div>
-                </div>
-                )} />
-            ))}
-        </StatisticGrid>
+        <KpiTiles
+            maxVisible={4}
+            ariaLabel="Thống kê điểm chuyên cần"
+            items={cards.map((card) => ({
+                key: card.filter,
+                label: card.label,
+                value: card.value,
+                icon: card.icon,
+                tone: card.tone,
+                active: onSelect ? selected === card.filter : false,
+                onClick: onSelect ? () => onSelect(card.filter) : undefined,
+            }))}
+        />
     );
 };
 
@@ -398,8 +393,8 @@ const AttendancePenaltyReport = () => {
     ], [isAdminArea, scope, summaryTitle, mine, summary, meetingSummary]);
 
     return (
-        <div data-page-surface="wide" className="max-w-7xl mx-auto px-4 py-6 space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+        <div data-page-surface="wide" className={pageCls}>
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-platinum-tint pb-5">
                 <div className="min-w-0 flex-1">
                     <PageHeading as="h1" badge="Chuyên cần" icon={<Award className="w-6 h-6 text-action-blue" />} className="text-xl font-black text-midnight-indigo flex items-center gap-2">
                          Điểm chuyên cần cuộc họp

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import RolePermissionManagement from './RolePermissionManagement';
 import * as api from '../../service/permissionServices';
 
@@ -34,7 +35,7 @@ beforeEach(() => {
 
 test('shows the actual API error and can recover by reloading', async () => {
     api.getPermissions.mockRejectedValueOnce({ error: { message: 'Kết nối tới máy chủ bị gián đoạn.' } });
-    render(<RolePermissionManagement />);
+    render(<MemoryRouter><RolePermissionManagement /></MemoryRouter>);
     expect(await screen.findByRole('alert')).toHaveTextContent('Kết nối tới máy chủ bị gián đoạn.');
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại dữ liệu' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu cấu hình' })).toBeEnabled());
@@ -45,7 +46,7 @@ test('loads every permission page within the API page size', async () => {
     api.getPermissions.mockImplementation(({ page }) => Promise.resolve({
         success: true, data: [permissions[page - 1]], meta: { totalPages: 2 },
     }));
-    render(<RolePermissionManagement />);
+    render(<MemoryRouter><RolePermissionManagement /></MemoryRouter>);
     expect(await screen.findByLabelText('Quản lý mẫu báo cáo')).toBeInTheDocument();
     expect(api.getPermissions).toHaveBeenCalledWith({ page: 1, limit: 100 });
     expect(api.getPermissions).toHaveBeenCalledWith({ page: 2, limit: 100 });
@@ -57,7 +58,7 @@ test('ignores an earlier role response after selecting a different role', async 
     api.getRolePermissions.mockImplementation((id) => id === 'admin'
         ? new Promise((resolve) => { resolveAdmin = resolve; })
         : Promise.resolve({ success: true, data: [{ id: 'p2' }] }));
-    render(<RolePermissionManagement />);
+    render(<MemoryRouter><RolePermissionManagement /></MemoryRouter>);
     await waitFor(() => expect(api.getRolePermissions).toHaveBeenCalledWith('admin'));
     fireEvent.click(screen.getByRole('heading', { name: 'Quản lý', exact: true }));
     await waitFor(() => expect(screen.getByLabelText('Quản lý mẫu báo cáo')).toBeChecked());
@@ -68,7 +69,7 @@ test('ignores an earlier role response after selecting a different role', async 
 
 test('blocks saving when assigned permissions fail to load, then allows retry', async () => {
     api.getRolePermissions.mockRejectedValueOnce({ error: { message: 'Không đủ quyền đọc cấu hình.' } });
-    render(<RolePermissionManagement />);
+    render(<MemoryRouter><RolePermissionManagement /></MemoryRouter>);
     expect(await screen.findByRole('alert')).toHaveTextContent('Không đủ quyền đọc cấu hình.');
     expect(screen.getByRole('button', { name: 'Lưu cấu hình' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại dữ liệu' }));
@@ -78,8 +79,31 @@ test('blocks saving when assigned permissions fail to load, then allows retry', 
 test('does not show a stale initial-load error after a later load has succeeded', async () => {
     let rejectFirst;
     api.getPermissions.mockImplementationOnce(() => new Promise((resolve, reject) => { rejectFirst = reject; }));
-    render(<StrictMode><RolePermissionManagement /></StrictMode>);
+    render(<StrictMode><MemoryRouter><RolePermissionManagement /></MemoryRouter></StrictMode>);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu cấu hình' })).toBeEnabled());
     await act(async () => rejectFirst({ error: { message: 'Lỗi của yêu cầu cũ.' } }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('matrix tab (admin.manage_permissions): shows every role column, header click opens that role for editing', async () => {
+    localStorage.setItem('user', JSON.stringify({ permissions: ['admin.manage_permissions'] }));
+    api.getRolePermissions.mockImplementation((id) => Promise.resolve({
+        success: true, data: id === 'admin' ? [{ id: 'p1' }, { id: 'p2' }] : [{ id: 'p2' }],
+    }));
+    render(<MemoryRouter initialEntries={['/system-admin/roles-permissions?view=matrix']}><RolePermissionManagement /></MemoryRouter>);
+    expect(await screen.findByRole('tab', { name: /Ma trận tổng quan/ })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(screen.getAllByLabelText('Có quyền')).toHaveLength(3));
+    expect(screen.getByText('Xem Trung tâm báo cáo')).toBeInTheDocument();
+    expect(screen.queryByText('report.center.read')).not.toBeInTheDocument();
+    expect(screen.queryByText('report.template.manage')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Sửa quyền của Quản lý'));
+    expect(await screen.findByRole('tab', { name: /Theo vai trò/ })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(screen.getByLabelText('Quản lý mẫu báo cáo')).toBeChecked());
+    expect(screen.getByLabelText('Xem Trung tâm báo cáo')).not.toBeChecked();
+});
+
+test('no matrix tab without admin.manage_permissions, even with ?view=matrix', async () => {
+    render(<MemoryRouter initialEntries={['/x?view=matrix']}><RolePermissionManagement /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu cấu hình' })).toBeEnabled());
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
 });

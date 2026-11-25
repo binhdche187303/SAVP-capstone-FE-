@@ -4,7 +4,7 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { CheckCircle, Briefcase, Mail, Phone, X, Loader2 } from 'lucide-react';
+import { ShieldCheck, Briefcase, Mail, Phone, X, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from "react";
 
 import { createPortal } from "react-dom";
@@ -15,7 +15,6 @@ import {
     getAvatarDownloadUrl,
     approveAvatarSubmission,
     rejectAvatarSubmission,
-    deleteAvatarSubmission,
 } from "../../service/avatarReviewService";
 import { getDepartments } from "../../service/sysAdminServices";
 import { getUserById } from "../../service/businessAdminServices";
@@ -23,24 +22,37 @@ import UserAvatar from "../../components/common/UserAvatar";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { useDebouncedValue, useInstantFilter } from "../../hooks/useInstantSearch";
 
+// [2026-11-23] Hậu kiểm FaceID: hồ sơ quét webcam được TỰ DUYỆT; trang này chỉ xem lại
+// hồ sơ "Cần kiểm tra" (bị gắn cờ trùng định danh) và cho phép "Gỡ" / "Chấp nhận".
 const STATUS_MAP = {
-    pending_review: { label: "Đang chờ duyệt", badge: "bg-blue-50 text-action-blue border border-blue-200" },
-    rejected: { label: "Bị từ chối", badge: "bg-red-50 text-red-700 border border-red-200" },
-    approved: { label: "Đã duyệt", badge: "bg-green-50 text-green-700 border border-green-200" },
-    active: { label: "Đã duyệt", badge: "bg-green-50 text-green-700 border border-green-200" },
-    not_uploaded: { label: "Chưa nộp ảnh", badge: "bg-amber-50 text-amber-700 border border-amber-200" },
+    pending_review: { label: "Cần kiểm tra", badge: "bg-amber-50 text-amber-700 border border-amber-200" },
+    active: { label: "Đã đăng ký", badge: "bg-green-50 text-green-700 border border-green-200" },
+    approved: { label: "Đã đăng ký", badge: "bg-green-50 text-green-700 border border-green-200" },
+    revoked: { label: "Bị gỡ", badge: "bg-red-50 text-red-700 border border-red-200" },
+    rejected: { label: "Bị gỡ", badge: "bg-red-50 text-red-700 border border-red-200" },
+    disabled: { label: "Vô hiệu", badge: "bg-slate-100 text-slate-500 border border-slate-200" },
+    not_uploaded: { label: "Chưa đăng ký", badge: "bg-slate-100 text-slate-500 border border-slate-200" },
+};
+const statusOf = (s) => STATUS_MAP[s] || { label: s || "—", badge: "bg-slate-100 text-slate-500 border border-slate-200" };
+
+const SOURCE_LABEL = {
+    webcam_scan: "Quét webcam",
+    admin_upload: "Quản trị tải lên",
+    single_upload: "Tải 1 ảnh",
+    excel_import: "Nhập hàng loạt",
 };
 
+const POSE_LABEL = { front: "Chính diện", left: "Trái", right: "Phải", up: "Ngẩng", down: "Cúi" };
+
 const ERROR_MAP = {
-    BIOMETRIC_SUBMISSION_NOT_FOUND: "Không tìm thấy yêu cầu duyệt ảnh sinh trắc học này.",
-    BIOMETRIC_SUBMISSION_NOT_PENDING: "Yêu cầu này đã được xử lý trước đó.",
-    BIOMETRIC_REJECTION_REASON_REQUIRED: "Vui lòng nhập lý do từ chối.",
-    BIOMETRIC_REJECTION_REASON_TOO_LONG: "Lý do từ chối không được vượt quá 500 ký tự.",
-    BIOMETRIC_MEDIA_NOT_FOUND: "Không tìm thấy ảnh gốc của yêu cầu này.",
+    BIOMETRIC_SUBMISSION_NOT_FOUND: "Không tìm thấy hồ sơ FaceID này.",
+    BIOMETRIC_SUBMISSION_NOT_PENDING: "Hồ sơ đã được xử lý trước đó.",
+    BIOMETRIC_REJECTION_REASON_REQUIRED: "Vui lòng nhập lý do gỡ.",
+    BIOMETRIC_REJECTION_REASON_TOO_LONG: "Lý do gỡ không được vượt quá 500 ký tự.",
+    BIOMETRIC_MEDIA_NOT_FOUND: "Không tìm thấy ảnh gốc của hồ sơ này.",
     BIOMETRIC_DOWNLOAD_URL_FAILED: "Không thể tải ảnh lúc này. Vui lòng thử lại.",
-    BIOMETRIC_APPROVE_FAILED: "Không thể duyệt ảnh này. Vui lòng thử lại.",
-    BIOMETRIC_REJECT_FAILED: "Không thể từ chối ảnh này. Vui lòng thử lại.",
-    BIOMETRIC_DELETE_FAILED: "Không thể xóa ảnh này. Vui lòng thử lại.",
+    BIOMETRIC_APPROVE_FAILED: "Không thể chấp nhận hồ sơ này. Vui lòng thử lại.",
+    BIOMETRIC_REJECT_FAILED: "Không thể gỡ hồ sơ này. Vui lòng thử lại.",
     FORBIDDEN: "Bạn không có quyền thực hiện hành động này.",
 };
 
@@ -54,77 +66,77 @@ const ROLE_OPTIONS = [
     { value: "SYSTEM_ADMIN", label: "System Admin" },
 ];
 
+const fmtDateTime = (v) => (v ? new Date(v).toLocaleString("vi-VN") : "");
+
 const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComplete }) => {
     const [detail, setDetail] = useState(null);
-    const [downloadUrl, setDownloadUrl] = useState(null);
+    // mediaFileId → url | null (null = tải lỗi)
+    const [imageUrls, setImageUrls] = useState({});
+    const [activeImage, setActiveImage] = useState(null);
     const [loadingDetail, setLoadingDetail] = useState(true);
-    const [loadingImage, setLoadingImage] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [actionError, setActionError] = useState(null);
-    const [linkCopied, setLinkCopied] = useState(false);
 
-    // Rejection UI state
-    const [showRejectInput, setShowRejectInput] = useState(false);
-    const [rejectReason, setRejectReason] = useState("");
+    const [showRevokeInput, setShowRevokeInput] = useState(false);
+    const [revokeReason, setRevokeReason] = useState("");
     const [confirm, setConfirm] = useState(null);
 
     useEffect(() => {
         let cancelled = false;
-        const load = async () => {
+        (async () => {
             setLoadingDetail(true);
             try {
                 const res = await getAvatarSubmissionDetail(faceProfileId);
                 if (cancelled) return;
-                if (res?.success && res.data) {
-                    setDetail(res.data);
-                    setLoadingDetail(false);
-                    if (res.data.hasPreview) {
-                        setLoadingImage(true);
-                        try {
-                            const imgRes = await getAvatarDownloadUrl(faceProfileId);
-                            if (!cancelled && imgRes?.success && imgRes.data?.downloadUrl) {
-                                setDownloadUrl(imgRes.data.downloadUrl);
-                            }
-                        } catch {
-                            // downloadUrl stays null; rendered as "Không thể tải ảnh" below
-                        } finally {
-                            if (!cancelled) setLoadingImage(false);
-                        }
+                if (!res?.success || !res.data) return;
+                setDetail(res.data);
+                const images = res.data.images?.length
+                    ? res.data.images
+                    : res.data.primaryImageFileId
+                        ? [{ mediaFileId: res.data.primaryImageFileId, pose: "front", isPrimary: true }]
+                        : [];
+                setActiveImage(images[0]?.mediaFileId ?? null);
+                const entries = await Promise.all(images.map(async (img) => {
+                    try {
+                        const r = await getAvatarDownloadUrl(faceProfileId, img.mediaFileId);
+                        return [img.mediaFileId, r?.data?.downloadUrl || null];
+                    } catch {
+                        return [img.mediaFileId, null];
                     }
-                }
+                }));
+                if (!cancelled) setImageUrls(Object.fromEntries(entries));
             } catch (err) {
-                if (!cancelled) {
-                    setActionError(err?.error?.message || ERROR_MAP[err?.error?.code] || "Đã xảy ra lỗi hệ thống.");
-                    setLoadingDetail(false);
-                }
+                if (!cancelled) setActionError(ERROR_MAP[err?.error?.code] || err?.error?.message || "Đã xảy ra lỗi hệ thống.");
+            } finally {
+                if (!cancelled) setLoadingDetail(false);
             }
-        };
-        load();
+        })();
         return () => { cancelled = true; };
     }, [faceProfileId]);
 
-    const handleApprove = () => {
+    const finish = (delay = 800) => setTimeout(() => { onActionComplete?.(); onClose(); }, delay);
+
+    const handleError = (err, fallback) => {
+        const code = err?.error?.code;
+        if (code === "BIOMETRIC_SUBMISSION_NOT_PENDING" || code === "BIOMETRIC_SUBMISSION_NOT_FOUND") {
+            setActionError("Hồ sơ này đã được quản trị viên khác xử lý.");
+            finish(1500);
+        } else {
+            setActionError(ERROR_MAP[code] || err?.error?.message || fallback);
+        }
+    };
+
+    const handleAccept = () => {
         setConfirm({
-            message: "Bạn có chắc chắn muốn duyệt ảnh sinh trắc học này?",
+            message: "Chấp nhận hồ sơ FaceID này? Khuôn mặt sẽ được đồng bộ để camera nhận diện.",
             onConfirm: async () => {
                 setActionLoading(true);
                 setActionError(null);
                 try {
                     const res = await approveAvatarSubmission(faceProfileId);
-                    if (res?.success) {
-                        setTimeout(() => {
-                            onActionComplete?.();
-                            onClose();
-                        }, 1000);
-                    }
+                    if (res?.success) finish();
                 } catch (err) {
-                    const code = err?.error?.code;
-                    if (code === "BIOMETRIC_SUBMISSION_NOT_PENDING") {
-                        setActionError("Yêu cầu này đã được xử lý bởi quản trị viên khác.");
-                        setTimeout(() => { onActionComplete?.(); onClose(); }, 1500);
-                    } else {
-                        setActionError(ERROR_MAP[code] || err?.error?.message || "Không thể duyệt ảnh này.");
-                    }
+                    handleError(err, "Không thể chấp nhận hồ sơ này.");
                 } finally {
                     setActionLoading(false);
                 }
@@ -132,66 +144,30 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
         });
     };
 
-    const handleReject = async () => {
-        if (!rejectReason.trim()) return;
+    const handleRevoke = async () => {
+        const reason = revokeReason.trim();
+        if (!reason) return;
         setActionLoading(true);
         setActionError(null);
         try {
-            const res = await rejectAvatarSubmission(faceProfileId, rejectReason.trim());
-            if (res?.success) {
-                setTimeout(() => {
-                    onActionComplete?.();
-                    onClose();
-                }, 1000);
-            }
+            const res = await rejectAvatarSubmission(faceProfileId, reason);
+            if (res?.success) finish();
         } catch (err) {
-            const code = err?.error?.code;
-            if (code === "BIOMETRIC_SUBMISSION_NOT_PENDING") {
-                setActionError("Yêu cầu này đã được xử lý bởi quản trị viên khác.");
-                setTimeout(() => { onActionComplete?.(); onClose(); }, 1500);
-            } else {
-                setActionError(ERROR_MAP[code] || err?.error?.message || "Không thể từ chối ảnh này.");
-            }
+            handleError(err, "Không thể gỡ hồ sơ này.");
         } finally {
             setActionLoading(false);
         }
     };
 
-    const handleDelete = () => {
-        setConfirm({
-            message: "Bạn có chắc chắn muốn xóa ảnh sinh trắc học đã đăng ký này? Người dùng sẽ cần nộp lại ảnh mới để tiếp tục sử dụng FaceGate.",
-            onConfirm: async () => {
-                setActionLoading(true);
-                setActionError(null);
-                try {
-                    const res = await deleteAvatarSubmission(faceProfileId);
-                    if (res?.success) {
-                        setTimeout(() => {
-                            onActionComplete?.();
-                            onClose();
-                        }, 1000);
-                    }
-                } catch (err) {
-                    const code = err?.error?.code;
-                    if (code === "BIOMETRIC_SUBMISSION_NOT_FOUND") {
-                        setActionError("Yêu cầu này đã bị xóa trước đó.");
-                        setTimeout(() => { onActionComplete?.(); onClose(); }, 1500);
-                    } else {
-                        setActionError(ERROR_MAP[code] || err?.error?.message || "Không thể xóa ảnh này.");
-                    }
-                } finally {
-                    setActionLoading(false);
-                }
-            },
-        });
-    };
-
-    const formatBytes = (bytes) => {
-        if (!bytes) return "";
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-    };
+    const images = detail?.images?.length
+        ? detail.images
+        : detail?.primaryImageFileId
+            ? [{ mediaFileId: detail.primaryImageFileId, pose: "front", isPrimary: true }]
+            : [];
+    const activeUrl = activeImage ? imageUrls[activeImage] : undefined;
+    const canAccept = detail?.status === "pending_review";
+    const canRevoke = detail?.status === "pending_review" || detail?.status === "active";
+    const reason = detail?.reviewReason || detail?.reviewMetadata?.rejectionReason;
 
     return (
         <>
@@ -203,17 +179,15 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
         />
         {createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-xl p-4">
-            <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 max-w-xl w-full max-h-[90vh] overflow-y-auto animate-fade-in-up">
+            <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 max-w-2xl w-full max-h-[92vh] overflow-y-auto animate-fade-in-up">
                 <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-cloud-mist/50 sticky top-0 z-10">
-                    <h3 className="font-bold text-midnight-indigo">Chi tiết yêu cầu duyệt ảnh sinh trắc học</h3>
-                    <button onClick={onClose} className="text-slate-blue hover:text-midnight-indigo">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                    <h3 className="font-bold text-midnight-indigo">Hồ sơ FaceID</h3>
+                    <button onClick={onClose} aria-label="Đóng" className="text-slate-blue hover:text-midnight-indigo">
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                <div className="p-6 space-y-6">
+                <div className="p-6 space-y-5">
                     {actionError && (
                         <div data-ui-text="badge" className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">{actionError}</div>
                     )}
@@ -224,148 +198,174 @@ const BiometricSubmissionDetailModal = ({ faceProfileId, onClose, onActionComple
                         </div>
                     ) : detail ? (
                         <>
-                            {/* Image area */}
-                            <div className="flex justify-center">
-                                {loadingImage ? (
-                                    <div className="w-48 h-48 bg-cloud-mist rounded-xl flex items-center justify-center">
-                                        <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
+                            {/* Ảnh các góc */}
+                            {images.length === 0 ? (
+                                <div data-ui-text="badge" className="h-48 bg-cloud-mist rounded-xl flex items-center justify-center text-xs text-slate-blue">Hồ sơ không có ảnh.</div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="flex justify-center">
+                                        {activeUrl === undefined ? (
+                                            <div className="w-64 h-64 bg-cloud-mist rounded-xl flex items-center justify-center">
+                                                <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
+                                            </div>
+                                        ) : activeUrl ? (
+                                            <a href={activeUrl} target="_blank" rel="noreferrer">
+                                                <img src={activeUrl} alt="Ảnh FaceID" className="w-64 h-64 object-cover rounded-xl border border-platinum-tint" />
+                                            </a>
+                                        ) : (
+                                            <div data-ui-text="badge" className="w-64 h-64 bg-cloud-mist rounded-xl flex items-center justify-center text-xs text-slate-blue">Không thể tải ảnh</div>
+                                        )}
                                     </div>
-                                ) : downloadUrl ? (
-                                    <img src={downloadUrl} alt="Biometric submission" className="w-48 h-48 object-cover rounded-xl border border-platinum-tint" />
-                                ) : (
-                                    <div data-ui-text="badge" className="w-48 h-48 bg-cloud-mist rounded-xl flex items-center justify-center text-xs text-slate-blue">
-                                        {detail.hasPreview ? "Không thể tải ảnh" : "Ảnh không khả dụng"}
-                                    </div>
-                                )}
-                            </div>
-                            {downloadUrl && (
-                                <div className="flex justify-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            navigator.clipboard?.writeText(downloadUrl);
-                                            setLinkCopied(true);
-                                            setTimeout(() => setLinkCopied(false), 2000);
-                                        }}
-                                        className="text-xs text-action-blue hover:underline font-semibold"
-                                    >
-                                        {linkCopied ? "Đã sao chép!" : "Sao chép link ảnh"}
-                                    </button>
+                                    {images.length > 1 && (
+                                        <div className="flex flex-wrap justify-center gap-2">
+                                            {images.map((img) => {
+                                                const url = imageUrls[img.mediaFileId];
+                                                const selected = img.mediaFileId === activeImage;
+                                                return (
+                                                    <button
+                                                        key={img.mediaFileId}
+                                                        type="button"
+                                                        onClick={() => setActiveImage(img.mediaFileId)}
+                                                        className={"flex flex-col items-center gap-1 rounded-xl p-1 border-2 transition-all " + (selected ? "border-action-blue" : "border-transparent hover:border-platinum-tint")}
+                                                    >
+                                                        {url ? (
+                                                            <img src={url} alt={img.pose} className="w-14 h-14 object-cover rounded-lg" />
+                                                        ) : (
+                                                            <div className="w-14 h-14 bg-cloud-mist rounded-lg" />
+                                                        )}
+                                                        <span data-ui-text="badge" className="text-[10px] font-semibold text-slate-blue">{POSE_LABEL[img.pose] || img.pose}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
-                            {/* Info */}
+                            {/* Cờ trùng định danh */}
+                            {(detail.status === "pending_review" || detail.status === "active") && (detail.flagReason || detail.flagMatches?.length > 0) && (
+                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+                                    <span data-ui-text="primary" className="text-xs font-bold text-amber-800 block">Lý do cần kiểm tra</span>
+                                    <span className="text-xs text-amber-700 block">{detail.flagReason || "Hệ thống phát hiện điểm bất thường."}</span>
+                                    {detail.flagMatches?.length > 0 && (
+                                        <ul className="text-[11px] text-amber-700 list-disc pl-4">
+                                            {detail.flagMatches.map((m, i) => (
+                                                <li key={i}>
+                                                    Góc {POSE_LABEL[m.pose] || m.pose}: giống định danh <span className="font-mono">{m.faceIdent}</span>
+                                                    {typeof m.score === "number" ? ` (${Math.round(m.score * 100)}%)` : ""}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Thông tin */}
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span className="text-xs text-slate-blue block">Họ tên</span>
-                                    <span className="font-semibold text-midnight-indigo">{detail.userFullName || detail.fullName || detail.user?.fullName || ""}</span>
+                                    <span className="font-semibold text-midnight-indigo">{detail.userFullName || ""}</span>
                                 </div>
                                 <div>
                                     <span className="text-xs text-slate-blue block">Email</span>
-                                    <span className="font-semibold text-midnight-indigo">{detail.userEmail || detail.email || detail.user?.email || ""}</span>
+                                    <span className="font-semibold text-midnight-indigo break-all">{detail.userEmail || ""}</span>
                                 </div>
                                 <div>
                                     <span className="text-xs text-slate-blue block">Mã định danh</span>
                                     <span className="font-semibold text-midnight-indigo">{detail.employeeCode || ""}</span>
                                 </div>
                                 <div>
-                                    <span className="text-xs text-slate-blue block">Phòng ban</span>
-                                    <span className="font-semibold text-midnight-indigo">{detail.department?.departmentName || detail.department?.name || ""}</span>
+                                    <span className="text-xs text-slate-blue block">Khoa / phòng ban</span>
+                                    <span className="font-semibold text-midnight-indigo">{detail.department?.departmentName || ""}</span>
                                 </div>
                                 <div>
                                     <span className="text-xs text-slate-blue block">Trạng thái</span>
-                                    <span data-ui-text="badge" className={"inline-flex text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_MAP[detail.status] || STATUS_MAP.pending_review).badge)}>
-                                        {(STATUS_MAP[detail.status] || STATUS_MAP.pending_review).label}
+                                    <span data-ui-text="badge" className={"inline-flex text-[10px] px-2 py-0.5 rounded-full font-semibold " + statusOf(detail.status).badge}>
+                                        {statusOf(detail.status).label}
                                     </span>
                                 </div>
                                 <div>
-                                    <span className="text-xs text-slate-blue block">Ngày nộp</span>
-                                    <span className="font-semibold text-midnight-indigo">{detail.submittedAt ? new Date(detail.submittedAt).toLocaleString("vi-VN") : ""}</span>
+                                    <span className="text-xs text-slate-blue block">Ngày đăng ký</span>
+                                    <span className="font-semibold text-midnight-indigo">{fmtDateTime(detail.submittedAt)}</span>
+                                </div>
+                                <div>
+                                    <span className="text-xs text-slate-blue block">Nguồn</span>
+                                    <span className="font-semibold text-midnight-indigo">{SOURCE_LABEL[detail.source] || detail.source || "—"}</span>
+                                </div>
+                                <div>
+                                    <span className="text-xs text-slate-blue block">Số ảnh</span>
+                                    <span className="font-semibold text-midnight-indigo">{detail.sampleCount ?? images.length}</span>
                                 </div>
                             </div>
 
-                            <div className="text-xs text-slate-blue">
-                                Đã xác nhận đồng ý: {detail.consentAt ? new Date(detail.consentAt).toLocaleString("vi-VN") : "Chưa xác nhận"}
+                            <div className="text-xs text-slate-blue space-y-0.5">
+                                <div>Đã xác nhận đồng ý: {detail.consentAt ? fmtDateTime(detail.consentAt) : "Chưa xác nhận"}</div>
+                                {detail.serverCheck && detail.serverCheck !== "passed" && (
+                                    <div className="text-amber-700">Kiểm tra máy chủ nhận diện: không thực hiện được ({detail.serverCheck}).</div>
+                                )}
                             </div>
 
-                            {detail.imageFile && (
-                                <div className="text-xs text-slate-blue space-y-0.5">
-                                    <div>Tên tệp: {detail.imageFile.fileName || ""}</div>
-                                    <div>Định dạng: {detail.imageFile.mimeType || ""}</div>
-                                    <div>Kích thước: {formatBytes(detail.imageFile.fileSizeBytes)}</div>
-                                </div>
-                            )}
-
-                            {detail.status === "rejected" && detail.reviewMetadata?.rejectionReason && (
+                            {(detail.status === "revoked" || detail.status === "rejected") && reason && (
                                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
-                                    <span data-ui-text="primary" className="text-xs font-bold text-red-700 block">Lý do từ chối</span>
-                                    <span className="text-xs text-red-600 mt-1 block">{detail.reviewMetadata.rejectionReason}</span>
+                                    <span data-ui-text="primary" className="text-xs font-bold text-red-700 block">Lý do gỡ</span>
+                                    <span className="text-xs text-red-600 mt-1 block">{reason}</span>
                                 </div>
                             )}
 
-                            {/* Actions */}
-                            {detail.status === "pending_review" && (
+                            {/* Hành động hậu kiểm */}
+                            {(canAccept || canRevoke) && (
                                 <div className="border-t border-platinum-tint pt-4 space-y-3">
-                                    {showRejectInput ? (
+                                    {showRevokeInput ? (
                                         <div className="space-y-2">
-                                            <label className="block text-xs font-bold text-slate-blue uppercase">Lý do từ chối <span className="text-red-500">*</span></label>
+                                            <label className="block text-xs font-bold text-slate-blue uppercase">Lý do gỡ <span className="text-red-500">*</span></label>
                                             <textarea
-                                                value={rejectReason}
-                                                onChange={(e) => setRejectReason(e.target.value)}
+                                                value={revokeReason}
+                                                onChange={(e) => setRevokeReason(e.target.value)}
                                                 maxLength={500}
                                                 rows={3}
                                                 className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue resize-none"
-                                                placeholder="Nhập lý do từ chối (bắt buộc)"
+                                                placeholder="Lý do sẽ hiển thị cho người dùng khi họ quét lại (bắt buộc)"
                                             />
-                                            <div className="flex justify-between text-xs text-steel-gray">
-                                                <span>{(Array.from(rejectReason).length) + "/500"}</span>
-                                            </div>
+                                            <div className="text-xs text-steel-gray">{Array.from(revokeReason).length}/500</div>
                                             <div className="flex gap-2">
                                                 <button
-                                                    onClick={() => { setShowRejectInput(false); setRejectReason(""); }}
+                                                    onClick={() => { setShowRevokeInput(false); setRevokeReason(""); }}
                                                     className="px-4 py-2 border border-platinum-tint bg-white text-slate-blue rounded-xl text-xs font-semibold"
                                                 >
                                                     Hủy
                                                 </button>
                                                 <button
-                                                    onClick={handleReject}
-                                                    disabled={actionLoading || !rejectReason.trim() || Array.from(rejectReason).length > 500}
+                                                    onClick={handleRevoke}
+                                                    disabled={actionLoading || !revokeReason.trim() || Array.from(revokeReason).length > 500}
                                                     className="px-4 py-2 bg-red-500 text-white rounded-xl text-xs font-semibold disabled:opacity-40"
                                                 >
-                                                    {actionLoading ? "Đang xử lý..." : "Xác nhận từ chối"}
+                                                    {actionLoading ? "Đang xử lý..." : "Xác nhận gỡ"}
                                                 </button>
                                             </div>
                                         </div>
                                     ) : (
                                         <div className="flex gap-2">
-                                            <button
-                                                onClick={handleApprove}
-                                                disabled={actionLoading}
-                                                className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
-                                            >
-                                                {actionLoading ? "Đang xử lý..." : "Duyệt"}
-                                            </button>
-                                            <button
-                                                onClick={() => setShowRejectInput(true)}
-                                                disabled={actionLoading}
-                                                className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
-                                            >
-                                                Từ chối
-                                            </button>
+                                            {canAccept && (
+                                                <button
+                                                    onClick={handleAccept}
+                                                    disabled={actionLoading}
+                                                    className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
+                                                >
+                                                    {actionLoading ? "Đang xử lý..." : "Chấp nhận"}
+                                                </button>
+                                            )}
+                                            {canRevoke && (
+                                                <button
+                                                    onClick={() => setShowRevokeInput(true)}
+                                                    disabled={actionLoading}
+                                                    className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
+                                                >
+                                                    Gỡ
+                                                </button>
+                                            )}
                                         </div>
                                     )}
-                                </div>
-                            )}
-
-                            {(detail.status === "active" || detail.status === "approved" || detail.status === "rejected") && (
-                                <div className="border-t border-platinum-tint pt-4">
-                                    <button
-                                        onClick={handleDelete}
-                                        disabled={actionLoading}
-                                        className="w-full py-2 border border-red-300 text-red-600 hover:bg-red-50 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
-                                    >
-                                        {actionLoading ? "Đang xử lý..." : "Xóa ảnh đã đăng ký"}
-                                    </button>
+                                    <p className="text-[11px] text-steel-gray">Mọi thao tác được ghi nhật ký kiểm toán.</p>
                                 </div>
                             )}
                         </>
@@ -390,10 +390,12 @@ const BiometricSubmissionsReview = () => {
 
     // Filter
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("pending_review");
+    const [statusFilter, setStatusFilter] = useState("active");
     const [deptFilter, setDeptFilter] = useState("");
     const [roleFilter, setRoleFilter] = useState("");
     const [classFilter, setClassFilter] = useState("");
+    const [fromDate, setFromDate] = useState("");
+    const [toDate, setToDate] = useState("");
 
     // Pagination
     const [page, setPage] = useState(1);
@@ -459,6 +461,8 @@ const BiometricSubmissionsReview = () => {
                 departmentId: deptFilter || undefined,
                 role: roleFilter || undefined,
                 classId: classFilter || undefined,
+                fromDate: fromDate || undefined,
+                toDate: toDate || undefined,
             };
             const res = await getAvatarSubmissions(params);
             if (res?.success) {
@@ -471,7 +475,7 @@ const BiometricSubmissionsReview = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, limit, statusFilter, debouncedSearch, deptFilter, roleFilter, classFilter]);
+    }, [page, limit, statusFilter, debouncedSearch, deptFilter, roleFilter, classFilter, fromDate, toDate]);
 
     // Lọc ngay trên danh sách đang hiển thị; BE chỉ tìm từ 2 ký tự nên 1 ký tự luôn lọc tại chỗ.
     const visibleSubmissions = useInstantFilter(
@@ -529,7 +533,9 @@ const BiometricSubmissionsReview = () => {
         departmentId: deptFilter,
         role: roleFilter,
         classId: classFilter,
-    }), [debouncedSearch, statusFilter, deptFilter, roleFilter, classFilter]);
+        fromDate,
+        toDate,
+    }), [debouncedSearch, statusFilter, deptFilter, roleFilter, classFilter, fromDate, toDate]);
     const submissionTotal = useCallback((f) => getAvatarSubmissions({
         page: 1,
         limit: 1,
@@ -538,26 +544,29 @@ const BiometricSubmissionsReview = () => {
         departmentId: f.departmentId || undefined,
         role: f.role || undefined,
         classId: f.classId || undefined,
+        fromDate: f.fromDate || undefined,
+        toDate: f.toDate || undefined,
     }).then(totalOf), []);
-    const statusCounts = useFacetCounts(submissionFilters, "status", ["pending_review", "rejected", "active"], submissionTotal);
+    const statusCounts = useFacetCounts(submissionFilters, "status", ["pending_review", "active", "revoked", "rejected", "all"], submissionTotal);
     const deptCounts = useFacetCounts(submissionFilters, "departmentId", departments.map((d) => d.id), submissionTotal);
     const roleCounts = useFacetCounts(submissionFilters, "role", ROLE_OPTIONS.map((r) => r.value), submissionTotal);
     const classCounts = useFacetCounts(submissionFilters, "classId", classOptions.map((c) => c.value), submissionTotal);
 
     return (
         <div className="space-y-6 animate-fade-in-up">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1">
                     <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        Phê duyệt
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Định danh
                     </span>
-                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Duyệt ảnh sinh trắc học FaceID</h1>
-                    <p className="text-slate-blue text-sm mt-1">Xem xét và duyệt/từ chối ảnh sinh trắc học do người dùng gửi lên.</p>
+                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Danh sách định danh</h1>
+                    <p className="max-w-4xl text-slate-blue text-sm mt-1">FaceID được tự động duyệt ngay khi người dùng quét xong. Hồ sơ trùng khuôn mặt người khác được gắn cờ để xem lại — gỡ hồ sơ không hợp lệ.</p>
                 </div>
                 <RefreshButton
                     onClick={handleRefresh}
                     busy={loading}
+                    inline
                 />
             </div>
 
@@ -585,10 +594,11 @@ const BiometricSubmissionsReview = () => {
                     onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
                 >
-                    <option value="pending_review">Đang chờ duyệt</option>
-                    <option value="rejected">Bị từ chối</option>
-                    <option value="active">Đã duyệt</option>
-                    <option value="">Tất cả trạng thái</option>
+                    <option value="active">Đã đăng ký</option>
+                    <option value="pending_review">Cần kiểm tra</option>
+                    <option value="revoked">Bị gỡ (sau khi đăng ký)</option>
+                    <option value="rejected">Bị gỡ (khi kiểm tra)</option>
+                    <option value="all">Tất cả trạng thái</option>
                 </FilterMultiSelect></FilterField>
 
                 <FilterField label="Tìm kiếm"><input
@@ -599,12 +609,12 @@ const BiometricSubmissionsReview = () => {
                     className="flex-1 min-w-[200px] px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                 /></FilterField>
 
-                <FilterField label="Phòng ban"><FilterMultiSelect counts={deptCounts}
+                <FilterField label="Khoa / phòng ban"><FilterMultiSelect counts={deptCounts}
                     value={deptFilter}
                     onChange={(e) => { setDeptFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
                 >
-                    <option value="">Tất cả phòng ban</option>
+                    <option value="">Tất cả khoa / phòng ban</option>
                     {departments.map((d) => (
                         <option key={d.id} value={d.id}>{d.departmentName || d.name}</option>
                     ))}
@@ -634,6 +644,23 @@ const BiometricSubmissionsReview = () => {
                         <option key={klass.value} value={klass.value}>{klass.label}</option>
                     ))}
                 </FilterMultiSelect></FilterField>
+
+                <FilterField label="Từ ngày"><input
+                    type="date"
+                    value={fromDate}
+                    max={toDate || undefined}
+                    onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+                    className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
+                /></FilterField>
+
+                <FilterField label="Đến ngày"><input
+                    type="date"
+                    value={toDate}
+                    min={fromDate || undefined}
+                    onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+                    className="px-3 py-2 border border-platinum-tint rounded-xl text-sm text-midnight-indigo focus:outline-none focus:border-action-blue bg-white"
+                /></FilterField>
+
             </FilterBar>
 
             {/* Table */}
@@ -656,9 +683,9 @@ const BiometricSubmissionsReview = () => {
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Họ tên</th>
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Email</th>
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Mã định danh</th>
-                                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Phòng ban</th>
+                                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Khoa / phòng ban</th>
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Trạng thái</th>
-                                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Ngày nộp</th>
+                                <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Ngày đăng ký</th>
                                 <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-blue uppercase">Hành động</th>
                             </tr>
                         </thead>
@@ -673,7 +700,7 @@ const BiometricSubmissionsReview = () => {
                                 </tr>
                             ) : visibleSubmissions.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-blue">Không có yêu cầu nào.</td>
+                                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-blue">Không có hồ sơ nào.</td>
                                 </tr>
                             ) : (
                                 visibleSubmissions.map((sub) => (
@@ -712,14 +739,23 @@ const BiometricSubmissionsReview = () => {
                                             ""
                                         }</td>
                                         <td className="px-4 py-3">
-                                            <span data-ui-text="badge" className={"inline-flex whitespace-nowrap text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_MAP[sub.status] || STATUS_MAP.pending_review).badge)}>
-                                                {(STATUS_MAP[sub.status] || STATUS_MAP.pending_review).label}
+                                            <span data-ui-text="badge" className={"inline-flex whitespace-nowrap text-[10px] px-2 py-0.5 rounded-full font-semibold " + statusOf(sub.status).badge}>
+                                                {statusOf(sub.status).label}
                                             </span>
+                                            {(sub.status === "pending_review" || sub.status === "active") && sub.flagReason && (
+                                                <p data-ui-text="secondary" className="mt-1 text-[10px] leading-snug text-amber-700">{sub.flagReason}</p>
+                                            )}
+                                            {(sub.status === "revoked" || sub.status === "rejected") && sub.reviewReason && (
+                                                <p data-ui-text="secondary" className="mt-1 text-[10px] leading-snug text-red-600 line-clamp-2">{sub.reviewReason}</p>
+                                            )}
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-slate-blue">{sub.submittedAt ? new Date(sub.submittedAt).toLocaleString("vi-VN") : ""}</td>
+                                        <td className="px-4 py-3 text-xs text-slate-blue">
+                                            {fmtDateTime(sub.submittedAt)}
+                                            {sub.sampleCount > 1 && <span className="block text-[10px] text-steel-gray">{sub.sampleCount} ảnh · {SOURCE_LABEL[sub.source] || sub.source || ""}</span>}
+                                        </td>
                                         <td className="px-4 py-3">
                                             <button
-                                                onClick={() => setSelectedId(sub.id || sub.faceProfileId)}
+                                                onClick={() => setSelectedId(sub.faceProfileId || sub.id)}
                                                 className="px-3 py-1.5 border border-platinum-tint bg-white text-action-blue hover:bg-cloud-mist rounded-lg text-xs font-semibold transition-all"
                                             >
                                                 Xem chi tiết
@@ -739,7 +775,7 @@ const BiometricSubmissionsReview = () => {
                         totalItems={total}
                         pageSize={limit}
                         onPageChange={setPage}
-                        itemLabel={"yêu cầu"}
+                        itemLabel={"hồ sơ"}
                         loading={loading}
                      onPageSizeChange={size => { setLimit(size); setPage(1); }} /></PaginationRegion>}
             </div>

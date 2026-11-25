@@ -6,7 +6,8 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import ReportExportAction from '../../components/common/ReportExportAction';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
-import { Users, RefreshCw, Loader2 } from 'lucide-react';
+import KpiTiles from '../../components/report/KpiTiles';
+import { Clock, KeyRound, Loader2, Lock, Power, RefreshCw, UserCheck, Users } from 'lucide-react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import ImportAccountsModal from '../../components/user/ImportAccountsModal';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -292,6 +293,66 @@ const UserManagement = ({ mode = 'business-admin' }) => {
     const deptCounts = useFacetCounts(userFilters, 'departmentId', departments.map((d) => d.id), userTotal);
     const classCounts = useFacetCounts(userFilters, 'classId', studentClassOptions.map((c) => c.code), userTotal);
     const statusCounts = useFacetCounts(userFilters, 'accountStatus', ['active', 'locked', 'inactive', 'pending_reset', 'expired'], userTotal);
+    const selectStatus = (status) => {
+        setSelectedStatus(status);
+        setPage(1);
+    };
+    const statusItems = [
+        {
+            key: 'all',
+            label: 'Tổng tài khoản',
+            value: statusCounts?.[''] ?? (!selectedStatus ? totalUsers : '—'),
+            icon: Users,
+            tone: 'blue',
+            active: !selectedStatus,
+            onClick: () => selectStatus(''),
+        },
+        {
+            key: 'active',
+            label: 'Hoạt động',
+            value: statusCounts?.active ?? (selectedStatus === 'active' ? totalUsers : '—'),
+            icon: UserCheck,
+            tone: 'green',
+            active: selectedStatus === 'active',
+            onClick: () => selectStatus('active'),
+        },
+        {
+            key: 'locked',
+            label: 'Bị khóa',
+            value: statusCounts?.locked ?? (selectedStatus === 'locked' ? totalUsers : '—'),
+            icon: Lock,
+            tone: 'red',
+            active: selectedStatus === 'locked',
+            onClick: () => selectStatus('locked'),
+        },
+        {
+            key: 'inactive',
+            label: 'Tạm dừng',
+            value: statusCounts?.inactive ?? (selectedStatus === 'inactive' ? totalUsers : '—'),
+            icon: Power,
+            tone: 'slate',
+            active: selectedStatus === 'inactive',
+            onClick: () => selectStatus('inactive'),
+        },
+        {
+            key: 'pending_reset',
+            label: 'Chờ đổi mật khẩu',
+            value: statusCounts?.pending_reset ?? (selectedStatus === 'pending_reset' ? totalUsers : '—'),
+            icon: KeyRound,
+            tone: 'amber',
+            active: selectedStatus === 'pending_reset',
+            onClick: () => selectStatus('pending_reset'),
+        },
+        {
+            key: 'expired',
+            label: 'Hết hạn',
+            value: statusCounts?.expired ?? (selectedStatus === 'expired' ? totalUsers : '—'),
+            icon: Clock,
+            tone: 'red',
+            active: selectedStatus === 'expired',
+            onClick: () => selectStatus('expired'),
+        },
+    ];
     const includesStudents = !filterValues(selectedAccountType).length || filterValues(selectedAccountType).includes('student');
     const studentRole = roles.find((role) => normalizeRoleCode(role) === 'STUDENT');
     const isStudentRoleSelected = Boolean(studentRole && formData.roleIds.includes(studentRole.id));
@@ -866,6 +927,8 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                     </div>
                 </div>
             </div>
+
+            <KpiTiles items={statusItems} maxVisible={4} ariaLabel="Thống kê trạng thái tài khoản" />
 
             {/* Notification messages */}
             {successMessage && (
@@ -1877,10 +1940,10 @@ const UserManagement = ({ mode = 'business-admin' }) => {
                                                             selectedUserDetail.biometricReviewStatus === 'rejected' ? 'bg-red-50 text-red-700' :
                                                                 'bg-slate-100 text-slate-500'
                                                         }`}>
-                                                        {selectedUserDetail.biometricReviewStatus === 'approved' ? 'Đã hợp lệ' :
-                                                            selectedUserDetail.biometricReviewStatus === 'pending_review' ? 'Đang chờ duyệt' :
-                                                                selectedUserDetail.biometricReviewStatus === 'rejected' ? 'Bị từ chối' :
-                                                                    'Chưa nộp ảnh'}
+                                                        {selectedUserDetail.biometricReviewStatus === 'approved' ? 'Đã đăng ký' :
+                                                            selectedUserDetail.biometricReviewStatus === 'pending_review' ? 'Cần kiểm tra' :
+                                                                selectedUserDetail.biometricReviewStatus === 'rejected' ? 'Bị gỡ' :
+                                                                    'Chưa đăng ký'}
                                                     </span>
                                                     {selectedUserDetail.biometricReviewStatus === 'approved' && (
                                                         <button data-ui-text="action"

@@ -9,7 +9,7 @@ import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertCircle, ArrowDownLeft, ArrowUpRight, Calendar, CalendarCheck, Car, Check, Clock, Eye, Image as ImageIcon, Map, RefreshCw, Filter, Search, Timer, User, Loader2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowUpDown, Calendar, CalendarCheck, Car, Check, ChevronDown, Clock, Eye, Map, RefreshCw, Filter, Search, User, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ExportMenu from '../../components/report/ExportMenu';
@@ -20,6 +20,7 @@ import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import { getUsers, getUserById } from '../../service/businessAdminServices';
 import { getUserJourney, getMyUserJourney } from '../../service/campusService';
+import { buildJourneyRows, dirOf, typeOf } from './journeyRows';
 import './UserJourney.css';
 
 /* ─── helpers ─────────────────────────────────────────────── */
@@ -59,6 +60,11 @@ const toVNDateKey = (utcStr) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(utcStr));
 
 const formatDateVN = (dateKey) => new Date(dateKey + 'T00:00:00').toLocaleDateString('vi-VN');
+
+const formatDayHeading = (dateKey) => {
+    const text = new Date(dateKey + 'T00:00:00').toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+    return text.charAt(0).toUpperCase() + text.slice(1);
+};
 
 const dayDiff = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
 
@@ -145,6 +151,8 @@ const UserJourney = () => {
     const [error, setError] = useState(null);
 
     const [page, setPage] = useState(1);
+    const [sortAsc, setSortAsc] = useState(true);
+    const [expanded, setExpanded] = useState(() => new Set());
 
 
     const [snapshotEventId, setSnapshotEventId] = useState(null);
@@ -234,32 +242,58 @@ const UserJourney = () => {
         else setJourneyData(null);
     }, [selectedUser, date, dateTo, fetchJourney]);
 
+    /* dòng hiển thị: zone appear+disappear gộp thành 1 lượt ở, theo giờ tăng dần */
+    const journeyRows = React.useMemo(() => buildJourneyRows(journeyData?.events || []), [journeyData?.events]);
+
     /* các nơi xuất hiện trong dữ liệu đã tải — nguồn cho dropdown lọc nơi */
     const placeOptions = React.useMemo(() => {
         const set = new Set();
-        (journeyData?.events || []).forEach(e => {
+        journeyRows.forEach(e => {
             if (typeFilter && (e.type || '').toLowerCase() !== typeFilter) return;
             const p = getPlace(e);
             if (p) set.add(p);
         });
         return [...set].sort((a, b) => a.localeCompare(b, 'vi'));
-    }, [journeyData?.events, typeFilter]);
+    }, [journeyRows, typeFilter]);
 
-    /* sorted events — newest first, đã áp bộ lọc loại + nơi (lọc phía FE trên dữ liệu đã tải) */
+    /* đã áp bộ lọc loại + nơi (lọc phía FE trên dữ liệu đã tải); mặc định cũ → mới */
     const sortedEvents = React.useMemo(() => {
-        if (!journeyData?.events) return [];
-        return journeyData.events
-            .filter(e => (!typeFilter || (e.type || '').toLowerCase() === typeFilter) && (matchesFilter(placeFilter, getPlace(e))))
-            .sort((a, b) => new Date(b.time) - new Date(a.time));
-    }, [journeyData?.events, typeFilter, placeFilter]);
+        const rows = journeyRows.filter(e => (!typeFilter || typeOf(e) === typeFilter) && (matchesFilter(placeFilter, getPlace(e))));
+        return sortAsc ? rows : [...rows].reverse();
+    }, [journeyRows, typeFilter, placeFilter, sortAsc]);
 
     // Số đếm cạnh lựa chọn ô "Vị trí" (đếm tại chỗ theo loại sự kiện đang chọn).
     const placeCounts = React.useMemo(() => countBy(
-        (journeyData?.events || []).filter(e => !typeFilter || (e.type || '').toLowerCase() === typeFilter),
+        journeyRows.filter(e => !typeFilter || typeOf(e) === typeFilter),
         getPlace,
-    ), [journeyData?.events, typeFilter]);
+    ), [journeyRows, typeFilter]);
 
-    useEffect(() => { setPage(1); }, [typeFilter, placeFilter]);
+    useEffect(() => { setPage(1); }, [typeFilter, placeFilter, sortAsc]);
+    useEffect(() => { setExpanded(new Set()); }, [journeyData]);
+
+    /* dòng phụ dưới số đếm của 4 card */
+    const cardHelpers = React.useMemo(() => {
+        const of = (t) => journeyRows.filter(e => typeOf(e) === t);
+        const gates = of('gate');
+        const meetings = of('meeting');
+        const zones = of('zone');
+        const ends = journeyRows.map(e => e.endTime || e.time).sort((a, b) => new Date(a) - new Date(b));
+        const days = new Set(journeyRows.map(e => toVNDateKey(e.time))).size;
+        const meetingMs = meetings.reduce((sum, e) => sum + (e.durationMs || 0), 0);
+        return {
+            '': !journeyRows.length ? null : isRange ? `${days} ngày có hoạt động`
+                : `Đầu ${toVNTime(journeyRows[0].time)} · Cuối ${toVNTime(ends[ends.length - 1])}`,
+            gate: `${gates.filter(e => dirOf(e) === 'enter').length} vào · ${gates.filter(e => ['leave', 'exit'].includes(dirOf(e))).length} ra`,
+            meeting: !meetings.length ? 'Không có buổi họp' : formatDuration(meetingMs) ? `Tổng ${formatDuration(meetingMs)}` : 'Chưa rõ thời lượng',
+            zone: `${new Set(zones.map(getPlace).filter(Boolean)).size} khu vực khác nhau`,
+        };
+    }, [journeyRows, isRange]);
+
+    const toggleRow = (key) => setExpanded(prev => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key); else next.add(key);
+        return next;
+    });
 
     const handleExport = async (format, extra = {}) => {
         if (sortedEvents.length === 0) return;
@@ -274,7 +308,7 @@ const UserJourney = () => {
                     until: e.endTime ? toVNTime(e.endTime) : '',
                     duration: formatDuration(e.durationMs) || '',
                     type: TYPE_LABELS[type] || type,
-                    dir: dir === 'enter' ? 'Vào' : dir === 'leave' || dir === 'exit' ? 'Ra' : '',
+                    dir: dir === 'enter' ? 'Vào' : dir === 'leave' || dir === 'exit' ? 'Ra' : dir === 'stay' ? 'Lượt ở' : '',
                     place: getPlace(e) || '',
                     plate: e.plateNumber || '',
                     detail: e.detail || '',
@@ -347,44 +381,16 @@ const UserJourney = () => {
         return sortedEvents.slice(start, start + eventsPerPage);
     }, [sortedEvents, page, eventsPerPage]);
 
-    /* ── Icon node on timeline ── */
-    const renderEventIcon = (event) => {
-        const type = (event.type || '').toLowerCase();
-        const dir = (event.direction || '').toLowerCase();
-        if (type === 'gate') {
-            const isEnter = dir === 'enter';
-            return (
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm border relative ${isEnter ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-orange-50 border-orange-200 text-orange-600'}`}>
-                    {isEnter
-                        ? <ArrowDownLeft className="w-4 h-4 absolute -top-1 -left-1 bg-emerald-600 text-white rounded-full p-0.5 border border-white" />
-                        : <ArrowUpRight className="w-4 h-4 absolute -top-1 -right-1 bg-orange-500 text-white rounded-full p-0.5 border border-white" />}
-                    <Car className="w-5 h-5" />
-                </div>
-            );
-        }
-        if (type === 'meeting') {
-            return (
-                <div className="w-10 h-10 rounded-full bg-blue-50 border border-blue-200 text-action-blue flex items-center justify-center shadow-sm">
-                    <CalendarCheck className="w-5 h-5" />
-                </div>
-            );
-        }
-        return (
-            <div className="w-10 h-10 rounded-full bg-purple-50 border border-purple-200 text-royal-amethyst flex items-center justify-center shadow-sm">
-                <Eye className="w-5 h-5" />
-            </div>
-        );
-    };
+    /* ── Một dòng sự kiện (gọn, bấm để mở chi tiết) ── */
+    const rowKey = (e) => `${typeOf(e)}|${e.time}|${getPlace(e) || ''}|${e.deviceCode || e.deviceName || ''}`;
 
-    /* ── Event card content ── */
-    const renderEventCard = (event) => {
-        const type = (event.type || '').toLowerCase();
-        const dir = (event.direction || '').toLowerCase();
-        const timeStart = toVNTime(event.time);
-        const timeEnd = event.endTime ? toVNTime(event.endTime) : null;
+    const renderRow = (event) => {
+        const type = typeOf(event);
+        const dir = dirOf(event);
+        const key = rowKey(event);
+        const isOpen = expanded.has(key);
         const duration = formatDuration(event.durationMs);
-
-        /* tag colors */
+        const tone = type === 'gate' ? (dir === 'enter' ? 'enter' : 'leave') : type;
         const tagCls =
             type === 'gate' ? (dir === 'enter' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700') :
             type === 'meeting' ? 'bg-blue-100 text-action-blue' :
@@ -392,51 +398,85 @@ const UserJourney = () => {
         const tagLabel =
             type === 'gate' ? (dir === 'enter' ? 'Vào cổng' : 'Ra cổng') :
             type === 'meeting' ? 'Phòng họp' : 'Khu vực';
-
+        const partial = type === 'zone' && dir === 'appear' ? 'chỉ ghi nhận vào'
+            : type === 'zone' && dir === 'disappear' ? 'chỉ ghi nhận rời' : null;
         const description = type === 'gate'
             ? (dir === 'enter' ? 'Ghi nhận lượt xe vào cổng' : 'Ghi nhận lượt xe ra cổng')
-            : type === 'zone' ? (dir === 'disappear' ? 'Ghi nhận rời khỏi khu vực' : 'Ghi nhận hiện diện tại khu vực')
+            : type === 'zone'
+                ? (dir === 'stay' ? 'Có mặt tại khu vực' : dir === 'disappear' ? 'Ghi nhận rời khỏi khu vực' : 'Ghi nhận hiện diện tại khu vực')
                 : event.detail || 'Ghi nhận tham dự cuộc họp';
-        const location = type === 'meeting' ? event.roomName : event.zoneName;
+        const camera = event.deviceName || event.deviceCode;
 
         return (
-            <div className="journey-event">
-                <div className="journey-event-content">
-                    <div className="journey-event-heading">
-                        <span data-ui-text="primary" className="journey-event-time font-semibold" title={toVNFull(event.time)}>
-                            <Clock size={14} aria-hidden="true" />
-                            {isRange && <span>{formatDateVN(toVNDateKey(event.time))} ·</span>}
-                            {timeStart}
-                            {timeEnd && <span title={toVNFull(event.endTime)}>– {timeEnd}</span>}
+            <li key={key} className="journey-row" data-tone={tone} data-open={isOpen || undefined}>
+                <div className="journey-row-line">
+                    <button type="button" className="journey-row-main" aria-expanded={isOpen} onClick={() => toggleRow(key)}>
+                        <span data-ui-text="primary" className="journey-row-time" title={toVNFull(event.time)}>
+                            {toVNTime(event.time)}
+                            {event.endTime && <span title={toVNFull(event.endTime)}> → {toVNTime(event.endTime)}</span>}
                         </span>
-                        <span data-ui-text="badge" className={`journey-event-badge ${tagCls}`}>{tagLabel}</span>
-                        {duration && <span data-ui-text="secondary" className="journey-event-duration"><Timer size={14} aria-hidden="true" />{duration}</span>}
-                    </div>
-                    <p data-ui-text="primary" className="journey-event-description font-semibold">{description}</p>
-                    <dl className="journey-event-details">
-                        {location && <div><dt data-ui-text="label">{type === 'meeting' ? 'Phòng họp' : 'Vị trí'}</dt><dd data-ui-text="body">{location}</dd></div>}
-                        {type === 'gate' && event.plateNumber && <div><dt data-ui-text="label">Biển số</dt><dd data-ui-text="body"><span data-ui-text="primary" className="journey-event-plate font-semibold">{event.plateNumber}</span></dd></div>}
-                        {(event.deviceName || event.deviceCode) && <div><dt data-ui-text="label">Camera</dt><dd data-ui-text="body">{event.deviceName || event.deviceCode}</dd></div>}
+                        <span className="journey-row-tag"><span data-ui-text="badge" className={`journey-event-badge ${tagCls}`}>{tagLabel}</span></span>
+                        <span className="journey-row-place">
+                            <span data-ui-text="primary" className="font-semibold">{getPlace(event) || '—'}</span>
+                            {duration && <span data-ui-text="secondary" className="journey-row-muted"> · {duration}</span>}
+                            {partial && <span data-ui-text="secondary" className="journey-row-muted"> · {partial}</span>}
+                            {type === 'gate' && event.plateNumber && <span data-ui-text="primary" className="journey-event-plate">{event.plateNumber}</span>}
+                        </span>
+                        <span data-ui-text="secondary" className="journey-row-camera">{camera || ''}</span>
+                        <ChevronDown className="journey-row-chevron" aria-hidden="true" />
+                    </button>
+                    <span className="journey-row-thumb-slot">
+                        {event.sourceEventId && (
+                            <ThumbnailImage hideOnError eventId={event.sourceEventId} className="journey-row-thumb aspect-video"
+                                onClick={() => { setSnapshotEventId(event.sourceEventId); setIsSnapshotOpen(true); }} />
+                        )}
+                    </span>
+                </div>
+                {event.afterExitAt && (
+                    <p data-ui-text="secondary" className="journey-row-warn">
+                        <AlertTriangle size={13} aria-hidden="true" />
+                        Ghi nhận khi đã ra cổng lúc {toVNTime(event.afterExitAt)} — có thể camera lệch giờ.
+                    </p>
+                )}
+                {isOpen && (
+                    <dl className="journey-row-details">
+                        <div><dt data-ui-text="label">Mô tả</dt><dd data-ui-text="body">{description}</dd></div>
+                        {camera && <div><dt data-ui-text="label">Camera</dt><dd data-ui-text="body">{event.deviceName || '—'}{event.deviceCode && event.deviceName ? ` (${event.deviceCode})` : ''}</dd></div>}
                         {event.groupNames?.length > 0 && <div><dt data-ui-text="label">Nhóm camera</dt><dd data-ui-text="body">{event.groupNames.join(', ')}</dd></div>}
-                    </dl>
-                    {type === 'meeting' && event.eventCount > 0 && (
-                        <p data-ui-text="secondary" className="journey-event-note">Được camera ghi nhận {event.eventCount} lần trong buổi họp.</p>
-                    )}
-                </div>
-                <div className="journey-event-image">
-                    {event.sourceEventId ? (
-                        <ThumbnailImage eventId={event.sourceEventId} className="w-28 md:w-36 aspect-video"
-                            onClick={() => { setSnapshotEventId(event.sourceEventId); setIsSnapshotOpen(true); }} />
-                    ) : (
-                        <div className="journey-event-no-image">
-                            <ImageIcon size={18} aria-hidden="true" />
-                            <span data-ui-text="secondary">Chưa có ảnh</span>
+                        <div><dt data-ui-text="label">Thời điểm</dt><dd data-ui-text="body">{toVNFull(event.time)}{event.endTime ? ` → ${toVNFull(event.endTime)}` : ''}</dd></div>
+                        {type === 'meeting' && event.eventCount > 0 && <div><dt data-ui-text="label">Số lần ghi nhận</dt><dd data-ui-text="body">{event.eventCount} lần trong buổi họp</dd></div>}
+                        <div className="journey-row-photos">
+                            <dt data-ui-text="label">Ảnh hiện trường</dt>
+                            <dd>
+                                {(event.endTime ? [['Lúc vào', event.sourceEventId], ['Lúc rời', event.endSourceEventId]] : [[null, event.sourceEventId]]).map(([caption, id], i) => (
+                                    <figure key={i} className="journey-row-photo">
+                                        {id ? (
+                                            <ThumbnailImage eventId={id} className="journey-row-photo-img"
+                                                onClick={() => { setSnapshotEventId(id); setIsSnapshotOpen(true); }} />
+                                        ) : (
+                                            <span className="journey-row-photo-img journey-row-photo-empty">Không có ảnh</span>
+                                        )}
+                                        {caption && <figcaption data-ui-text="secondary">{caption}</figcaption>}
+                                    </figure>
+                                ))}
+                            </dd>
                         </div>
-                    )}
-                </div>
-            </div>
+                    </dl>
+                )}
+            </li>
         );
     };
+
+    /* nhóm các dòng của trang hiện tại theo ngày */
+    const dayGroups = React.useMemo(() => {
+        const groups = [];
+        currentEvents.forEach(e => {
+            const day = toVNDateKey(e.time);
+            if (groups[groups.length - 1]?.day !== day) groups.push({ day, rows: [] });
+            groups[groups.length - 1].rows.push(e);
+        });
+        return groups;
+    }, [currentEvents]);
 
     /* ════════════════════════════════════════════════════════ */
     return (
@@ -448,14 +488,15 @@ const UserJourney = () => {
                     <PageHeading forceStandard badge="Hành trình" icon={<Map />} className="text-2xl font-bold text-midnight-indigo tracking-tight">Lịch sử di chuyển theo người</PageHeading>
                     <p data-page-description className="text-slate-blue text-sm mt-1">
                         {isSelfOnly
-                            ? 'Xem lại hành trình di chuyển (ra/vào cổng, phòng họp, khu vực) của bạn trong ngày.'
-                            : 'Theo dõi lịch trình hoạt động tổng hợp của một nhân viên trong ngày.'}
+                            ? 'Xem lại hành trình di chuyển (ra/vào cổng, phòng họp, khu vực) của bạn trong khoảng thời gian đã chọn.'
+                            : 'Theo dõi hành trình (ra/vào cổng, phòng họp, khu vực) của một người trong khoảng thời gian đã chọn.'}
                     </p>
                 </div>
                 {selectedUser && (
                     <ReportActions>
                         <ExportMenu compact askMode initialRange={{ from: date, to: isRange ? dateTo : date }} filterSummary={[`Người: ${selectedUser.fullName || selectedUser.full_name || ''}`, typeFilter ? `Loại sự kiện: ${TYPE_LABELS[typeFilter] || typeFilter}` : 'Tất cả loại sự kiện', placeFilter ? `Vị trí: ${placeFilter}` : 'Tất cả vị trí']} onExport={handleExport} busyFormat={busyFormat} disabled={loading || !journeyData || sortedEvents.length === 0} label={`Xuất báo cáo (${sortedEvents.length})`} />
                         <RefreshButton
+                            forceStandard
                             onClick={fetchJourney}
                             disabled={loading}
                             title="Làm mới dữ liệu hành trình"
@@ -666,13 +707,14 @@ const UserJourney = () => {
 
                     <StatisticGrid forceStandard columns={4}>
                         {[
-                            ['', 'Tất cả sự kiện', Clock, 'default'],
+                            ['', 'Tất cả sự kiện', Clock, 'slate'],
                             ['gate', 'Cổng', Car, 'success'],
-                            ['meeting', 'Phòng họp', CalendarCheck, 'default'],
-                            ['zone', 'Khu vực', Eye, 'default'],
+                            ['meeting', 'Phòng họp', CalendarCheck, 'blue'],
+                            ['zone', 'Khu vực', Eye, 'purple'],
                         ].map(([value, label, icon, tone]) => (
                             <StatisticCard key={value} label={label} icon={icon} tone={tone}
-                                value={(journeyData.events || []).filter(event => !value || (event.type || '').toLowerCase() === value).length}
+                                value={journeyRows.filter(event => !value || typeOf(event) === value).length}
+                                helper={cardHelpers[value]}
                                 selected={typeFilter === value}
                                 onClick={() => { setTypeFilter(value); setPlaceFilter(''); }}
                             />
@@ -680,18 +722,24 @@ const UserJourney = () => {
                     </StatisticGrid>
 
                     {/* Timeline */}
-                    <div className="bg-white p-6 md:p-8 rounded-2xl border border-platinum-tint shadow-sm-2">
-                        <div className="flex items-center justify-between pb-5 border-b border-platinum-tint/60 mb-8">
+                    <div className="journey-timeline bg-white p-6 md:p-8 rounded-2xl border border-platinum-tint shadow-sm-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-platinum-tint/60">
                             <h3 className="font-bold text-base text-midnight-indigo flex items-center gap-2">
                                 <Clock className="w-4 h-4 text-action-blue" />
                                 Nhật ký Hành trình chi tiết
                             </h3>
-                            <span data-ui-text="badge" className="text-xs font-bold px-3 py-1 bg-cloud-mist border border-platinum-tint text-slate-blue rounded-full">
-                                {selectedUser.fullName} &bull; {rangeLabel}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span data-ui-text="badge" className="text-xs font-bold px-3 py-1 bg-cloud-mist border border-platinum-tint text-slate-blue rounded-full">
+                                    {selectedUser.fullName} &bull; {rangeLabel}
+                                </span>
+                                <button type="button" onClick={() => setSortAsc(v => !v)} title="Đổi thứ tự thời gian"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-platinum-tint text-xs font-semibold text-slate-blue hover:bg-cloud-mist">
+                                    <ArrowUpDown className="w-3.5 h-3.5" aria-hidden="true" />{sortAsc ? 'Cũ → Mới' : 'Mới → Cũ'}
+                                </button>
+                            </div>
                         </div>
 
-                        <FilterBar forceStandard variant="card" className="journey-place-filters mb-6">
+                        <FilterBar forceStandard variant="card" className="journey-place-filters">
                             <FilterField label="Vị trí">
                                 <FilterMultiSelect counts={placeCounts} value={placeFilter} onChange={e => setPlaceFilter(e.target.value)} disabled={placeOptions.length === 0}>
                                     <option value="">Tất cả vị trí</option>
@@ -706,7 +754,7 @@ const UserJourney = () => {
                         </FilterBar>
 
                         {/* legend */}
-                        <div data-ui-text="secondary" className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-6 text-[11px] font-semibold text-slate-blue">
+                        <div data-ui-text="secondary" className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-semibold text-slate-blue">
                             <span className="inline-flex items-center gap-1.5">
                                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
                                 Vào cổng
@@ -725,28 +773,19 @@ const UserJourney = () => {
                             </span>
                         </div>
 
-                        {/* vertical timeline */}
-                        <div className="relative pl-6 sm:pl-8 border-l border-platinum-tint/80 ml-5 sm:ml-6 space-y-8 pb-4">
-                            {currentEvents.length === 0 && (
-                                <p className="text-sm text-slate-blue py-6">Không có sự kiện nào khớp bộ lọc.</p>
-                            )}
-                            {currentEvents.map((event, idx) => (
-                                <React.Fragment key={idx}>
-                                <div className="relative group animate-fade-in-up" style={{ animationDelay: `${idx * 60}ms` }}>
-
-                                    {/* node */}
-                                    <div className="absolute -left-[45px] sm:-left-[53px] top-0 transition-transform duration-300 group-hover:scale-110">
-                                        {renderEventIcon(event)}
-                                    </div>
-
-                                    {/* card */}
-                                    <div className="journey-event-card">
-                                        {renderEventCard(event)}
-                                    </div>
-                                </div>
-                                </React.Fragment>
-                            ))}
-                        </div>
+                        {/* timeline gọn theo ngày */}
+                        {currentEvents.length === 0 ? (
+                            <p className="text-sm text-slate-blue py-6">Không có sự kiện nào khớp bộ lọc.</p>
+                        ) : (
+                            <div className="journey-days">
+                                {dayGroups.map(group => (
+                                    <section key={group.day} className="journey-day">
+                                        <h4 data-ui-text="label" className="journey-day-heading">{formatDayHeading(group.day)}</h4>
+                                        <ol className="journey-day-list">{group.rows.map(renderRow)}</ol>
+                                    </section>
+                                ))}
+                            </div>
+                        )}
 
                         {/* pagination */}
                         {<PaginationRegion legacyVisible={totalPages > 1}><PaginationFooter

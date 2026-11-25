@@ -3,10 +3,11 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import DateInput from '../../components/common/DateInput';
 import ReportExportAction from '../../components/common/ReportExportAction';
+import RefreshButton from '../../components/common/RefreshButton';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { AlertCircle, AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Download, Info, MapPin, RefreshCw, Search, Users, Wrench, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Download, Info, MapPin, Search, Users, Wrench, X } from 'lucide-react';
 import {
     DEFAULT_CLASS_ATTENDANCE_SETTINGS,
     fetchClassAttendanceClasses,
@@ -628,12 +629,7 @@ const ClassAttendanceDashboard = ({ mode = 'teacher' }) => {
                         Các buổi dạy trong ngày. Camera phòng học tự quét FaceID, ghi nhận giờ vào/ra và đi muộn.
                     </p>
                 </div>
-                <div className="flex items-center gap-1 text-[11px] text-slate-blue">
-                    {lastUpdatedAt && <span>Cập nhật {lastUpdatedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>}
-                    <button type="button" onClick={refresh} className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-white hover:text-action-blue" aria-label="Tải lại" title="Tải lại">
-                        <RefreshCw className="w-4 h-4" />
-                    </button>
-                </div>
+                <RefreshButton forceStandard type="button" onClick={refresh} busy={dayLoading} />
             </div>
 
             <DayBar value={selectedDate} onChange={setSelectedDate} summary={daySummary} />

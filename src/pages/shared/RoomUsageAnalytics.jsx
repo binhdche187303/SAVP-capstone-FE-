@@ -4,11 +4,10 @@ import './RoomUsageAnalytics.css';
 import TimeRangeButtons from '../../components/common/TimeRangeButtons';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
-import StatisticGrid from '../../components/common/StatisticGrid';
 import ReportExportButton from '../../components/common/ReportExportButton';
-import StatisticCard from '../../components/common/StatisticCard';
+import KpiTiles from '../../components/report/KpiTiles';
 import FilterBar from '../../components/common/FilterBar';
-import { AlertTriangle, BarChart3, Building2, ChevronRight, FileText, Info, TrendingUp, X, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, BarChart3, Building2, CalendarClock, ChevronRight, Clock3, FileText, Info, TrendingUp, X, CheckCircle2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import {
@@ -21,7 +20,6 @@ import { get } from '../../utils/request';
 import ExportReportModal, { reportPresetRange } from '../../components/common/ExportReportModal';
 
 const PIE_COLORS = { normal: '#22c55e', noshow: '#ef4444' };
-const BAR_COLORS = ['#1e90ff', '#38bdf8', '#7dd3fc', '#93c5fd', '#bfdbfe'];
 
 const HEATMAP_COLOR = (minutes) => {
     if (minutes > 400) return '#ef4444';
@@ -145,7 +143,8 @@ const RoomUsageAnalytics = () => {
     const noShowRanking = (noShowData?.ranking?.items || [])
         .slice()
         .sort((a, b) => (b.noShowRate || 0) - (a.noShowRate || 0))
-        .slice(0, 8);
+        .slice(0, 5);
+    const noShowMax = Math.max(...noShowRanking.map((r) => r.noShowRate || 0), 1);
 
     const summaryUtil = data?.summary;
     const utilizationRate = summaryUtil?.reservationUtilizationRate ?? summaryUtil?.utilizationRate ?? utilizationData?.utilizationRate;
@@ -155,6 +154,51 @@ const RoomUsageAnalytics = () => {
         { label: 'Giờ thực tế', hours: summaryUtil?.actualUsedHours, color: '#10b981' },
     ].filter(item => item.hours != null && Number.isFinite(Number(item.hours)))
         .map(item => ({ ...item, hours: Number(item.hours) }));
+    const summaryItems = [
+        {
+            key: 'reservation-utilization',
+            label: 'Tỷ lệ đặt phòng',
+            value: utilizationRate != null ? `${utilizationRate}%` : '—',
+            hint: 'Hiệu suất',
+            icon: TrendingUp,
+            tone: 'blue',
+            loading,
+        },
+        {
+            key: 'room-occupancy',
+            label: 'Tỷ lệ lấp đầy thực tế',
+            value: occupancyRate != null ? `${occupancyRate}%` : '—',
+            hint: 'Từ cảm biến phòng',
+            icon: Building2,
+            tone: 'green',
+            loading,
+        },
+        {
+            key: 'booked-hours',
+            label: 'Tổng giờ đặt trước',
+            value: summaryUtil?.totalBookedHours != null ? `${summaryUtil.totalBookedHours}h` : '—',
+            icon: CalendarClock,
+            tone: 'violet',
+            loading,
+        },
+        {
+            key: 'actual-hours',
+            label: 'Giờ dùng thực tế',
+            value: summaryUtil?.actualUsedHours != null ? `${summaryUtil.actualUsedHours}h` : '—',
+            icon: Clock3,
+            tone: 'amber',
+            loading,
+        },
+        {
+            key: 'no-show',
+            label: 'Tỷ lệ no-show',
+            value: noShowData?.noShowRate != null ? `${noShowData.noShowRate}%` : '—',
+            hint: noShowData?.noShowRate == null ? undefined : noShowData.noShowRate > 10 ? 'Cao' : 'Bình thường',
+            icon: AlertTriangle,
+            tone: noShowData?.noShowRate > 10 ? 'red' : 'slate',
+            loading,
+        },
+    ];
 
     return (
         <div data-page-surface="wide" className="space-y-6 p-6 max-w-7xl mx-auto">
@@ -176,6 +220,9 @@ const RoomUsageAnalytics = () => {
                     Xuất báo cáo
                 </ReportExportButton>
             </div>
+
+            {/* Summary Cards */}
+            <KpiTiles items={summaryItems} maxVisible={4} ariaLabel="Thống kê hiệu suất phòng họp" />
 
             {/* Filter Bar */}
             <FilterBar variant="card" className="bg-white p-4 rounded-2xl border border-platinum-tint shadow-sm flex flex-wrap gap-4 items-end">
@@ -221,44 +268,6 @@ const RoomUsageAnalytics = () => {
                     <p>{error}</p>
                 </div>
             )}
-
-            {/* Summary Cards */}
-            <StatisticGrid columns={5} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                <SummaryCard
-                    label="Tỷ lệ đặt phòng"
-                    value={utilizationRate != null ? `${utilizationRate}%` : '—'}
-                    badge={<span data-ui-text="badge" className="text-xs font-semibold text-green-500 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-0.5"><TrendingUp className="w-3 h-3" /> Hiệu suất</span>}
-                    loading={loading}
-                />
-                <SummaryCard
-                    label="Tỷ lệ lấp đầy thực tế"
-                    value={occupancyRate != null ? `${occupancyRate}%` : '—'}
-                    sub="Từ cảm biến phòng"
-                    loading={loading}
-                />
-                <SummaryCard
-                    label="Tổng giờ đặt trước"
-                    value={summaryUtil?.totalBookedHours != null ? `${summaryUtil.totalBookedHours}h` : '—'}
-                    loading={loading}
-                />
-                <SummaryCard
-                    label="Giờ dùng thực tế"
-                    value={summaryUtil?.actualUsedHours != null ? `${summaryUtil.actualUsedHours}h` : '—'}
-                    loading={loading}
-                />
-                <SummaryCard
-                    label="Tỷ lệ no-show"
-                    value={noShowData?.noShowRate != null ? `${noShowData.noShowRate}%` : '—'}
-                    badge={
-                        noShowData?.noShowRate > 10
-                            ? <span data-ui-text="badge" className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> Cao</span>
-                            : noShowData?.noShowRate != null
-                                ? <span data-ui-text="badge" className="text-xs font-semibold text-green-500 bg-green-50 px-2 py-0.5 rounded-full">Bình thường</span>
-                                : null
-                    }
-                    loading={loading}
-                />
-            </StatisticGrid>
 
             {/* Main grid: room table + trend chart */}
             <div className="room-usage-main-grid grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -468,35 +477,35 @@ const RoomUsageAnalytics = () => {
 
                 {/* No-show ranking by room */}
                 <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-3">
-                    <h3 className="font-bold text-midnight-indigo text-sm">Xếp hạng phòng theo tỷ lệ no-show</h3>
+                    <h3 className="font-bold text-midnight-indigo text-sm">Top 5 phòng có tỷ lệ no-show cao nhất</h3>
                     {loading ? (
                         <div className="h-52 bg-slate-50 animate-pulse rounded-xl" />
                     ) : noShowRanking.length ? (
-                        <div className="h-52">
-                            <ResponsiveContainer width="100%" height={208}>
-                                <BarChart data={noShowRanking} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                                    <XAxis type="number" tickLine={false} axisLine={false} style={{ fontSize: 9, fill: '#64748b' }} unit="%" domain={[0, 'auto']} />
-                                    <YAxis
-                                        type="category"
-                                        dataKey="name"
-                                        tickLine={false}
-                                        axisLine={false}
-                                        style={{ fontSize: 9, fill: '#64748b' }}
-                                        width={80}
-                                    />
-                                    <Tooltip formatter={(v) => [`${v}%`, 'Tỷ lệ no-show']} />
-                                    <Bar dataKey="noShowRate" radius={[0, 4, 4, 0]}>
-                                        {noShowRanking.map((_, i) => (
-                                            <Cell
-                                                key={i}
-                                                fill={noShowRanking[i].noShowRate > 15 ? '#ef4444' : noShowRanking[i].noShowRate > 8 ? '#f59e0b' : BAR_COLORS[i % BAR_COLORS.length]}
-                                            />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                        <ol className="h-52 flex flex-col justify-around">
+                            {noShowRanking.map((r, i) => {
+                                const rate = r.noShowRate || 0;
+                                const color = rate > 15 ? 'bg-red-500' : rate > 8 ? 'bg-amber-500' : 'bg-emerald-500';
+                                return (
+                                    <li key={r.id || r.name || i} className="flex items-center gap-3">
+                                        <span className="w-5 text-xs font-bold text-slate-400 tabular-nums">{i + 1}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-baseline justify-between gap-2">
+                                                <span className="text-xs font-semibold text-midnight-indigo truncate" title={r.name}>{r.name}</span>
+                                                <span className="text-xs font-bold text-midnight-indigo tabular-nums shrink-0">
+                                                    {rate}%
+                                                    {r.noShowCount != null && (
+                                                        <span className="ml-1 font-medium text-slate-400">· {r.noShowCount}{r.totalBookings != null ? `/${r.totalBookings}` : ''} lượt</span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="mt-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                                <div className={`h-full rounded-full ${color}`} style={{ width: `${(rate / noShowMax) * 100}%` }} />
+                                            </div>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ol>
                     ) : noShowData?.totalBookings > 0 && noShowData.noShowCount === 0 ? (
                         <div className="h-52 flex flex-col items-center justify-center gap-3 text-center">
                             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
@@ -682,28 +691,6 @@ const RoomUsageAnalytics = () => {
         </div>
     );
 };
-
-const LegacySummaryCard = ({ label, value, badge, sub, loading }) => (
-    <div className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-2">
-        <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider block">{label}</span>
-        {loading ? (
-            <div className="h-7 bg-slate-100 animate-pulse rounded-lg" />
-        ) : (
-            <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                <span className="text-2xl font-black text-midnight-indigo">{value}</span>
-                {badge}
-                {sub && !badge && <span className="text-xs text-slate-blue font-medium">{sub}</span>}
-            </div>
-        )}
-    </div>
-);
-
-const SummaryCard = (props) => (
-    <StatisticCard label={props.label} value={props.value} helper={props.sub} loading={props.loading}
-        legacy={<LegacySummaryCard {...props} />}>
-        {props.badge}
-    </StatisticCard>
-);
 
 const MetricBlock = ({ label, value, sub, dimSub }) => (
     <div className="text-center py-3 px-2 bg-slate-50 rounded-xl">

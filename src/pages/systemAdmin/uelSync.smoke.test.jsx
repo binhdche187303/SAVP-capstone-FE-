@@ -65,6 +65,23 @@ test('hiện tình trạng, lượt gần nhất với bước lỗi', async () 
     expect(screen.getByLabelText('Chỉ định')).toBeChecked();
 });
 
+test.each([
+    ['chuỗi JSON', JSON.stringify(RUN.results)],
+    ['object theo bước', {
+        departments: { fetched: 5, upserted: 5, skipped: 0, deactivated: 0, warnings: [] },
+        sessions: { fetched: 0, upserted: 0, skipped: 0, deactivated: 0, warnings: [], error: 'Bảng study_periods trống' },
+    }],
+])('lịch sử có results dạng %s vẫn render thay vì làm sập trang', async (_label, results) => {
+    const legacyRun = { ...RUN, results };
+    svc.getUelSyncStatus.mockResolvedValue(status({ lastRun: legacyRun }));
+    svc.getUelSyncRuns.mockResolvedValue([legacyRun]);
+
+    render(<UelSync />);
+
+    expect(await screen.findByText('Đồng bộ dữ liệu Đào tạo UEL')).toBeInTheDocument();
+    expect(screen.getAllByText('Có bước lỗi').length).toBeGreaterThan(0);
+});
+
 test('1 nút: Đồng bộ toàn bộ gọi run-all', async () => {
     svc.runUelSyncAll.mockResolvedValue({ accepted: true });
     render(<UelSync />);
@@ -82,7 +99,7 @@ test('thẻ Đồng bộ ngay hiện lịch đến hết năm học, không còn
 test('status cũ không có plan vẫn render', async () => {
     svc.getUelSyncStatus.mockResolvedValue(status({ plan: undefined }));
     render(<UelSync />);
-    expect(await screen.findByText(/lịch học từ hôm nay đến hết năm học\.$/)).toBeInTheDocument();
+    expect(await screen.findByText(/Lịch học đến hết năm học\.$/)).toBeInTheDocument();
     expect(screen.queryByText(/đến \d{2}\/\d{2}\/\d{4}/)).not.toBeInTheDocument();
 });
 
@@ -117,6 +134,8 @@ test('cài đặt: bật tự động hằng tuần, chọn ngày + giờ, học
 test('cảnh báo của lượt cũ hiển thị tiếng Việt thay cho lỗi trùng email', async () => {
     svc.getUelSyncRuns.mockResolvedValue([{ ...RUN, results: [{ step: 'staff', fetched: 2, upserted: 1, skipped: 1, deactivated: 0, warnings: ['cán bộ SDH162: duplicate key value violates unique constraint "ux_users_email_active"'] }] }]);
     render(<UelSync />);
+    const toggle = (await screen.findAllByRole('button')).find((b) => b.hasAttribute('aria-expanded') && b.closest('tr'));
+    fireEvent.click(toggle);
     expect(await screen.findByText(/cán bộ SDH162: Email này đã được dùng cho một tài khoản khác/)).toBeInTheDocument();
     expect(screen.queryByText(/duplicate key/)).not.toBeInTheDocument();
 });

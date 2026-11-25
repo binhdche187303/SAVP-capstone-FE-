@@ -2,7 +2,7 @@ import { useId, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { setTokens, getAccessToken } from "../../../utils/request";
 import { login as authLogin, getSsoConfig, getSsoLoginUrl } from "../../../service/authService";
-import { getRedirectPathByRoles } from "../../../utils/authSession";
+import { getPostLoginPath, rememberPostLoginNext } from "../../../utils/authSession";
 import AuthFormSkeleton from "../../../components/common/Skeleton/AuthFormSkeleton";
 import AuthLayout from "../../../components/auth/AuthLayout";
 import AuthAlert from "../../../components/auth/AuthAlert";
@@ -52,13 +52,15 @@ const Login = () => {
 
     // Check for existing session on mount — show skeleton while checking
     useEffect(() => {
+        // `?next=face` (mã QR đăng ký FaceID trên điện thoại) → đăng nhập xong vào thẳng trang quét.
+        rememberPostLoginNext(window.location.search);
         const token = getAccessToken();
         if (token) {
             // User already has a token, try to get stored user info and redirect
             try {
                 const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
                 if (storedUser && storedUser.roles) {
-                    const redirectPath = getRedirectPathByRoles(storedUser.roles);
+                    const redirectPath = getPostLoginPath(storedUser.roles);
                     navigate(redirectPath, { replace: true });
                     return;
                 }
@@ -135,7 +137,7 @@ const Login = () => {
                 setRedirecting(true);
 
                 // Redirect user to the app dashboard based on role
-                const redirectPath = getRedirectPathByRoles(user?.roles);
+                const redirectPath = getPostLoginPath(user?.roles);
                 setTimeout(() => {
                     navigate(redirectPath, { replace: true });
                 }, 1200);

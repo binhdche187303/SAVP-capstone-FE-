@@ -40,7 +40,7 @@ const valueSizeCls = (value) => {
 
 const StatCard = ({
     label, value, hint, icon: Icon, tone = 'neutral', onClick, to, active = false,
-    loading = false, valueTestId, className = '', children,
+    loading = false, compactValue = false, valueTestId, className = '', children,
 }) => {
     const t = STAT_TONES[tone] || STAT_TONES.neutral;
     const interactive = Boolean(onClick || to);
@@ -62,9 +62,9 @@ const StatCard = ({
     );
     const legacy = to ? <Link to={to} className={`no-underline ${cls}`}>{body}</Link>
         : onClick ? <button type="button" onClick={onClick} aria-label={typeof label === 'string' ? label : undefined} aria-pressed={active} className={cls}>{body}</button> : <div className={cls}>{body}</div>;
-    const commonTone = { neutral: 'default', red: 'danger', amber: 'warning', green: 'success', violet: 'purple', slate: 'default', blue: 'default' }[tone] || tone;
+    const commonTone = { neutral: 'default', red: 'danger', amber: 'warning', green: 'success', violet: 'purple', slate: 'slate', blue: 'blue' }[tone] || tone;
     return <StatisticCard aria-label={typeof label === 'string' ? label : undefined} label={label} value={value} helper={hint} icon={Icon} tone={commonTone}
-        onClick={onClick} to={to} selected={active} loading={loading} legacy={legacy}
+        onClick={onClick} to={to} selected={active} loading={loading} compactValue={compactValue} legacy={legacy}
         valueProps={valueTestId ? { 'data-testid': valueTestId } : undefined}>
         {children}
     </StatisticCard>;

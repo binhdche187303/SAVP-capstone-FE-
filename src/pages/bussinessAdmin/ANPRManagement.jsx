@@ -58,6 +58,7 @@ const ANPRManagement = ({ guardMode = false }) => {
 
     // Snapshot Modal
     const [snapshotEventId, setSnapshotEventId] = useState(null);
+    const [snapshotItem, setSnapshotItem] = useState(null);
     const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
 
     // Inline Owner Modal
@@ -729,7 +730,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                                         <ThumbnailImage
                                                             eventId={item.id}
                                                             className="w-full max-w-[92px] aspect-video"
-                                                            onClick={() => { setSnapshotEventId(item.id); setIsSnapshotOpen(true); }}
+                                                            onClick={() => { setSnapshotItem(item); setSnapshotEventId(item.id); setIsSnapshotOpen(true); }}
                                                         />
                                                     </div>
                                                 </td>
@@ -884,6 +885,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                                             eventId={item.id}
                                             className="w-full h-24 mt-3 object-cover shadow-sm border border-orange-200 rounded-lg hover:border-action-blue"
                                             onClick={() => {
+                                                setSnapshotItem(item);
                                                 setSnapshotEventId(item.id);
                                                 setIsSnapshotOpen(true);
                                             }}
@@ -992,8 +994,17 @@ const ANPRManagement = ({ guardMode = false }) => {
                 isOpen={isSnapshotOpen} 
                 eventId={snapshotEventId} 
                 showPlate
+                details={snapshotItem ? [
+                    { label: 'Biển số xe', value: snapshotItem.plateNumber },
+                    { label: 'Loại đối tượng', value: getVehicleTypeLabel(snapshotItem.vehicleType || snapshotItem.vehicle_type) },
+                    { label: 'Camera', value: snapshotItem.cameraName },
+                    { label: 'Khu vực/cổng', value: snapshotItem.zoneName },
+                    { label: 'Thời gian', value: snapshotItem.eventTime ? new Date(snapshotItem.eventTime).toLocaleString('vi-VN') : null },
+                    ...(snapshotItem.owner?.fullName ? [{ label: 'Chủ xe', value: snapshotItem.owner.fullName }] : []),
+                ] : null}
                 onClose={() => {
                     setIsSnapshotOpen(false);
+                    setSnapshotItem(null);
                     setSnapshotEventId(null);
                 }} 
             />

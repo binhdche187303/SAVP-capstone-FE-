@@ -43,3 +43,23 @@ test('a slow response for old criteria cannot replace the results after clearing
     await act(async () => resolveOld(result(55)));
     expect(screen.getByText(/Tìm thấy/)).toHaveTextContent('101');
 });
+
+test('shows Vietnamese action labels while sending the original action code to the API', async () => {
+    getAuditLogActionTypes.mockResolvedValue({
+        success: true,
+        data: [
+            { actionType: 'expire', count: 3 },
+            { actionType: 'assign_room', count: 2 },
+        ],
+    });
+    renderPage();
+
+    const actionFilter = screen.getByLabelText('Loại hành động');
+    fireEvent.click(actionFilter);
+    expect(await screen.findByRole('option', { name: 'Hết hạn (3)' })).toHaveValue('expire');
+    expect(screen.getByRole('option', { name: 'Gán phòng (2)' })).toHaveValue('assign_room');
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    changeFilter(actionFilter, { target: { value: 'expire' } });
+    await waitFor(() => expect(getAuditLogs).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'expire' })));
+});

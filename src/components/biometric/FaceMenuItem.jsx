@@ -5,8 +5,8 @@ import { BIOMETRIC_STATUS_EVENT, getBiometricStatus } from '../../service/avatar
 // Trạng thái khuôn mặt hiển thị trong menu tài khoản (giống LearningLayout của Giảng viên/Sinh viên).
 export const FACE_STATUS = {
     not_uploaded: { label: 'Chưa đăng ký', className: 'bg-amber-50 text-amber-700 border-amber-200', needsAction: true },
-    rejected: { label: 'Bị từ chối', className: 'bg-red-50 text-red-700 border-red-200', needsAction: true },
-    pending_review: { label: 'Chờ duyệt', className: 'bg-blue-50 text-action-blue border-blue-200' },
+    rejected: { label: 'Bị gỡ', className: 'bg-red-50 text-red-700 border-red-200', needsAction: true },
+    pending_review: { label: 'Cần kiểm tra', className: 'bg-blue-50 text-action-blue border-blue-200' },
     approved: { label: 'Đã đăng ký', className: 'bg-green-50 text-green-700 border-green-200' },
 };
 

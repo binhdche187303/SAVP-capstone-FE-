@@ -10,3 +10,27 @@
 .report-room-usage-table th button svg {
     flex-shrink: 0;
 }
+
+/* Bảng dữ liệu báo cáo luôn hiển thị dạng bảng (chuẩn trang Lịch gửi báo cáo). */
+.camai-table-container[data-table-layout="table"] > .report-data-table.report-data-table > :is(thead, tbody) > tr > :is(th, td) {
+    padding-inline: 10px !important;
+}
+
+.report-data-table th button {
+    text-align: left;
+}
+
+.report-data-table th button svg {
+    flex-shrink: 0;
+}
+
+.camai-table-container[data-table-layout="table"] > .report-data-table td[data-nowrap] {
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+}
+
+/* Tiêu đề dài xuống dòng thay vì đè sang cột bên (trừ bảng phòng họp đã có độ rộng riêng). */
+.camai-table-container[data-table-layout="table"] > .report-data-table:not(.report-room-usage-table) :is(th, th button) {
+    white-space: normal !important;
+    text-wrap: balance;
+}

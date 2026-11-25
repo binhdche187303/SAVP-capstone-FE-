@@ -12,27 +12,32 @@ const ROOM_COLUMN_WIDTHS = {
     bookedHours: '8.5%', usedHours: '13.5%', utilizationRate: '12.5%', noShowCount: '11%',
 };
 
-// Give descriptive columns more space than counts, across all report types.
-const columnWeight = col => {
-    if (/(?:fullName|ownerName|hostName|visitorName|handlerName|subject)$/.test(col.key)) return 3.2;
-    if (/(?:departmentName|organization|classSectionName|subjectName|roomName|zoneName|cameraName|purpose)$/.test(col.key)) return 2.8;
-    if (col.key === 'code') return 2.3;
-    if (col.format === 'datetime') return 2;
-    if (NUMERIC.includes(col.format)) return 1;
-    return 1.5;
+// Độ rộng tối thiểu (px) theo loại cột; tổng = min-width của bảng.
+// Màn rộng: các cột giãn theo tỉ lệ; màn hẹp: bảng cuộn ngang, không chồng chữ.
+const NOWRAP_KEYS = ['severityLabel', 'code', 'plateNumber'];
+const keepOneLine = col => col.format === 'datetime' || NUMERIC.includes(col.format) || NOWRAP_KEYS.includes(col.key);
+const columnMinWidth = col => {
+    if (col.format === 'datetime') return 118;
+    if (col.format === 'duration') return 80;
+    if (NUMERIC.includes(col.format)) return 76;
+    if (NOWRAP_KEYS.includes(col.key)) return col.key === 'severityLabel' ? 96 : 92;
+    if (/(?:fullName|ownerName|hostName|visitorName)$/.test(col.key)) return 116;
+    if (/(?:departmentName|organization|classSectionName|subjectName|roomName|zoneName|cameraName|purpose|typeLabel|handlerName|subject)$/.test(col.key)) return 104;
+    if (col.key === 'statusLabel') return 100;
+    return 88;
 };
 
 const ReportTable = ({ columns, rows = [], total = 0, page = 1, limit = 10, sortKey, sortDir, onSort, onPageChange, onPageSizeChange, loading }) => {
 
-    const totalWeight = columns.reduce((total, col) => total + columnWeight(col), 0);
+    const tableMinWidth = columns.reduce((total, col) => total + columnMinWidth(col), 0);
     const isRoomReport = columns.some(col => col.key === 'usedHours') && columns.every(col => ROOM_COLUMN_WIDTHS[col.key]);
 
     return (
         <div className={`${cardCls} overflow-hidden`}>
             <div className="overflow-x-auto">
-                <ResponsiveTable className={`w-full${isRoomReport ? ' report-room-usage-table' : ''}`}>
+                <ResponsiveTable className={`w-full report-data-table${isRoomReport ? ' report-room-usage-table' : ''}`} minTableWidth={720} style={isRoomReport ? undefined : { minWidth: tableMinWidth }}>
                     <colgroup>
-                        {columns.map(col => <col key={col.key} style={{ width: isRoomReport ? ROOM_COLUMN_WIDTHS[col.key] : `${100 * columnWeight(col) / totalWeight}%` }} />)}
+                        {columns.map(col => <col key={col.key} style={{ width: isRoomReport ? ROOM_COLUMN_WIDTHS[col.key] : `${100 * columnMinWidth(col) / tableMinWidth}%` }} />)}
                     </colgroup>
                     <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                         <tr>
@@ -60,7 +65,7 @@ const ReportTable = ({ columns, rows = [], total = 0, page = 1, limit = 10, sort
                         ) : rows.map((row, i) => (
                             <tr key={i} className="border-b border-pale-gray last:border-0 hover:bg-cloud-mist/40">
                                 {columns.map((col) => (
-                                    <td key={col.key} className={`${tdCls} ${NUMERIC.includes(col.format) ? 'text-right tabular-nums' : ''}`}>
+                                    <td key={col.key} className={`${tdCls} ${NUMERIC.includes(col.format) ? 'text-right tabular-nums' : ''}`} data-nowrap={keepOneLine(col) || undefined}>
                                         {formatCell(row[col.key], col.format)}
                                     </td>
                                 ))}

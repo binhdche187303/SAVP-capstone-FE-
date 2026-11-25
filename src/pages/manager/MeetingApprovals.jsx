@@ -4,8 +4,9 @@ import ResponsiveTable from '../../components/common/ResponsiveTable';
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import StatisticCard from '../../components/common/StatisticCard';
-import StatisticGrid from '../../components/common/StatisticGrid';
+import PageHeading from '../../components/common/PageHeading';
+import KpiTiles from '../../components/report/KpiTiles';
+import { pageCls } from '../../components/common/uiClasses';
 import './MeetingApprovals.css';
 import { AlertTriangle, Calendar, CheckCircle, CheckCircle2, Clock, Eye, FileText, Filter, Info, LayoutGrid, List, MapPin, Search, UserX, Users, X, XCircle, Loader2 } from 'lucide-react';
 import { htmlToPlainText } from '../../utils/richText';
@@ -48,11 +49,11 @@ const itemVariants = {
 };
 
 const APPROVAL_STATUSES = [
-    { key: 'pending', label: 'Chờ phê duyệt', icon: Clock, tone: 'warning' },
-    { key: 'approved', label: 'Đã phê duyệt', icon: CheckCircle2, tone: 'success' },
-    { key: 'rejected', label: 'Đã từ chối', icon: XCircle, tone: 'danger' },
-    { key: 'expired', label: 'Hết hạn', icon: AlertTriangle, tone: 'warning' },
-    { key: 'all', label: 'Tất cả yêu cầu', icon: FileText, tone: 'default' },
+    { key: 'pending', label: 'Chờ phê duyệt', icon: Clock, tone: 'amber' },
+    { key: 'approved', label: 'Đã phê duyệt', icon: CheckCircle2, tone: 'green' },
+    { key: 'rejected', label: 'Đã từ chối', icon: XCircle, tone: 'red' },
+    { key: 'expired', label: 'Hết hạn', icon: AlertTriangle, tone: 'slate' },
+    { key: 'all', label: 'Tất cả yêu cầu', icon: FileText, tone: 'blue' },
 ];
 
 /**
@@ -591,23 +592,20 @@ const MeetingApprovals = () => {
             variants={containerVariants}
             initial="hidden"
             animate="show"
-            className="space-y-6 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-2"
+            className={pageCls}
         >
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-platinum-tint pb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-platinum-tint pb-5">
                 <div>
-                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        Phê duyệt
-                    </span>
-                    <h1 className="text-xl md:text-2xl font-extrabold text-midnight-indigo leading-tight">
+                    <PageHeading badge="Phê duyệt" icon={<CheckCircle className="w-6 h-6 text-action-blue" />} className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                         Phê duyệt cuộc họp
-                    </h1>
-                    <p className="text-xs text-slate-blue mt-1 leading-relaxed">
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1 leading-relaxed">
                         Danh sách đầy đủ và chi tiết các yêu cầu phê duyệt đặt phòng họp của phòng ban.
                     </p>
                 </div>
                 <RefreshButton
+                    forceStandard
                     onClick={refreshRequests}
                     busy={loading}
                 />
@@ -645,16 +643,17 @@ const MeetingApprovals = () => {
                 )}
             </AnimatePresence>
 
-            <StatisticGrid columns={5}>
-                {APPROVAL_STATUSES.map(status => (
-                    <StatisticCard key={status.key}
-                        label={status.label} value={statusCounts[status.key]}
-                        icon={status.icon} tone={status.tone} loading={countsLoading}
-                        selected={statusFilter === status.key}
-                        onClick={() => handleTabChange(status.key)}
-                    />
-                ))}
-            </StatisticGrid>
+            <KpiTiles
+                maxVisible={4}
+                ariaLabel="Thống kê trạng thái phê duyệt"
+                items={APPROVAL_STATUSES.map(status => ({
+                    ...status,
+                    value: statusCounts[status.key],
+                    loading: countsLoading,
+                    active: statusFilter === status.key,
+                    onClick: () => handleTabChange(status.key),
+                }))}
+            />
 
             {/* Filters panel */}
             <FilterBar as={motion.div} variant="card" variants={itemVariants} className="bg-white p-5 rounded-2xl border border-platinum-tint shadow-sm space-y-4">
@@ -843,7 +842,7 @@ const MeetingApprovals = () => {
                                         <div className="mt-auto pt-3 border-t border-platinum-tint/40 flex items-center justify-between">
                                             <div>
                                                 {conflictLevel === 'conflict' ? (
-                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 text-[10px] font-bold text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200" title="Bị trùng lịch">
+                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 whitespace-nowrap text-[10px] font-bold text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200" title="Bị trùng lịch">
                                                         <AlertTriangle className="w-3.5 h-3.5 text-red-600 animate-pulse" /> Bị trùng lịch
                                                     </span>
                                                 ) : conflictLevel === 'pending' ? (
@@ -981,7 +980,7 @@ const MeetingApprovals = () => {
                                             {/* Conflict Indicator */}
                                             <td className="p-4 whitespace-nowrap meeting-approval-conflict">
                                                 {conflictLevel === 'conflict' ? (
-                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                                                    <span data-ui-text="badge" className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
                                                         <AlertTriangle className="w-3 h-3 text-red-600 animate-pulse" />
                                                         Bị trùng lịch
                                                     </span>

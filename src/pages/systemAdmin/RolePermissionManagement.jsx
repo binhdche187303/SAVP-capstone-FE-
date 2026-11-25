@@ -1,8 +1,13 @@
 import FilterBar from '../../components/common/FilterBar';
-import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
-import { AlertTriangle, CheckCircle, GripVertical, Key, Plus, Save, Search, Shield, Trash2, UserCog, Loader2 } from 'lucide-react';
+import PageHeading from '../../components/common/PageHeading';
+import { AlertTriangle, CheckCircle, ChevronDown, GripVertical, Key, LayoutList, Plus, Save, Search, Shield, Table2, Trash2, UserCog, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
+import PermissionMatrix from './PermissionMatrix';
+import { hasPermission } from '../../utils/permissionUtils';
+import { pageCls } from '../../components/common/uiClasses';
+import './RolePermissionManagement.css';
 
 import { createPortal } from 'react-dom';
 import {
@@ -184,9 +189,6 @@ const RoleListItem = ({ role, isSelected, onSelect, onDelete }) => {
                 <div className="flex justify-between items-start mb-1">
                     <h3 className={`font-bold text-sm ${isSelected ? 'text-action-blue' : 'text-midnight-indigo'}`}>{getDisplayRoleName(role)}</h3>
                     <div className="flex items-center gap-1">
-                        {role.isSystemRole && (
-                            <span data-ui-text="badge" className="text-[10px] font-bold px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md">HỆ THỐNG</span>
-                        )}
                         {!role.isSystemRole && (
                             <button
                                 onClick={(e) => onDelete(role, e)}
@@ -227,8 +229,16 @@ const loadCatalog = async (fetchPage) => {
     return items;
 };
 
+const moduleLabel = (code) => MODULE_TRANSLATIONS[code] || code;
+
 const RolePermissionManagement = () => {
-    const [modulesPerPage, setModulesPerPage] = useState(3);
+    // Chế độ xem ghi trên URL (?view=matrix) để back/forward và chia sẻ link được.
+    // Ma trận chỉ dành cho tài khoản có quyền quản lý phân quyền (giữ như màn cũ).
+    const [searchParams, setSearchParams] = useSearchParams();
+    const canViewMatrix = hasPermission('admin.manage_permissions');
+    const view = canViewMatrix && searchParams.get('view') === 'matrix' ? 'matrix' : 'role';
+    const setView = (v) => setSearchParams(v === 'matrix' ? { view: 'matrix' } : {}, { replace: false });
+    const [matrixReloadKey, setMatrixReloadKey] = useState(0);
     // Data states
     const [roles, setRoles] = useState([]);
     const [permissions, setPermissions] = useState([]);
@@ -247,7 +257,12 @@ const RolePermissionManagement = () => {
     const [error, setError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [collapsedModules, setCollapsedModules] = useState(() => new Set());
+    const toggleCollapse = (module) => setCollapsedModules(prev => {
+        const next = new Set(prev);
+        next.has(module) ? next.delete(module) : next.add(module);
+        return next;
+    });
 
 
     // Modal states
@@ -293,10 +308,6 @@ const RolePermissionManagement = () => {
         };
     }, [fetchData]);
 
-    // Reset pagination when searching or changing role
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, selectedRole]);
 
     // Handle selecting a role
     const handleSelectRole = async (role) => {
@@ -450,6 +461,7 @@ const RolePermissionManagement = () => {
             } else {
                 setSuccessMessage(`Đã cập nhật quyền cho vai trò ${getDisplayRoleName(selectedRole)}.`);
             }
+            setMatrixReloadKey(k => k + 1);
         } catch (err) {
             setError(err?.error?.message || err?.message || 'Lỗi khi lưu phân quyền.');
         } finally {
@@ -527,18 +539,51 @@ const RolePermissionManagement = () => {
         );
     });
 
+    const isDirty = rolePermissions.length !== originalRolePermissions.length
+        || rolePermissions.some(id => !originalRolePermissions.includes(id));
+
+    // Bấm tên vai trò trên ma trận → sang chế độ sửa vai trò đó.
+    const handleEditFromMatrix = (role) => {
+        if (selectedRole?.id !== role.id) {
+            if (isDirty && !window.confirm(`Vai trò ${getDisplayRoleName(selectedRole)} có thay đổi chưa lưu. Bỏ thay đổi và chuyển sang ${getDisplayRoleName(role)}?`)) return;
+            handleSelectRole(role);
+        }
+        setView('role');
+    };
+
+    const tabClass = (active) => `inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+        active ? 'bg-white text-action-blue shadow-sm' : 'text-slate-blue hover:text-midnight-indigo'}`;
+
     return (
-        <div data-page-surface="wide" className="p-6 h-full flex flex-col bg-snow-white">
-            <div className="flex justify-between items-center mb-6 animate-fade-in-up">
+        <div data-page-surface="wide" className={`${pageCls} role-permission-page min-h-full flex flex-col animate-fade-in-up`}>
+            <div className="border-b border-platinum-tint pb-5">
                 <div>
-                    <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
-                        <UserCog className="w-3.5 h-3.5" />
-                        Phân quyền
-                    </span>
-                    <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Quản lý Phân quyền</h1>
-                    <p className="text-sm text-slate-blue mt-1">Cấu hình các vai trò và gán quyền chi tiết cho từng vai trò trong hệ thống.</p>
+                    <PageHeading badge="Phân quyền" icon={<UserCog className="w-6 h-6 text-action-blue" />} className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
+                        Vai trò & Phân quyền
+                    </PageHeading>
+                    <p data-page-description className="text-xs text-slate-blue mt-1">
+                        {view === 'matrix'
+                            ? 'Xem toàn bộ quyền của mọi vai trò. Bấm tên vai trò trên đầu cột để sửa.'
+                            : 'Cấu hình các vai trò và gán quyền chi tiết cho từng vai trò trong hệ thống.'}
+                    </p>
                 </div>
             </div>
+
+            {canViewMatrix && (
+                <div className="role-permission-view-switch flex flex-wrap items-center gap-3">
+                    <div role="tablist" aria-label="Chế độ xem" className="inline-flex rounded-xl bg-cloud-mist p-1">
+                        <button type="button" role="tab" aria-selected={view === 'role'} className={tabClass(view === 'role')} onClick={() => setView('role')}>
+                            <LayoutList className="w-4 h-4" /> Theo vai trò
+                        </button>
+                        <button type="button" role="tab" aria-selected={view === 'matrix'} className={tabClass(view === 'matrix')} onClick={() => setView('matrix')}>
+                            <Table2 className="w-4 h-4" /> Ma trận tổng quan
+                        </button>
+                    </div>
+                    {view === 'matrix' && isDirty && (
+                        <span className="text-xs font-semibold text-amber-600">Vai trò {getDisplayRoleName(selectedRole)} có thay đổi chưa lưu</span>
+                    )}
+                </div>
+            )}
 
             {(catalogError || error) && (
                 <div role="alert" className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start animate-fade-in-up">
@@ -558,9 +603,26 @@ const RolePermissionManagement = () => {
                 </div>
             )}
 
+            {view === 'matrix' ? (
+                loading ? (
+                    <div className="flex items-center justify-center gap-2 py-16 text-slate-blue"><Loader2 className="w-5 h-5 animate-spin" /> Đang tải…</div>
+                ) : !catalogError && (
+                    <PermissionMatrix
+                        roles={roles}
+                        permissions={permissions}
+                        searchTerm={searchTerm}
+                        reloadKey={matrixReloadKey}
+                        onEditRole={handleEditFromMatrix}
+                        roleLabel={getDisplayRoleName}
+                        permissionLabel={getDisplayPermissionName}
+                        moduleLabel={moduleLabel}
+                        onSearchTermChange={setSearchTerm}
+                    />
+                )
+            ) : (
             <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 animate-fade-in-up delay-100">
                 {/* ROLES LIST PANE */}
-                <div className="w-full lg:w-1/3 flex flex-col bg-white rounded-2xl shadow-sm-1 border border-platinum-tint overflow-hidden">
+                <div className="w-full lg:w-1/3 flex flex-col min-h-0 bg-white rounded-2xl shadow-sm-1 border border-platinum-tint overflow-hidden">
                     <div className="p-4 border-b border-platinum-tint bg-cloud-mist/30 flex justify-between items-center">
                         <h2 className="font-bold text-midnight-indigo flex items-center">
                             <Shield className="w-5 h-5 mr-2 text-action-blue" />
@@ -605,7 +667,9 @@ const RolePermissionManagement = () => {
                 </div>
 
                 {/* PERMISSIONS MATRIX PANE */}
-                <div className="w-full lg:w-2/3 flex flex-col bg-white rounded-2xl shadow-sm-1 border border-platinum-tint overflow-hidden">
+                {/* Cột quyền không tự kéo cao hàng: chiều cao = cột vai trò, phần dư cuộn bên trong. */}
+                <div className="w-full lg:w-2/3 relative min-h-[24rem]">
+                <div className="w-full lg:absolute lg:inset-0 flex flex-col min-h-0 h-full bg-white rounded-2xl shadow-sm-1 border border-platinum-tint overflow-hidden">
                     {selectedRole ? (
                         <>
                             <div className="p-4 border-b border-platinum-tint bg-cloud-mist/30 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
@@ -638,7 +702,7 @@ const RolePermissionManagement = () => {
                                 </div>
                             </div>
                             
-                            <div className="flex-1 overflow-y-auto p-6">
+                            <div className="flex-1 min-h-0 overflow-y-auto p-6">
                                 {permissionsLoading ? (
                                     <div className="flex flex-col items-center justify-center h-40">
                                         <Loader2 className="w-6 h-6 text-action-blue animate-spin mb-3" />
@@ -649,15 +713,16 @@ const RolePermissionManagement = () => {
                                 ) : (
                                     <div className="flex flex-col h-full">
                                         <div className="space-y-6 flex-1">
-                                            {filteredModules.slice((currentPage - 1) * modulesPerPage, currentPage * modulesPerPage).map(module => {
+                                            {filteredModules.map(module => {
                                                 const visiblePermissions = groupedPermissions[module]
                                                     .filter(p => !searchTerm || getDisplayPermissionName(p).toLowerCase().includes(searchTerm.toLowerCase()) || p.permissionCode.toLowerCase().includes(searchTerm.toLowerCase()));
                                                 const checkedCount = visiblePermissions.filter(p => rolePermissions.includes(p.id)).length;
                                                 const allChecked = visiblePermissions.length > 0 && checkedCount === visiblePermissions.length;
                                                 const someChecked = checkedCount > 0 && !allChecked;
                                                 return (
-                                                <div key={module} className="bg-cloud-mist/20 border border-platinum-tint rounded-xl overflow-hidden">
-                                                <label className="bg-cloud-mist/40 px-4 py-2 border-b border-platinum-tint flex items-center gap-3 cursor-pointer">
+                                                <div key={module} className="bg-cloud-mist/20 border border-platinum-tint rounded-xl">
+                                                {/* Tiêu đề nhóm dính trên cùng khi cuộn qua nhóm (-top-6 bù padding p-6 của vùng cuộn). */}
+                                                <label className={`sticky -top-6 z-10 bg-[#f4f7fb] px-4 py-2 flex items-center gap-3 cursor-pointer rounded-t-xl ${collapsedModules.has(module) ? 'rounded-b-xl' : 'border-b border-platinum-tint'}`}>
                                                     <input
                                                         type="checkbox"
                                                         disabled={!permissionsReady || Boolean(catalogError)}
@@ -669,8 +734,17 @@ const RolePermissionManagement = () => {
                                                     />
                                                     <h3 className="font-bold text-midnight-indigo text-sm uppercase flex-1">{MODULE_TRANSLATIONS[module] || module}</h3>
                                                     <span data-ui-text="primary" className="text-xs font-semibold text-slate-blue">{checkedCount}/{visiblePermissions.length}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.preventDefault(); toggleCollapse(module); }}
+                                                        className="p-1 rounded-lg text-slate-blue hover:text-midnight-indigo hover:bg-white"
+                                                        title={collapsedModules.has(module) ? 'Mở rộng nhóm' : 'Thu gọn nhóm'}
+                                                        aria-expanded={!collapsedModules.has(module)}
+                                                    >
+                                                        <ChevronDown className={`w-4 h-4 transition-transform ${collapsedModules.has(module) ? '-rotate-90' : ''}`} />
+                                                    </button>
                                                 </label>
-                                                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {!collapsedModules.has(module) && <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {visiblePermissions
                                                         .map(p => {
                                                         const moduleStatus = getPermissionScreenStatus(p.permissionCode, selectedRole?.roleCode);
@@ -706,24 +780,14 @@ const RolePermissionManagement = () => {
                                                         </label>
                                                         );
                                                         })}
-                                                </div>
+                                                </div>}
                                             </div>
                                                 );
                                             })}
                                         </div>
                                         
-                                        {/* Pagination Controls */}
-
                                     </div>
                                 )}
-{<PaginationRegion legacyVisible={Math.ceil(filteredModules.length / modulesPerPage) > 1}><PaginationFooter
-                                                currentPage={currentPage}
-                                                totalPages={Math.ceil(filteredModules.length / modulesPerPage)}
-                                                totalItems={filteredModules.length}
-                                                pageSize={modulesPerPage}
-                                                onPageChange={setCurrentPage}
-                                                itemLabel={"nhóm quyền"}
-                                             onPageSizeChange={size => { setModulesPerPage(size); setCurrentPage(1); }} /></PaginationRegion>}
                             </div>
                         </>
                     ) : (
@@ -734,7 +798,9 @@ const RolePermissionManagement = () => {
                         </div>
                     )}
                 </div>
+                </div>
             </div>
+            )}
 
             {/* CREATE ROLE MODAL */}
             {isCreateRoleOpen && createPortal(

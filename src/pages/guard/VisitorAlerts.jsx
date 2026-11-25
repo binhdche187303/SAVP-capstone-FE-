@@ -301,7 +301,6 @@ const VisitorAlerts = () => {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-action-blue">Bảng xử lý riêng</p>
                     <h1 className="text-2xl font-bold text-midnight-indigo mt-1">Cảnh báo khách</h1>
                     <p className="text-sm text-slate-blue mt-1">Theo dõi và xử lý riêng các trường hợp khách cần kiểm tra tại cổng hoặc trong khuôn viên.</p>
                 </div>
@@ -363,23 +362,23 @@ const VisitorAlerts = () => {
 {(camaiPageItems, camaiStartIndex) => (<>
                     {loading && <p className="py-10 text-center text-sm text-slate-blue">Đang tải cảnh báo khách...</p>}
                     {!loading && filteredAlerts.length === 0 && <p className="py-10 text-center text-sm text-slate-blue">Không có cảnh báo khách phù hợp với bộ lọc.</p>}
-                    {!loading && filteredAlerts.length > 0 && <ResponsiveTable className="w-full min-w-[1120px] text-left">
+                    {!loading && filteredAlerts.length > 0 && <ResponsiveTable className="visitor-alerts-table w-full text-left">
 <colgroup>
-<col style={{ width: '20%' }} />
-<col style={{ width: '8%' }} />
-<col style={{ width: '20%' }} />
+<col style={{ width: '17%' }} />
 <col style={{ width: '10%' }} />
-<col style={{ width: '10%' }} />
-<col style={{ width: '13%' }} />
-<col style={{ width: '10%' }} />
+<col style={{ width: '21%' }} />
 <col style={{ width: '9%' }} />
+<col style={{ width: '11%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '12%' }} />
+<col style={{ width: '8%' }} />
 </colgroup>
                         <thead className="bg-cloud-mist/50 border-b border-platinum-tint">
                             <tr className="text-[11px] uppercase tracking-wide text-slate-blue">
                                 <th className="px-5 py-3 font-bold">Cảnh báo</th>
                                 <th className="px-4 py-3 font-bold">Mức độ</th>
                                 <th className="px-4 py-3 font-bold">Khách</th>
-                                <th className="px-4 py-3 font-bold">Zone / cổng</th>
+                                <th className="px-4 py-3 font-bold">Khu vực</th>
                                 <th className="px-4 py-3 font-bold">Camera</th>
                                 <th className="px-4 py-3 font-bold">Thời gian</th>
                                 <th className="px-4 py-3 font-bold">Trạng thái</th>
@@ -393,14 +392,18 @@ const VisitorAlerts = () => {
                                 const visitorPhoto = payload.visitorPhoto || payload.visitor_photo || null;
                                 const busy = actionId === alert.id;
                                 const severity = severityMeta[alert.severity] || severityMeta.medium;
+                                const zoneId = alert.zone_id || payload.zoneId || payload.zone_id;
+                                const zone = zones.find(item => item.id === zoneId);
+                                const zoneName = payload.zoneName || payload.zone_name || alert.zone_name
+                                    || zone?.name || zone?.zoneName || zone?.zone_name;
                                 return <tr key={alert.id} onClick={() => payload.visitId && setDetailId(payload.visitId)} onKeyDown={(event) => { if ((event.key === 'Enter' || event.key === ' ') && payload.visitId) { event.preventDefault(); setDetailId(payload.visitId); } }} tabIndex={payload.visitId ? 0 : undefined} className={`align-top hover:bg-cloud-mist/20 ${payload.visitId ? 'cursor-pointer focus:outline-none focus:bg-blue-50/40' : ''}`}>
                                     <td className="px-5 py-4"><p className="font-bold text-sm text-midnight-indigo">{getAlertTypeLabel(alert.alert_type)}</p><p className="text-xs text-slate-blue mt-1">{payload.detail || payload.reason || payload.message || 'Cần kiểm tra tại cổng'}</p></td>
                                     <td className="px-4 py-4"><span data-ui-text="badge" className={`inline-flex px-2 py-1 rounded-md text-[11px] font-bold border whitespace-nowrap ${severity.className}`}>{severity.label}</span></td>
                                     <td className="px-4 py-4 text-sm text-midnight-indigo"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-lg overflow-hidden border border-platinum-tint bg-cloud-mist/50 flex items-center justify-center shrink-0">{visitorPhoto ? <img src={visitorPhoto} alt={`Ảnh ${payload.visitorName || 'khách'}`} className="w-full h-full object-cover" /> : <UserRound className="w-5 h-5 text-slate-blue/50" />}</div><div><p className={`font-semibold ${payload.visitId ? 'hover:text-action-blue' : ''}`}>{payload.visitorName || payload.fullName || 'Chưa xác định'}</p><p className="text-xs text-slate-blue mt-1">{payload.code || '—'}</p></div></div></td>
-                                    <td className="px-4 py-4 text-xs text-slate-blue">{payload.zoneName || payload.zone_name || alert.zone_name || alert.zone_id || 'Chưa xác định'}</td>
-                                    <td className="px-4 py-4 text-xs text-slate-blue"><p>{payload.cameraGroupName || payload.camera_group_name || 'Chưa xác định'}</p><p className="mt-1">{payload.cameraName || payload.camera_name || payload.cameraId || 'Chưa xác định'}</p></td>
+                                    <td className="px-4 py-4 text-xs text-slate-blue">{zoneName || '—'}</td>
+                                    <td className="px-4 py-4 text-xs text-slate-blue"><p>{payload.cameraGroupName || payload.camera_group_name || <span className="visitor-alert-nowrap">Chưa xác định</span>}</p><p className="mt-1">{payload.cameraName || payload.camera_name || payload.cameraId || <span className="visitor-alert-nowrap">Chưa xác định</span>}</p></td>
                                     <td className="px-4 py-4 text-xs text-slate-blue whitespace-nowrap">{formatTime(alert.last_seen_at || alert.triggered_at || alert.created_at)}<p className="mt-1">{alert.occurrence_count || 1} lượt</p></td>
-                                    <td className="px-4 py-4"><span data-ui-text="badge" className="inline-flex px-2 py-1 rounded-md text-[11px] font-bold border bg-blue-50 text-action-blue border-blue-200 whitespace-nowrap">{statusLabel[alert.status] || alert.status}</span>{alert.acknowledged_at && <p data-ui-text="primary" className="text-[10px] text-slate-blue mt-2">Tiếp nhận: {formatTime(alert.acknowledged_at)}</p>}{(alert.acknowledged_by_name || alert.acknowledged_by) && <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Bởi: {alert.acknowledged_by_name || 'Chưa có thông tin người tiếp nhận'}</p>}</td>
+                                    <td className="px-4 py-4"><span data-ui-text="badge" className="inline-flex px-2 py-1 rounded-md text-[11px] font-bold border bg-blue-50 text-action-blue border-blue-200 whitespace-nowrap">{statusLabel[alert.status] || alert.status}</span>{alert.acknowledged_at && <p data-ui-text="primary" className="text-[10px] text-slate-blue mt-2">{formatTime(alert.acknowledged_at)}</p>}{(alert.acknowledged_by_name || alert.acknowledged_by) && <p data-ui-text="secondary" className="text-[10px] text-slate-blue">{alert.acknowledged_by_name || '—'}</p>}</td>
                                     <td className="px-5 py-4"><div className="flex justify-end gap-2"><div className="flex flex-col items-end gap-2">{alert.status !== 'resolved' && <button type="button" disabled={busy} onClick={(event) => { event.stopPropagation(); alert.status === 'new' ? openAcknowledgeModal(alert) : openResolveModal(alert); }} className="px-3 py-1.5 rounded-lg bg-action-blue text-white text-xs font-bold disabled:opacity-60 whitespace-nowrap">{busy ? 'Đang xử lý...' : alert.status === 'new' ? 'Tiếp nhận' : 'Xử lý ngay'}</button>}{evidenceId && <button type="button" onClick={(event) => { event.stopPropagation(); setSnapshotEventId(evidenceId); }} className="px-3 py-1.5 rounded-lg border border-platinum-tint text-xs font-bold text-slate-blue hover:text-action-blue whitespace-nowrap">Xem bằng chứng</button>}</div></div></td>
                                 </tr>;
                             })(camaiRecord, camaiStartIndex + camaiIndex, (alerts)))}

@@ -4,8 +4,7 @@ import FilterMultiSelect from '../../../components/common/FilterMultiSelect';
 import CalendarRangePresets from '../../../components/common/CalendarRangePresets';
 import './VisitorListFilters.css';
 import ResponsiveTable from '../../../components/common/ResponsiveTable';
-import StatisticGrid from '../../../components/common/StatisticGrid';
-import StatisticCard from '../../../components/common/StatisticCard';
+import KpiTiles from '../../../components/report/KpiTiles';
 import FilterBar from '../../../components/common/FilterBar';
 import PaginationFooter from '../../../components/common/PaginationFooter';
 import { useCallback, useEffect, useState } from 'react';
@@ -25,14 +24,23 @@ const TABS = [
     ['approved', 'Đã duyệt'],
     ['checked_in', 'Đang trong khuôn viên'],
     ['checked_out', 'Hoàn tất'],
-    ['closed', 'Từ chối / Hết hạn / Khác'],
+    ['rejected', 'Từ chối'],
+    ['expired', 'Hết hạn'],
+    ['cancelled', 'Đã hủy'],
+    ['revoked', 'Đã thu hồi'],
+    ['exit_unrecorded', 'Chưa ghi nhận giờ ra'],
 ];
+const EXTRA_STATUS_KEYS = TABS.slice(4).map(([key]) => key);
 const STATUS_CARDS = {
-    pending_approval: { icon: Clock, tone: 'warning' },
-    approved: { icon: CheckCircle2, tone: 'success' },
-    checked_in: { icon: LogIn, tone: 'default' },
-    checked_out: { icon: LogOut, tone: 'success' },
-    closed: { icon: XCircle, tone: 'danger' },
+    pending_approval: { icon: Clock, tone: 'amber' },
+    approved: { icon: CheckCircle2, tone: 'green' },
+    checked_in: { icon: LogIn, tone: 'blue' },
+    checked_out: { icon: LogOut, tone: 'slate' },
+    rejected: { icon: XCircle, tone: 'red' },
+    expired: { icon: Clock, tone: 'slate' },
+    cancelled: { icon: XCircle, tone: 'amber' },
+    revoked: { icon: XCircle, tone: 'red' },
+    exit_unrecorded: { icon: LogOut, tone: 'slate' },
 };
 
 
@@ -62,6 +70,8 @@ const VisitorManagement = () => {
     // Số đếm cạnh lựa chọn ô "Đơn vị tiếp" (theo tab + các bộ lọc khác; hook bỏ qua nếu quá nhiều đơn vị).
     const deptCounts = useFacetCounts({ ...filters, tab }, 'departmentId', lookups.departments.map((d) => d.id),
         ({ tab: status, ...f }) => listVisits({ ...f, status, page: 1, limit: 1 }).then(totalOf));
+    const extraStatusCounts = useFacetCounts(filters, 'status', EXTRA_STATUS_KEYS,
+        (f) => listVisits({ ...f, page: 1, limit: 1 }).then(totalOf));
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -103,6 +113,15 @@ const VisitorManagement = () => {
 
     const counts = data?.counts || {};
     const items = data?.items || [];
+    const statusItems = TABS.map(([key, label]) => ({
+        key,
+        label,
+        value: Object.prototype.hasOwnProperty.call(counts, key) ? counts[key] : (extraStatusCounts?.[key] ?? '—'),
+        icon: STATUS_CARDS[key].icon,
+        tone: STATUS_CARDS[key].tone,
+        active: tab === key,
+        onClick: () => changeTab(key),
+    }));
 
     return (
         <div data-page-surface="wide" className={pageCls}>
@@ -113,19 +132,7 @@ const VisitorManagement = () => {
                 <p data-page-description className="text-xs text-slate-blue mt-1">Theo dõi đăng ký (người được gặp tự duyệt), quyền ra vào theo thời gian và theo dõi trạng thái từng lượt khách.</p>
             </div>
 
-            <StatisticGrid columns={5} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4" data-stat-grid role="group" aria-label="Thống kê trạng thái khách">
-                {TABS.map(([key, label]) => (
-                    <StatisticCard
-                        key={key}
-                        label={label}
-                        value={counts[key] ?? 0}
-                        icon={STATUS_CARDS[key].icon}
-                        tone={STATUS_CARDS[key].tone}
-                        selected={tab === key}
-                        onClick={() => changeTab(key)}
-                    />
-                ))}
-            </StatisticGrid>
+            <KpiTiles items={statusItems} maxVisible={4} ariaLabel="Thống kê trạng thái khách" />
 
             <FilterBar variant="card" className="visitor-list-filters">
                 <div className="visitor-list-filter-main">
@@ -171,8 +178,8 @@ const VisitorManagement = () => {
 
             {error && <div className={errorBoxCls}>{error}</div>}
 
-            <div className={`${cardCls} overflow-hidden`}>
-                <div className="overflow-x-auto">
+            <div className={`${cardCls} overflow-hidden visitor-management-table`}>
+                <div className="overflow-x-auto visitor-management-table-scroll">
                     <ResponsiveTable className="w-full">
 <colgroup>
 <col style={{ width: '21%' }} />
@@ -181,11 +188,11 @@ const VisitorManagement = () => {
 <col style={{ width: '16%' }} />
 <col style={{ width: '7%' }} />
 <col style={{ width: '11%' }} />
-<col style={{ width: '7%' }} />
+<col className="visitor-management-action-col" />
 </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
-                                {['Khách', 'Mã lượt', 'Người gặp / Đơn vị tiếp', 'Giờ hẹn', 'Kênh', 'Trạng thái', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
+                                {['Khách', 'Mã lượt', 'Người gặp / Đơn vị tiếp', 'Giờ hẹn', 'Kênh', 'Trạng thái', ''].map((h, index) => <th key={h} className={`${thCls} ${index === 6 ? 'visitor-management-action-cell' : ''}`}>{h}</th>)}
                             </tr>
                         </thead>
                         <tbody className={loading ? 'opacity-60' : ''}>
@@ -210,7 +217,7 @@ const VisitorManagement = () => {
                                     <td className={tdCls}>{fmtTimeRange(visit.scheduledFrom, visit.scheduledTo)}</td>
                                     <td className={tdCls}>{VISIT_CHANNEL_LABELS[visit.channel]}</td>
                                     <td className={tdCls}><VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} /></td>
-                                    <td className={`${tdCls} text-right`}>
+                                    <td className={`${tdCls} text-right visitor-management-action-cell`}>
                                         {visit.status === 'pending_approval' && (
                                             <button data-ui-text="action"
                                                 type="button"

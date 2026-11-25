@@ -102,3 +102,8 @@ export const getCameraTrace = async (params = {}) => {
     const query = buildQuery(params);
     return await get(`/campus/camera-trace${query}`);
 };
+
+/** Ai đang có mặt của 1 phòng ban (departmentId null → nhóm chưa gán phòng ban). */
+export const getPresentPeopleByDepartment = async (departmentId, options = {}) => {
+    return await get(`/campus-dashboard/presence-by-department/people?departmentId=${encodeURIComponent(departmentId ?? 'none')}`, options);
+};

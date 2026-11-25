@@ -59,7 +59,7 @@ const STATIC_NAVIGATION_ITEMS = [
             { label: 'Người dùng', to: '/business-admin/users', icon: Users },
             { label: 'Phòng ban', to: '/business-admin/departments', icon: Briefcase },
             { label: 'Vai trò lịch họp', to: '/business-admin/calendar-roles', icon: CalendarCog },
-            { label: 'Duyệt ảnh sinh trắc học', to: '/business-admin/biometric-submissions', icon: Fingerprint },
+            { label: 'Danh sách định danh', to: '/business-admin/biometric-submissions', icon: Fingerprint },
         ],
     },
     {

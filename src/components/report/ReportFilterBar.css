@@ -1,0 +1,53 @@
+/* Cùng bố cục với bộ lọc trang Quản lý khách (VisitorListFilters.css). */
+.camai-filter-bar.report-filter-bar[data-filter-bar] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    container-type: inline-size;
+}
+
+.report-filter-main,
+.report-filter-time,
+.report-filter-dates {
+    display: grid;
+    align-items: end;
+    min-width: 0;
+    gap: 16px;
+}
+
+.report-filter-main {
+    grid-template-columns: repeat(min(var(--report-filter-count, 2), 4), minmax(0, 1fr));
+}
+
+.report-filter-dates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.report-filter-time {
+    grid-template-columns: minmax(0, 28rem) minmax(0, 1fr) auto;
+}
+
+.report-filter-submit {
+    justify-self: end;
+    white-space: nowrap;
+}
+
+.report-filter-bar .camai-filter-field {
+    width: 100%;
+    min-width: 0;
+}
+
+@container (max-width: 1050px) {
+    .report-filter-time {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .report-filter-main {
+        grid-template-columns: repeat(min(var(--report-filter-count, 2), 2), minmax(0, 1fr));
+    }
+}
+
+@container (max-width: 500px) {
+    .report-filter-main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

@@ -125,13 +125,13 @@ const VisitDetailDrawer = ({ visitId, zones = [], onClose, onChanged, deskMode =
     return createPortal(
         <div className="fixed inset-0 z-[900] flex justify-end bg-midnight-indigo/30" role="dialog" aria-modal="true" aria-label="Chi tiết lượt khách">
             <button type="button" className="flex-1 cursor-default" aria-label="Đóng ngăn chi tiết" onClick={onClose} />
-            <aside className="w-full max-w-xl h-full bg-white shadow-sm-2 flex flex-col">
-                <header className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between">
+            <aside className="w-full max-w-xl h-full min-h-0 bg-white shadow-sm-2 flex flex-col">
+                <header className="shrink-0 px-6 py-4 border-b border-platinum-tint flex items-center justify-between">
                     <h3 className="font-bold text-midnight-indigo">Chi tiết lượt khách</h3>
                     <button type="button" onClick={onClose} aria-label="Đóng" className="p-1 rounded-lg text-slate-blue hover:bg-cloud-mist"><X className="w-4 h-4" /></button>
                 </header>
 
-                <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5 space-y-6">
                     {loadError && <div className={errorBoxCls}>{loadError}</div>}
                     {!loadError && !visit && <div className="flex justify-center py-16"><Loader2 className={spinnerCls} /></div>}
 

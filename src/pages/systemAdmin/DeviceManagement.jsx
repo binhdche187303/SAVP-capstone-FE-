@@ -2,15 +2,14 @@ import { clientFacetCounts } from '../../hooks/useFilterCounts';
 import { matchesFilter } from '../../utils/filterSelection';
 import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
-import StatisticGrid from '../../components/common/StatisticGrid';
-import StatisticCard from '../../components/common/StatisticCard';
+import KpiTiles from '../../components/report/KpiTiles';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import './DeviceManagement.css';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Activity, Cpu, Film, Loader2 } from 'lucide-react';
+import { Activity, Cpu, Film, Loader2, PowerOff, Wifi, WifiOff, Wrench } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { createPortal } from 'react-dom';
 import { API_BASE_URL } from '../../utils/request';
@@ -701,10 +700,40 @@ const DeviceManagement = () => {
     const totalPages = Math.ceil(filteredDevices.length / limit) || 1;
     const paginatedDevices = filteredDevices.slice((page - 1) * limit, page * limit);
 
+    // ?focus=<id> (từ Sơ đồ lắp đặt camera): nhảy tới trang chứa thiết bị, cuộn tới và highlight nhẹ.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const focusId = searchParams.get('focus');
+    const [highlightId, setHighlightId] = useState(null);
+    useEffect(() => {
+        if (!focusId || devicesList.length === 0) return;
+        const target = devicesList.find(d => String(d.id) === focusId);
+        setSearchParams(prev => { const n = new URLSearchParams(prev); n.delete('focus'); return n; }, { replace: true });
+        if (!target) return;
+        // Bỏ lọc để chắc chắn thiết bị nằm trong danh sách.
+        setSearch(''); setSelectedType(''); setSelectedStatus(''); setSelectedRoomId(''); setSelectedHealth('');
+        setPage(Math.floor(devicesList.indexOf(target) / limit) + 1);
+        setHighlightId(target.id);
+    }, [focusId, devicesList, limit, setSearchParams]);
+    useEffect(() => {
+        if (!highlightId) return;
+        const raf = requestAnimationFrame(() => {
+            document.getElementById(`device-card-${highlightId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        const t = setTimeout(() => setHighlightId(null), 3500);
+        return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+    }, [highlightId]);
+
     const filterByStatusCard = (status) => {
         setSelectedStatus(status);
         setPage(1);
     };
+    const statusItems = statusSummary ? [
+        { key: 'total', label: 'Tổng thiết bị', value: statusSummary.total ?? devicesList.length, icon: Cpu, tone: 'blue', active: !selectedStatus, onClick: () => filterByStatusCard('') },
+        { key: 'online', label: 'Online', value: statusSummary.online ?? 0, icon: Wifi, tone: 'green', active: selectedStatus === 'online', onClick: () => filterByStatusCard('online') },
+        { key: 'offline', label: 'Offline', value: statusSummary.offline ?? 0, icon: WifiOff, tone: 'red', active: selectedStatus === 'offline', onClick: () => filterByStatusCard('offline') },
+        { key: 'disabled', label: 'Vô hiệu', value: statusSummary.disabled ?? 0, icon: PowerOff, tone: 'slate', active: selectedStatus === 'disabled', onClick: () => filterByStatusCard('disabled') },
+        { key: 'maintenance', label: 'Bảo trì', value: statusSummary.maintenance ?? 0, icon: Wrench, tone: 'amber', active: selectedStatus === 'maintenance', onClick: () => filterByStatusCard('maintenance') },
+    ] : [];
 
     return (
         <div className="space-y-6 animate-fade-in-up">
@@ -750,42 +779,7 @@ const DeviceManagement = () => {
 
             {/* UC-51: Device status summary cards */}
             {statusSummary && (
-                <StatisticGrid columns={5} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                    <StatisticCard
-                        label="Tổng thiết bị"
-                        value={statusSummary.total ?? devicesList.length}
-                        icon={Cpu}
-                        selected={!selectedStatus}
-                        onClick={() => filterByStatusCard('')}
-                    />
-                    <StatisticCard
-                        label="Online"
-                        value={statusSummary.online ?? 0}
-                        tone="success"
-                        selected={selectedStatus === 'online'}
-                        onClick={() => filterByStatusCard('online')}
-                    />
-                    <StatisticCard
-                        label="Offline"
-                        value={statusSummary.offline ?? 0}
-                        tone="danger"
-                        selected={selectedStatus === 'offline'}
-                        onClick={() => filterByStatusCard('offline')}
-                    />
-                    <StatisticCard
-                        label="Vô hiệu"
-                        value={statusSummary.disabled ?? 0}
-                        selected={selectedStatus === 'disabled'}
-                        onClick={() => filterByStatusCard('disabled')}
-                    />
-                    <StatisticCard
-                        label="Bảo trì"
-                        value={statusSummary.maintenance ?? 0}
-                        tone="warning"
-                        selected={selectedStatus === 'maintenance'}
-                        onClick={() => filterByStatusCard('maintenance')}
-                    />
-                </StatisticGrid>
+                <KpiTiles items={statusItems} maxVisible={4} ariaLabel="Thống kê trạng thái thiết bị" />
             )}
 
             {/* Notification messages */}
@@ -938,7 +932,7 @@ const DeviceManagement = () => {
                                     const cfg = DEVICE_CONFIG[device.device_type] || DEVICE_CFG_DEFAULT;
                                     const assignedRoom = rooms.find(r => r.roomId === device.room_id);
                                     return (
-                                        <div key={device.id} className={`bg-white rounded-2xl border ${flashIds.includes(device.id) ? 'border-red-400 ring-2 ring-red-300' : cfg.border} shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col`}>
+                                        <div key={device.id} id={`device-card-${device.id}`} className={`bg-white rounded-2xl border ${flashIds.includes(device.id) ? 'border-red-400 ring-2 ring-red-300' : highlightId === device.id ? 'border-action-blue ring-4 ring-action-blue/20 bg-blue-50/40' : cfg.border} shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col`}>
                                             {/* Accent strip */}
                                             <div className={`${cfg.accentBar} h-[3px] shrink-0`} />
 
@@ -1044,7 +1038,7 @@ const DeviceManagement = () => {
                                                     <div className="flex items-center gap-0.5">
                                                         <button
                                                             onClick={() => { setAssignRoomDeviceId(device.id); setAssignRoomValue(device.room_id || ''); setIsAssignRoomModalOpen(true); }}
-                                                            title="Gán phòng"
+                                                            data-tip="Gán camera vào phòng" aria-label="Gán camera vào phòng"
                                                             className="p-2 rounded-lg text-steel-gray hover:text-teal-600 hover:bg-teal-50 transition-colors"
                                                         >
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1057,7 +1051,7 @@ const DeviceManagement = () => {
                                                         {(CAMERA_TYPES.includes(device.device_type) || device.device_type === 'face_server') && (
                                                             <button
                                                                 onClick={() => handleCheckAvailability(device)}
-                                                                title="Kiểm tra kết nối (Ping)"
+                                                                data-tip="Kiểm tra kết nối (Ping)" aria-label="Kiểm tra kết nối (Ping)"
                                                                 className="p-2 rounded-lg text-steel-gray hover:text-green-600 hover:bg-green-50 transition-colors"
                                                             >
                                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1067,7 +1061,7 @@ const DeviceManagement = () => {
                                                         )}
                                                         <button
                                                             onClick={() => setHistoryDevice(device)}
-                                                            title="Lịch sử kết nối"
+                                                            data-tip="Lịch sử kết nối" aria-label="Lịch sử kết nối"
                                                             className="p-2 rounded-lg text-steel-gray hover:text-sky-600 hover:bg-sky-50 transition-colors"
                                                         >
                                                             <Activity className="w-4 h-4" />
@@ -1077,7 +1071,7 @@ const DeviceManagement = () => {
                                                             {!device.metadata_json?.face_server_config ? (
                                                                 <button data-ui-text="action"
                                                                     onClick={() => handleOpenFaceConfig(device)}
-                                                                    title="Cấu hình Face Server lần đầu"
+                                                                    data-tip="Cấu hình Face Server lần đầu" aria-label="Cấu hình Face Server lần đầu"
                                                                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
                                                                 >
                                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1087,18 +1081,18 @@ const DeviceManagement = () => {
                                                                 </button>
                                                             ) : (
                                                                 <>
-                                                                <button onClick={() => handleOpenFaceConfig(device)} title="Sửa cấu hình (base_url/username/password/callback)" className="p-2 rounded-lg text-steel-gray hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                                                                <button onClick={() => handleOpenFaceConfig(device)} data-tip="Sửa cấu hình (base_url/username/password/callback)" aria-label="Sửa cấu hình (base_url/username/password/callback)" className="p-2 rounded-lg text-steel-gray hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                                     </svg>
                                                                 </button>
-                                                                <button onClick={() => handleRotateToken(device)} title="Tạo lại Token" className="p-2 rounded-lg text-steel-gray hover:text-amber-600 hover:bg-amber-50 transition-colors">
+                                                                <button onClick={() => handleRotateToken(device)} data-tip="Tạo lại Token" aria-label="Tạo lại Token" className="p-2 rounded-lg text-steel-gray hover:text-amber-600 hover:bg-amber-50 transition-colors">
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                                     </svg>
                                                                 </button>
-                                                                <button onClick={() => handleRevokeToken(device)} title="Thu hồi Token" className="p-2 rounded-lg text-steel-gray hover:text-red-600 hover:bg-red-50 transition-colors">
+                                                                <button onClick={() => handleRevokeToken(device)} data-tip="Thu hồi Token" aria-label="Thu hồi Token" className="p-2 rounded-lg text-steel-gray hover:text-red-600 hover:bg-red-50 transition-colors">
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                                                                     </svg>
@@ -1109,14 +1103,9 @@ const DeviceManagement = () => {
                                                         )}
                                                         {CAMERA_TYPES.includes(device.device_type) && (
                                                             <>
-                                                            <Link to={`/system-admin/camera-recording?camera=${device.id}`} title="Lịch ghi hình & lưu trữ" className="p-2 rounded-lg text-steel-gray hover:text-action-blue hover:bg-blue-50 transition-colors">
+                                                            <Link to={`/system-admin/camera-recording?camera=${device.id}`} data-tip="Lịch ghi hình & lưu trữ" aria-label="Lịch ghi hình & lưu trữ" className="p-2 rounded-lg text-steel-gray hover:text-action-blue hover:bg-blue-50 transition-colors">
                                                                 <Film className="w-4 h-4" />
                                                             </Link>
-                                                            <button onClick={() => setAiConfigDevice(device)} title="Cấu hình AI Camera" className="p-2 rounded-lg text-steel-gray hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                                                </svg>
-                                                            </button>
                                                             <button
                                                                 onClick={() => {
                                                                     const saved = device.metadata_json?.rtsp_config || {};
@@ -1132,7 +1121,7 @@ const DeviceManagement = () => {
                                                                     setFieldErrors({});
                                                                     setIsRtspModalOpen(true);
                                                                 }}
-                                                                title="Cấu hình RTSP"
+                                                                data-tip="Cấu hình luồng RTSP (địa chỉ, cổng, tài khoản)" aria-label="Cấu hình luồng RTSP (địa chỉ, cổng, tài khoản)"
                                                                 className="p-2 rounded-lg text-steel-gray hover:text-purple-600 hover:bg-purple-50 transition-colors"
                                                             >
                                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1145,7 +1134,7 @@ const DeviceManagement = () => {
                                                     <div className="flex items-center gap-0.5">
                                                         <button
                                                             onClick={() => toggleDeviceStatus(device)}
-                                                            title={device.status === 'online' ? 'Ngừng kích hoạt' : 'Kích hoạt lại'}
+                                                            data-tip={device.status === 'online' ? 'Ngừng kích hoạt' : 'Kích hoạt lại'} aria-label={device.status === 'online' ? 'Ngừng kích hoạt' : 'Kích hoạt lại'}
                                                             className={`p-2 rounded-lg transition-colors ${device.status === 'online' ? 'text-steel-gray hover:text-orange-600 hover:bg-orange-50' : 'text-steel-gray hover:text-emerald-600 hover:bg-emerald-50'}`}
                                                         >
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1154,7 +1143,7 @@ const DeviceManagement = () => {
                                                         </button>
                                                         <button
                                                             onClick={() => openEditModal(device)}
-                                                            title="Chỉnh sửa thiết bị"
+                                                            data-tip="Chỉnh sửa thiết bị" aria-label="Chỉnh sửa thiết bị"
                                                             className="p-2 rounded-lg text-steel-gray hover:text-action-blue hover:bg-blue-50 transition-colors"
                                                         >
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

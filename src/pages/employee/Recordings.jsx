@@ -283,6 +283,7 @@ const EmployeeRecordings = () => {
                     <p className="text-slate-blue text-sm mt-0.5">Xem lại video/audio và tải xuống biên bản các cuộc họp đã diễn ra.</p>
                 </div>
                 <RefreshButton
+                    forceStandard
                     onClick={fetchRecordingsData}
                     disabled={loading}
                     legacyClassName="self-start flex items-center gap-2 px-4 py-2 border border-platinum-tint bg-white hover:bg-cloud-mist text-slate-blue hover:text-midnight-indigo rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
@@ -380,10 +381,9 @@ const EmployeeRecordings = () => {
                     <p className="text-xs text-slate-blue max-w-sm mx-auto">
                         Không tìm thấy tài liệu khớp với bộ lọc, hoặc chưa có cuộc họp nào có bản ghi trong khoảng thời gian đã chọn.
                     </p>
-                    <button onClick={fetchRecordingsData}
-                        className="mt-2 px-4 py-2 bg-action-blue text-white rounded-xl text-xs font-bold hover:bg-glacier-blue transition-colors inline-flex items-center gap-1.5">
-                        <RefreshCw className="w-3.5 h-3.5" /> Làm mới
-                    </button>
+                    <div className="mt-2 flex justify-center">
+                        <RefreshButton forceStandard onClick={fetchRecordingsData} busy={loading} />
+                    </div>
                 </div>
             ) : (
                 <>

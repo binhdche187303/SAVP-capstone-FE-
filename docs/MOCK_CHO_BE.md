@@ -153,3 +153,11 @@ lại cho 2.3.6 và 2.3.7.
 | Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
 |---|---|---|
 | `POST /report-templates/render-document` (quyền `report.center.export`): nhận `{ format, mode:'standard', templateId, signers, addressee?, recipients?, document }`, trả file ngay (không qua job). `document` = `{ title, period, filterLines, dataSource, kpis, notes, tables[] }`, tối đa 10 bảng / 20.000 dòng. Chỉ nhận mẫu "mọi loại báo cáo". Ghi audit `report_document_export`. | FE dựng `document` từ spec của `downloadReport` (`src/utils/standardDocument.js`). Trang dùng: Nhật ký ra/vào phòng, Truy vết camera, Hành trình theo người, Lưu lượng khu vực (`ExportMenu askMode`). `ExportReportModal` (Kiểm soát xe, Sự kiện an ninh, Hiệu suất phòng) chuyển sang `/reports/center/<loại>/exports` khi chọn bản quy chuẩn hoặc Word. **Chế độ mock không dựng được bản quy chuẩn.** | Các trang khác vẫn chỉ xuất bản thường (xem danh sách ở báo cáo bàn giao). |
+
+---
+
+## Ghi hình & lưu trữ (2.2.7) — chỉ xem, đồng bộ HGVision (2026-11-25)
+
+| Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
+|---|---|---|
+| `/system-admin/camera-recording` đọc `GET /hgvision/cameras` (trạng thái ghi `usingRecord`, kết nối, bitrate → ước tính GB/ngày) và `GET /hgvision/resources` (% / dung lượng ổ). Bỏ sửa lịch ghi ở SAVP. | Cột **Lịch ghi** ("Liên tục 24/7") và **Lưu trữ** (30 ngày) là hằng số `mockStoragePolicy()` trong `CameraRecording.jsx`, gắn nhãn MOCK. | Trên máy trường mở HGVision "Hệ thống → Lưu trữ" + DevTools Network, tìm API lịch ghi / số ngày lưu. Nếu có: thêm hàm client + endpoint proxy `/hgvision/storage`, FE thay `mockStoragePolicy()`. Cũng cần xác nhận đơn vị `disk.used/total` (FE đang coi là byte). API cũ `GET /iot-devices/recording-storage` + `PATCH` lịch ghi (`metadata_json.recording`) không còn dùng ở trang này. |

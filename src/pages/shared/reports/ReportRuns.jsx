@@ -13,6 +13,7 @@ import { listScheduleRuns, listSchedules, retryScheduleRun, downloadRunFile } fr
 import { formatDateTime } from '../../../utils/reportFormat';
 import toast from '../../../utils/toast';
 import useAreaBase from '../../../hooks/useAreaBase';
+import './ReportRuns.css';
 
 import { FORMAT_LABELS } from '../../../components/report/scheduleLabels';
 import { pageCls, cardCls, inputCls, labelCls, thCls, tdCls, errorBoxCls } from '../../../components/common/uiClasses';
@@ -20,6 +21,13 @@ import { pageCls, cardCls, inputCls, labelCls, thCls, tdCls, errorBoxCls } from 
 // S11 (2.13): lịch sử các lần gửi báo cáo (theo lịch và gửi thử).
 
 const dmy = (ymd) => String(ymd || '').split('-').reverse().join('/');
+// Cùng năm thì bỏ năm ở đầu kỳ: 21/11 – 22/11/2026.
+const shortRange = (from, to) => {
+    if (!from || !to) return `${dmy(from)} – ${dmy(to)}`;
+    if (from === to) return dmy(from);
+    const head = from.slice(0, 4) === to.slice(0, 4) ? dmy(from).slice(0, 5) : dmy(from);
+    return `${head} – ${dmy(to)}`;
+};
 
 const ReportRuns = () => {
     const [PAGE_SIZE, setPageSize] = useState(10);
@@ -137,62 +145,59 @@ const ReportRuns = () => {
 
             <div className={`${cardCls} overflow-hidden`}>
                 <div className="overflow-x-auto">
-                    <ResponsiveTable className="w-full">
-<colgroup>
-<col style={{ width: '12%' }} />
-<col style={{ width: '14%' }} />
-<col style={{ width: '14%' }} />
-<col style={{ width: '13%' }} />
-<col style={{ width: '7%' }} />
-<col style={{ width: '15%' }} />
-<col style={{ width: '11%' }} />
-<col style={{ width: '6%' }} />
-<col style={{ width: '8%' }} />
-</colgroup>
+                    <ResponsiveTable className="w-full report-runs-table" minTableWidth={720}>
+                        <colgroup>
+                            <col style={{ width: '15%' }} />
+                            <col style={{ width: '27%' }} />
+                            <col style={{ width: '15%' }} />
+                            <col style={{ width: '10%' }} />
+                            <col style={{ width: '17%' }} />
+                            <col style={{ width: '16%' }} />
+                        </colgroup>
                         <thead className="bg-cloud-mist/60 border-b border-platinum-tint">
                             <tr>
-                                {['Thời điểm chạy', 'Lịch gửi', 'Báo cáo', 'Kỳ dữ liệu', 'Loại', 'Người nhận', 'Trạng thái', 'File', ''].map((h) => <th key={h} className={thCls}>{h}</th>)}
+                                {['Thời điểm chạy', 'Lịch gửi / Báo cáo', 'Kỳ dữ liệu', 'Người nhận', 'Trạng thái', 'Tệp / Thao tác'].map((h) => <th key={h} className={thCls}>{h}</th>)}
                             </tr>
                         </thead>
                         <tbody>
                             {items.length === 0 ? (
-                                <tr><td colSpan={9} className="px-4 py-10 text-center text-xs text-slate-blue">{data ? 'Không có lần chạy nào phù hợp' : 'Đang tải dữ liệu...'}</td></tr>
+                                <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-slate-blue">{data ? 'Không có lần chạy nào phù hợp' : 'Đang tải dữ liệu...'}</td></tr>
                             ) : items.map((run) => (
                                 <tr key={run.id} className="border-b border-pale-gray last:border-0 align-top">
-                                    <td className={tdCls}>{formatDateTime(run.ranAt)}</td>
-                                    <td className={`${tdCls} font-semibold`}>{run.scheduleName}</td>
-                                    <td className={tdCls}>{run.reportTitle}</td>
-                                    <td className={tdCls}>{dmy(run.from)} – {dmy(run.to)}</td>
-                                    <td className={tdCls}>{run.trigger === 'manual' ? 'Gửi thử' : 'Theo lịch'}</td>
-                                    <td className={tdCls}>{run.recipientCount} người</td>
-                                    <td className={`${tdCls} whitespace-normal`}>
+                                    <td className={tdCls}>
+                                        <div className="tabular-nums">{formatDateTime(run.ranAt)}</div>
+                                        <div data-ui-text="secondary" className="text-[11px] text-slate-blue">{run.trigger === 'manual' ? 'Gửi thử' : 'Theo lịch'}</div>
+                                    </td>
+                                    <td className={`${tdCls} report-runs-wrap`}>
+                                        <div className="font-semibold truncate" title={run.scheduleName}>{run.scheduleName}</div>
+                                        <div data-ui-text="secondary" className="text-[11px] text-slate-blue truncate" title={run.reportTitle}>{run.reportTitle}</div>
+                                    </td>
+                                    <td className={`${tdCls} tabular-nums`}>{shortRange(run.from, run.to)}</td>
+                                    <td className={`${tdCls} tabular-nums`}>{run.recipientCount} người</td>
+                                    <td className={`${tdCls} report-runs-wrap`}>
                                         {run.status === 'success' ? (
                                             <span data-ui-text="badge" className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-green-700 bg-green-50">Thành công</span>
                                         ) : (
-                                            <div className="space-y-1">
+                                            <>
                                                 <span data-ui-text="badge" className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-red-700 bg-red-50">Thất bại</span>
-                                                <p data-ui-text="secondary" className="text-[11px] text-red-700">{run.error}</p>
-                                                {run.retriedByRunId && <p data-ui-text="primary" className="text-[11px] font-semibold text-slate-blue">Đã gửi lại</p>}
-                                            </div>
+                                                <p data-ui-text="secondary" className="mt-1 text-[11px] text-red-700 truncate" title={run.error}>{run.error}</p>
+                                            </>
                                         )}
                                     </td>
                                     <td className={tdCls}>
                                         {run.status === 'success' ? (
-                                            <span className="flex gap-1">
+                                            <span className="flex flex-wrap gap-1">
                                                 {run.formats.map((format) => (
                                                     <button data-ui-text="action" key={format} type="button" onClick={() => download(run, format)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-platinum-tint text-[11px] font-semibold text-midnight-indigo hover:bg-cloud-mist">
                                                         <Download className="w-3 h-3" /> {FORMAT_LABELS[format]}
                                                     </button>
                                                 ))}
                                             </span>
-                                        ) : '—'}
-                                    </td>
-                                    <td className={`${tdCls} text-right`}>
-                                        {run.status === 'failed' && !run.retriedByRunId && (
-                                            <button type="button" aria-label="Gửi lại" disabled={busyId === run.id} onClick={() => retry(run)} className="inline-flex items-center gap-1 text-action-blue font-semibold hover:underline disabled:opacity-50">
+                                        ) : !run.retriedByRunId ? (
+                                            <button type="button" aria-label="Gửi lại" disabled={busyId === run.id} onClick={() => retry(run)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-blue-200 text-[11px] text-action-blue font-semibold hover:bg-blue-50 disabled:opacity-50">
                                                 <RotateCcw className="w-3.5 h-3.5" /> Gửi lại
                                             </button>
-                                        )}
+                                        ) : <span data-ui-text="primary" className="text-[11px] font-semibold text-slate-blue">Đã gửi lại</span>}
                                     </td>
                                 </tr>
                             ))}

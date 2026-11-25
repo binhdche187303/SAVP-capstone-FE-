@@ -1,173 +1,228 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Search, Table2 } from 'lucide-react';
-import PageHeading from '../../components/common/PageHeading';
-import { getRoles, getPermissions, getRolePermissions } from '../../service/permissionServices';
-import { MODULE_TRANSLATIONS, PERMISSION_NAME_TRANSLATIONS } from './RolePermissionManagement';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Layers, Loader2, Pencil, Search, Shield, Users } from 'lucide-react';
+import { getRolePermissions } from '../../service/permissionServices';
+import FilterBar, { FilterField } from '../../components/common/FilterBar';
+import KpiTiles from '../../components/report/KpiTiles';
 
-// Bảng phân quyền chỉ để theo dõi: mỗi vai trò đang có những quyền nào (đọc trực tiếp từ máy chủ).
-// Sửa quyền ở màn "Vai trò & Phân quyền".
+// Chế độ "Ma trận tổng quan" của trang Vai trò & Phân quyền — CHỈ ĐỂ XEM: mỗi vai trò đang có
+// những quyền nào. Sửa quyền ở chế độ "Theo vai trò" (bấm tên vai trò trên đầu cột để chuyển sang).
+// Danh sách vai trò/quyền do trang cha tải và truyền vào; ở đây chỉ tải quyền của từng vai trò.
 
-const ROLE_ORDER = ['SYSTEM_ADMIN', 'BUSINESS_ADMIN', 'MANAGER', 'EMPLOYEE', 'TEACHER', 'GUARD', 'STUDENT'];
+const HIDDEN_ROLES_KEY = 'permissionMatrix.hiddenRoles';
+const HIDDEN_MODULES_KEY = 'permissionMatrix.hiddenModules';
 
-const loadAll = async (fetchPage) => {
-    const items = [];
-    let page = 1;
-    let totalPages = 1;
-    do {
-        const res = await fetchPage({ page, limit: 100 });
-        if (!res?.success || !Array.isArray(res.data)) throw res || new Error('Máy chủ trả dữ liệu không hợp lệ.');
-        items.push(...res.data);
-        totalPages = Number(res.meta?.totalPages) || 1;
-        page += 1;
-    } while (page <= totalPages);
-    return items;
+const loadHidden = (key) => {
+    try {
+        const v = JSON.parse(localStorage.getItem(key));
+        return Array.isArray(v) ? v : [];
+    } catch {
+        return [];
+    }
 };
 
-const permissionLabel = (p) => PERMISSION_NAME_TRANSLATIONS[p.permissionCode] || p.permissionName || p.permissionCode;
-const moduleLabel = (code) => MODULE_TRANSLATIONS[code] || code;
+// Dropdown chọn nhiều. `hidden` = các giá trị BỊ BỎ chọn (rỗng = chọn tất cả).
+const MultiSelect = ({ label, icon, options, hidden, onChange }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+        if (!open) return undefined;
+        const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', close);
+        return () => document.removeEventListener('mousedown', close);
+    }, [open]);
+    const shown = options.filter((o) => !hidden.includes(o.value)).length;
+    const toggle = (v) => onChange(hidden.includes(v) ? hidden.filter((x) => x !== v) : [...hidden, v]);
+    return (
+        <div className="relative" ref={ref}>
+            <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+                className="inline-flex items-center gap-2 h-9 px-3 rounded-xl border border-platinum-tint bg-white text-sm font-semibold text-midnight-indigo hover:bg-cloud-mist">
+                {icon} {label} ({shown}/{options.length})
+                <ChevronDown className="w-4 h-4 text-slate-blue" />
+            </button>
+            {open && (
+                <div className="absolute left-0 z-30 mt-1 w-72 max-h-80 overflow-y-auto rounded-xl border border-platinum-tint bg-white shadow-lg p-2">
+                    <div className="flex justify-between px-2 pb-2 text-xs">
+                        <button type="button" className="font-semibold text-action-blue" onClick={() => onChange([])}>Chọn tất cả</button>
+                        <button type="button" className="font-semibold text-slate-blue" onClick={() => onChange(options.map((o) => o.value))}>Bỏ chọn tất cả</button>
+                    </div>
+                    {options.map((o) => (
+                        <label key={o.value} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-cloud-mist cursor-pointer text-sm text-midnight-indigo">
+                            <input type="checkbox" className="w-4 h-4" checked={!hidden.includes(o.value)} onChange={() => toggle(o.value)} />
+                            <span className="truncate">{o.label}</span>
+                        </label>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
-const PermissionMatrix = () => {
-    const [roles, setRoles] = useState([]);
-    const [permissions, setPermissions] = useState([]);
+/**
+ * props:
+ *  - roles, permissions: danh mục đã tải ở trang cha (roles đã theo thứ tự kéo thả).
+ *  - searchTerm: từ khoá dùng chung với chế độ "Theo vai trò".
+ *  - reloadKey: đổi giá trị ⇒ tải lại quyền của các vai trò (sau khi lưu / tạo / xoá vai trò).
+ *  - onEditRole(role): chuyển sang chế độ sửa vai trò đó.
+ *  - roleLabel, permissionLabel, moduleLabel: hàm hiển thị tên tiếng Việt.
+ */
+const PermissionMatrix = ({ roles, permissions, searchTerm = '', reloadKey = 0, onEditRole, roleLabel, permissionLabel, moduleLabel, onSearchTermChange }) => {
     const [grants, setGrants] = useState({}); // roleId -> Set(permissionId)
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [search, setSearch] = useState('');
-    const [moduleFilter, setModuleFilter] = useState('');
-    const [roleFilter, setRoleFilter] = useState('');
+    const [hidden, setHiddenState] = useState(() => loadHidden(HIDDEN_ROLES_KEY));
+    const [hiddenModules, setHiddenModulesState] = useState(() => loadHidden(HIDDEN_MODULES_KEY));
+    const [collapsed, setCollapsed] = useState({});
+    const persist = (key, setter) => (v) => {
+        setter(v);
+        try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* ignore */ }
+    };
+    const setHidden = persist(HIDDEN_ROLES_KEY, setHiddenState);
+    const setHiddenModules = persist(HIDDEN_MODULES_KEY, setHiddenModulesState);
 
-    const load = useCallback(async () => {
+    const roleIds = roles.map((r) => r.id).join(',');
+    useEffect(() => {
+        let alive = true;
+        if (roles.length === 0) { setGrants({}); setLoading(false); return undefined; }
         setLoading(true);
         setError(null);
-        try {
-            const [r, p] = await Promise.all([loadAll(getRoles), loadAll(getPermissions)]);
-            const sortedRoles = [...r].sort((a, b) => {
-                const ia = ROLE_ORDER.indexOf(a.roleCode); const ib = ROLE_ORDER.indexOf(b.roleCode);
-                return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-            });
-            const entries = await Promise.all(sortedRoles.map(async role => {
-                const res = await getRolePermissions(role.id);
-                if (!res?.success || !Array.isArray(res.data)) throw res;
-                return [role.id, new Set(res.data.map(x => x.permissionId || x.id))];
-            }));
-            setRoles(sortedRoles);
-            setPermissions(p);
-            setGrants(Object.fromEntries(entries));
-        } catch (err) {
-            setError(err?.message || 'Không tải được dữ liệu phân quyền. Vui lòng thử lại.');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+        Promise.all(roles.map(async (role) => {
+            const res = await getRolePermissions(role.id);
+            if (!res?.success || !Array.isArray(res.data)) throw res;
+            return [role.id, new Set(res.data.map((x) => x.permissionId || x.id))];
+        }))
+            .then((entries) => alive && setGrants(Object.fromEntries(entries)))
+            .catch((err) => alive && setError(err?.error?.message || err?.message || 'Không tải được quyền của các vai trò. Vui lòng thử lại.'))
+            .finally(() => alive && setLoading(false));
+        return () => { alive = false; };
+        // roleIds thay cho roles: kéo thả đổi thứ tự không cần tải lại.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [roleIds, reloadKey]);
 
-    useEffect(() => { load(); }, [load]);
-
-    const rows = useMemo(() => permissions.map(p => ({
-        p,
-        label: permissionLabel(p),
-        module: moduleLabel(p.moduleCode),
-        cells: roles.map(role => ({ role, held: grants[role.id]?.has(p.id) ?? false })),
-    })), [permissions, roles, grants]);
+    const visibleRoles = useMemo(() => roles.filter((r) => !hidden.includes(r.id)), [roles, hidden]);
+    const held = (roleId, permId) => grants[roleId]?.has(permId) ?? false;
 
     const modules = useMemo(
-        () => [...new Set(permissions.map(p => p.moduleCode))].sort((a, b) => moduleLabel(a).localeCompare(moduleLabel(b), 'vi')),
-        [permissions],
+        () => [...new Set(permissions.map((p) => p.moduleCode || 'other'))].sort((a, b) => moduleLabel(a).localeCompare(moduleLabel(b), 'vi')),
+        [permissions, moduleLabel],
     );
 
-    const filtered = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        return rows
-            .filter(r => !moduleFilter || r.p.moduleCode === moduleFilter)
-            .filter(r => !roleFilter || r.cells.some(c => c.role.id === roleFilter && c.held))
-            .filter(r => !q || r.label.toLowerCase().includes(q))
-            .sort((a, b) => a.module.localeCompare(b.module, 'vi') || a.label.localeCompare(b.label, 'vi'));
-    }, [rows, search, moduleFilter, roleFilter]);
+    const groups = useMemo(() => {
+        const q = searchTerm.trim().toLowerCase();
+        const rows = permissions
+            .filter((p) => !hiddenModules.includes(p.moduleCode || 'other'))
+            .filter((p) => !q || permissionLabel(p).toLowerCase().includes(q) || (p.permissionCode || '').toLowerCase().includes(q));
+        const byModule = {};
+        rows.forEach((p) => { (byModule[p.moduleCode || 'other'] ||= []).push(p); });
+        return Object.keys(byModule)
+            .sort((a, b) => moduleLabel(a).localeCompare(moduleLabel(b), 'vi'))
+            .map((m) => ({ module: m, perms: byModule[m].sort((a, b) => permissionLabel(a).localeCompare(permissionLabel(b), 'vi')) }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [permissions, searchTerm, hiddenModules, permissionLabel, moduleLabel]);
 
-    const summary = useMemo(() => roles.map(role => ({
-        role,
-        count: rows.filter(r => r.cells.find(c => c.role.id === role.id)?.held).length,
-    })), [roles, rows]);
-
-    let lastModule = null;
+    const summary = useMemo(() => roles.map((role) => ({ role, count: grants[role.id]?.size ?? 0 })), [roles, grants]);
+    const summaryItems = summary
+        .filter(({ role }) => !hidden.includes(role.id))
+        .map(({ role, count }, index) => ({
+            key: role.id,
+            label: roleLabel(role),
+            value: count,
+            hint: 'quyền',
+            icon: Shield,
+            tone: ['blue', 'green', 'violet', 'amber', 'slate'][index % 5],
+        }));
+    const colCount = visibleRoles.length + 1;
 
     return (
-        <div className="space-y-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <PageHeading icon={<Table2 className="w-5 h-5" />}>Bảng phân quyền</PageHeading>
-                <button type="button" onClick={load} disabled={loading} className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-outline-gray bg-white text-sm font-semibold text-midnight-indigo hover:bg-cloud-mist disabled:opacity-60">
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Tải lại
-                </button>
-            </div>
-
+        <div className="flex flex-col gap-4 flex-1 min-h-0">
             {error && (
-                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
+                <div role="alert" className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
+                    <p className="text-sm">{error}</p>
                 </div>
             )}
 
             {!loading && !error && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
-                    {summary.map(({ role, count }) => (
-                        <button key={role.id} type="button" onClick={() => setRoleFilter(role.id === roleFilter ? '' : role.id)}
-                            className={`text-left rounded-xl border bg-white px-3 py-2.5 transition-colors ${roleFilter === role.id ? 'border-action-blue ring-1 ring-action-blue' : 'border-outline-gray hover:border-action-blue'}`}>
-                            <p className="text-xs text-slate-blue truncate" title={role.roleName}>{role.roleName}</p>
-                            <p className="text-xl font-bold text-midnight-indigo tabular-nums">{count} <span className="text-xs font-normal text-slate-blue">quyền</span></p>
-                        </button>
-                    ))}
-                </div>
+                <KpiTiles items={summaryItems} maxVisible={4} ariaLabel="Thống kê quyền theo vai trò" />
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
-                <label className="relative flex-1 min-w-[220px]">
-                    <span className="sr-only">Tìm quyền</span>
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input id="pm-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm quyền…"
-                        className="w-full h-9 pl-9 pr-3 rounded-lg border border-outline-gray bg-white text-sm" />
-                </label>
-                <select id="pm-module" aria-label="Lọc nhóm quyền" value={moduleFilter} onChange={e => setModuleFilter(e.target.value)} className="h-9 px-3 rounded-lg border border-outline-gray bg-white text-sm">
-                    <option value="">Tất cả nhóm quyền</option>
-                    {modules.map(m => <option key={m} value={m}>{moduleLabel(m)}</option>)}
-                </select>
-                <select id="pm-role" aria-label="Lọc vai trò" value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="h-9 px-3 rounded-lg border border-outline-gray bg-white text-sm">
-                    <option value="">Mọi vai trò</option>
-                    {roles.map(r => <option key={r.id} value={r.id}>{r.roleName}</option>)}
-                </select>
-            </div>
+            <FilterBar variant="card" className="permission-matrix-filters flex items-end">
+                <FilterField label="Tìm kiếm" className="permission-matrix-search">
+                    <div className="relative min-w-0">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-blue" />
+                        <input type="text" placeholder="Tìm theo tên hoặc mã quyền..." value={searchTerm}
+                            onChange={(event) => onSearchTermChange?.(event.target.value)}
+                            className="w-full pl-9 pr-3" />
+                    </div>
+                </FilterField>
+                <div className="permission-matrix-filter-actions">
+                    <MultiSelect label="Vai trò" icon={<Users className="w-4 h-4" />}
+                        options={roles.map((r) => ({ value: r.id, label: roleLabel(r) }))}
+                        hidden={hidden} onChange={setHidden} />
+                    <MultiSelect label="Nhóm quyền" icon={<Layers className="w-4 h-4" />}
+                        options={modules.map((m) => ({ value: m, label: moduleLabel(m) }))}
+                        hidden={hiddenModules} onChange={setHiddenModules} />
+                </div>
+            </FilterBar>
 
-            <div className="rounded-xl border border-outline-gray bg-white overflow-auto max-h-[70vh]">
+            <div className="rounded-2xl border border-platinum-tint bg-white overflow-auto flex-1 min-h-[300px] max-h-[70vh]">
                 {loading ? (
-                    <div className="flex items-center justify-center gap-2 py-16 text-slate-blue"><Loader2 className="w-5 h-5 animate-spin" /> Đang tải bảng phân quyền…</div>
+                    <div className="flex items-center justify-center gap-2 py-16 text-slate-blue"><Loader2 className="w-5 h-5 animate-spin" /> Đang tải ma trận phân quyền…</div>
+                ) : visibleRoles.length === 0 ? (
+                    <p className="py-16 text-center text-sm text-slate-blue">Chưa chọn vai trò nào để hiển thị.</p>
                 ) : (
-                    <table className="w-full text-sm border-collapse">
-                        <thead className="sticky top-0 z-10 bg-cloud-mist">
+                    <table className="text-sm border-separate border-spacing-0 min-w-full">
+                        <thead>
                             <tr>
-                                <th className="text-left font-semibold text-midnight-indigo px-3 py-2 min-w-[260px]">Quyền</th>
-                                {roles.map(r => <th key={r.id} className="px-2 py-2 text-xs font-semibold text-slate-blue whitespace-nowrap">{r.roleName}</th>)}
+                                <th className="sticky top-0 left-0 z-20 bg-cloud-mist text-left font-semibold text-midnight-indigo px-3 py-2 min-w-[280px] border-b border-r border-platinum-tint">Quyền</th>
+                                {visibleRoles.map((r) => (
+                                    <th key={r.id} className="sticky top-0 z-10 bg-cloud-mist px-2 py-2 border-b border-platinum-tint min-w-[96px]">
+                                        <button type="button" onClick={() => onEditRole?.(r)} title={`Sửa quyền của ${roleLabel(r)}`}
+                                            className="group inline-flex items-center gap-1 text-xs font-semibold text-slate-blue hover:text-action-blue whitespace-nowrap">
+                                            {roleLabel(r)}
+                                            <Pencil className="w-3 h-3 opacity-40 group-hover:opacity-100" />
+                                        </button>
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.length === 0 && (
-                                <tr><td colSpan={roles.length + 1} className="px-3 py-10 text-center text-slate-blue">Không có quyền nào khớp bộ lọc.</td></tr>
+                            {groups.length === 0 && (
+                                <tr><td colSpan={colCount} className="px-3 py-10 text-center text-slate-blue">Không có quyền nào khớp bộ lọc.</td></tr>
                             )}
-                            {filtered.map(r => {
-                                const header = r.module !== lastModule;
-                                lastModule = r.module;
+                            {groups.flatMap(({ module, perms }) => {
+                                const isCollapsed = !!collapsed[module];
                                 return [
-                                    header && (
-                                        <tr key={`m-${r.p.moduleCode}`} className="bg-slate-50">
-                                            <td colSpan={roles.length + 1} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-blue">{r.module}</td>
-                                        </tr>
-                                    ),
-                                    <tr key={r.p.id} className="border-t border-outline-gray/60">
-                                        <td className="px-3 py-2 text-midnight-indigo">{r.label}</td>
-                                        {r.cells.map(c => (
-                                            <td key={c.role.id} className="px-2 py-2 text-center">
-                                                {c.held
-                                                    ? <CheckCircle2 className="w-4 h-4 text-emerald-600 inline" aria-label="Có quyền" />
-                                                    : <span className="text-slate-300" aria-label="Không có">·</span>}
-                                            </td>
-                                        ))}
+                                    <tr key={`m-${module}`} className="cursor-pointer" onClick={() => setCollapsed((c) => ({ ...c, [module]: !c[module] }))}>
+                                        <td className="sticky left-0 z-[5] bg-slate-50 px-3 py-1.5 border-b border-r border-platinum-tint text-xs font-bold uppercase tracking-wide text-slate-blue">
+                                            <span className="inline-flex items-center gap-1">
+                                                {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                {moduleLabel(module)} <span className="font-normal normal-case">· {perms.length} quyền</span>
+                                            </span>
+                                        </td>
+                                        {visibleRoles.map((r) => {
+                                            const n = perms.filter((p) => held(r.id, p.id)).length;
+                                            return (
+                                                <td key={r.id} className="bg-slate-50 px-2 py-1.5 border-b border-platinum-tint text-center text-xs tabular-nums font-semibold"
+                                                    style={{ color: n === 0 ? '#A6BBD1' : n === perms.length ? '#059669' : '#476788' }}>
+                                                    {n}/{perms.length}
+                                                </td>
+                                            );
+                                        })}
                                     </tr>,
+                                    ...(isCollapsed ? [] : perms.map((p) => (
+                                        <tr key={p.id} className="hover:bg-cloud-mist/40">
+                                            <td className="sticky left-0 z-[5] bg-white px-3 py-2 border-b border-r border-platinum-tint/60 text-midnight-indigo">
+                                                <div>{permissionLabel(p)}</div>
+                                            </td>
+                                            {visibleRoles.map((r) => (
+                                                <td key={r.id} className="px-2 py-2 border-b border-platinum-tint/60 text-center">
+                                                    {held(r.id, p.id)
+                                                        ? <CheckCircle2 className="w-4 h-4 text-emerald-600 inline" aria-label="Có quyền" />
+                                                        : <span className="text-slate-300" aria-label="Không có">·</span>}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))),
                                 ];
                             })}
                         </tbody>

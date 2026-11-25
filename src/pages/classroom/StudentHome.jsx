@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { fetchClassAttendanceClasses, fetchClassSessions, fetchStudentAttendanceReport } from '../../service/classAttendanceService';
 import DashboardBanner from '../../components/common/DashboardBanner';
@@ -65,7 +65,6 @@ const StudentHome = () => {
         (schedulePage - 1) * SCHEDULES_PER_PAGE,
         schedulePage * SCHEDULES_PER_PAGE
     );
-    const today = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
     const attendanceChartData = [
         { name: 'Đúng giờ', value: summary.onTime || 0, color: attendanceChartColors.onTime },
         { name: 'Đi muộn', value: summary.late || 0, color: attendanceChartColors.late },
@@ -79,15 +78,8 @@ const StudentHome = () => {
 
     return (
         <div className="space-y-5 animate-fade-in-up">
-            <DashboardBanner roleName="Sinh viên" />
-            <div className="bg-white border border-platinum-tint rounded-2xl p-5 shadow-sm">
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-action-blue text-[11px] font-bold">
-                    <BookOpen className="w-4 h-4" />
-                    Trang chủ sinh viên
-                </span>
-                <h1 className="text-xl font-bold text-midnight-indigo tracking-tight mt-3">Tổng quan học tập</h1>
-                <p className="text-xs text-slate-blue mt-1">Hôm nay là {today}. Theo dõi nhanh lịch học và tình trạng chuyên cần trong tuần.</p>
-            </div>
+            <h1 className="sr-only">Trang chủ sinh viên</h1>
+            <DashboardBanner roleName="Sinh viên" compact />
 
             {loadError && (
                 <div role="alert" className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-600">{loadError}</div>

@@ -10,7 +10,7 @@ import {
     RiBarChartBoxLine, RiFileChartLine,
     RiUserReceivedLine, RiContactsBookLine,
     RiCalendarScheduleLine, RiMailSendLine, RiHistoryLine, RiPieChartLine, RiTimeLine, RiGroupLine, RiBuilding2Line,
-    RiDatabase2Line, RiLayout4Line, RiTableLine
+    RiDatabase2Line, RiLayout4Line
 } from 'react-icons/ri';
 
 import { logout, getCurrentUser } from '../../../service/authService';
@@ -34,7 +34,6 @@ const STATIC_NAVIGATION_ITEMS = [
         children: [
             { label: 'Tài khoản & Vai trò',   to: '/system-admin/users',              icon: RiShieldUserLine },
             { label: 'Vai trò & Phân quyền',  to: '/system-admin/roles-permissions', icon: RiShieldLine },
-            { label: 'Bảng phân quyền',       to: '/system-admin/permission-matrix', icon: RiTableLine },
             { label: 'Cấu hình hệ thống',     to: '/system-admin/settings',           icon: RiSettings2Line },
             { label: 'Đồng bộ dữ liệu UEL',   to: '/system-admin/uel-sync',           icon: RiDatabase2Line, requiredPermission: 'admin.manage_config' },
             { label: 'Nhật ký hệ thống',      to: '/system-admin/audit-logs',         icon: RiFileListLine },

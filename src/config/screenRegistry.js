@@ -6,7 +6,7 @@
 //   1. Menu (utils/buildDynamicNavigation.filterStaticNavigation): mục menu nào trỏ tới
 //      `paths[area]` sẽ tự ẩn khi user thiếu `permission`.
 //   2. Route (routers/ProtectedRoute): vào thẳng URL của màn mà thiếu `permission` → /403.
-//   3. Bảng phân quyền của SysAdmin (pages/systemAdmin/PermissionMatrix.jsx) và
+//   3. Vai trò & Phân quyền của SysAdmin (pages/systemAdmin/RolePermissionManagement.jsx) và
 //      config/permissionModuleStatus.js: quyền không nằm trong `permission`/`covers` của màn nào
 //      và không có trong API_ONLY_PERMISSIONS sẽ bị gắn cờ "chưa có màn hình".
 //
@@ -50,10 +50,9 @@ export const SCREENS = [
         'anpr.vehicle.admin_register', 'account.role.read'] },
     { key: 'roles', label: 'Vai trò & Phân quyền', paths: { 'system-admin': '/system-admin/roles-permissions' }, permission: 'account.role.read',
         covers: ['account.role.create', 'account.role.update', 'account.role.delete', 'admin.manage_permissions', 'permission.read'] },
-    { key: 'permission-matrix', label: 'Bảng phân quyền', paths: { 'system-admin': '/system-admin/permission-matrix' }, permission: 'admin.manage_permissions' },
     { key: 'departments', label: 'Phòng ban', paths: { 'business-admin': '/business-admin/departments' }, permission: 'department.read',
         covers: ['department.create', 'department.update', 'department.deactivate'] },
-    { key: 'biometric-review', label: 'Duyệt ảnh sinh trắc học', paths: { 'business-admin': '/business-admin/biometric-submissions' }, permission: 'account.biometric.review', covers: ['account.biometric.download'] },
+    { key: 'biometric-review', label: 'Danh sách định danh', paths: { 'business-admin': '/business-admin/biometric-submissions' }, permission: 'account.biometric.review', covers: ['account.biometric.download'] },
     { key: 'calendar-roles', label: 'Vai trò lịch họp', paths: { 'business-admin': '/business-admin/calendar-roles' }, permission: 'meeting.calendar_role.manage' },
 
     // ---------- Hệ thống ----------
@@ -72,6 +71,7 @@ export const SCREENS = [
     { key: 'zones', label: 'Khu vực giám sát', paths: { 'system-admin': '/system-admin/zones' }, permission: 'zones.zone.read',
         covers: ['zones.zone.create', 'zones.zone.update', 'zones.zone.delete', 'zones.zone.assign_device'] },
     { key: 'guard-live', label: 'Camera trực tiếp', paths: { guard: '/guard/live' }, permission: 'hgvision.camera.read' },
+    { key: 'guard-playback', label: 'Xem lại camera', paths: { guard: '/guard/playback' }, permission: 'hgvision.camera.read' },
 
     // ---------- Ra vào ----------
     { key: 'anpr', label: 'Kiểm soát ra vào cổng', paths: { 'system-admin': '/system-admin/anpr-management', guard: '/guard/anpr' }, permission: ['anpr.vehicle.history_view', 'gate.access.read'],

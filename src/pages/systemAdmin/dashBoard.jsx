@@ -3,7 +3,7 @@ import './SystemDashboardCards.css';
 import StatisticCard from '../../components/common/StatisticCard';
 import RefreshButton from '../../components/common/RefreshButton';
 import { Activity, AlertTriangle, Car, CheckCircle, LogIn, MapPin, ShieldAlert, Wifi, WifiOff } from 'lucide-react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -23,6 +23,10 @@ import { getAlertTypeLabel } from '../../constants/alertType';
 import ZonePresenceTable from '../../components/campus/ZonePresenceTable';
 import DeviceStatusModal from '../../components/campus/DeviceStatusModal';
 import SharedStatCard from '../../components/common/StatCard';
+import RoomUtilizationDetailsModal, {
+    mapRoomUtilizationRows,
+    rankRoomUtilizationRows,
+} from '../../components/analytics/RoomUtilizationDetailsModal';
 
 // ─── Design tokens (DESIGN.md — Sky Blueprint / Light Theme) ─────────────────
 
@@ -301,7 +305,7 @@ const DonutLegend = ({ data }) => (
 
 // ─── Chart card wrappers ──────────────────────────────────────────────────────
 
-const ChartCard = ({ title, sub, delay = 0, renderChart, accent = D.cyan }) => {
+const ChartCard = ({ title, sub, action, delay = 0, renderChart, accent = D.cyan }) => {
     const [ref, inView] = useInView(0.1);
     return (
         <div
@@ -327,9 +331,12 @@ const ChartCard = ({ title, sub, delay = 0, renderChart, accent = D.cyan }) => {
             <div style={{ position: 'absolute', top: -60, left: -30, width: 160, height: 160,
                 borderRadius: '50%', opacity: 0.04, background: accent,
                 filter: 'blur(40px)', pointerEvents: 'none' }} />
-            <div style={{ marginBottom: 14, flexShrink: 0, position: 'relative' }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: D.text, letterSpacing: '-0.1px' }}>{title}</h3>
-                {sub && <p style={{ fontSize: 12, color: D.muted, marginTop: 3 }}>{sub}</p>}
+            <div style={{ marginBottom: 14, flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: D.text, letterSpacing: '-0.1px' }}>{title}</h3>
+                    {sub && <p style={{ fontSize: 12, color: D.muted, marginTop: 3 }}>{sub}</p>}
+                </div>
+                {action}
             </div>
             <div style={{ flex: 1 }}>
                 {renderChart(inView)}
@@ -403,6 +410,7 @@ const DashBoard = () => {
     const [error,   setError]   = useState(null);
     const [lastUpdated, setLastUpdated] = useState(null);
     const [showOffline, setShowOffline] = useState(false);
+    const [showRoomDetails, setShowRoomDetails] = useState(false);
 
     const [kpi, setKpi] = useState({
         devicesOnline: 0, devicesTotal: 0, devicesOffline: 0, offlineDevices: [],
@@ -543,16 +551,9 @@ const DashBoard = () => {
         // ── Rooms ─────────────────────────────────────────────────────────────
         if (roomRes.status === 'fulfilled' && roomRes.value?.success) {
             const rooms = roomRes.value.data?.rooms || [];
-            setRoomData(
-                rooms.slice(0, 8)
-                    .map(r => ({
-                        name: (r.roomName || r.room_name || '').replace(/^Phòng\s+/i, '') || '—',
-                        rate: +(parseFloat(r.reservationUtilizationRate ?? r.utilizationRate ?? 0).toFixed(1)),
-                        bookedHours: r.bookedHours ?? 0,
-                        actualHours: r.actualHours ?? 0,
-                    }))
-                    .filter(r => r.name !== '—')
-            );
+            setRoomData(mapRoomUtilizationRows(rooms));
+        } else {
+            setRoomData([]);
         }
 
         // ── Attendance ────────────────────────────────────────────────────────
@@ -606,6 +607,8 @@ const DashBoard = () => {
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
     const monthLabel = `Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`;
+    const topRoomData = useMemo(() => rankRoomUtilizationRows(roomData), [roomData]);
+    const hasRoomUsage = topRoomData.some(room => room.rate > 0);
     const onlinePct  = kpi.devicesTotal > 0 ? (kpi.devicesOnline / kpi.devicesTotal) * 100 : 0;
     const zonePct    = kpi.zonesTotal   > 0 ? (kpi.zonesActive   / kpi.zonesTotal)   * 100 : 0;
 
@@ -853,14 +856,21 @@ const DashBoard = () => {
             {/* ── Row 3: Room bar + Attendance donut ────────────────────────── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <ChartCard accent={D.blue} delay={0}
-                    title="Tỷ lệ sử dụng phòng họp"
-                    sub={monthLabel}
+                    title="Top phòng được đặt nhiều nhất"
+                    sub={`${monthLabel} · Top ${Math.min(8, roomData.length)}/${roomData.length} phòng`}
+                    action={roomData.length > 0 && (
+                        <button type="button" onClick={() => setShowRoomDetails(true)}
+                            className="shrink-0 rounded-lg border border-platinum-tint bg-white px-2.5 py-1.5 text-[11px] font-bold text-action-blue hover:bg-cloud-mist">
+                            Xem tất cả ({roomData.length})
+                        </button>
+                    )}
                     renderChart={(visible) => {
                         if (!visible || loading) return <PulseSkeleton />;
                         if (!roomData.length) return <EmptyState message="Không có dữ liệu phòng họp" />;
+                        if (!hasRoomUsage) return <EmptyState message="Chưa có dữ liệu đặt phòng trong kỳ" />;
                         return (
-                            <ResponsiveContainer width="100%" height={Math.max(200, roomData.length * 34)}>
-                                <BarChart data={roomData} layout="vertical" margin={{ top: 0, right: 36, left: 0, bottom: 0 }}>
+                            <ResponsiveContainer width="100%" height={Math.max(200, topRoomData.length * 34)}>
+                                <BarChart data={topRoomData} layout="vertical" margin={{ top: 0, right: 36, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke={D.grid} horizontal={false} />
                                     <XAxis type="number" domain={[0, 100]}
                                            tick={{ fontSize: 10, fill: D.axisText }} tickLine={false} axisLine={false}
@@ -870,7 +880,7 @@ const DashBoard = () => {
                                     <Tooltip content={<BarTooltip unit="%" />} />
                                     <Bar dataKey="rate" name="Sử dụng" radius={[0, 4, 4, 0]}
                                          animationDuration={900} animationEasing="ease-out">
-                                        {roomData.map((e, i) => (
+                                        {topRoomData.map((e, i) => (
                                             <Cell key={i} fill={
                                                 e.rate >= 80 ? D.green :
                                                 e.rate >= 50 ? D.cyan  : D.amber
@@ -1094,6 +1104,8 @@ const DashBoard = () => {
                 title={`Thiết bị offline / lỗi (${kpi.offlineDevices.length})`}
                 typeLabels={DEVICE_TYPE_LABEL} manageHref="/system-admin/devices"
                 devices={kpi.offlineDevices.map(d => ({ id: d.id, name: d.device_name, code: d.device_code, type: d.device_type, status: d.status, lastSeenAt: d.last_seen_at }))} />
+            <RoomUtilizationDetailsModal isOpen={showRoomDetails} onClose={() => setShowRoomDetails(false)}
+                rooms={roomData} periodLabel={monthLabel} />
         </div>
     );
 };

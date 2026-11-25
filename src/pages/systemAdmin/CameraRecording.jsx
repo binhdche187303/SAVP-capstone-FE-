@@ -1,143 +1,71 @@
-import { Loader2 } from 'lucide-react';
+import { Archive, Film, HardDrive, Info, Loader2, Video, Wifi } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
 import StatisticGrid from '../../components/common/StatisticGrid';
 import StatisticCard, { statisticTone } from '../../components/common/StatisticCard';
-import { Archive, CalendarClock, Film, Gauge, HardDrive, Video } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import RecordingScheduleModal from "../../components/devices/RecordingScheduleModal";
-import {
-  CAMERA_TYPES,
-  RECORDING_MODE,
-  dailyGB,
-  getRecording,
-  scheduledHoursPerWeek,
-} from "../../mocks/cameraMock";
-import {
-  getDevices,
-  getRecordingStorage,
-} from "../../service/sysAdminServices";
-import SharedStatCard, { toneOf } from '../../components/common/StatCard';
+import RefreshButton from '../../components/common/RefreshButton';
+import { getHgCameras, getHgResources } from '../../service/hgvisionService';
 
-// 2.2.7 Lịch ghi hình & lưu trữ theo từng camera.
-// Lịch ghi đọc metadata_json.recording (chưa cấu hình → mặc định theo loại camera);
-// dung lượng từ GET /iot-devices/recording-storage.
+// 2.2.7 Ghi hình & lưu trữ — CHỈ XEM, đồng bộ từ HGVision (ghi hình do HGVision/IVSS làm).
+//  - Thật: GET /hgvision/cameras (usingRecord, status, health.bitrateKbps)
+//          GET /hgvision/resources (disk.percent/used/total)
+//  - MOCK: lịch ghi + số ngày lưu (HGVision có trang "Hệ thống → Lưu trữ" nhưng chưa biết API).
+//    Khi có API: thay hàm mockStoragePolicy() bên dưới. Ghi trong docs/MOCK_CHO_BE.md.
 
-const TYPE_LABEL = {
-  ip_camera: "Camera AI",
-  door_camera: "Camera vào/ra",
-  room_camera: "Camera phòng",
-  anpr_camera: "Camera biển số",
+// [MOCK] chính sách lưu trữ — giá trị cố định cho tới khi biết API "Lưu trữ" của HGVision.
+const mockStoragePolicy = () => ({ schedule: 'Liên tục 24/7', retentionDays: 30 });
+
+const formatBytes = (n) => {
+  if (n == null || Number.isNaN(Number(n))) return '—';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let v = Number(n);
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i += 1; }
+  return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
 };
 
-const formatGB = (gb) =>
-  gb >= 1024
-    ? `${(gb / 1024).toFixed(2)} TB`
-    : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`;
+/** Ước tính dung lượng/ngày từ bitrate thật của luồng (kbps). */
+const gbPerDay = (kbps) => (kbps ? (kbps * 86400) / 8 / 1024 / 1024 : null);
+const formatGB = (gb) => (gb == null ? '—' : gb >= 1024 ? `${(gb / 1024).toFixed(2)} TB` : `${gb.toFixed(gb < 10 ? 1 : 0)} GB`);
 
-const StatCard = ({ label, value, sub, tone = '' }) => (
-    <StatisticCard label={label} value={value} helper={sub} tone={statisticTone(tone)} compactValue={typeof value === 'string' && value.length > 12} />
-);
-
-/** Thanh 7 ngày tóm tắt lịch: mỗi ngày = tỉ lệ giờ có ghi. */
-const WeekStrip = ({ schedule, mode }) => (
-  <div className="flex gap-0.5">
-    {schedule.map((day, i) => {
-      const ratio = day.split("").filter((c) => c === "1").length / 24;
-      return (
-        <div
-          key={i}
-          className="w-3 h-5 rounded-sm bg-cloud-mist overflow-hidden flex items-end"
-          title={`${Math.round(ratio * 24)} giờ`}
-        >
-          <div
-            className={`w-full ${mode === "event" ? "bg-violet-400" : "bg-action-blue"}`}
-            style={{ height: `${ratio * 100}%` }}
-          />
-        </div>
-      );
-    })}
-  </div>
+const MockTag = () => (
+  <span title="Dữ liệu mẫu — chưa có API từ HGVision" className="ml-1 px-1 rounded bg-amber-100 text-amber-700 text-[9px] font-bold align-middle">MOCK</span>
 );
 
 const CameraRecording = () => {
   const [cameras, setCameras] = useState([]);
+  const [disk, setDisk] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editing, setEditing] = useState(null);
-  const [storage, setStorage] = useState(null);
-  const [toast, setToast] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const [res, st] = await Promise.all([
-        getDevices({ limit: 100 }),
-        getRecordingStorage(),
-      ]);
-      const list = Array.isArray(res?.data) ? res.data : res?.data?.items || [];
-      setCameras(list.filter((d) => CAMERA_TYPES.includes(d.device_type)));
-      setStorage(st?.data || null);
-    } catch (err) {
-      setError(
-        err?.error?.message ||
-          err?.message ||
-          "Không tải được danh sách camera.",
-      );
-    } finally {
-      setLoading(false);
+    setError(null);
+    const [camRes, resRes] = await Promise.allSettled([getHgCameras(), getHgResources()]);
+    if (camRes.status === 'fulfilled') {
+      setCameras(Array.isArray(camRes.value?.data) ? camRes.value.data : []);
+    } else {
+      setCameras([]);
+      setError(camRes.reason?.error?.message || camRes.reason?.message || 'Không kết nối được HGVision.');
     }
+    setDisk(resRes.status === 'fulfilled' ? resRes.value?.data?.disk || null : null);
+    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  // Mở thẳng lịch ghi khi đến từ trang thiết bị (?camera=<id>).
-  const [searchParams, setSearchParams] = useSearchParams();
-  useEffect(() => {
-    const id = searchParams.get("camera");
-    const device = id && cameras.find((c) => c.id === id);
-    if (!device) return;
-    setEditing({ device, rec: getRecording(device) });
-    setSearchParams({}, { replace: true });
-  }, [cameras, searchParams, setSearchParams]);
+  const rows = useMemo(() => cameras.map((c) => ({
+    cam: c,
+    recording: c.usingRecord && c.status === 'online',
+    perDay: gbPerDay(c.health?.bitrateKbps),
+    policy: mockStoragePolicy(c),
+  })), [cameras]);
 
-  const rows = useMemo(() => {
-    const usedById = new Map(
-      (storage?.devices || []).map((d) => [d.device_id, d.used_gb ?? 0]),
-    );
-    return cameras.map((device) => {
-      const rec = getRecording(device);
-      return {
-        device,
-        rec,
-        used: usedById.get(device.id) ?? 0,
-        perDay: dailyGB(rec),
-      };
-    });
-  }, [cameras, storage]);
-
-  const capacityGB = storage?.capacity_gb || 0;
-  const totalUsed = storage?.used_gb ?? 0;
-  const totalPerDay = rows.reduce((s, r) => s + r.perDay, 0);
-  const steadyState = rows.reduce(
-    (s, r) => s + r.perDay * r.rec.retentionDays,
-    0,
-  );
-  const recording = rows.filter(
-    (r) => r.rec.mode !== "off" && r.device.status === "online",
-  );
-  const avgRetention = rows.length
-    ? Math.round(
-        rows.reduce((s, r) => s + r.rec.retentionDays, 0) / rows.length,
-      )
-    : 0;
-  const usedPct = capacityGB ? (totalUsed / capacityGB) * 100 : 0;
-  const daysToFull =
-    totalPerDay > 0 ? Math.floor((capacityGB - totalUsed) / totalPerDay) : null;
-  const fits = steadyState <= capacityGB;
+  const recordingCount = rows.filter((r) => r.recording).length;
+  const enabledCount = rows.filter((r) => r.cam.usingRecord).length;
+  const totalPerDay = rows.reduce((s, r) => s + (r.cam.usingRecord && r.perDay ? r.perDay : 0), 0);
+  const diskPct = disk?.percent != null ? Number(disk.percent) : null;
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -146,187 +74,97 @@ const CameraRecording = () => {
           <span data-ui-text="badge" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-action-blue mb-2">
             <Film className="w-3.5 h-3.5" /> Camera AI
           </span>
-          <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">
-            Ghi hình & lưu trữ
-          </h1>
-          <p className="text-slate-blue text-sm mt-1">
-            Lịch ghi hình, thời gian lưu trữ và dung lượng theo từng camera.
-          </p>
+          <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Ghi hình & lưu trữ</h1>
+          <p className="text-slate-blue text-sm mt-1">Tình trạng ghi hình và ổ lưu trữ, đồng bộ từ HGVision.</p>
         </div>
+        <RefreshButton onClick={load} busy={loading} />
       </div>
 
-      {toast && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
-          {toast}
-        </div>
-      )}
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-          {error}
-        </div>
-      )}
+      <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-midnight-indigo flex items-start gap-2">
+        <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+        <span>Lịch ghi hình và thời gian lưu trữ được cấu hình trên HGVision. Trang này chỉ hiển thị.</span>
+      </div>
+
+      {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
 
       <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatisticCard extraPosition="footer" label="Dung lượng đã dùng" value={formatGB(totalUsed)} helper={`/ ${formatGB(capacityGB)}`} icon={HardDrive}>
+        <StatisticCard extraPosition="footer" icon={HardDrive} label="Ổ lưu trữ HGVision"
+          value={diskPct != null ? `${diskPct.toFixed(0)}%` : '—'}
+          helper={disk?.used != null && disk?.total != null ? `${formatBytes(disk.used)} / ${formatBytes(disk.total)}` : 'Chưa có dữ liệu'}>
           <div className="h-2 rounded-full bg-cloud-mist mt-2 overflow-hidden">
-            <div
-              className={`h-full ${usedPct > 85 ? "bg-red-500" : usedPct > 70 ? "bg-amber-500" : "bg-green-500"}`}
-              style={{ width: `${Math.min(100, usedPct)}%` }}
-            />
+            <div className={`h-full ${diskPct > 85 ? 'bg-red-500' : diskPct > 70 ? 'bg-amber-500' : 'bg-green-500'}`}
+              style={{ width: `${Math.min(100, diskPct || 0)}%` }} />
           </div>
         </StatisticCard>
-        <StatCard
-          icon={Video}
-          label="Camera đang ghi"
-          value={`${recording.length} / ${rows.length}`}
-          sub="Online và không tắt ghi"
-          tone="text-green-600"
-        />
-        <StatCard
-          icon={Archive}
-          label="Lưu trữ trung bình"
-          value={`${avgRetention} ngày`}
-          sub={`Ghi thêm ${formatGB(totalPerDay)}/ngày`}
-        />
-        <StatCard
-          icon={Gauge}
-          label="Dự báo ổ lưu trữ"
-          value={
-            fits
-              ? "Đủ chỗ"
-              : daysToFull != null
-                ? `Đầy sau ${daysToFull} ngày`
-                : "—"
-          }
-          sub={`Cần ${formatGB(steadyState)} khi đủ chính sách lưu`}
-          tone={fits ? "text-green-600" : "text-red-600"}
-        />
+        <StatisticCard icon={Video} label="Camera đang ghi" value={`${recordingCount} / ${rows.length}`}
+          helper="Bật ghi và đang trực tuyến" tone={statisticTone('text-green-600')} />
+        <StatisticCard icon={Wifi} label="Bật ghi nhưng mất kết nối" value={String(enabledCount - recordingCount)}
+          helper="Đang gián đoạn ghi hình" tone={statisticTone(enabledCount - recordingCount > 0 ? 'text-red-600' : '')} />
+        <StatisticCard icon={Archive} label="Ước tính ghi mỗi ngày" value={formatGB(totalPerDay)}
+          helper="Tính từ bitrate thực tế của luồng" />
       </StatisticGrid>
 
       <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-1 overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="w-8 h-8 text-action-blue animate-spin" />
-          </div>
+          <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 text-action-blue animate-spin" /></div>
+        ) : rows.length === 0 ? (
+          <div className="text-center py-12 text-slate-blue text-sm">Không có camera nào từ HGVision.</div>
         ) : (
           <PaginatedCollection items={rows} itemLabel="camera">
-{(camaiPageItems, camaiStartIndex) => (
-<ResponsiveTable className="w-full text-sm">
-<colgroup>
-<col style={{ width: '22%' }} />
-<col style={{ width: '13%' }} />
-<col style={{ width: '20%' }} />
-<col style={{ width: '10%' }} />
-<col style={{ width: '12%' }} />
-<col style={{ width: '16%' }} />
-<col style={{ width: '7%' }} />
-</colgroup>
-            <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
-              <tr>
-                <th className="text-left px-4 py-3 font-bold">Camera</th>
-                <th className="text-left px-4 py-3 font-bold">Chế độ</th>
-                <th className="text-left px-4 py-3 font-bold">Lịch tuần</th>
-                <th className="text-right px-4 py-3 font-bold">Lưu trữ</th>
-                <th className="text-right px-4 py-3 font-bold">Dung lượng</th>
-                <th className="text-left px-4 py-3 font-bold">
-                  Trạng thái ghi
-                </th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-platinum-tint">
-              {camaiPageItems.map((camaiRecord, camaiIndex) => (({ device, rec, used, perDay }) => {
-                const active = rec.mode !== "off" && device.status === "online";
-                return (
-                  <tr key={device.id} className="hover:bg-cloud-mist/30">
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-midnight-indigo">
-                        {device.device_name}
-                      </p>
-                      <p data-ui-text="code" className="text-[10px] font-mono text-steel-gray">
-                        {device.device_code} · {TYPE_LABEL[device.device_type]}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span data-ui-text="badge"
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${RECORDING_MODE[rec.mode].cls}`}
-                      >
-                        {RECORDING_MODE[rec.mode].label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <WeekStrip schedule={rec.schedule} mode={rec.mode} />
-                        <span data-ui-text="secondary" className="text-[11px] text-slate-blue tabular-nums">
-                          {scheduledHoursPerWeek(rec.schedule)}h/tuần
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-midnight-indigo">
-                      {rec.retentionDays} ngày
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      <p className="font-semibold text-midnight-indigo">
-                        {formatGB(used)}
-                      </p>
-                      <p data-ui-text="secondary" className="text-[10px] text-steel-gray">
-                        +{formatGB(perDay)}/ngày
-                      </p>
-                    </td>
-                    <td className="px-4 py-3">
-                      {active ? (
-                        <span data-ui-text="secondary" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-red-600">
-                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />{" "}
-                          Đang ghi
-                        </span>
-                      ) : (
-                        <span data-ui-text="primary" className="text-[11px] font-semibold text-steel-gray">
-                          {rec.mode === "off"
-                            ? "Tắt ghi"
-                            : `Gián đoạn (${device.status})`}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setEditing({ device, rec })}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-action-blue hover:bg-blue-50"
-                      >
-                        <CalendarClock className="w-3.5 h-3.5" /> Lịch ghi
-                      </button>
-                    </td>
+            {(pageItems) => (
+              <ResponsiveTable className="w-full text-sm">
+                <thead className="bg-cloud-mist/60 text-[11px] uppercase text-slate-blue">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-bold">Camera</th>
+                    <th className="text-left px-4 py-3 font-bold">Trạng thái ghi</th>
+                    <th className="text-left px-4 py-3 font-bold">Kết nối</th>
+                    <th className="text-right px-4 py-3 font-bold">Bitrate</th>
+                    <th className="text-right px-4 py-3 font-bold">Ước tính/ngày</th>
+                    <th className="text-left px-4 py-3 font-bold">Lịch ghi</th>
+                    <th className="text-right px-4 py-3 font-bold">Lưu trữ</th>
                   </tr>
-                );
-              })(camaiRecord, camaiStartIndex + camaiIndex, (rows)))}
-            </tbody>
-          </ResponsiveTable>
-)}
-</PaginatedCollection>
+                </thead>
+                <tbody className="divide-y divide-platinum-tint">
+                  {pageItems.map(({ cam, recording, perDay, policy }) => (
+                    <tr key={cam.name} className="hover:bg-cloud-mist/30">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-midnight-indigo">{cam.name}</p>
+                        <p data-ui-text="secondary" className="text-[10px] text-steel-gray">
+                          {[cam.zoneName, cam.group].filter(Boolean).join(' · ') || 'Chưa gán khu vực'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        {recording ? (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-red-600">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Đang ghi
+                          </span>
+                        ) : cam.usingRecord ? (
+                          <span className="text-[11px] font-semibold text-amber-600">Gián đoạn</span>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-steel-gray">Tắt ghi</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-[11px] font-semibold ${cam.status === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                          {cam.status === 'online' ? 'Trực tuyến' : 'Mất kết nối'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-midnight-indigo">
+                        {cam.health?.bitrateKbps ? `${(cam.health.bitrateKbps / 1000).toFixed(1)} Mbps` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-midnight-indigo">
+                        {cam.usingRecord ? formatGB(perDay) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-midnight-indigo">{policy.schedule}<MockTag /></td>
+                      <td className="px-4 py-3 text-right tabular-nums text-midnight-indigo">{policy.retentionDays} ngày<MockTag /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </ResponsiveTable>
+            )}
+          </PaginatedCollection>
         )}
       </div>
-
-      {editing && (
-        <RecordingScheduleModal
-          device={editing.device}
-          recording={editing.rec}
-          onClose={() => setEditing(null)}
-          onSaved={(rec, saved) => {
-            const id = editing.device.id;
-            setCameras((list) =>
-              list.map((c) =>
-                c.id === id
-                  ? saved?.metadata_json
-                    ? { ...c, metadata_json: saved.metadata_json }
-                    : c
-                  : c,
-              ),
-            );
-            setToast(`Đã lưu lịch ghi cho ${editing.device.device_name}.`);
-            setEditing(null);
-            setTimeout(() => setToast(null), 4000);
-          }}
-        />
-      )}
     </div>
   );
 };
