@@ -12,8 +12,9 @@ export const getAvatarSubmissions = async (params = {}) => {
 /** GET /api/v1/admin/biometric-submissions/:id */
 export const getAvatarSubmissionDetail = async (id) => get(`/admin/biometric-submissions/${id}`);
 
-/** GET /api/v1/admin/biometric-submissions/:id/download-url */
-export const getAvatarDownloadUrl = async (id) => get(`/admin/biometric-submissions/${id}/download-url`);
+/** GET /api/v1/admin/biometric-submissions/:id/download-url[?mediaFileId=] — không truyền = ảnh chính. */
+export const getAvatarDownloadUrl = async (id, mediaFileId) =>
+    get(`/admin/biometric-submissions/${id}/download-url${mediaFileId ? `?mediaFileId=${encodeURIComponent(mediaFileId)}` : ''}`);
 
 /** POST /api/v1/admin/biometric-submissions/:id/approve */
 export const approveAvatarSubmission = async (id) => post(`/admin/biometric-submissions/${id}/approve`, {});

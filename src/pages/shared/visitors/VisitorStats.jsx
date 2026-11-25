@@ -4,7 +4,7 @@ import TimeRangeButtons from '../../../components/common/TimeRangeButtons';
 import FilterBar from '../../../components/common/FilterBar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, FileBarChart, Filter, X, Loader2 } from 'lucide-react';
+import { AlertTriangle, BarChart3, Clock, FileBarChart, Filter, Loader2, UserCheck, Users, X } from 'lucide-react';
 import { getVisitorStats, getVisitorLookups } from '../../../service/visitorService';
 import { formatCell } from '../../../utils/reportFormat';
 import useAreaBase from '../../../hooks/useAreaBase';
@@ -30,11 +30,11 @@ const PRESETS = [['day', 'Ngày'], ['week', 'Tuần'], ['month', 'Tháng'], ['ye
 const GROUPS = [['day', 'Ngày'], ['week', 'Tuần'], ['month', 'Tháng']];
 
 const KPIS = [
-    ['totalVisits', 'Tổng lượt', 'number'],
-    ['uniqueVisitors', 'Khách duy nhất', 'number'],
-    ['avgStayMinutes', 'Lưu trú TB', 'minutes'],
-    ['overstayCount', 'Lượt quá giờ', 'number'],
-    ['noShowRate', 'Tỷ lệ không đến', 'percent'],
+    ['totalVisits', 'Tổng lượt', 'number', 'blue', Users],
+    ['uniqueVisitors', 'Khách duy nhất', 'number', 'green', UserCheck],
+    ['avgStayMinutes', 'Lưu trú TB', 'minutes', 'slate', Clock],
+    ['overstayCount', 'Lượt quá giờ', 'number', 'amber', AlertTriangle],
+    ['noShowRate', 'Tỷ lệ không đến', 'percent', 'red'],
 ];
 
 const series = [{ key: 'count', label: 'Lượt khách' }];
@@ -136,7 +136,7 @@ const VisitorStats = () => {
     const isCustom = filters.preset === 'custom';
 
     const kpiSource = selection && crossStats ? crossStats : stats;
-    const kpiItems = useMemo(() => (kpiSource ? KPIS.map(([key, label, format]) => ({ key, label, value: formatCell(kpiSource.kpis[key], format) })) : []), [kpiSource]);
+    const kpiItems = useMemo(() => (kpiSource ? KPIS.map(([key, label, format, tone, icon]) => ({ key, label, value: formatCell(kpiSource.kpis[key], format), tone, icon })) : []), [kpiSource]);
 
     return (
         <div data-page-surface="wide" className={pageCls}>
@@ -205,7 +205,7 @@ const VisitorStats = () => {
                     ) : (
                         <p className="text-xs text-slate-blue">Bấm vào cột, điểm hoặc lát biểu đồ để lọc các biểu đồ còn lại; bấm thêm mục khác để chọn nhiều, bấm lại để bỏ chọn.</p>
                     )}
-                    <KpiTiles items={kpiItems} />
+                    <KpiTiles items={kpiItems} maxVisible={4} />
                     <div className="grid lg:grid-cols-2 gap-6">
                         {chartViews.map(({ config, mode, rows }) => (
                             <div key={config.key} className={config.wide ? 'lg:col-span-2' : ''}>

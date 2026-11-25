@@ -38,7 +38,6 @@ import CameraRecording from '../pages/systemAdmin/CameraRecording';
 import EquipmentManagement from '../pages/systemAdmin/EquipmentManagement';
 import ZoneManagement from '../pages/systemAdmin/ZoneManagement';
 import RolePermissionManagement from '../pages/systemAdmin/RolePermissionManagement';
-import PermissionMatrix from '../pages/systemAdmin/PermissionMatrix';
 import SystemSettings from '../pages/systemAdmin/SystemSettings';
 import UelSync from '../pages/systemAdmin/UelSync';
 import Profile from '../pages/shared/Profile';
@@ -68,7 +67,6 @@ import ManagerLayout from '../pages/manager/layout/ManagerLayout';
 import ManagerHomePage from '../pages/manager/homePage';
 import ManagerMeetingApprovals from '../pages/manager/MeetingApprovals';
 import ManagerMeetingAttendance from '../pages/manager/MeetingAttendance';
-import ManagerFaceRegistration from '../pages/manager/FaceRegistration';
 import BiometricSubmissionsReview from '../pages/bussinessAdmin/BiometricSubmissionsReview';
 import AttendanceViolationConfig from '../pages/bussinessAdmin/AttendanceViolationConfig';
 import CalendarRolesConfig from '../pages/bussinessAdmin/CalendarRolesConfig';
@@ -78,7 +76,7 @@ import EmployeeLayout from '../pages/employee/layout/EmployeeLayout';
 import EmployeeHomePage from '../pages/employee/homePage';
 import BookMeeting from '../pages/employee/BookMeeting';
 import PersonalCalendar from '../pages/employee/PersonalCalendar';
-import EmployeeFaceRegistration from '../pages/employee/FaceRegistration';
+import FaceRegistration from '../pages/shared/FaceRegistration';
 import MeetingDetailRoute from '../pages/employee/MeetingDetailRoute';
 import EmployeeRecordings from '../pages/employee/Recordings';
 import TeacherRecordings from '../pages/classroom/TeacherRecordings';
@@ -225,8 +223,9 @@ export const router = [
                 element: <RolePermissionManagement />
             },
             {
+                // Đã gộp vào Vai trò & Phân quyền (tab Ma trận) — giữ link cũ.
                 path: 'permission-matrix',
-                element: <PermissionMatrix />
+                element: <Navigate to="/system-admin/roles-permissions?view=matrix" replace />
             },
             {
                 path: 'settings',
@@ -515,7 +514,7 @@ export const router = [
             },
             {
                 path: 'face-register',
-                element: <ManagerFaceRegistration />
+                element: <FaceRegistration />
             },
             {
                 path: 'meeting/:id',
@@ -627,7 +626,7 @@ export const router = [
             },
             {
                 path: 'face-register',
-                element: <EmployeeFaceRegistration />
+                element: <FaceRegistration />
             },
             {
                 path: 'profile',
@@ -675,7 +674,7 @@ export const router = [
             },
             {
                 path: 'face-register',
-                element: <EmployeeFaceRegistration />
+                element: <FaceRegistration />
             },
             {
                 path: 'profile',
@@ -768,7 +767,7 @@ export const router = [
             },
             {
                 path: 'face-register',
-                element: <EmployeeFaceRegistration />
+                element: <FaceRegistration />
             },
             {
                 path: 'profile',
@@ -833,7 +832,7 @@ export const router = [
             },
             {
                 path: 'face-register',
-                element: <EmployeeFaceRegistration />
+                element: <FaceRegistration />
             },
             {
                 path: 'meeting/:id',

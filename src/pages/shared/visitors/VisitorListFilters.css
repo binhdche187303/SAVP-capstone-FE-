@@ -43,3 +43,30 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+.visitor-management-action-col {
+    width: 96px;
+}
+
+/* Keep the primary row action reachable when browser chrome/taskbar reduces
+   the usable viewport or when the user zooms the page. */
+.camai-table-container[data-table-layout="table"] .visitor-management-action-cell {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    width: 96px;
+    background: #fff;
+    box-shadow: -8px 0 12px -12px rgba(7, 39, 70, 0.45);
+}
+
+.camai-table-container[data-table-layout="table"] thead .visitor-management-action-cell {
+    z-index: 3;
+    background: #f7f9fc;
+}
+
+.camai-table-container[data-table-layout="table"] tbody tr:hover .visitor-management-action-cell {
+    background: #f7f9fc;
+}
+
+.visitor-management-action-cell button {
+    white-space: nowrap !important;
+}

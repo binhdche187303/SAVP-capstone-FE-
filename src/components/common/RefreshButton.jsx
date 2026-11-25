@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useInRouterContext, useLocation } from 'react-router-dom';
 import './RefreshButton.css';
 
-const STANDARD_AREAS = new Set(['system-admin', 'business-admin', 'manager', 'employee', 'guard']);
+const STANDARD_AREAS = new Set(['system-admin', 'business-admin', 'manager', 'employee', 'guard', 'teacher', 'student']);
 const BUTTON_CLASS = 'inline-flex h-9 w-9 shrink-0 items-center justify-center text-slate-blue bg-cloud-mist/50 rounded-xl hover:bg-cloud-mist transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action-blue focus-visible:ring-offset-2';
 
 const Button = ({ standard, inline = false, before, showTime = true, busy = false, disabled, legacyClassName, legacyStyle, children, title, type, onClick, ...props }) => {
@@ -68,8 +68,7 @@ const RoutedButton = ({ forceStandard = false, ...props }) => {
     return <Button {...props} standard={forceStandard || STANDARD_AREAS.has(pathname.split('/')[1])} />;
 };
 
-// Shared screens retain their existing button markup for Teacher and Student.
-// Callers supply the original presentation only when those roles share a screen.
+// All authenticated portals use the same refresh control and timestamp layout.
 const RefreshButton = (props) => {
     const inRouter = useInRouterContext();
     const { forceStandard, ...buttonProps } = props;

@@ -742,7 +742,7 @@ const ManagerHomePage = () => {
                                                         </td>
                                                         <td className="p-4">
                                                             {hasConflict ? (
-                                                                <span data-ui-text="badge" className="inline-flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                                                                <span data-ui-text="badge" className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
                                                                     <AlertTriangle className="w-3.5 h-3.5" />
                                                                     Bị trùng lịch
                                                                 </span>

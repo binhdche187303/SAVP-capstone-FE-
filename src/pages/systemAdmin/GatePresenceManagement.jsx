@@ -1,10 +1,9 @@
 import PageHeading from '../../components/common/PageHeading';
 import CalendarRangePresets from '../../components/common/CalendarRangePresets';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
-import StatisticGrid from '../../components/common/StatisticGrid';
 import ReportActions from '../../components/common/ReportActions';
 import ReportExportAction from '../../components/common/ReportExportAction';
-import StatisticCard from '../../components/common/StatisticCard';
+import KpiTiles from '../../components/report/KpiTiles';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
@@ -19,7 +18,6 @@ import {
     GUARD_GATE_EVENTS_STORAGE_KEY,
     getGuardGateEvents
 } from '../../service/guardAccessService';
-import SharedStatCard, { STAT_VALUE_CLS } from '../../components/common/StatCard';
 
 const statusClass = {
     present: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -100,6 +98,12 @@ const GatePresenceManagement = () => {
     const safePage = Math.min(page, totalPages);
     const pageStart = (safePage - 1) * pageSize;
     const paginatedRows = rows.slice(pageStart, pageStart + pageSize);
+    const kpiItems = [
+        { key: 'present', label: 'Đang có mặt', value: summary.present, icon: Users, tone: 'blue', loading },
+        { key: 'entries', label: 'Lượt vào', value: summary.entries, icon: ShieldCheck, tone: 'green', loading },
+        { key: 'people', label: 'Người có dữ liệu hiện diện', value: summary.presencePeopleCount, icon: Clock3, tone: 'amber', loading },
+        { key: 'duration', label: 'Tổng thời gian quy đổi', value: summary.presenceText, icon: Clock3, tone: 'slate', compactValue: true, loading },
+    ];
 
     const presenceChartData = useMemo(() => {
         const grouped = rows.reduce((acc, person) => {
@@ -175,12 +179,7 @@ const GatePresenceManagement = () => {
 
             {loadError && <p role="alert" className="text-sm text-red-600">{loadError}</p>}
 
-            <StatisticGrid columns={4} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <StatisticCard loading={loading} label="Đang có mặt" value={summary.present} icon={Users} />
-                <StatisticCard loading={loading} label="Lượt vào" value={summary.entries} icon={ShieldCheck} tone="success" />
-                <StatisticCard loading={loading} label="Người có dữ liệu hiện diện" value={summary.presencePeopleCount} icon={Clock3} />
-                <StatisticCard label="Tổng thời gian quy đổi" value={summary.presenceText} icon={Clock3} compactValue loading={loading} />
-            </StatisticGrid>
+            <KpiTiles items={kpiItems} maxVisible={4} ariaLabel="Thống kê hiện diện khuôn viên" />
 
             {!loading && presenceChartData.length > 0 && (
                 <section className="bg-white border border-platinum-tint rounded-2xl shadow-sm p-[20px]">

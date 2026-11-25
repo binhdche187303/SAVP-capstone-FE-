@@ -30,9 +30,35 @@ export const getRedirectPathByRoles = (roles) => {
     return '/employee';
 };
 
-/** Lưu phiên đăng nhập (data của POST /auth/login hoặc /auth/sso/exchange). Trả đường dẫn trang chủ. */
+// [2026-11-23] Đích sau đăng nhập do link mang theo (`/login?next=face` — mã QR "Dùng điện thoại"
+// của màn đăng ký FaceID). Lưu sessionStorage để sống qua vòng chuyển hướng SSO UEL.
+const POST_LOGIN_NEXT_KEY = 'postLoginNext';
+const NEXT_SUFFIX = { face: '/face-register' };
+
+/** Ghi nhớ `?next=` hợp lệ của trang đăng nhập (chỉ nhận giá trị trong NEXT_SUFFIX). */
+export const rememberPostLoginNext = (search) => {
+    try {
+        const next = new URLSearchParams(search).get('next');
+        if (next && NEXT_SUFFIX[next]) sessionStorage.setItem(POST_LOGIN_NEXT_KEY, next);
+    } catch { /* ignore */ }
+};
+
+/** Trang sau đăng nhập: trang chủ vai trò, hoặc trang `next` đã ghi nhớ (dùng 1 lần). */
+export const getPostLoginPath = (roles) => {
+    const home = getRedirectPathByRoles(roles);
+    let next = null;
+    try {
+        next = sessionStorage.getItem(POST_LOGIN_NEXT_KEY);
+        sessionStorage.removeItem(POST_LOGIN_NEXT_KEY);
+    } catch { /* ignore */ }
+    // Quản trị không có trang đăng ký FaceID.
+    if (next === 'face' && (home === '/system-admin' || home === '/business-admin')) return home;
+    return next && NEXT_SUFFIX[next] ? home + NEXT_SUFFIX[next] : home;
+};
+
+/** Lưu phiên đăng nhập (data của POST /auth/login hoặc /auth/sso/exchange). Trả đường dẫn trang sau đăng nhập. */
 export const saveLoginSession = ({ accessToken, refreshToken, user }) => {
     setTokens(accessToken, refreshToken);
     localStorage.setItem('user', JSON.stringify(user));
-    return getRedirectPathByRoles(user?.roles);
+    return getPostLoginPath(user?.roles);
 };

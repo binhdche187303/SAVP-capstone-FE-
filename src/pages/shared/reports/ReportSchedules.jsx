@@ -95,7 +95,7 @@ const ReportSchedules = () => {
                 <div className="min-w-0">
                     <PaginatedCollection items={schedules} itemLabel="lịch gửi">
 {(camaiPageItems, camaiStartIndex) => (
-<ResponsiveTable className="w-full report-schedules-table">
+<ResponsiveTable className="w-full report-schedules-table" minTableWidth={720}>
 <colgroup>
 <col />
 <col style={{ width: '14%' }} />

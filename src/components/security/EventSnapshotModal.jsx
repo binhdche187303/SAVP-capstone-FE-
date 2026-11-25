@@ -4,7 +4,7 @@ import { X, Image as ImageIcon, AlertCircle, ChevronLeft, ChevronRight, Loader2 
 import { API_BASE_URL } from '../../utils/request';
 
 // showPlate: hiện thêm ảnh cắt biển số (chỉ sự kiện HGVision có; sự kiện khác 404 → tự ẩn).
-const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIndex = 0, showPlate = false }) => {
+const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIndex = 0, showPlate = false, details = null }) => {
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [notFound, setNotFound] = useState(false);
@@ -83,6 +83,55 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
     const plateUrl = showPlate && snapshotUrl ? `${snapshotUrl}&type=plate` : null;
 
     if (!isOpen) return null;
+
+    // details: [{label, value}] → giao diện "Chi tiết sự kiện" (ảnh đối tượng + ảnh biển số + thông tin).
+    if (details) {
+        return createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-midnight-indigo/60 backdrop-blur-md p-4" onClick={onClose}>
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+                    <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-cloud-mist/50">
+                        <h3 className="font-bold text-midnight-indigo">Chi tiết sự kiện</h3>
+                        <button onClick={onClose} className="text-slate-blue hover:text-midnight-indigo" title="Đóng"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="p-6 overflow-y-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2">
+                            <p className="text-xs font-bold text-slate-blue mb-2">Ảnh đối tượng</p>
+                            <div className="relative aspect-video bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
+                                {loading && <Loader2 className="w-8 h-8 text-white/70 animate-spin absolute" />}
+                                {notFound ? (
+                                    <div className="flex flex-col items-center text-white/60 gap-2"><ImageIcon className="w-10 h-10" /><span className="text-sm">Không có ảnh</span></div>
+                                ) : snapshotUrl && (
+                                    <img key={snapshotUrl} src={snapshotUrl} alt="Ảnh đối tượng" className="max-w-full max-h-full object-contain"
+                                        onLoad={() => setLoading(false)} onError={() => { setLoading(false); setNotFound(true); }} />
+                                )}
+                            </div>
+                        </div>
+                        <div className="space-y-5">
+                            <div>
+                                <p className="text-xs font-bold text-slate-blue mb-2">Ảnh biển số</p>
+                                <div className="h-28 bg-slate-100 border border-platinum-tint rounded-xl flex items-center justify-center overflow-hidden">
+                                    {plateUrl && (
+                                        <img key={plateUrl} src={plateUrl} alt="Ảnh biển số" className={`max-w-full max-h-full object-contain ${plateVisible ? '' : 'hidden'}`}
+                                            onLoad={() => setPlateVisible(true)} onError={() => setPlateVisible(false)} />
+                                    )}
+                                    {!plateVisible && <span className="text-xs text-slate-400">Không có ảnh cắt biển số</span>}
+                                </div>
+                            </div>
+                            <dl className="space-y-3">
+                                {details.map(({ label, value }) => (
+                                    <div key={label}>
+                                        <dt className="text-[11px] font-bold text-slate-blue uppercase">{label}</dt>
+                                        <dd className="text-sm font-semibold text-midnight-indigo mt-0.5 break-words">{value || '—'}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>,
+            document.body
+        );
+    }
 
     return createPortal(
         <div 

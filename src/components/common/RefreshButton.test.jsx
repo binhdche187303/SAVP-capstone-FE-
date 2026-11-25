@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import RefreshButton from './RefreshButton';
 
-test.each(['system-admin', 'business-admin', 'manager', 'employee', 'guard'])(
+test.each(['system-admin', 'business-admin', 'manager', 'employee', 'guard', 'teacher', 'student'])(
     'uses the security alert refresh style in %s', (area) => {
         render(<MemoryRouter initialEntries={[`/${area}/notifications`]}>
             <RefreshButton legacyClassName="bg-white p-2" title="Tải lại thông báo">Giao diện cũ</RefreshButton>
@@ -15,21 +15,6 @@ test.each(['system-admin', 'business-admin', 'manager', 'employee', 'guard'])(
     }
 );
 
-test.each(['teacher', 'student'])('retains the original shared button in %s', (area) => {
-    const onClick = jest.fn();
-    render(<MemoryRouter initialEntries={[`/${area}/notifications`]}>
-        <RefreshButton busy onClick={onClick} title="Tải lại" legacyClassName="bg-white p-2" legacyStyle={{ color: 'red' }}>
-            Làm mới theo giao diện cũ
-        </RefreshButton>
-    </MemoryRouter>);
-    const button = screen.getByRole('button', { name: 'Làm mới theo giao diện cũ' });
-    expect(button).toHaveClass('bg-white', 'p-2');
-    expect(button).not.toHaveClass('h-9', 'w-9');
-    expect(button).toHaveStyle({ color: 'red' });
-    expect(button).toBeEnabled();
-    fireEvent.click(button);
-    expect(onClick).toHaveBeenCalledTimes(1);
-});
 
 test('preserves the refresh callback and blocks repeat clicks until it finishes', async () => {
     let finish;

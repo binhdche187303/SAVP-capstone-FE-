@@ -1,38 +1,5 @@
-.journey-event-card {
-    padding: 20px;
-    border: 1px solid #dce3ed;
-    border-radius: 16px;
-    background: #fff;
-    color: #103b5c;
-}
-.journey-event-card .journey-event {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 144px;
-    align-items: start;
-    gap: 24px;
-    font-family: var(--app-ui-font, inherit);
-    font-size: 14px;
-    line-height: 20px;
-}
-.journey-event-content { min-width: 0; }
-.journey-event-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.journey-event-time { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
-.journey-event-badge { padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
-.journey-event-duration { display: inline-flex; align-items: center; gap: 4px; color: #527197; font-size: 12px; }
-.journey-event-card .journey-event-description { margin: 10px 0 12px; font-size: 14px; font-weight: 600; line-height: 20px; overflow-wrap: anywhere; }
-.journey-event-card .journey-event-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 0; }
-.journey-event-details > div { min-width: 0; }
-.journey-event-card .journey-event-details dt { margin: 0 0 2px; color: #527197; font-size: 12px; font-weight: 700; }
-.journey-event-card .journey-event-details dd { margin: 0; font-size: 14px; font-weight: 400; line-height: 20px; overflow-wrap: anywhere; }
+.journey-event-badge { padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .journey-event-plate { display: inline-block; border: 1px solid #dce3ed; border-radius: 6px; padding: 2px 8px; font-weight: 600; letter-spacing: normal; }
-.journey-event-card .journey-event-note { margin: 12px 0 0; color: #527197; font-size: 12px; font-weight: 400; }
-.journey-event-image { width: 144px; }
-.journey-event-no-image { width: 100%; aspect-ratio: 16 / 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px solid #dce3ed; border-radius: 8px; background: #f5f7fa; color: #7990ad; font-size: 12px; font-weight: 400; }
-@media (max-width: 640px) {
-    .journey-event-card { padding: 16px; }
-    .journey-event-card .journey-event { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-    .journey-event-card .journey-event-details { grid-template-columns: minmax(0, 1fr); }
-}
 
 .camai-filter-bar.journey-place-filters[data-filter-bar] {
     display: grid;
@@ -49,3 +16,55 @@
     .camai-filter-bar.journey-place-filters[data-filter-bar] { grid-template-columns: minmax(0, 1fr); }
     .journey-place-filters [data-filter-action] { justify-self: end; }
 }
+
+/* ── Timeline gọn: mỗi sự kiện 1 dòng, nhóm theo ngày ── */
+.journey-days { display: flex; flex-direction: column; gap: 20px; }
+.journey-day-heading { margin: 0 0 8px; color: #527197; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+.journey-day-list { position: relative; margin: 0; padding: 0 0 0 20px; list-style: none; }
+.journey-day-list::before { content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: #e3e9f1; border-radius: 1px; }
+.journey-row { --row-color: #7c3aed; position: relative; border-bottom: 1px solid #eef2f7; }
+.journey-row:last-child { border-bottom: 0; }
+.journey-row::before { content: ''; position: absolute; left: -19px; top: 17px; width: 10px; height: 10px; border-radius: 50%; background: var(--row-color); box-shadow: 0 0 0 3px #fff; }
+.journey-row[data-tone="enter"] { --row-color: #10b981; }
+.journey-row[data-tone="leave"] { --row-color: #f97316; }
+.journey-row[data-tone="meeting"] { --row-color: #006bff; }
+.journey-row-line { display: flex; align-items: center; gap: 12px; }
+.journey-row-main {
+    flex: 1 1 auto; min-width: 0;
+    display: grid; grid-template-columns: 120px 92px minmax(0, 1.3fr) minmax(0, 1fr) 16px;
+    align-items: center; gap: 12px;
+    padding: 10px 8px; border: 0; border-radius: 8px; background: transparent;
+    color: #103b5c; font: inherit; font-size: 14px; line-height: 20px; text-align: left; cursor: pointer;
+}
+.journey-row-main:hover { background: #f5f8fc; }
+.journey-row-main:focus-visible { outline: 2px solid #006bff; outline-offset: 1px; }
+.journey-row-time { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.journey-row-place { min-width: 0; overflow-wrap: anywhere; }
+.journey-row-place .journey-event-plate { margin-left: 8px; font-size: 12px; padding: 0 6px; }
+.journey-row-muted { color: #527197; font-weight: 400; }
+.journey-row-camera { min-width: 0; color: #527197; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.journey-row-chevron { width: 16px; height: 16px; color: #7990ad; transition: transform 150ms; }
+.journey-row[data-open] .journey-row-chevron { transform: rotate(180deg); }
+.journey-row-thumb { width: 72px; border-radius: 6px; }
+.journey-row-warn { display: flex; align-items: center; gap: 6px; margin: -4px 0 8px 8px; color: #b45309; font-size: 12px; }
+.journey-row-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; margin: 0 0 12px 8px; padding: 12px 16px; border-radius: 10px; background: #f7f9fc; }
+.journey-row-details > div { min-width: 0; }
+.journey-row-details dt { margin: 0 0 2px; color: #527197; font-size: 12px; font-weight: 700; }
+.journey-row-details dd { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+    .journey-row-main { grid-template-columns: auto auto minmax(0, 1fr) 16px; row-gap: 4px; }
+    .journey-row-place { grid-column: 1 / -1; grid-row: 2; }
+    .journey-row-camera { grid-column: 1 / -1; grid-row: 3; white-space: normal; }
+    .journey-row-chevron { grid-column: 4; grid-row: 1; justify-self: end; }
+    .journey-row-details { grid-template-columns: minmax(0, 1fr); }
+}
+.journey-timeline { display: flex; flex-direction: column; gap: 16px; }
+.journey-row-thumb-slot { flex: 0 0 72px; width: 72px; }
+/* Ảnh hiện trường trong phần mở rộng: luôn có khung, không có ảnh thì ghi rõ. */
+.journey-row-details > .journey-row-photos { grid-column: 1 / -1; }
+.journey-row-photos dd { display: flex; flex-wrap: wrap; gap: 12px; }
+.journey-row-photo { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.journey-row-photo figcaption { font-size: 12px; color: #527197; }
+.journey-row-photo-img { width: 240px; aspect-ratio: 16 / 9; }
+.journey-row-photo-empty { display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 8px; background: #fff; color: #94a3b8; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+@media (max-width: 760px) { .journey-row-photo-img { width: 100%; max-width: 320px; } }

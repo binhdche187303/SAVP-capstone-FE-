@@ -3,9 +3,8 @@ import { matchesFilter, filterValues } from '../../utils/filterSelection';
 import FilterMultiSelect from '../../components/common/FilterMultiSelect';
 import './ZoneTrafficAnalytics.css';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
-import StatisticGrid from '../../components/common/StatisticGrid';
 import ReportActions from '../../components/common/ReportActions';
-import StatisticCard from '../../components/common/StatisticCard';
+import KpiTiles from '../../components/report/KpiTiles';
 import FilterBar from '../../components/common/FilterBar';
 import RefreshButton from '../../components/common/RefreshButton';
 import { Activity, Flame, Info, MapPin, Users } from 'lucide-react';
@@ -20,7 +19,6 @@ import { getCameraGroups } from '../../service/cameraGroupServices';
 import { downloadReport, currentUserName, fmtVN, toDate } from '../../utils/exportExcel';
 import ExportMenu from '../../components/report/ExportMenu';
 import toast from '../../utils/toast';
-import SharedStatCard from '../../components/common/StatCard';
 
 // UC-120 (2.6): lưu lượng người + heatmap khu vực công cộng.
 // Heatmap dạng ma trận khu × giờ trong ngày; vị trí GPS của khu vực xem ở trang Bản đồ khuôn viên.
@@ -289,6 +287,12 @@ const ZoneTrafficAnalytics = () => {
         // Chế độ ngắn: khóa cột là mốc thời gian (ms) → hiển thị giờ:phút thay vì ép thành 'giờ' (ra số dài vô nghĩa).
         return short ? fmtHM(Number(best[0])) : `${String(best[0]).padStart(2, '0')}:00`;
     }, [matrix, short]);
+    const kpiItems = [
+        { key: 'zones', label: 'Khu vực có dữ liệu', value: zones.length, icon: MapPin, tone: 'blue', loading },
+        { key: 'average', label: 'Tổng số người TB', value: totalAvg ?? '—', hint: 'Cộng TB các khu', icon: Users, tone: 'green', loading },
+        { key: 'busiest', label: 'Khu đông nhất', value: busiest?.zoneName || '—', hint: busiest ? `Đỉnh ${busiest.peakOccupancy} người` : null, icon: Flame, tone: 'amber', compactValue: true, loading },
+        { key: 'peak-hour', label: 'Giờ cao điểm', value: peakHour || '—', hint: 'Toàn khuôn viên', icon: Activity, tone: 'slate', loading },
+    ];
 
     const handleExport = async (format, extra = {}) => {
         if (!zones.length) {
@@ -527,12 +531,7 @@ const ZoneTrafficAnalytics = () => {
             )}
 
             {/* Summary Cards */}
-            <StatisticGrid columns={4} className="grid grid-cols-2 lg:grid-cols-4 gap-[1rem]">
-                <SummaryCard label="Khu vực có dữ liệu" value={zones.length} icon={MapPin} loading={loading} />
-                <SummaryCard label="Tổng số người TB" value={totalAvg ?? '—'} sub="Cộng TB các khu" icon={Users} loading={loading} />
-                <SummaryCard label="Khu đông nhất" value={busiest?.zoneName || '—'} sub={busiest ? `Đỉnh ${busiest.peakOccupancy} người` : null} icon={Flame} loading={loading} small />
-                <SummaryCard label="Giờ cao điểm" value={peakHour || '—'} sub="Toàn khuôn viên" icon={Activity} loading={loading} />
-            </StatisticGrid>
+            <KpiTiles items={kpiItems} maxVisible={4} ariaLabel="Thống kê lưu lượng khu vực" />
 
             {/* Heatmap matrix */}
             <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm overflow-hidden">
@@ -722,27 +721,5 @@ const ZoneTrafficAnalytics = () => {
         </div>
     );
 };
-
-const LegacySummaryCard = ({ label, value, sub, icon: Icon, loading, small }) => (
-    <div className="bg-white p-[1.25rem] rounded-2xl border border-platinum-tint shadow-sm space-y-2">
-        <span className="text-[10px] font-bold text-slate-blue uppercase tracking-wider flex items-center gap-1.5">
-            {Icon && <Icon className="w-3.5 h-3.5" />}
-            {label}
-        </span>
-        {loading ? (
-            <div className="h-7 bg-slate-100 animate-pulse rounded-lg" />
-        ) : (
-            <div>
-                <span className={`${small ? 'text-base' : 'text-2xl'} font-black text-midnight-indigo block truncate`}>{value}</span>
-                {sub && <span className="text-xs text-slate-blue font-medium">{sub}</span>}
-            </div>
-        )}
-    </div>
-);
-
-const SummaryCard = (props) => (
-    <StatisticCard label={props.label} value={props.value} helper={props.sub} icon={props.icon}
-        loading={props.loading} compactValue={props.small} legacy={<LegacySummaryCard {...props} />} />
-);
 
 export default ZoneTrafficAnalytics;

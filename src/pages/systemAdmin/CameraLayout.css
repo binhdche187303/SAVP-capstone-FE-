@@ -1,0 +1,141 @@
+.camera-layout-page {
+    container-type: inline-size;
+}
+
+.camera-layout-workspace {
+    display: grid;
+    grid-template-columns: minmax(12rem, 14rem) minmax(0, 1fr) minmax(14rem, 16rem);
+    align-items: start;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.camera-layout-floor-card,
+.camera-layout-map-card,
+.camera-layout-detail-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #D4E0ED;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+}
+
+.camera-layout-floor-card,
+.camera-layout-detail-card {
+    padding: 1rem;
+}
+
+.camera-layout-card-heading {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid #E7EDF6;
+}
+
+.camera-layout-map-card > .camera-layout-card-heading {
+    padding: 1rem 1rem 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.camera-layout-card-heading [data-ui-text="label"] {
+    color: #476788;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1rem;
+    text-transform: uppercase;
+}
+
+.camera-layout-card-heading h2 {
+    margin-top: 0.125rem;
+    color: #0B3558;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.camera-layout-card-heading span:not(.camera-layout-count) {
+    display: block;
+    margin-top: 0.125rem;
+    color: #A6BBD1;
+    font-size: 0.6875rem;
+}
+
+.camera-layout-count {
+    flex: 0 0 auto;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    background: #EFF6FF;
+    color: #006BFF;
+    font-size: 0.6875rem;
+    font-weight: 700;
+}
+
+.camera-layout-floor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.camera-layout-floor-list > button {
+    min-height: 2.5rem;
+    padding: 0.625rem 0.75rem;
+}
+
+.camera-layout-canvas {
+    min-width: 0;
+    margin: 0 1rem;
+    overflow-x: auto;
+    border: 1px solid #E7EDF6;
+    border-radius: 0.875rem;
+    background: #F8F9FB;
+}
+
+.camera-layout-canvas svg {
+    display: block;
+    min-width: 32rem;
+}
+
+.camera-layout-legend {
+    padding: 0.75rem 1rem 1rem !important;
+}
+
+.camera-layout-detail-card > .camera-layout-card-heading + * {
+    min-width: 0;
+}
+
+.camera-layout-actions > button,
+.camera-layout-actions > a {
+    min-height: 2.375rem;
+}
+
+@container (max-width: 62rem) {
+    .camera-layout-workspace {
+        grid-template-columns: minmax(12rem, 14rem) minmax(0, 1fr);
+    }
+
+    .camera-layout-detail-card {
+        grid-column: 1 / -1;
+    }
+}
+
+@container (max-width: 44rem) {
+    .camera-layout-workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .camera-layout-detail-card {
+        grid-column: auto;
+    }
+
+    .camera-layout-actions {
+        width: 100%;
+    }
+
+    .camera-layout-actions > button {
+        flex: 1 1 auto;
+    }
+}

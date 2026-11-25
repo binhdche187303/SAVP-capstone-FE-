@@ -301,6 +301,7 @@ const EquipmentReport = () => {
                     </button>
                 ) : (
                     <RefreshButton
+                        forceStandard
                         onClick={fetchRecentRooms}
                         busy={loadingRooms}
                         title="Làm mới danh sách phòng"

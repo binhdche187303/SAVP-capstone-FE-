@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BookOpen, CalendarClock, CheckCircle2, XCircle, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Clock, MapPin, RefreshCw, School, UserRound, Users } from 'lucide-react';
+import { AlertCircle, BookOpen, CalendarClock, CheckCircle2, XCircle, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Clock, MapPin, School, UserRound, Users } from 'lucide-react';
 import MultiSelectDropdown from '../../components/common/MultiSelectDropdown';
+import RefreshButton from '../../components/common/RefreshButton';
 import { fetchClassSessions } from '../../service/classAttendanceService';
 
 const toDateKey = date => {
@@ -34,10 +35,10 @@ const STATUS_BADGE = {
 
 // Xem tuần dạng lưới thời gian (kiểu Google Calendar): cột trái là mốc giờ, thẻ đặt đúng giờ bắt đầu và cao theo
 // thời lượng. Thẻ đủ cao hiện đủ thông tin; thẻ thấp tự gọn dòng (không cắt ngang chữ), đầy đủ ở tooltip.
-const HOUR_HEIGHT = 40;
+const HOUR_HEIGHT = 48;
 const DEFAULT_START_HOUR = 7;
 const DEFAULT_END_HOUR = 22; // buổi tối UEL kết thúc 21:05–21:35 → lưới luôn tới 22:00
-const CARD_LINE = 16;
+const CARD_LINE = 19;
 const CARD_PADDING = 14;
 // Khung tiết UEL (suy từ dữ liệu TKB đã đồng bộ): mỗi tiết 50 phút, nghỉ 15 phút sau tiết 3, 6, 9.
 // UEL tính cả nửa tiết (VD 07:00–11:00 = "Tiết 1–4.5") nhưng chỉ trả số tiết làm tròn → tiết kết thúc tính lại từ giờ thật.
@@ -292,7 +293,7 @@ const WeeklySessionSchedule = ({ variant, badge, title, subtitle }) => {
                 key={s.id}
                 aria-current={isNow && !floating ? 'time' : undefined}
                 title={floating ? undefined : [periodRange(s), `${s.startTime} - ${s.endTime}`, subject, s.classCode, s.room || 'Chưa có phòng', statusLabel].filter(Boolean).join(' · ')}
-                className={`${floating ? 'shadow-xl' : 'h-full overflow-hidden'} rounded-md border border-platinum-tint border-l-4 px-2 py-1.5 text-[11px] leading-[16px] ${cancelled ? 'border-l-red-400 bg-red-50/60' : `${subjectAccent(s.subjectCode)} ${isNow ? 'bg-blue-50' : 'bg-white'}`} ${isNow ? 'ring-2 ring-action-blue shadow-sm' : ''}`}
+                className={`${floating ? 'shadow-xl' : 'h-full overflow-hidden'} rounded-md border border-platinum-tint border-l-4 px-2 py-1.5 text-[11px] leading-[19px] ${cancelled ? 'border-l-red-400 bg-red-50/60' : `${subjectAccent(s.subjectCode)} ${isNow ? 'bg-blue-50' : 'bg-white'}`} ${isNow ? 'ring-2 ring-action-blue shadow-sm' : ''}`}
             >
                 <p className={`${titleTwoLines ? 'line-clamp-2 break-words' : 'truncate'} font-bold ${cancelled ? 'text-red-600 line-through' : 'text-action-blue'}`}>{subject}</p>
                 <p className={`${row} font-semibold`}>
@@ -509,7 +510,7 @@ const WeeklySessionSchedule = ({ variant, badge, title, subtitle }) => {
                             panelWidthClass="w-[300px]"
                         />
                     )}
-                    <button type="button" onClick={() => setRefreshKey(v => v + 1)} disabled={loading} aria-label="Làm mới lịch" className="h-10 px-3 inline-flex items-center gap-2 bg-white border border-platinum-tint rounded-lg text-xs font-bold text-slate-blue hover:text-action-blue disabled:opacity-50"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Làm mới</button>
+                    <RefreshButton forceStandard type="button" onClick={() => setRefreshKey(v => v + 1)} disabled={loading} busy={loading} aria-label="Làm mới lịch" />
                 </div>
             </div>
 

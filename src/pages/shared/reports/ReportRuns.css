@@ -1,0 +1,17 @@
+/* Bảng lịch sử gửi: 6 cột cố định, chữ dài cắt bằng dấu … (rê chuột xem đủ). */
+.camai-table-container[data-table-layout="table"] > .report-runs-table {
+    table-layout: fixed;
+}
+
+.camai-table-container[data-table-layout="table"] > .report-runs-table th {
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+}
+
+.camai-table-container[data-table-layout="table"] > .report-runs-table.report-runs-table > :is(thead, tbody) > tr > :is(th, td) {
+    padding-inline: 10px !important;
+}
+
+.report-runs-table .report-runs-wrap {
+    overflow: hidden;
+}

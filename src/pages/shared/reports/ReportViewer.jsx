@@ -23,6 +23,16 @@ const toParams = ({ preset, ...rest }) => rest;
 // Bộ lọc riêng của báo cáo (không kèm kỳ và ô tìm kiếm) để điền sẵn vào lịch gửi.
 const ownFilters = ({ preset, from, to, q, ...rest }) => Object.fromEntries(Object.entries(rest).filter(([, v]) => v));
 
+// Màu thẻ chỉ số (chỉ giao diện): xanh lá = tốt, cam = cần chú ý, đỏ = vi phạm/rủi ro.
+const KPI_TONES = {
+    attendanceRate: 'green', utilizationRate: 'green', resolved: 'green', entries: 'green',
+    lateCount: 'amber', earlyLeaveCount: 'amber', overstayCount: 'amber', unregistered: 'amber',
+    absentDays: 'red', absentCount: 'red', atRiskStudents: 'red', noShowRate: 'red', watchlist: 'red', critical: 'red',
+    sessionCount: 'blue', meetingCount: 'blue', total: 'blue', totalVisits: 'blue', exits: 'blue',
+    onSite: 'violet', uniqueVisitors: 'violet',
+    avgHoursPerDay: 'slate', avgStayMinutes: 'slate', usedHours: 'slate', avgResolveMinutes: 'slate', cars: 'slate', motorbikes: 'slate',
+};
+
 const ReportViewer = () => {
     const [PAGE_SIZE, setPageSize] = useState(10);
     const { type } = useParams();
@@ -80,6 +90,7 @@ const ReportViewer = () => {
         key: k.key,
         label: k.label,
         value: formatCell(data.kpis.find((item) => item.key === k.key)?.value, k.format),
+        tone: KPI_TONES[k.key],
     })) : []), [definition, data]);
 
     if (!definition) {
@@ -154,7 +165,7 @@ const ReportViewer = () => {
 
             {!error && data && (
                 <>
-                    <KpiTiles items={kpiItems} />
+                    <KpiTiles items={kpiItems} maxVisible={4} ariaLabel="Chỉ số báo cáo" />
                     <div className="grid lg:grid-cols-2 gap-6">
                         {definition.charts.map((config) => (
                             <ReportChart key={config.key} config={config} data={data.charts.find((c) => c.key === config.key)?.data || []} />

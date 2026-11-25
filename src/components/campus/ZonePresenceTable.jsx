@@ -3,9 +3,11 @@ import PaginatedCollection from '../common/PaginatedCollection';
 import ResponsiveTable from '../common/ResponsiveTable';
 import RefreshButton from '../common/RefreshButton';
 import { useState, useEffect, useCallback } from 'react';
-import { Building2, ChevronDown, ChevronRight, Users } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { AlertTriangle, Building2, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Users } from 'lucide-react';
+import SimpleModal from '../common/SimpleModal';
 import DeviceStatusModal from './DeviceStatusModal';
-import { getCampusOverview, getPresenceByDepartment } from '../../service/campusService';
+import { getCampusOverview, getPresenceByDepartment, getPresentPeopleByDepartment } from '../../service/campusService';
 
 // Bảng "Hiện diện hiện tại" (2.12) — dùng chung cho dashboard System Admin & Business Admin.
 // - Theo khu vực:  GET /campus-dashboard/overview (camera đếm đầu người, tòa nhà → tầng → khu).
@@ -44,6 +46,17 @@ const cameraState = (cs) => {
     return { total, dot: '#ffa600', label: 'Bảo trì / tắt' };
 };
 
+// Khu có ít nhất 1 camera không online → cần chú ý.
+const hasCameraIssue = (z) => {
+    const st = cameraState(z.cameraStatus);
+    return st.total > 0 && (z.cameraStatus?.online ?? 0) < st.total;
+};
+
+const MODE_KEY = 'zonePresence.mode';
+const REFRESH_MS = 60000;
+
+const fmtTime = (v) => (v ? new Date(v).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' }) : '');
+
 const sumBuilding = (b) =>
     b.floors.reduce((s, f) => s + f.zones.reduce((zs, z) => zs + (z.occupancy?.status === 'ok' ? z.occupancy.count ?? 0 : 0), 0), 0);
 
@@ -57,7 +70,7 @@ const SUBTITLES = {
     dept: 'Nhân sự đã quét mặt vào cổng hôm nay và chưa quét ra · không gồm khách',
 };
 
-const DepartmentTable = ({ departments }) => (
+const DepartmentTable = ({ departments, onOpen }) => (
     <div className="overflow-x-auto">
         <PaginatedCollection items={departments} itemLabel="đơn vị">
 {(camaiPageItems, camaiStartIndex) => (
@@ -75,9 +88,12 @@ const DepartmentTable = ({ departments }) => (
                 {camaiPageItems.map((camaiRecord, camaiIndex) => ((d) => {
                     const pct = d.totalStaff > 0 ? Math.round((d.presentCount / d.totalStaff) * 100) : 0;
                     return (
-                        <tr key={d.departmentId ?? '__none__'} style={{ borderTop: `1px solid ${C.borderSub}` }}>
+                        <tr key={d.departmentId ?? '__none__'} style={{ borderTop: `1px solid ${C.borderSub}` }}
+                            className={d.presentCount > 0 ? 'cursor-pointer hover:bg-cloud-mist' : ''}
+                            title={d.presentCount > 0 ? 'Bấm để xem ai đang có mặt' : undefined}
+                            onClick={d.presentCount > 0 ? () => onOpen(d) : undefined}>
                             <td className="py-2 px-3" style={{ color: C.text }}>
-                                <div style={{ fontWeight: 600 }}>{d.departmentName || 'Chưa gán phòng ban'}</div>
+                                <div style={{ fontWeight: 600 }} className={d.presentCount > 0 ? 'underline decoration-dotted underline-offset-4' : ''}>{d.departmentName || 'Chưa gán phòng ban'}</div>
                                 {d.departmentCode && <div style={{ fontSize: 11, color: C.muted2 }}>{d.departmentCode}</div>}
                             </td>
                             <td className="py-2 px-3 text-right" style={{ fontWeight: 800, color: C.text }}>{d.presentCount} người</td>
@@ -128,8 +144,58 @@ const CameraCell = ({ cameraStatus, cameras, onOpen }) => {
     return <span className="inline-flex items-center gap-1.5" title={st.label} style={{ color: C.muted }}>{content}</span>;
 };
 
+const initialOf = (name) => ((name || '?').trim().split(/\s+/).pop() || '?')[0];
+
+const PresentPeopleModal = ({ dept, onClose }) => {
+    const [people, setPeople] = useState(null);
+    const [err, setErr] = useState(null);
+    useEffect(() => {
+        if (!dept) return undefined;
+        let alive = true;
+        setPeople(null);
+        setErr(null);
+        getPresentPeopleByDepartment(dept.departmentId, { skipToast: true })
+            .then((res) => alive && setPeople(res?.data ?? []))
+            .catch((e) => alive && setErr(e?.error?.message || 'Không tải được danh sách.'));
+        return () => { alive = false; };
+    }, [dept]);
+    return (
+        <SimpleModal isOpen={!!dept} onClose={onClose}
+            title={dept ? `Đang có mặt · ${dept.departmentName || 'Chưa gán phòng ban'}` : ''}>
+            {err ? <p className="text-sm text-red-600">{err}</p>
+                : !people ? <p className="text-sm text-slate-blue">Đang tải…</p>
+                : people.length === 0 ? <p className="text-sm text-slate-blue">Hiện không có ai.</p>
+                : (
+                    <ul className="divide-y divide-platinum-tint">
+                        {people.map((p) => (
+                            <li key={p.userId} className="py-2.5 flex items-center gap-3">
+                                {p.avatarUrl
+                                    ? <img src={p.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                                    : <span className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white" style={{ background: C.accent }}>{initialOf(p.fullName)}</span>}
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-midnight-indigo break-words">{p.fullName}</p>
+                                    {p.employeeCode && <p className="text-xs text-slate-blue">{p.employeeCode}</p>}
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className="text-xs font-semibold text-midnight-indigo">Vào lúc {fmtTime(p.enteredAt)}</p>
+                                    {p.zoneName && <p className="text-xs text-slate-blue">{p.zoneName}</p>}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+        </SimpleModal>
+    );
+};
+
 const ZonePresenceTable = () => {
-    const [mode, setMode] = useState('zone');
+    const [mode, setModeState] = useState(() => {
+        try { return localStorage.getItem(MODE_KEY) === 'dept' ? 'dept' : 'zone'; } catch { return 'zone'; }
+    });
+    const setMode = (m) => { setModeState(m); try { localStorage.setItem(MODE_KEY, m); } catch { /* ignore */ } };
+    const { pathname } = useLocation();
+    const [issuesOnly, setIssuesOnly] = useState(false);
+    const [peopleDept, setPeopleDept] = useState(null);
     const [cameraZone, setCameraZone] = useState(null);
     const [data, setData] = useState(null);
     const [deptData, setDeptData] = useState(null);
@@ -137,9 +203,8 @@ const ZonePresenceTable = () => {
     const [error, setError] = useState(null);
     const [collapsed, setCollapsed] = useState({});
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        setError(null);
+    const load = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) { setLoading(true); setError(null); }
         try {
             if (mode === 'dept') {
                 const res = await getPresenceByDepartment({ skipToast: true });
@@ -149,16 +214,35 @@ const ZonePresenceTable = () => {
                 setData(res?.data ?? null);
             }
         } catch (err) {
-            setError(err?.error?.message || 'Không tải được dữ liệu hiện diện.');
+            // Làm mới ngầm lỗi thì giữ dữ liệu cũ, không hiện lỗi.
+            if (!silent) setError(err?.error?.message || 'Không tải được dữ liệu hiện diện.');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [mode]);
 
     useEffect(() => { load(); }, [load]);
 
-    const buildings = data?.buildings ?? [];
-    const campusTotal = buildings.reduce((s, b) => s + sumBuilding(b), 0);
+    // Số liệu thời gian thực → tự làm mới ngầm mỗi phút khi tab đang hiển thị.
+    useEffect(() => {
+        const id = setInterval(() => {
+            if (document.visibilityState === 'visible') load({ silent: true });
+        }, REFRESH_MS);
+        return () => clearInterval(id);
+    }, [load]);
+
+    const allBuildings = data?.buildings ?? [];
+    const campusTotal = allBuildings.reduce((s, b) => s + sumBuilding(b), 0);
+    const issueCount = allBuildings.reduce((s, b) => s + b.floors.reduce((fs, f) => fs + f.zones.filter(hasCameraIssue).length, 0), 0);
+    const buildings = issuesOnly
+        ? allBuildings
+            .map((b) => ({ ...b, floors: b.floors.map((f) => ({ ...f, zones: f.zones.filter(hasCameraIssue) })).filter((f) => f.zones.length) }))
+            .filter((b) => b.floors.length)
+        : allBuildings;
+    const bKeyOf = (b) => b.building ?? '__none__';
+    const allCollapsed = buildings.length > 0 && buildings.every((b) => collapsed[bKeyOf(b)]);
+    const setAllCollapsed = (v) => setCollapsed(Object.fromEntries(buildings.map((b) => [bKeyOf(b), v])));
+    const manageHref = pathname.startsWith('/system-admin') ? '/system-admin/devices' : undefined;
     const departments = deptData?.departments ?? [];
     const current = mode === 'dept' ? deptData : data;
     const toggle = (key) => setCollapsed((p) => ({ ...p, [key]: !p[key] }));
@@ -171,7 +255,10 @@ const ZonePresenceTable = () => {
             <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-3" style={{ marginBottom: 14 }}>
                 <div className="min-w-0">
                     <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Hiện diện hiện tại</h3>
-                    <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{SUBTITLES[mode]}</p>
+                    <p style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
+                        {SUBTITLES[mode]}
+                        {current?.generatedAt && <span style={{ color: C.muted2 }}> · cập nhật {fmtTime(current.generatedAt)}, tự làm mới mỗi phút</span>}
+                    </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap xl:flex-shrink-0 xl:justify-end">
                     <div className="inline-flex rounded-lg p-0.5" style={{ background: C.borderSub }}>
@@ -217,10 +304,31 @@ const ZonePresenceTable = () => {
             ) : mode === 'dept' ? (
                 departments.length === 0
                     ? <p style={{ fontSize: 13, color: C.muted, padding: '12px 0' }}>Chưa có phòng ban nào.</p>
-                    : <DepartmentTable departments={departments} />
-            ) : buildings.length === 0 ? (
+                    : <DepartmentTable departments={departments} onOpen={setPeopleDept} />
+            ) : allBuildings.length === 0 ? (
                 <p style={{ fontSize: 13, color: C.muted, padding: '12px 0' }}>Chưa có khu vực nào được cấu hình.</p>
             ) : (
+                <>
+                <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 8 }}>
+                    <button type="button" onClick={() => setIssuesOnly((v) => !v)} disabled={issueCount === 0 && !issuesOnly}
+                        title={issueCount > 0 ? 'Chỉ hiện khu có camera mất kết nối / bảo trì' : undefined}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg disabled:opacity-60"
+                        style={{
+                            fontSize: 12, fontWeight: 600,
+                            background: issuesOnly ? '#FEF3C7' : C.borderSub,
+                            color: issueCount > 0 ? '#B45309' : C.muted,
+                        }}>
+                        <AlertTriangle style={{ width: 13, height: 13 }} />
+                        {issueCount > 0 ? `Khu có camera lỗi: ${issueCount}` : 'Camera đều hoạt động'}
+                        {issuesOnly && ' · đang lọc'}
+                    </button>
+                    <button type="button" onClick={() => setAllCollapsed(!allCollapsed)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                        style={{ fontSize: 12, fontWeight: 600, background: C.borderSub, color: C.muted }}>
+                        {allCollapsed ? <ChevronsUpDown style={{ width: 13, height: 13 }} /> : <ChevronsDownUp style={{ width: 13, height: 13 }} />}
+                        {allCollapsed ? 'Mở rộng tất cả' : 'Thu gọn tất cả'}
+                    </button>
+                </div>
                 <div className="overflow-x-auto">
                     <PaginatedCollection items={buildings} itemLabel="tòa nhà">
 {(camaiPageItems, camaiStartIndex) => (
@@ -263,7 +371,7 @@ const ZonePresenceTable = () => {
                                             </td>
                                         </tr>,
                                         ...f.zones.map((z) => (
-                                            <tr key={z.zoneId} style={{ borderTop: `1px solid ${C.borderSub}` }}>
+                                            <tr key={z.zoneId} style={{ borderTop: `1px solid ${C.borderSub}`, background: hasCameraIssue(z) ? '#FFF7ED' : undefined }}>
                                                 <td className="py-2 px-3" style={{ paddingLeft: 44, color: C.text }}>
                                                     <div style={{ fontWeight: 600 }}>{z.zoneName}</div>
                                                 </td>
@@ -283,8 +391,10 @@ const ZonePresenceTable = () => {
 )}
 </PaginatedCollection>
                 </div>
+                </>
             )}
-            <DeviceStatusModal isOpen={!!cameraZone} onClose={() => setCameraZone(null)}
+            <PresentPeopleModal dept={peopleDept} onClose={() => setPeopleDept(null)} />
+            <DeviceStatusModal manageHref={manageHref} isOpen={!!cameraZone} onClose={() => setCameraZone(null)}
                 title={cameraZone ? `Camera khu vực ${cameraZone.zoneName}` : ''}
                 devices={cameraZone?.cameras || []} />
         </div>

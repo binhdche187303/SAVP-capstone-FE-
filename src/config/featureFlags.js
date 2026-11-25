@@ -36,8 +36,8 @@ export const MEETING_CALENDAR_MOCK_ENABLED = process.env.NODE_ENV !== 'productio
  */
 export const MEETING_BOOKING_ENABLED = true;
 /**
- * Hộp thoại bắt buộc nộp ảnh FaceID khi đăng nhập (BiometricReminderModal).
- * TẠM TẮT: người dùng vẫn tự đăng ký khuôn mặt qua menu tài khoản → "Khuôn mặt".
- * Bật lại khi cần bắt buộc: đặt REACT_APP_BIOMETRIC_POPUP_ENABLED=true trong .env rồi chạy lại FE.
+ * Hộp thoại nhắc đăng ký FaceID khi vào hệ thống (BiometricReminderModal).
+ * [2026-11-23] BẬT mặc định: ai chưa đăng ký / bị gỡ đều thấy khi vào, đóng được để làm sau
+ * (nhắc lại ở phiên đăng nhập sau). Tắt hẳn: REACT_APP_BIOMETRIC_POPUP_ENABLED=false trong .env.
  */
-export const BIOMETRIC_POPUP_ENABLED = process.env.REACT_APP_BIOMETRIC_POPUP_ENABLED === 'true';
+export const BIOMETRIC_POPUP_ENABLED = process.env.REACT_APP_BIOMETRIC_POPUP_ENABLED !== 'false';

@@ -219,10 +219,10 @@ const ManagerLayout = () => {
     const displayRole = getLeaderRoleLabel(currentUser) || 'Trưởng đơn vị';
 
     return (
-        <div className="min-h-screen flex flex-col bg-cloud-mist">
+        <div className="min-h-screen flex flex-col bg-cloud-mist overflow-x-clip">
             {/* ========== NAVBAR ========== */}
             <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-platinum-tint">
-                <div className="max-w-[1440px] mx-auto flex items-center justify-between h-16 px-6 lg:px-12">
+                <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4 h-16 px-6 lg:px-12">
                     {/* Left: Logo + Nav */}
                     <div className="flex items-center gap-6">
                         {/* Logo */}
@@ -333,8 +333,8 @@ const ManagerLayout = () => {
                                 onClick={() => setIsProfileMenuOpen((prev) => !prev)}
                                 className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-cloud-mist transition-colors duration-200"
                             >
-                                <div className="hidden sm:flex flex-col items-end">
-                                    <span className="text-sm font-semibold text-midnight-indigo leading-tight">
+                                <div className="hidden sm:flex flex-col items-end min-w-0 max-w-[180px]">
+                                    <span className="text-sm font-semibold text-midnight-indigo leading-tight truncate max-w-full" title={displayName}>
                                         {displayName}
                                     </span>
                                     <span className="text-xs text-slate-blue leading-tight">

@@ -10,7 +10,7 @@ import FilterBar from '../../components/common/FilterBar';
 import RefreshButton from '../../components/common/RefreshButton';
 import { hasPermission } from '../../utils/permissionUtils';
 import { Activity, AlertTriangle, ArrowRight, BarChart3, Building2, Calendar, Car, CheckCircle, ChevronRight, Clock, Download, Filter, LogIn, MapPin, PieChart as PieIcon, Plus, ShieldAlert, Sliders, TrendingUp, Users, Wifi, WifiOff, Loader2 } from 'lucide-react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Legend, PieChart, Pie, Cell, Sector,
@@ -34,6 +34,10 @@ import DashboardBanner from '../../components/common/DashboardBanner';
 import ZonePresenceTable from '../../components/campus/ZonePresenceTable';
 import { getAlertTypeLabel } from '../../constants/alertType';
 import SharedStatCard from '../../components/common/StatCard';
+import RoomUtilizationDetailsModal, {
+    mapRoomUtilizationRows,
+    rankRoomUtilizationRows,
+} from '../../components/analytics/RoomUtilizationDetailsModal';
 
 // ─── Design tokens (Sky Blueprint — mirrored from sysadmin) ──────────────────
 
@@ -75,6 +79,11 @@ const SEVERITY_LABEL  = { critical: 'Nguy cấp', high: 'Cao', medium: 'Trung b�
 const ALERT_TYPE_KEYS   = ['intrusion', 'stranger', 'crowd', 'vehicle_control_match'];
 const ALERT_TYPE_LABELS = ['Xâm nhập', 'Khuôn mặt lạ', 'Tụ tập', 'Xe kiểm soát'];
 const ALERT_TYPE_COLORS = ['#ef4444', '#f97316', '#ffa600', '#006BFF'];
+const VEHICLE_LIST_TYPE_LABELS = {
+    blocklist: 'Danh sách chặn',
+    watchlist: 'Danh sách theo dõi',
+};
+const vehicleListTypeLabel = (type) => VEHICLE_LIST_TYPE_LABELS[type] || 'Danh sách kiểm soát';
 
 const formatTrafficBucket = (bucket) => {
     if (!bucket) return '—';
@@ -259,7 +268,7 @@ const ActiveSlice = (props) => {
 
 // ─── Chart Card wrappers ──────────────────────────────────────────────────────
 
-const ChartCard = ({ title, sub, delay = 0, renderChart, accent = D.cyan }) => {
+const ChartCard = ({ title, sub, action, delay = 0, renderChart, accent = D.cyan }) => {
     const [ref, inView] = useInView(0.1);
     return (
         <div ref={ref}
@@ -268,9 +277,12 @@ const ChartCard = ({ title, sub, delay = 0, renderChart, accent = D.cyan }) => {
         >
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${accent} 0%, ${accent}44 50%, transparent 100%)` }} />
             <div style={{ position: 'absolute', top: -60, left: -30, width: 160, height: 160, borderRadius: '50%', opacity: 0.04, background: accent, filter: 'blur(40px)', pointerEvents: 'none' }} />
-            <div style={{ marginBottom: 14, flexShrink: 0, position: 'relative' }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: D.text, letterSpacing: '-0.1px' }}>{title}</h3>
-                {sub && <p style={{ fontSize: 12, color: D.muted, marginTop: 3 }}>{sub}</p>}
+            <div style={{ marginBottom: 14, flexShrink: 0, position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: D.text, letterSpacing: '-0.1px' }}>{title}</h3>
+                    {sub && <p style={{ fontSize: 12, color: D.muted, marginTop: 3 }}>{sub}</p>}
+                </div>
+                {action}
             </div>
             <div style={{ flex: 1 }}>{renderChart(inView)}</div>
         </div>
@@ -351,6 +363,7 @@ const DashBoard = () => {
     const [departmentsList,  setDepartmentsList]  = useState([]);
     const [stats,            setStats]            = useState({ meetingCount: 0, activeRooms: 0, utilizationRate: 0, noShowRate: 0, onTimeRate: 0 });
     const [roomStats,        setRoomStats]        = useState([]);
+    const [showRoomDetails,  setShowRoomDetails]  = useState(false);
     const [attendanceData,   setAttendanceData]   = useState([]);
     const [activeAttIdx,     setActiveAttIdx]     = useState(null);
     const [meetingsTrend,    setMeetingsTrend]    = useState([]);
@@ -498,12 +511,7 @@ const DashBoard = () => {
 
         if (roomRes.status === 'fulfilled' && roomRes.value?.success) {
             const rooms = roomRes.value.data?.rooms || [];
-            setRoomStats(rooms.slice(0, 8).map(r => ({
-                name: (r.roomName || r.room_name || '').replace(/^Phòng\s+/i, '') || '—',
-                rate: +(parseFloat(r.reservationUtilizationRate || 0).toFixed(1)),
-                bookedHours: r.bookedHours || 0,
-                actualHours: r.actualHours || 0,
-            })));
+            setRoomStats(mapRoomUtilizationRows(rooms));
         } else {
             setRoomStats([]);
         }
@@ -595,6 +603,8 @@ const DashBoard = () => {
     const onlinePct = kpi.devicesTotal > 0 ? (kpi.devicesOnline / kpi.devicesTotal) * 100 : 0;
     const zonePct   = kpi.zonesTotal   > 0 ? (kpi.zonesActive   / kpi.zonesTotal)   * 100 : 0;
     const monthLabel = `Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`;
+    const topRoomStats = useMemo(() => rankRoomUtilizationRows(roomStats), [roomStats]);
+    const hasRoomUsage = topRoomStats.some(room => room.rate > 0);
     const alertTrendOptions = {
         ...GC_BASE, isStacked: true, colors: ALERT_TYPE_COLORS, areaOpacity: 0.18,
         lineWidth: 2, pointSize: 5, pointShape: 'circle',
@@ -658,7 +668,7 @@ const DashBoard = () => {
                         <KpiTile delay={100} icon={MapPin}      label="Khu vực giám sát"       value={campusLoading ? '—' : `${kpi.zonesActive}/${kpi.zonesTotal}`} sub="Zone có dữ liệu hôm nay" iconColor={D.purple} progress={campusLoading ? undefined : zonePct} />
                         <KpiTile delay={150} icon={Wifi}        label="Thiết bị Online"         value={campusLoading ? '—' : kpi.devicesOnline}    sub={campusLoading ? '' : `/ ${kpi.devicesTotal} thiết bị`} iconColor={D.green} progress={campusLoading ? undefined : onlinePct} />
                         <KpiTile delay={200} icon={Building2}   label="Phòng đang sử dụng"      value={meetLoading ? '—' : stats.activeRooms}      sub="Trên tổng số phòng" iconColor={D.blue} />
-                        <KpiTile delay={250} icon={Car}         label="Xe khớp kiểm soát"       value={campusLoading ? '—' : kpi.vehicleHitsToday} sub={kpi.vehicleHitsToday > 0 ? 'Blocklist / Watchlist' : 'Không có khớp'} iconColor={kpi.vehicleHitsToday > 0 ? D.amber : D.muted2} subColor={kpi.vehicleHitsToday > 0 ? '#B45309' : D.muted} />
+                        <KpiTile delay={250} icon={Car}         label="Xe khớp kiểm soát"       value={campusLoading ? '—' : kpi.vehicleHitsToday} sub={kpi.vehicleHitsToday > 0 ? 'Danh sách chặn / theo dõi' : 'Không có khớp'} iconColor={kpi.vehicleHitsToday > 0 ? D.amber : D.muted2} subColor={kpi.vehicleHitsToday > 0 ? '#B45309' : D.muted} />
                     </StatisticGrid>
 
                     {/* Row: Severity donut + Traffic area */}
@@ -914,19 +924,27 @@ const DashBoard = () => {
 
                     {/* Room bar + No-show */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                        <ChartCard accent={D.amber} delay={0} title="Tỷ lệ sử dụng phòng họp" sub={monthLabel}
+                        <ChartCard accent={D.amber} delay={0} title="Top phòng được đặt nhiều nhất"
+                            sub={`${monthLabel} · Top ${Math.min(8, roomStats.length)}/${roomStats.length} phòng`}
+                            action={roomStats.length > 0 && (
+                                <button type="button" onClick={() => setShowRoomDetails(true)}
+                                    className="shrink-0 rounded-lg border border-platinum-tint bg-white px-2.5 py-1.5 text-[11px] font-bold text-action-blue hover:bg-cloud-mist">
+                                    Xem tất cả ({roomStats.length})
+                                </button>
+                            )}
                             renderChart={(visible) => {
                                 if (!visible || meetLoading) return <PulseSkeleton height={260} />;
                                 if (!roomStats.length) return <EmptyState message="Không có dữ liệu phòng họp" />;
+                                if (!hasRoomUsage) return <EmptyState message="Chưa có dữ liệu đặt phòng trong kỳ" />;
                                 return (
-                                    <ResponsiveContainer width="100%" height={Math.max(200, roomStats.length * 36)}>
-                                        <BarChart data={roomStats} layout="vertical" margin={{ top: 0, right: 36, left: 0, bottom: 0 }}>
+                                    <ResponsiveContainer width="100%" height={Math.max(200, topRoomStats.length * 36)}>
+                                        <BarChart data={topRoomStats} layout="vertical" margin={{ top: 0, right: 36, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke={D.grid} horizontal={false} />
                                             <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: D.axisText }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} />
                                             <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10, fill: D.axisText }} tickLine={false} axisLine={false} />
                                             <Tooltip content={<BarTooltip unit="%" />} />
                                             <Bar dataKey="rate" name="Sử dụng" radius={[0, 4, 4, 0]} animationDuration={900}>
-                                                {roomStats.map((e, i) => <Cell key={i} fill={e.rate >= 80 ? D.green : e.rate >= 50 ? D.cyan : D.amber} />)}
+                                                {topRoomStats.map((e, i) => <Cell key={i} fill={e.rate >= 80 ? D.green : e.rate >= 50 ? D.cyan : D.amber} />)}
                                             </Bar>
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -1012,7 +1030,7 @@ const DashBoard = () => {
                     {/* Security KPI tiles */}
                     <StatisticGrid columns={4} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <KpiTile delay={0}   icon={ShieldAlert} label="Cảnh báo mới"                   value={campusLoading ? '—' : kpi.alertsNew}         sub={kpi.alertsNew > 0 ? 'Chưa xử lý' : 'Ổn định'} iconColor={kpi.alertsNew > 0 ? D.red : D.green} subColor={kpi.alertsNew > 0 ? '#DC2626' : '#059669'} />
-                        <KpiTile delay={60}  icon={Car}         label="Xe trong blocklist"               value={campusLoading ? '—' : kpi.vehicleHitsToday}  sub="Khớp hôm nay" iconColor={D.amber} />
+                        <KpiTile delay={60}  icon={Car}         label="Xe trong danh sách chặn"          value={campusLoading ? '—' : kpi.vehicleHitsToday}  sub="Khớp hôm nay" iconColor={D.amber} />
                         <KpiTile delay={120} icon={LogIn}       label="Tổng lượt ra/vào hôm nay"         value={campusLoading ? '—' : kpi.gateEventsToday}   sub="Qua tất cả cổng" iconColor={D.cyan} />
                         <KpiTile delay={180} icon={Wifi}        label="Thiết bị Online"                  value={campusLoading ? '—' : kpi.devicesOnline}     sub={`Offline: ${kpi.devicesOffline}`} iconColor={D.green} progress={campusLoading ? undefined : onlinePct} />
                     </StatisticGrid>
@@ -1064,7 +1082,7 @@ const DashBoard = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                                     <div>
                                         <h3 style={{ fontSize: 14, fontWeight: 700, color: D.text }}>Danh sách xe cần chú ý</h3>
-                                        <p style={{ fontSize: 12, color: D.muted, marginTop: 3 }}>Blocklist đang hiệu lực</p>
+                                        <p style={{ fontSize: 12, color: D.muted, marginTop: 3 }}>Danh sách chặn đang hiệu lực</p>
                                     </div>
                                 </div>
                                 {campusLoading ? (
@@ -1078,7 +1096,7 @@ const DashBoard = () => {
                                             <p style={{ fontSize: 11, color: D.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.reason}</p>
                                         </div>
                                         <span style={{ padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 700, background: v.list_type === 'blocklist' ? '#FEF2F2' : '#FFF7ED', color: v.list_type === 'blocklist' ? D.red : '#C2410C', flexShrink: 0, marginLeft: 10 }}>
-                                            {v.list_type}
+                                            {vehicleListTypeLabel(v.list_type)}
                                         </span>
                                     </div>
                                 ))(camaiRecord, camaiStartIndex + camaiIndex, (vehicleWatchlist)))}
@@ -1120,6 +1138,8 @@ const DashBoard = () => {
                     </div>
                 </>
             )}
+            <RoomUtilizationDetailsModal isOpen={showRoomDetails} onClose={() => setShowRoomDetails(false)}
+                rooms={roomStats} periodLabel={monthLabel} />
         </div>
     );
 };

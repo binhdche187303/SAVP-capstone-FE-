@@ -1,0 +1,45 @@
+.role-permission-page {
+    background: transparent;
+}
+
+.role-permission-view-switch {
+    min-width: 0;
+}
+
+.permission-matrix-filters .permission-matrix-search {
+    flex: 1 1 24rem;
+}
+
+.permission-matrix-filter-actions {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.permission-matrix-filter-actions > .relative > button {
+    height: 38px;
+    border-color: #d4e0ed;
+    border-radius: 12px;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+@media (max-width: 767px) {
+    .permission-matrix-filters,
+    .permission-matrix-filter-actions {
+        align-items: stretch;
+    }
+
+    .permission-matrix-filter-actions,
+    .permission-matrix-filter-actions > .relative,
+    .permission-matrix-filter-actions > .relative > button {
+        width: 100%;
+    }
+
+    .permission-matrix-filter-actions > .relative > button {
+        justify-content: space-between;
+    }
+}

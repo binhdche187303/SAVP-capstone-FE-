@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/request';
 
-const ThumbnailImage = ({ eventId, onClick, alt = "Snapshot", className = "w-32 md:w-40 aspect-video" }) => {
+const ThumbnailImage = ({ eventId, onClick, alt = "Snapshot", className = "w-32 md:w-40 aspect-video", hideOnError = false }) => {
     const [error, setError] = useState(false);
 
     // We get the token directly here so the parent doesn't need to pass it
     const token = localStorage.getItem('accessToken');
 
-    if (!eventId) return null;
+    if (!eventId || (error && hideOnError)) return null;
 
     return (
         <button

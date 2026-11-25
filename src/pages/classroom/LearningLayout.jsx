@@ -133,8 +133,8 @@ const LearningLayout = ({ role = 'teacher' }) => {
         <div className="min-h-screen bg-cloud-mist flex flex-col">
             <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-platinum-tint">
                 <div className="max-w-[1440px] mx-auto h-16 px-6 lg:px-12 flex items-center justify-between gap-4">
-                    {/* Logo và menu nằm liền nhau; khu vực tài khoản căn phải. */}
-                    <div className="flex shrink-0 items-center min-w-0">
+                    {/* Logo trái, menu căn giữa phần còn lại, tài khoản căn phải. */}
+                    <div className="flex flex-1 items-center min-w-0">
                         <NavLink to={basePath} className="flex items-center gap-2 no-underline shrink-0">
                             <div className="w-12 h-12 bg-white flex items-center justify-center shrink-0">
                                 <img src={logo} alt="VISMA IVA" className="w-full h-full object-contain scale-[1.3]" />
@@ -142,7 +142,7 @@ const LearningLayout = ({ role = 'teacher' }) => {
                             <span className="text-midnight-indigo font-bold text-lg tracking-tight hidden xl:block">VISMA IVA</span>
                         </NavLink>
                     </div>
-                    <nav aria-label="Điều hướng chính" className="hidden xl:flex items-center gap-1.5 flex-nowrap">
+                    <nav aria-label="Điều hướng chính" className="hidden xl:flex flex-1 items-center justify-center gap-3 2xl:gap-6 flex-nowrap">
                             {navItems.map(item => item.children ? (
                                 <div
                                     key={item.label}

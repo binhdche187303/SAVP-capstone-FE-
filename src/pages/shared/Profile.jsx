@@ -1,21 +1,19 @@
 import { User, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { get } from '../../utils/request';
 import { updateSelfProfile } from '../../service/employeeServices';
 import { getBiometricStatus, updateSelfAvatar } from '../../service/avatarService';
-import BiometricUploadForm from '../../components/biometric/BiometricUploadForm';
+import FaceEnrollmentPanel, { FACE_STATE } from '../../components/biometric/FaceEnrollmentPanel';
 import { getCalendarRoleLabel, getLeaderRoleLabel } from "../../utils/calendarRoleLabel";
 
-const STATUS_LABEL = {
-    not_uploaded: { label: "Chưa nộp ảnh", badge: "bg-amber-50 text-amber-700 border border-amber-200" },
-    pending_review: { label: "Đang chờ duyệt", badge: "bg-blue-50 text-action-blue border border-blue-200" },
-    rejected: { label: "Bị từ chối", badge: "bg-red-50 text-red-700 border border-red-200" },
-    approved: { label: "Đã duyệt", badge: "bg-green-50 text-green-700 border border-green-200" },
-};
+// [2026-11-23] Nhãn trạng thái FaceID dùng chung với FaceEnrollmentPanel.
+const STATUS_LABEL = Object.fromEntries(
+    Object.entries(FACE_STATE).map(([k, v]) => [k, { label: v.label, badge: `${v.badge} border` }]),
+);
 
 const formatStudentClass = (studentProfile, profile) => {
     if (studentProfile?.administrativeClass) return studentProfile.administrativeClass;
@@ -41,7 +39,6 @@ const formatHomeroomTeacher = (studentProfile, profile) => {
 };
 
 const Profile = () => {
-    const navigate = useNavigate();
     const location = useLocation();
 
     const path = location.pathname;
@@ -245,7 +242,7 @@ const Profile = () => {
 
     const handleBiometricUploadSuccess = () => {
         fetchBiometricStatus();
-        setSuccessMessage("Ảnh sinh trắc học đã được gửi đi và đang chờ duyệt.");
+        fetchProfileData();
         setBiometricModalOpen(false);
     };
 
@@ -392,50 +389,31 @@ const Profile = () => {
                     {showFaceRegisterBtn && !biometricStatusLoading && biometricStatus && (
                         <div className="w-full mt-3">
                             <div className="w-full flex flex-col p-3 bg-cloud-mist rounded-xl border border-outline-gray/60">
-                                <span data-ui-text="label" className="block text-[10px] font-bold text-slate-blue uppercase text-left">Trạng thái duyệt ảnh FaceID</span>
+                                <span data-ui-text="label" className="block text-[10px] font-bold text-slate-blue uppercase text-left">Trạng thái FaceID</span>
                                 <span data-ui-text="badge" className={"inline-flex self-start mt-1.5 text-[10px] px-2 py-0.5 rounded-full font-semibold " + ((STATUS_LABEL[biometricStatus.biometricReviewStatus] || STATUS_LABEL.not_uploaded).badge)}>
                                     {(STATUS_LABEL[biometricStatus.biometricReviewStatus] || STATUS_LABEL.not_uploaded).label}
                                 </span>
-                                {biometricStatus.biometricReviewStatus === "rejected" && biometricStatus.message && (
-                                    <p data-ui-text="secondary" className="text-[10px] text-red-600 mt-1.5 text-left leading-relaxed">{biometricStatus.message}</p>
+                                {biometricStatus.biometricReviewStatus === "rejected" && (biometricStatus.profile?.reason || biometricStatus.message) && (
+                                    <p data-ui-text="secondary" className="text-[10px] text-red-600 mt-1.5 text-left leading-relaxed">{biometricStatus.profile?.reason || biometricStatus.message}</p>
                                 )}
                                 {biometricStatus.biometricReviewStatus === "approved" && (
-                                    <p data-ui-text="secondary" className="text-[10px] text-green-600 mt-1.5 text-left">Ảnh sinh trắc học đã được duyệt.</p>
+                                    <p data-ui-text="secondary" className="text-[10px] text-green-600 mt-1.5 text-left">Khuôn mặt đã sẵn sàng để camera nhận diện.</p>
                                 )}
-                                
-                                {(biometricStatus.biometricReviewStatus === "rejected" || biometricStatus.biometricReviewStatus === "not_uploaded") && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setBiometricModalOpen(true)}
-                                        className="mt-3 w-full py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
-                                    >
-                                        Nộp ảnh sinh trắc học FaceID
-                                    </button>
+                                {biometricStatus.biometricReviewStatus === "pending_review" && (
+                                    <p data-ui-text="secondary" className="text-[10px] text-action-blue mt-1.5 text-left leading-relaxed">Quản trị viên đang kiểm tra hồ sơ khuôn mặt của bạn.</p>
                                 )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => setBiometricModalOpen(true)}
+                                    className="mt-3 w-full py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
+                                >
+                                    {{ not_uploaded: "Đăng ký FaceID", rejected: "Quét lại FaceID" }[biometricStatus.biometricReviewStatus] || "Xem FaceID"}
+                                </button>
                             </div>
                         </div>
                     )}
 
-                    {showFaceRegisterBtn && (<>
-                    <div className="w-full border-t border-platinum-tint/60 my-5" />
-                    <div className="w-full flex flex-col gap-3.5 p-3.5 bg-cloud-mist rounded-xl border border-outline-gray/60">
-                        <div className="flex items-center justify-between w-full">
-                            <div className="text-left">
-                                <span className="block text-xs font-bold text-slate-blue uppercase">Hồ sơ khuôn mặt</span>
-                                <span className="text-xs text-steel-gray mt-0.5 block">Dữ liệu FaceID</span>
-                            </div>
-                            <span data-ui-text="badge" className={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold " + (profile?.hasFaceProfile ? "bg-green-50 text-green-700 border border-green-200" : "bg-amber-50 text-amber-700 border border-amber-200")}>
-                                {profile?.hasFaceProfile ? "Đã hợp lệ" : "Chưa đăng ký"}
-                            </span>
-                        </div>
-                        <button type="button" onClick={() => navigate(rolePath + "/face-register")} className="w-full py-2 bg-action-blue hover:bg-glacier-blue text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-16v.01M4 12H2m2 0h2v-4m0 16v.01M8 12v.01M16 12v.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                            </svg>
-                            {profile?.hasFaceProfile ? "Cập nhật khuôn mặt" : "Đăng ký khuôn mặt ngay"}
-                        </button>
-                    </div>
-                    </>)}
                 </div>
 
                 <div className="md:col-span-2 space-y-6">
@@ -576,7 +554,7 @@ const Profile = () => {
                                 initial={{ scale: 0.95, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 exit={{ scale: 0.95, opacity: 0 }}
-                                className="bg-white rounded-2xl border border-platinum-tint shadow-lg w-full max-w-md p-6"
+                                className="bg-white rounded-2xl border border-platinum-tint shadow-lg w-full max-w-lg p-6 max-h-[95vh] overflow-y-auto"
                             >
                                 <div className="flex justify-between items-center border-b border-platinum-tint pb-3 mb-4">
                                     <h3 className="text-base font-bold text-midnight-indigo">Cập nhật ảnh đại diện</h3>
@@ -673,7 +651,7 @@ const Profile = () => {
                                 className="bg-white rounded-2xl border border-platinum-tint shadow-lg w-full max-w-md p-6"
                             >
                                 <div className="flex justify-between items-center border-b border-platinum-tint pb-3 mb-4">
-                                    <h3 className="text-base font-bold text-midnight-indigo">Nộp ảnh sinh trắc học FaceID</h3>
+                                    <h3 className="text-base font-bold text-midnight-indigo">Đăng ký FaceID</h3>
                                     {profile?.hasFaceProfile !== false && (
                                         <button
                                             type="button"
@@ -687,11 +665,7 @@ const Profile = () => {
                                     )}
                                 </div>
                                 
-                                <BiometricUploadForm 
-                                    compact 
-                                    onSuccess={handleBiometricUploadSuccess} 
-                                    onCancel={profile?.hasFaceProfile === false ? undefined : () => setBiometricModalOpen(false)} 
-                                />
+                                <FaceEnrollmentPanel onDone={handleBiometricUploadSuccess} />
                             </motion.div>
                         </motion.div>
                     )}

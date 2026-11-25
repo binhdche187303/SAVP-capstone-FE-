@@ -237,17 +237,19 @@ const VisitorDesk = () => {
 {(camaiPageItems, camaiStartIndex) => (
 <ul aria-label="Danh sách khách" className="divide-y divide-pale-gray">
                                     {camaiPageItems.map((camaiRecord, camaiIndex) => ((visit) => (
-                                        <li key={visit.id} className="px-6 py-3 flex flex-wrap items-center gap-3">
+                                        <li key={visit.id} className="visitor-desk-visit-row px-6 py-3">
                                             <VisitorAvatar visitor={visit.visitor} size={40} />
-                                            <div className="flex-1 min-w-[180px]">
+                                            <div className="visitor-desk-visit-summary">
                                                 <p data-ui-text="primary" className="text-sm font-semibold text-midnight-indigo">{visit.visitor.fullName}</p>
                                                 <p data-ui-text="secondary" className="text-[11px] text-slate-blue">
                                                     Gặp {visit.hostName} · {visit.departmentName} · {fmtTimeRange(visit.scheduledFrom, visit.scheduledTo)}
                                                     {visit.visitor.hasPhoto ? '' : ' · Chưa có ảnh'}
                                                 </p>
                                             </div>
-                                            <VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} />
-                                            <div className="flex gap-2">
+                                            <div className="visitor-desk-visit-status">
+                                                <VisitStatusBadge status={visit.status} overstay={visit.overstay} visit={visit} />
+                                            </div>
+                                            <div className="visitor-desk-visit-actions">
                                                 {visit.status === 'approved' && (
                                                     <a data-ui-text="action"
                                                         href={`/visitor/gate?code=${visit.code}`}

@@ -59,3 +59,6 @@ export const downloadHgPlayback = ({ camera, from, to }, options = {}) =>
 /** Ảnh thumbnail đoạn ghi qua proxy BE (thumbUrl đã gồm /api/v1) — trả blob vì <img> không gắn được token. */
 export const getHgMediaBlob = (path, options = {}) =>
     get(String(path).replace(/^\/api\/v1/, ''), { skipToast: true, responseType: 'blob', ...options });
+
+/** GET /hgvision/resources — tài nguyên máy chủ HGVision: {cpu, memory, disk:{percent,used,total}, gpu}. */
+export const getHgResources = (options = {}) => get('/hgvision/resources', { skipToast: true, ...options });

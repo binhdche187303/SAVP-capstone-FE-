@@ -9,7 +9,7 @@ import StatisticCard from '../../components/common/StatisticCard';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Filter, Clock, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X, CheckSquare, Square } from 'lucide-react';
+import { Filter, Clock, ChevronDown, AlertTriangle, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X, CheckSquare, Square } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -83,6 +83,8 @@ const Strangers = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    const [collapsed, setCollapsed] = useState(() => new Set());
+    const toggleCollapsed = (k) => setCollapsed(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
     const [detail, setDetail] = useState(null); // { stranger, sightings, loading }
     const [snapshot, setSnapshot] = useState({ open: false, ids: [], index: 0 });
     const [addForm, setAddForm] = useState(null); // { stranger, display_name, list_type, priority, reason }
@@ -297,15 +299,30 @@ const Strangers = () => {
                 </div>
             )}
 
-            {groupByHour(items).map(g => (
+            {(() => {
+                // Mục "Xuất hiện nhiều lần" lên đầu (chỉ tab chờ xử lý), phần còn lại gom theo giờ.
+                const frequent = tab === 'pending' ? items.filter(x => x.hitCount >= 3).sort((a, b) => b.hitCount - a.hitCount) : [];
+                const fk = new Set(frequent.map(keyOf));
+                const groups = [
+                    ...(frequent.length ? [{ key: 'frequent', label: 'Xuất hiện nhiều lần (≥ 3 lần)', items: frequent, hot: true }] : []),
+                    ...groupByHour(items.filter(x => !fk.has(keyOf(x)))),
+                ];
+                return groups.map(g => {
+                    const isCollapsed = collapsed.has(g.key);
+                    return (
             <section key={g.key} aria-label={`Người lạ ${g.label}`} className="space-y-2">
-                <h2 className="flex items-center gap-2 text-xs font-bold text-slate-blue">
-                    <Clock className="w-3.5 h-3.5" /> {g.label}
-                    <span className="px-2 py-0.5 rounded-full bg-cloud-mist text-midnight-indigo">{g.items.length} người</span>
+                <h2 className="sticky top-0 z-20 -mx-1 px-1 py-1.5 bg-white/90 backdrop-blur rounded-lg">
+                    <button type="button" onClick={() => toggleCollapsed(g.key)} aria-expanded={!isCollapsed}
+                        className={`flex items-center gap-2 text-xs font-bold ${g.hot ? 'text-amber-700' : 'text-slate-blue'} hover:text-midnight-indigo`}>
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                        {g.hot ? <AlertTriangle className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />} {g.label}
+                        <span className={`px-2 py-0.5 rounded-full ${g.hot ? 'bg-amber-100 text-amber-800' : 'bg-cloud-mist text-midnight-indigo'}`}>{g.items.length} người</span>
+                    </button>
                 </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            {!isCollapsed && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 2xl:grid-cols-10 gap-2.5">
                 {g.items.map(s => (
-                    <div key={keyOf(s)} className={`bg-white rounded-2xl border overflow-hidden flex flex-col ${selected[keyOf(s)] ? 'border-action-blue ring-2 ring-action-blue/20' : tab === 'pending' && s.hitCount >= 3 ? 'border-amber-300' : 'border-platinum-tint'}`}>
+                    <div key={keyOf(s)} className={`group bg-white rounded-xl border overflow-hidden flex flex-col ${selected[keyOf(s)] ? 'border-action-blue ring-2 ring-action-blue/20' : tab === 'pending' && s.hitCount >= 3 ? 'border-amber-300' : 'border-platinum-tint'}`}>
                         <div className="relative">
                             {tab === 'pending' && (
                                 <label className="absolute top-2 left-2 z-10 w-6 h-6 rounded-md bg-white/90 shadow flex items-center justify-center cursor-pointer" title="Chọn để đóng hàng loạt">
@@ -313,19 +330,44 @@ const Strangers = () => {
                                 </label>
                             )}
                             {s.snapshotEventId ? (
-                                <ThumbnailImage eventId={s.snapshotEventId} className="w-full aspect-[4/5] rounded-none border-0" alt="Ảnh người lạ" onClick={() => openDetail(s)} />
+                                <ThumbnailImage eventId={s.snapshotEventId} className="w-full aspect-square rounded-none border-0" alt="Ảnh người lạ" onClick={() => openDetail(s)} />
                             ) : (
-                                <button onClick={() => openDetail(s)} className="w-full aspect-[4/5] bg-slate-100 flex flex-col items-center justify-center text-slate-400 text-xs gap-1">
-                                    <UserX className="w-8 h-8" /> Không có ảnh
+                                <button onClick={() => openDetail(s)} className="w-full aspect-square bg-slate-100 flex flex-col items-center justify-center text-slate-400 text-xs gap-1">
+                                    <UserX className="w-6 h-6" /> Không có ảnh
                                 </button>
                             )}
-                            <span data-ui-text="badge" className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-bold shadow ${tab === 'pending' && s.hitCount >= 3 ? 'bg-amber-500 text-white' : 'bg-white text-midnight-indigo'}`}>
+                            <span data-ui-text="badge" className={`absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow ${tab === 'pending' && s.hitCount >= 3 ? 'bg-amber-500 text-white' : 'bg-white text-midnight-indigo'}`}>
                                 {s.hitCount} lần
                             </span>
+                        <div className="absolute inset-x-0 bottom-0 z-10 grid grid-cols-3 bg-white/95 border-t border-platinum-tint divide-x divide-platinum-tint opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                            {tab === 'pending' ? (
+                                <>
+                                    <button onClick={() => setReviewing(s)} title="AI nhận sai? Xác nhận đây là ai" className="py-1.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-50 inline-flex items-center justify-center gap-1">
+                                        <UserCheck className="w-3.5 h-3.5" /> Là ai?
+                                    </button>
+                                    <button onClick={() => openAdd(s)} className="py-1.5 text-[10px] font-bold text-action-blue hover:bg-blue-50 inline-flex items-center justify-center gap-1">
+                                        <ShieldPlus className="w-3.5 h-3.5" /> Theo dõi
+                                    </button>
+                                    <button onClick={() => setDismissing(s)} title="Đóng cảnh báo — phải ghi lý do" className="py-1.5 text-[10px] font-semibold text-slate-blue hover:bg-cloud-mist inline-flex items-center justify-center gap-1">
+                                        <ShieldOff className="w-3.5 h-3.5" /> Đóng
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={() => openDetail(s)} className="py-1.5 text-[10px] font-semibold text-slate-blue hover:bg-cloud-mist">Chi tiết</button>
+                                    <button onClick={() => setReviewing(s)} title="Xác nhận đây là ai" className="py-1.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-50 inline-flex items-center justify-center gap-1">
+                                        <UserCheck className="w-3.5 h-3.5" /> Là ai?
+                                    </button>
+                                    <button onClick={() => handleReopen(s)} className="py-1.5 text-[10px] font-bold text-action-blue hover:bg-blue-50 inline-flex items-center justify-center gap-1">
+                                        <RotateCcw className="w-3.5 h-3.5" /> Mở lại
+                                    </button>
+                                </>
+                            )}
                         </div>
-                        <div className="p-2.5 space-y-0.5 flex-1 min-w-0">
-                            <p className="text-sm font-bold text-midnight-indigo truncate" title={placeOf(s)}>{placeOf(s)}</p>
-                            <p className="text-xs text-slate-blue flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" /> {fmtDateTime(s.lastSeen)}</p>
+                        </div>
+                        <div className="px-2 py-1.5 space-y-0.5 flex-1 min-w-0">
+                            <p className="text-xs font-bold text-midnight-indigo truncate" title={placeOf(s)}>{placeOf(s)}</p>
+                            <p className="text-[11px] text-slate-blue flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" /> {fmtDateTime(s.lastSeen)}</p>
                             {tab === 'dismissed' && (
                                 <div data-ui-text="secondary" className="mt-2 rounded-lg bg-slate-50 border border-slate-100 px-2 py-1.5 text-[11px] text-slate-blue space-y-0.5">
                                     <p className="font-semibold text-midnight-indigo">{dismissReasonLabel(s.dismissReason)}</p>
@@ -334,36 +376,14 @@ const Strangers = () => {
                                 </div>
                             )}
                         </div>
-                        <div className="grid grid-cols-3 border-t border-platinum-tint divide-x divide-platinum-tint">
-                            {tab === 'pending' ? (
-                                <>
-                                    <button onClick={() => setReviewing(s)} title="AI nhận sai? Xác nhận đây là ai" className="py-2 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 inline-flex items-center justify-center gap-1">
-                                        <UserCheck className="w-3.5 h-3.5" /> Là ai?
-                                    </button>
-                                    <button onClick={() => openAdd(s)} className="py-2 text-[11px] font-bold text-action-blue hover:bg-blue-50 inline-flex items-center justify-center gap-1">
-                                        <ShieldPlus className="w-3.5 h-3.5" /> Theo dõi
-                                    </button>
-                                    <button onClick={() => setDismissing(s)} title="Đóng cảnh báo — phải ghi lý do" className="py-2 text-[11px] font-semibold text-slate-blue hover:bg-cloud-mist inline-flex items-center justify-center gap-1">
-                                        <ShieldOff className="w-3.5 h-3.5" /> Đóng
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <button onClick={() => openDetail(s)} className="py-2 text-[11px] font-semibold text-slate-blue hover:bg-cloud-mist">Chi tiết</button>
-                                    <button onClick={() => setReviewing(s)} title="Xác nhận đây là ai" className="py-2 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 inline-flex items-center justify-center gap-1">
-                                        <UserCheck className="w-3.5 h-3.5" /> Là ai?
-                                    </button>
-                                    <button onClick={() => handleReopen(s)} className="py-2 text-[11px] font-bold text-action-blue hover:bg-blue-50 inline-flex items-center justify-center gap-1">
-                                        <RotateCcw className="w-3.5 h-3.5" /> Mở lại
-                                    </button>
-                                </>
-                            )}
-                        </div>
                     </div>
                 ))}
             </div>
+            )}
             </section>
-            ))}
+                    );
+                });
+            })()}
 
             {<PaginationRegion legacyVisible={total > PAGE_SIZE}><PaginationFooter currentPage={page} totalPages={Math.ceil(total / PAGE_SIZE)} totalItems={total} pageSize={PAGE_SIZE} itemLabel="người lạ" onPageChange={setPage} loading={loading}  onPageSizeChange={size => { setPageSize(size); setPage(1); }} /></PaginationRegion>}
 
@@ -371,7 +391,7 @@ const Strangers = () => {
             {detail && createPortal(
                 <AnimatePresence>
                     <motion.div className="fixed inset-0 z-[9998] bg-black/40 flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setDetail(null)}>
-                        <motion.div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={e => e.stopPropagation()}>
+                        <motion.div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" initial={{ scale: 0.95 }} animate={{ scale: 1 }} onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-between p-4 border-b border-platinum-tint">
                                 <div>
                                     <p className="font-extrabold text-midnight-indigo">{placeOf(detail.stranger)}</p>
@@ -381,28 +401,28 @@ const Strangers = () => {
                             </div>
                             <PaginatedCollection items={detail?.sightings} itemLabel="lần xuất hiện">
 {(camaiPageItems, camaiStartIndex) => (
-<div className="overflow-y-auto p-4 space-y-2">
-                                {detail.loading && <p className="text-sm text-slate-blue">Đang tải...</p>}
+<div className="overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+                                {detail.loading && <p className="col-span-full text-sm text-slate-blue">Đang tải...</p>}
                                 {camaiPageItems.map((camaiRecord, camaiIndex) => ((x, i) => (
-                                    <div key={x.eventId} className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-100">
+                                    <div key={x.eventId} className="rounded-xl bg-slate-50 border border-slate-100 overflow-hidden">
                                         {x.hasSnapshot ? (
-                                            <ThumbnailImage eventId={x.eventId} className="w-16 h-16" onClick={() => {
+                                            <ThumbnailImage eventId={x.eventId} className="w-full aspect-square rounded-none border-0" onClick={() => {
                                                 const ids = detail.sightings.filter(y => y.hasSnapshot).map(y => y.eventId);
                                                 setSnapshot({ open: true, ids, index: ids.indexOf(x.eventId) });
                                             }} />
-                                        ) : <div className="w-16 h-16 rounded-lg bg-slate-200 flex items-center justify-center"><UserX className="w-5 h-5 text-slate-400" /></div>}
-                                        <div className="text-sm">
+                                        ) : <div className="w-full aspect-square bg-slate-200 flex items-center justify-center"><UserX className="w-6 h-6 text-slate-400" /></div>}
+                                        <div className="px-2 py-1.5 text-xs">
                                             <p className="font-bold text-midnight-indigo">#{detail.sightings.length - i} · {fmtDateTime(x.time)}</p>
-                                            {x.similarity && <p className="text-xs text-slate-blue">Độ giống gần nhất: {x.similarity}%</p>}
+                                            {x.similarity && <p className="text-[11px] text-slate-blue">Giống: {x.similarity}%</p>}
                                         </div>
                                     </div>
                                 ))(camaiRecord, camaiStartIndex + camaiIndex, (detail.sightings)))}
                             </div>
 )}
 </PaginatedCollection>
-                            <div className="p-4 border-t border-platinum-tint space-y-2">
+                            <div className="p-4 border-t border-platinum-tint grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 <button onClick={() => { const s = detail.stranger; setDetail(null); setReviewing(s); }} className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold inline-flex items-center justify-center gap-2">
-                                    <UserCheck className="w-4 h-4" /> Đây là người quen — xác nhận là ai
+                                    <UserCheck className="w-4 h-4" /> Xác nhận là ai
                                 </button>
                                 {tab === 'pending' && (
                                     <>

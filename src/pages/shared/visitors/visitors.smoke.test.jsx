@@ -28,6 +28,24 @@ beforeEach(() => resetState());
 describe('VisitorManagement', () => {
     const route = <Route path="/business-admin/visitors" element={<VisitorManagement />} />;
 
+    test('hiện tối đa 4 card và trạng thái còn lại ở Khác vẫn lọc được', async () => {
+        renderAt('/business-admin/visitors', route);
+        await screen.findByRole('button', { name: /Chờ duyệt/ });
+        expect(document.querySelectorAll('[data-stat-card="standard"]')).toHaveLength(4);
+        const otherStatuses = screen.getByRole('group', { name: 'Khác' });
+        const rejectedStatus = within(otherStatuses).getByRole('button', { name: /Từ chối/ });
+        expect(within(otherStatuses).getByRole('button', { name: /Hết hạn/ })).toBeInTheDocument();
+        expect(within(otherStatuses).getByRole('button', { name: /Đã hủy/ })).toBeInTheDocument();
+        expect(within(otherStatuses).getByRole('button', { name: /Đã thu hồi/ })).toBeInTheDocument();
+        expect(within(otherStatuses).getByRole('button', { name: /Chưa ghi nhận giờ ra/ })).toBeInTheDocument();
+        fireEvent.click(rejectedStatus);
+        expect(rejectedStatus).toHaveAttribute('aria-pressed', 'true');
+        await waitFor(() => {
+            expect(dataRows().length).toBeGreaterThan(0);
+            expect(dataRows().every((row) => within(row).queryByText('Từ chối'))).toBe(true);
+        });
+    });
+
     test('admin có thể mở duyệt nhanh và xử lý lượt khách chờ duyệt', async () => {
         renderAt('/business-admin/visitors', route);
         await waitFor(() => expect(cardCount(/Chờ duyệt/)).toBeGreaterThanOrEqual(3));
@@ -301,10 +319,15 @@ describe('VisitorHistory', () => {
 describe('VisitorStats', () => {
     const route = <Route path="/business-admin/visitors/stats" element={<VisitorStats />} />;
 
-    test('hiện 5 KPI, 5 biểu đồ và liên kết sang báo cáo khách', async () => {
+    test('hiện 4 KPI chính, KPI còn lại ở hàng Khác, 5 biểu đồ và liên kết sang báo cáo khách', async () => {
         renderAt('/business-admin/visitors/stats', route);
         expect(await screen.findByText('Khách duy nhất')).toBeInTheDocument();
-        ['Tổng lượt', 'Lưu trú TB', 'Lượt quá giờ', 'Tỷ lệ không đến'].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
+        ['Tổng lượt', 'Lưu trú TB', 'Lượt quá giờ'].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
+        ['Tổng lượt', 'Khách duy nhất', 'Lưu trú TB', 'Lượt quá giờ'].forEach((label) => {
+            expect(screen.getByRole('group', { name: label }).querySelector('svg')).toBeInTheDocument();
+        });
+        const otherKpis = screen.getByRole('group', { name: 'Khác' });
+        expect(within(otherKpis).getByText('Tỷ lệ không đến')).toBeInTheDocument();
         expect(screen.getAllByTestId('chart')).toHaveLength(5);
         expect(screen.getByRole('link', { name: /Mở báo cáo để xuất/ })).toHaveAttribute('href', '/business-admin/reports/visitor');
     });

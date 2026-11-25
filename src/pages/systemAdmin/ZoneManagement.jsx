@@ -36,13 +36,6 @@ const fmtEventTime = (iso, withDate = false) => {
     } catch { return '—'; }
 };
 
-const fmtRefreshed = (d) => d ? d.toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }) : '—';
-const RefreshedAt = ({ at }) => (
-    <span className="text-xs font-normal normal-case tracking-normal text-slate-blue" aria-live="polite">
-        · Cập nhật lúc <time className="tabular-nums">{fmtRefreshed(at)}</time>
-    </span>
-);
-
 // Nút Ngày/Tuần/Tháng/Năm cỡ nhỏ cho đầu thẻ (ẩn nhãn "Khoảng thời gian").
 // Giữ chuỗi class nguyên văn để Tailwind quét được.
 const PRESET_COMPACT = '[&_.camai-time-label]:sr-only [&_[data-filter-preset]]:!min-h-0 [&_[data-filter-preset]]:!h-8 [&_[data-filter-preset]]:!py-0 [&_[data-filter-preset]]:!px-3 [&_[data-filter-preset]]:!text-xs [&_.camai-time-buttons]:!gap-1.5';
@@ -86,7 +79,6 @@ const ZoneStatusBadge = ({ isStranger }) => {
 const ZoneAccessLogCard = ({ zoneId }) => {
     const [ZONE_LOG_LIMIT, setZoneLogLimit] = useState(9); // lưới 3 cột → 9 = 3 hàng đủ
     const [statusFilter, setStatusFilter] = useState('');
-    const [refreshedAt, setRefreshedAt] = useState(null);
     const [fromDate, setFromDate] = useState(getTodayVN);
     const [toDate, setToDate] = useState(getTodayVN);
     const multiDay = fromDate !== toDate;
@@ -130,7 +122,6 @@ const ZoneAccessLogCard = ({ zoneId }) => {
                 setTotal(res.data.totalEvents ?? pag.total ?? pag.totalItems ?? evList.length);
                 setMatchedCount(res.data.matchedCount ?? 0);
                 setUnmatchedCount(res.data.unmatchedCount ?? 0);
-                setRefreshedAt(new Date());
             } else {
                 throw new Error(res?.message || 'Không thể tải nhật ký.');
             }
@@ -175,7 +166,6 @@ const ZoneAccessLogCard = ({ zoneId }) => {
                     <h3 className="text-sm font-bold text-slate-blue uppercase tracking-wider flex items-center gap-2 h-9">
                         <History className="w-4 h-4 text-action-blue" />
                         Nhật ký ra vào khu vực
-                        <RefreshedAt at={refreshedAt} />
                     </h3>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                         <CalendarRangePresets
@@ -186,7 +176,6 @@ const ZoneAccessLogCard = ({ zoneId }) => {
                             className={PRESET_COMPACT}
                         />
                         <RefreshButton
-                            showTime={false}
                             onClick={() => fetchLog()}
                             title="Làm mới (tự động cập nhật mỗi 2 giây)"
                             busy={loading}
@@ -344,7 +333,6 @@ const ZoneTimelineCard = ({ zoneId, zoneType }) => {
     const [fromDate, setFromDate] = useState(getTodayVN);
     const [toDate, setToDate] = useState(getTodayVN);
     const [data, setData] = useState(null);
-    const [refreshedAt, setRefreshedAt] = useState(null);
     const [statusFilter, setStatusFilter] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -374,7 +362,6 @@ const ZoneTimelineCard = ({ zoneId, zoneType }) => {
             });
             if (res?.success) {
                 setData(res.data);
-                setRefreshedAt(new Date());
             } else {
                 throw new Error(res?.message || 'Không thể tải dữ liệu timeline.');
             }
@@ -445,7 +432,6 @@ const ZoneTimelineCard = ({ zoneId, zoneType }) => {
                     <h3 className="text-sm font-bold text-slate-blue uppercase tracking-wider flex items-center gap-2 h-9">
                         <Activity className="w-4 h-4 text-action-blue" />
                         Dòng thời gian hiện diện
-                        <RefreshedAt at={refreshedAt} />
                     </h3>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                         <CalendarRangePresets
@@ -456,7 +442,6 @@ const ZoneTimelineCard = ({ zoneId, zoneType }) => {
                             className={PRESET_COMPACT}
                         />
                         <RefreshButton
-                            showTime={false}
                             onClick={() => fetchTimeline()}
                             disabled={loading}
                             title="Làm mới (tự động cập nhật mỗi 6 giây)"
