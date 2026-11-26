@@ -62,3 +62,9 @@ export const getHgMediaBlob = (path, options = {}) =>
 
 /** GET /hgvision/resources — tài nguyên máy chủ HGVision: {cpu, memory, disk:{percent,used,total}, gpu}. */
 export const getHgResources = (options = {}) => get('/hgvision/resources', { skipToast: true, ...options });
+
+/** GET /hgvision/groups — nhóm camera trên HGVision. */
+export const getHgGroups = (options = {}) => get('/hgvision/groups', { skipToast: true, ...options });
+
+/** POST /hgvision/cameras — thêm camera RTSP sang HGVision (quyền hgvision.camera.write). */
+export const createHgCamera = (body, options = {}) => post('/hgvision/cameras', body, { skipToast: true, ...options });

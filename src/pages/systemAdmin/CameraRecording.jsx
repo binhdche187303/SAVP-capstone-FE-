@@ -1,4 +1,6 @@
-import { Archive, Film, HardDrive, Info, Loader2, Video, Wifi } from 'lucide-react';
+import { Archive, Film, HardDrive, Info, Loader2, Plus, Video, Wifi } from 'lucide-react';
+import AddHgCameraModal from '../../components/camera/AddHgCameraModal';
+import { hasPermission } from '../../utils/permissionUtils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import PaginatedCollection from '../../components/common/PaginatedCollection';
 import ResponsiveTable from '../../components/common/ResponsiveTable';
@@ -38,6 +40,7 @@ const CameraRecording = () => {
   const [disk, setDisk] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,8 +80,17 @@ const CameraRecording = () => {
           <h1 className="text-2xl font-bold text-midnight-indigo tracking-tight">Ghi hình & lưu trữ</h1>
           <p className="text-slate-blue text-sm mt-1">Tình trạng ghi hình và ổ lưu trữ, đồng bộ từ HGVision.</p>
         </div>
-        <RefreshButton onClick={load} busy={loading} />
+        <div className="flex items-center gap-2">
+          {hasPermission('hgvision.camera.write') && (
+            <button type="button" onClick={() => setAddOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-action-blue text-white text-sm font-semibold hover:opacity-90">
+              <Plus className="w-4 h-4" /> Thêm camera
+            </button>
+          )}
+          <RefreshButton onClick={load} busy={loading} />
+        </div>
       </div>
+      <AddHgCameraModal open={addOpen} onClose={() => setAddOpen(false)} onCreated={load} />
 
       <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-midnight-indigo flex items-start gap-2">
         <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
