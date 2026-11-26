@@ -1229,7 +1229,7 @@ const DeviceManagement = () => {
             {/* REGISTER MODAL */}
             {isRegisterModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-xl p-4">
-                    <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 max-w-md w-full overflow-hidden animate-fade-in-up">
+                    <div className="bg-white rounded-2xl border border-platinum-tint shadow-sm-2 max-w-3xl w-full max-h-[92vh] overflow-y-auto animate-fade-in-up">
                         <div className="px-6 py-4 border-b border-platinum-tint flex items-center justify-between bg-cloud-mist/50">
                             <h3 className="font-bold text-midnight-indigo">Đăng ký thiết bị mới</h3>
                             <button onClick={() => setIsRegisterModalOpen(false)} className="text-slate-blue hover:text-midnight-indigo">
@@ -1291,9 +1291,11 @@ const DeviceManagement = () => {
                                     </div>
                                 )}
                             </div>
-                            <p data-ui-text="secondary" className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-                                Gán phòng cho thiết bị sau khi tạo — dùng nút <strong>Gán phòng</strong> (icon tòa nhà) trong danh sách.
-                            </p>
+                            {!isCameraType && (
+                                <p data-ui-text="secondary" className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                                    Gán phòng cho thiết bị sau khi tạo — dùng nút <strong>Gán phòng</strong> (icon tòa nhà) trong danh sách.
+                                </p>
+                            )}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">
