@@ -105,6 +105,13 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
                                     <img key={snapshotUrl} src={snapshotUrl} alt="Ảnh đối tượng" className="max-w-full max-h-full object-contain"
                                         onLoad={() => setLoading(false)} onError={() => { setLoading(false); setNotFound(true); }} />
                                 )}
+                                {idsList.length > 1 && (
+                                    <>
+                                        <button onClick={handlePrev} title="Ảnh trước" className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white"><ChevronLeft className="w-5 h-5" /></button>
+                                        <button onClick={handleNext} title="Ảnh tiếp theo" className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white"><ChevronRight className="w-5 h-5" /></button>
+                                        <span className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 px-3 py-0.5 rounded-full text-white text-xs font-mono">{currentIndex + 1} / {idsList.length}</span>
+                                    </>
+                                )}
                             </div>
                         </div>
                         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 bg-cloud-mist/60 border border-platinum-tint rounded-xl p-4">

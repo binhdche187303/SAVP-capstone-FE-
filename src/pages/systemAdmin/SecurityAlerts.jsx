@@ -227,6 +227,7 @@ const SecurityAlerts = () => {
 
     const [snapshotEventId, setSnapshotEventId] = useState(null);
     const [snapshotEventIds, setSnapshotEventIds] = useState([]);
+    const [snapshotAlert, setSnapshotAlert] = useState(null);
     const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
     const [deviceListAlert, setDeviceListAlert] = useState(null); // Lỗi thiết bị nhiều camera → modal danh sách
 
@@ -734,6 +735,7 @@ const SecurityAlerts = () => {
                                                 onClick={() => {
                                                     const images = getAlertImages(alert);
                                                     setSnapshotEventIds(images);
+                                                    setSnapshotAlert(alert);
                                                     setSnapshotEventId(alert.source_event_id || images[0] || null);
                                                     setIsSnapshotOpen(true);
                                                 }}
@@ -940,6 +942,7 @@ const SecurityAlerts = () => {
                                                                 className="w-full h-full object-cover border-0 cursor-zoom-in"
                                                                 onClick={() => {
                                                                     setSnapshotEventIds(images);
+                                                                    setSnapshotAlert(a);
                                                                     setSnapshotEventId(o.sourceEventId);
                                                                     setIsSnapshotOpen(true);
                                                                 }}
@@ -1296,6 +1299,16 @@ const SecurityAlerts = () => {
                 onClose={() => setIsSnapshotOpen(false)}
                 eventId={snapshotEventId}
                 eventIds={snapshotEventIds}
+                showPlate
+                details={snapshotAlert ? [
+                    { label: 'Loại cảnh báo', value: getTypeDisplay(snapshotAlert) },
+                    { label: 'Mức độ', value: getSeverityMeta(snapshotAlert.severity).label },
+                    { label: 'Vị trí', value: zones.find(z => z.id === snapshotAlert.zone_id)?.zone_name || snapshotAlert.payload_json?.roomName || 'Hệ thống' },
+                    { label: 'Camera', value: snapshotAlert.payload_json?.cameraName || snapshotAlert.payload_json?.deviceName },
+                    { label: 'Lần đầu', value: formatDateTime(snapshotAlert.created_at || snapshotAlert.triggered_at) },
+                    { label: 'Lần cuối', value: formatDateTime(snapshotAlert.last_seen_at || snapshotAlert.updated_at || snapshotAlert.triggered_at) },
+                    ...(getAlertPlateNumber(snapshotAlert) ? [{ label: 'Biển số xe', value: getAlertPlateNumber(snapshotAlert), plate: true }] : []),
+                ] : null}
             />
 
             <ExportReportModal
