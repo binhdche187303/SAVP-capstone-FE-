@@ -66,5 +66,5 @@ export const getHgResources = (options = {}) => get('/hgvision/resources', { ski
 /** GET /hgvision/groups — nhóm camera trên HGVision. */
 export const getHgGroups = (options = {}) => get('/hgvision/groups', { skipToast: true, ...options });
 
-/** POST /hgvision/cameras — thêm camera RTSP sang HGVision (quyền hgvision.camera.write). */
+/** POST /hgvision/cameras — thêm camera sang HGVision (ONVIF mặc định hoặc RTSP) (quyền hgvision.camera.write). */
 export const createHgCamera = (body, options = {}) => post('/hgvision/cameras', body, { skipToast: true, ...options });

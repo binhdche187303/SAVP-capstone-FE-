@@ -29,10 +29,14 @@ import {
     checkDeviceAvailability,
     configureFaceTerminal,
 } from '../../service/sysAdminServices';
+import { createHgCamera } from '../../service/hgvisionService';
+import { CAMERA_TYPES as HG_CAMERA_TYPES } from '../../mocks/cameraMock';
+
 import { subscribeToDeviceStatusChanges, subscribeToNotificationUpdates, subscribeToSecurityAlerts } from '../../utils/socket';
 import DeviceConnectionHistoryPanel from '../../components/devices/DeviceConnectionHistoryPanel';
 import CameraAiConfigModal from '../../components/devices/CameraAiConfigModal';
 import { CAMERA_TYPES, LANE_LABEL, getAnprInfo } from '../../mocks/cameraMock';
+const HG_DEFAULT = { enabled: true, protocol: 'ONVIF', port: '80', username: 'admin', password: '', forceH264: true, mainUrl: '', subUrl: '', group: '', usingAi: true };
 
 // Realtime trạng thái: tải lại im lặng mỗi 30s + ngay khi có cảnh báo/thông báo mới qua
 // WebSocket (BE gửi khi camera đổi online↔offline). So trạng thái cũ/mới để báo thay đổi.
@@ -156,6 +160,11 @@ const DeviceManagement = () => {
         ipAddress: '',
         agentVersion: 'v1.0.0'
     });
+    // Đăng ký camera kèm đẩy sang HGVision (ONVIF mặc định, RTSP dự phòng).
+    const [hg, setHg] = useState(HG_DEFAULT);
+    const setHgField = (k, v) => setHg((p) => ({ ...p, [k]: v }));
+    const isCameraType = HG_CAMERA_TYPES.includes(formData.deviceType);
+    const pushToHg = isCameraType && hg.enabled;
 
     // Load rooms and devices
     // silent = cập nhật nền (poll/WebSocket): không hiện spinner, không xóa thông báo lỗi.
@@ -302,8 +311,30 @@ const DeviceManagement = () => {
         // Face Server). Trước đây bắt buộc nhập IP hợp lệ cho MỌI loại thiết bị nên không thể
         // đăng ký face_server không IP — chỉ validate định dạng khi người dùng CÓ nhập.
         if (!validateDeviceForm(true)) return;
+        if (pushToHg) {
+            const miss = hg.protocol === 'RTSP'
+                ? (!/^rtsp:\/\/\S+$/i.test(hg.mainUrl.trim()) && 'Nhập URL luồng chính rtsp://...')
+                : (!hg.username.trim() || !hg.password) && 'Nhập tài khoản và mật khẩu camera';
+            if (miss) { setError(miss); return; }
+        }
         setSubmitting(true);
+        let h264Warn = null;
         try {
+            const camName = formData.deviceName.trim();
+            if (pushToHg) {
+                const body = {
+                    name: camName,
+                    protocol: hg.protocol,
+                    group: hg.group.trim() || undefined,
+                    usingAi: hg.usingAi,
+                    ...(hg.protocol === 'RTSP'
+                        ? { mainUrl: hg.mainUrl.trim(), subUrl: hg.subUrl.trim() || undefined }
+                        : { ip: formData.ipAddress.trim(), port: hg.port.trim() || '80', username: hg.username.trim(), password: hg.password, forceH264: hg.forceH264 }),
+                };
+                const hgRes = await createHgCamera(body);
+                if (!hgRes?.success) throw new Error(hgRes?.error?.message || hgRes?.message || 'Không thêm được camera sang HGVision.');
+                if (hgRes.data?.h264 === 'failed') h264Warn = hgRes.data?.h264Message || 'Không đổi được sang H.264 — đổi tay trong HGVision (Quét API).';
+            }
             const payload = {
                 device_code: formData.deviceCode.trim(),
                 device_name: formData.deviceName.trim(),
@@ -311,6 +342,7 @@ const DeviceManagement = () => {
                 ip_address: formData.ipAddress.trim() || undefined,
                 metadata_json: {
                     agent_version: formData.agentVersion || 'v1.0.0',
+                    ...(pushToHg && { source: 'hgvision', camera_name: camName }),
                     ...(formData.deviceType === 'anpr_camera' && {
                         anpr: { lane_direction: formData.laneDirection || 'in', lane_no: 1 },
                     }),
@@ -318,7 +350,13 @@ const DeviceManagement = () => {
             };
             const res = await registerDevice(payload);
             if (res?.success) {
-                setSuccessMessage('Đăng ký thiết bị IoT thành công.');
+                if (isCameraType && formData.roomId && res.data?.id) {
+                    await assignDeviceRoom(res.data.id, { room_id: formData.roomId }).catch(() => {});
+                }
+                setSuccessMessage(pushToHg
+                    ? `Đã thêm camera sang HGVision và đăng ký thiết bị.${h264Warn ? ` Lưu ý: ${h264Warn}` : ''}`
+                    : 'Đăng ký thiết bị IoT thành công.');
+                setHg(HG_DEFAULT);
                 setIsRegisterModalOpen(false);
                 fetchData();
             } else {
@@ -1211,7 +1249,6 @@ const DeviceManagement = () => {
                                 />
                                 <FieldError msg={fieldErrors.deviceName} />
                             </div>
-                            <p data-ui-text="secondary" className="text-[10px] text-slate-blue">Sau khi đăng ký, dùng nút bút chì tím để cấu hình RTSP cho camera.</p>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Loại thiết bị</label>
@@ -1260,6 +1297,51 @@ const DeviceManagement = () => {
                                     <FieldError msg={fieldErrors.ipAddress} />
                                 </div>
                             </div>
+                            {isCameraType && (
+                                <div className="space-y-3 rounded-xl border border-platinum-tint p-3">
+                                    <label className="flex items-center gap-2 text-sm font-semibold text-midnight-indigo">
+                                        <input type="checkbox" checked={hg.enabled} onChange={(e) => setHgField('enabled', e.target.checked)} />
+                                        Thêm camera sang HGVision (xem trực tiếp, ghi hình, AI)
+                                    </label>
+                                    {hg.enabled && (<>
+                                        <div className="flex gap-2">
+                                            {['ONVIF', 'RTSP'].map((p) => (
+                                                <button key={p} type="button" onClick={() => setHgField('protocol', p)}
+                                                    className={`px-3 py-1 rounded-lg text-xs font-bold border ${hg.protocol === p ? 'bg-action-blue text-white border-action-blue' : 'border-platinum-tint text-slate-blue'}`}>
+                                                    {p === 'ONVIF' ? 'ONVIF (khuyên dùng)' : 'RTSP nhập tay'}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {hg.protocol === 'ONVIF' ? (<>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div><label className="block text-xs font-bold text-slate-blue uppercase mb-1">Cổng ONVIF</label><input value={hg.port} onChange={(e) => setHgField('port', e.target.value)} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white" /></div>
+                                                <div><label className="block text-xs font-bold text-slate-blue uppercase mb-1">Tài khoản</label><input value={hg.username} onChange={(e) => setHgField('username', e.target.value)} autoComplete="off" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white" /></div>
+                                                <div><label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mật khẩu</label><input type="password" value={hg.password} onChange={(e) => setHgField('password', e.target.value)} autoComplete="new-password" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white" /></div>
+                                            </div>
+                                            <label className="flex items-center gap-2 text-xs text-slate-blue">
+                                                <input type="checkbox" checked={hg.forceH264} onChange={(e) => setHgField('forceH264', e.target.checked)} />
+                                                Ép luồng chính + phụ sang H.264 (trình duyệt không phát được H.265)
+                                            </label>
+                                        </>) : (<>
+                                            <div><label className="block text-xs font-bold text-slate-blue uppercase mb-1">Luồng chính <span className="text-red-500">*</span></label><input value={hg.mainUrl} onChange={(e) => setHgField('mainUrl', e.target.value)} placeholder="rtsp://user:pass@IP:554/..." className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white" /></div>
+                                            <div><label className="block text-xs font-bold text-slate-blue uppercase mb-1">Luồng phụ</label><input value={hg.subUrl} onChange={(e) => setHgField('subUrl', e.target.value)} placeholder="rtsp://... (tuỳ chọn)" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white" /></div>
+                                        </>)}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div><label className="block text-xs font-bold text-slate-blue uppercase mb-1">Nhóm HGVision</label><input value={hg.group} onChange={(e) => setHgField('group', e.target.value)} placeholder="Tuỳ chọn" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white" /></div>
+                                            <label className="flex items-center gap-2 text-xs text-slate-blue mt-5">
+                                                <input type="checkbox" checked={hg.usingAi} onChange={(e) => setHgField('usingAi', e.target.checked)} /> Bật AI
+                                            </label>
+                                        </div>
+                                    </>)}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Phòng (tuỳ chọn)</label>
+                                        <select value={formData.roomId} onChange={(e) => setFormData({ ...formData, roomId: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white">
+                                            <option value="">— Gán sau —</option>
+                                            {rooms.map((room) => (<option key={room.roomId} value={room.roomId}>{room.roomName}</option>))}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
                             <div className="pt-4 flex justify-end gap-3 border-t border-platinum-tint mt-4">
                                 <button
                                     type="button"
