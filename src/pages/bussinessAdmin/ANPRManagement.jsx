@@ -27,8 +27,9 @@ import { getUsers } from '../../service/employeeServices'; // Để lấy danh s
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
 import CameraMapModal from '../../components/anpr/CameraMapModal';
 import RecentSearchModal from '../../components/anpr/RecentSearchModal';
+import EventPlaybackModal from '../../components/anpr/EventPlaybackModal';
 import { getHgCameras } from '../../service/hgvisionService';
-import { MapPin, ScanSearch } from 'lucide-react';
+import { MapPin, Play, ScanSearch } from 'lucide-react';
 import ExportModeDialog from '../../components/report/ExportModeDialog';
 import { exportAnprHistoryReport } from '../../utils/anprReportExport';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
@@ -151,6 +152,7 @@ const ANPRManagement = ({ guardMode = false }) => {
     const rangeTo = preciseRange ? preciseRange.to.toISOString() : (endDate ? new Date(new Date(endDate).setHours(23, 59, 59, 999)).toISOString() : '');
     const [mapCamera, setMapCamera] = useState(null);
     const [recentSearchItem, setRecentSearchItem] = useState(null);
+    const [playbackItem, setPlaybackItem] = useState(null);
     const [hgCameras, setHgCameras] = useState(null);
     useEffect(() => {
         if (!snapshotItem || hgCameras) return;
@@ -1041,6 +1043,10 @@ const ANPRManagement = ({ guardMode = false }) => {
                                 className={`${btn} border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100`}>
                                 <ScanSearch className="w-4 h-4" />
                             </button>
+                            <button type="button" title={snapshotItem.cameraName ? 'Xem lại video' : 'Không rõ camera'} disabled={!snapshotItem.cameraName}
+                                onClick={() => setPlaybackItem(snapshotItem)} className={`${btn} border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100`}>
+                                <Play className="w-4 h-4" />
+                            </button>
                         </>
                     );
                 })() : null}
@@ -1051,6 +1057,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                 }}
             />
             <CameraMapModal camera={mapCamera} onClose={() => setMapCamera(null)} />
+            <EventPlaybackModal item={playbackItem} onClose={() => setPlaybackItem(null)} />
             <RecentSearchModal
                 item={recentSearchItem}
                 onClose={() => setRecentSearchItem(null)}
