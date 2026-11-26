@@ -25,6 +25,10 @@ import {
 } from '../../service/anprService';
 import { getUsers } from '../../service/employeeServices'; // Để lấy danh sách nhân viên
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
+import CameraMapModal from '../../components/anpr/CameraMapModal';
+import RecentSearchModal from '../../components/anpr/RecentSearchModal';
+import { getHgCameras } from '../../service/hgvisionService';
+import { MapPin, ScanSearch } from 'lucide-react';
 import ExportModeDialog from '../../components/report/ExportModeDialog';
 import { exportAnprHistoryReport } from '../../utils/anprReportExport';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
@@ -141,6 +145,17 @@ const ANPRManagement = ({ guardMode = false }) => {
     const [historyPage, setHistoryPage] = useState(1);
     const [dateRange, setDateRange] = useState([null, null]);
     const [startDate, endDate] = dateRange;
+    // "Tìm kiếm gần đây": khoảng thời gian chính xác tới giây, ưu tiên hơn bộ lọc ngày.
+    const [preciseRange, setPreciseRange] = useState(null);
+    const rangeFrom = preciseRange ? preciseRange.from.toISOString() : (startDate ? startDate.toISOString() : '');
+    const rangeTo = preciseRange ? preciseRange.to.toISOString() : (endDate ? new Date(new Date(endDate).setHours(23, 59, 59, 999)).toISOString() : '');
+    const [mapCamera, setMapCamera] = useState(null);
+    const [recentSearchItem, setRecentSearchItem] = useState(null);
+    const [hgCameras, setHgCameras] = useState(null);
+    useEffect(() => {
+        if (!snapshotItem || hgCameras) return;
+        getHgCameras().then((res) => setHgCameras(res?.data || [])).catch(() => setHgCameras([]));
+    }, [snapshotItem, hgCameras]);
     const [searchKeyword, setSearchKeyword] = useState('');
     const debouncedSearch = useDebouncedValue(searchKeyword);
     const clearHistoryFilters = () => {
@@ -150,6 +165,7 @@ const ANPRManagement = ({ guardMode = false }) => {
         setFilterZone('');
         setFilterVehicleType('');
         setDateRange([null, null]);
+        setPreciseRange(null);
         setHistoryPage(1);
     };
     const [mockPlate, setMockPlate] = useState('30A-123.45');
@@ -160,7 +176,8 @@ const ANPRManagement = ({ guardMode = false }) => {
 
     useEffect(() => {
         setHistoryPage(1);
-    }, [filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate]);
+    }, [filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate, preciseRange]);
+    useEffect(() => { setPreciseRange(null); }, [startDate, endDate]);
 
     // Số đếm cạnh lựa chọn của các ô lọc tab "Lịch sử quét" (mỗi ô đếm theo các bộ lọc khác).
     const historyFilters = useMemo(() => ({
@@ -169,9 +186,9 @@ const ANPRManagement = ({ guardMode = false }) => {
         zoneId: filterZone,
         vehicleType: filterVehicleType,
         search: debouncedSearch,
-        from: startDate ? startDate.toISOString() : '',
-        to: endDate ? new Date(new Date(endDate).setHours(23, 59, 59, 999)).toISOString() : '',
-    }), [filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate]);
+        from: rangeFrom,
+        to: rangeTo,
+    }), [filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, rangeFrom, rangeTo]);
     const fetchHistoryCount = useCallback((f) => getAdminVehicleHistory({
         page: 1,
         limit: 1,
@@ -209,14 +226,8 @@ const ANPRManagement = ({ guardMode = false }) => {
                 params.plateNumber = debouncedSearch;
                 params.ownerName = debouncedSearch; // Hỗ trợ BE filter theo Tên Chủ xe
             }
-            if (startDate) {
-                params.from = startDate.toISOString();
-            }
-            if (endDate) {
-                const end = new Date(endDate);
-                end.setHours(23, 59, 59, 999);
-                params.to = end.toISOString();
-            }
+            if (rangeFrom) params.from = rangeFrom;
+            if (rangeTo) params.to = rangeTo;
             // Guard cards show totals across the current date/search/camera scope,
             // rather than counting only the rows on the displayed page.
             const summaryStates = guardMode ? ['ALL', 'matched', 'unmatched'].filter(state => state !== filterMatchState) : [];
@@ -384,7 +395,7 @@ const ANPRManagement = ({ guardMode = false }) => {
     // ============================================
     useEffect(() => {
         if (activeTab === 'history') fetchHistory(true);
-    }, [guardMode, activeTab, filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate, historyPage, itemsPerPage]);
+    }, [guardMode, activeTab, filterMatchState, filterCamera, filterZone, filterVehicleType, debouncedSearch, startDate, endDate, preciseRange, historyPage, itemsPerPage]);
 
     useEffect(() => {
         if (!guardMode && activeTab === 'unknown') fetchUnknown();
@@ -597,6 +608,13 @@ const ANPRManagement = ({ guardMode = false }) => {
                                 </button>
                             </div>
                         </div>
+                        {preciseRange && (
+                            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 border border-action-blue text-sm text-action-blue font-semibold">
+                                <ScanSearch className="w-4 h-4" />
+                                Tìm kiếm gần đây: {preciseRange.from.toLocaleString('vi-VN')} → {preciseRange.to.toLocaleString('vi-VN')}
+                                <button type="button" title="Bỏ lọc khoảng thời gian" onClick={() => setPreciseRange(null)}><X className="w-4 h-4" /></button>
+                            </div>
+                        )}
                     </FilterBar>
 
                     {/* Table */}
@@ -990,24 +1008,64 @@ const ANPRManagement = ({ guardMode = false }) => {
                 </div>
             )}
 
-            <EventSnapshotModal 
-                isOpen={isSnapshotOpen} 
-                eventId={snapshotEventId} 
+            <EventSnapshotModal
+                isOpen={isSnapshotOpen}
+                eventId={snapshotEventId}
                 showPlate
+                badge={typeof snapshotItem?.confidence === 'number' ? `${(snapshotItem.confidence * 100).toFixed(1)}%` : null}
                 details={snapshotItem ? [
                     { label: 'Camera', value: snapshotItem.cameraName },
                     { label: 'Loại đối tượng', value: getVehicleTypeLabel(snapshotItem.vehicleType || snapshotItem.vehicle_type) },
-                    { label: 'Thời gian', value: snapshotItem.eventTime ? new Date(snapshotItem.eventTime).toLocaleString('vi-VN') : null },
+                    ...(snapshotItem.firstSeenAt
+                        ? [
+                            { label: 'Lần đầu', value: new Date(snapshotItem.firstSeenAt).toLocaleString('vi-VN') },
+                            { label: 'Lần cuối', value: new Date(snapshotItem.lastSeenAt || snapshotItem.firstSeenAt).toLocaleString('vi-VN') },
+                        ]
+                        : [{ label: 'Thời gian', value: snapshotItem.eventTime ? new Date(snapshotItem.eventTime).toLocaleString('vi-VN') : null }]),
                     { label: 'Hướng', value: ({ in: 'Vào', enter: 'Vào', ENTRY: 'Vào', out: 'Ra', leave: 'Ra', EXIT: 'Ra' })[snapshotItem.direction] || null },
                     { label: 'Biển số xe', value: snapshotItem.plateNumber, plate: true },
+                    ...(snapshotItem.plateColor ? [{ label: 'Loại biển số', value: snapshotItem.plateColor }] : []),
                     { label: 'Khu vực/cổng', value: snapshotItem.zoneName },
                     ...(snapshotItem.owner?.fullName ? [{ label: 'Chủ xe', value: snapshotItem.owner.fullName }] : []),
                 ] : null}
+                actions={snapshotItem ? (() => {
+                    const cam = (hgCameras || []).find((c) => c.name === snapshotItem.cameraName && c.latitude != null && c.longitude != null);
+                    const btn = 'p-2 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+                    return (
+                        <>
+                            <button type="button" title={cam ? 'Xem vị trí camera trên bản đồ' : 'Camera chưa có toạ độ trên HGVision'} disabled={!cam}
+                                onClick={() => setMapCamera(cam)} className={`${btn} border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100`}>
+                                <MapPin className="w-4 h-4" />
+                            </button>
+                            <button type="button" title="Tìm kiếm gần đây" onClick={() => setRecentSearchItem(snapshotItem)}
+                                className={`${btn} border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100`}>
+                                <ScanSearch className="w-4 h-4" />
+                            </button>
+                        </>
+                    );
+                })() : null}
                 onClose={() => {
                     setIsSnapshotOpen(false);
                     setSnapshotItem(null);
                     setSnapshotEventId(null);
-                }} 
+                }}
+            />
+            <CameraMapModal camera={mapCamera} onClose={() => setMapCamera(null)} />
+            <RecentSearchModal
+                item={recentSearchItem}
+                onClose={() => setRecentSearchItem(null)}
+                onApply={({ from, to, vehicleTypes, cameraName }) => {
+                    setFilterCamera(cameraName);
+                    setFilterVehicleType(vehicleTypes.length ? vehicleTypes : '');
+                    setFilterMatchState('ALL');
+                    setSearchKeyword('');
+                    setPreciseRange({ from, to });
+                    setActiveTab('history');
+                    setRecentSearchItem(null);
+                    setIsSnapshotOpen(false);
+                    setSnapshotItem(null);
+                    setSnapshotEventId(null);
+                }}
             />
 
             {/* Inline Owner Profile Modal */}

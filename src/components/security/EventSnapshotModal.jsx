@@ -4,7 +4,7 @@ import { X, Image as ImageIcon, AlertCircle, ChevronLeft, ChevronRight, Loader2 
 import { API_BASE_URL } from '../../utils/request';
 
 // showPlate: hiện thêm ảnh cắt biển số (chỉ sự kiện HGVision có; sự kiện khác 404 → tự ẩn).
-const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIndex = 0, showPlate = false, details = null }) => {
+const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIndex = 0, showPlate = false, details = null, badge = null, actions = null }) => {
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [notFound, setNotFound] = useState(false);
@@ -105,6 +105,7 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
                                     <img key={snapshotUrl} src={snapshotUrl} alt="Ảnh đối tượng" className="max-w-full max-h-full object-contain"
                                         onLoad={() => setLoading(false)} onError={() => { setLoading(false); setNotFound(true); }} />
                                 )}
+                                {badge && <span className="absolute top-2 right-2 bg-slate-800/80 text-emerald-300 text-xs font-bold px-2 py-0.5 rounded-md">{badge}</span>}
                                 {idsList.length > 1 && (
                                     <>
                                         <button onClick={handlePrev} title="Ảnh trước" className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white"><ChevronLeft className="w-5 h-5" /></button>
@@ -124,13 +125,16 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
                                 </div>
                             ))}
                         </dl>
-                        {plateUrl && (
-                            <div className={plateVisible ? '' : 'hidden'}>
-                                <p className="text-[11px] font-bold text-slate-blue uppercase tracking-wide mb-2">Ảnh biển số</p>
-                                <img key={plateUrl} src={plateUrl} alt="Ảnh biển số" className="h-16 rounded-lg border border-platinum-tint bg-slate-900 object-contain"
-                                    onLoad={() => setPlateVisible(true)} onError={() => setPlateVisible(false)} />
-                            </div>
-                        )}
+                        <div className="flex items-end justify-between gap-4">
+                            {plateUrl ? (
+                                <div className={plateVisible ? '' : 'invisible'}>
+                                    <p className="text-[11px] font-bold text-slate-blue uppercase tracking-wide mb-2">Ảnh biển số</p>
+                                    <img key={plateUrl} src={plateUrl} alt="Ảnh biển số" className="h-16 rounded-lg border border-platinum-tint bg-slate-900 object-contain"
+                                        onLoad={() => setPlateVisible(true)} onError={() => setPlateVisible(false)} />
+                                </div>
+                            ) : <span />}
+                            {actions && <div className="flex gap-2">{actions}</div>}
+                        </div>
                     </div>
                 </div>
             </div>,
