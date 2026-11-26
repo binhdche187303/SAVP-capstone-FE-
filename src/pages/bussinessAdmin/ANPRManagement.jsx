@@ -1029,7 +1029,9 @@ const ANPRManagement = ({ guardMode = false }) => {
                     ...(snapshotItem.owner?.fullName ? [{ label: 'Chủ xe', value: snapshotItem.owner.fullName }] : []),
                 ] : null}
                 actions={snapshotItem ? (() => {
-                    const cam = (hgCameras || []).find((c) => c.name === snapshotItem.cameraName && c.latitude != null && c.longitude != null);
+                    // Tên camera HGVision là ASCII không dấu, còn tên lưu ở SAVP có thể có dấu → so khớp sau khi bỏ dấu.
+                    const key = (v) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').replace(/\s+/g, ' ').trim().toLowerCase();
+                    const cam = (hgCameras || []).find((c) => key(c.name) === key(snapshotItem.cameraName) && c.latitude != null && c.longitude != null);
                     const btn = 'p-2 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
                     return (
                         <>
