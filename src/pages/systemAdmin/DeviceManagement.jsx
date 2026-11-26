@@ -36,6 +36,7 @@ import { CAMERA_TYPES as HG_CAMERA_TYPES } from '../../mocks/cameraMock';
 import { subscribeToDeviceStatusChanges, subscribeToNotificationUpdates, subscribeToSecurityAlerts } from '../../utils/socket';
 import DeviceConnectionHistoryPanel from '../../components/devices/DeviceConnectionHistoryPanel';
 import CameraAiConfigModal from '../../components/devices/CameraAiConfigModal';
+import ImportCamerasModal from '../../components/devices/ImportCamerasModal';
 import { CAMERA_TYPES, LANE_LABEL, getAnprInfo } from '../../mocks/cameraMock';
 const HG_DEFAULT = { enabled: true, protocol: 'ONVIF', port: '80', username: 'admin', password: '', forceH264: true, mainUrl: '', subUrl: '', groupId: '', usingAi: true };
 
@@ -283,6 +284,7 @@ const DeviceManagement = () => {
     };
 
     // Form handlers
+    const [importOpen, setImportOpen] = useState(false);
     const openRegisterModal = () => {
         setFieldErrors({});
         setFormData({
@@ -800,6 +802,13 @@ const DeviceManagement = () => {
                         Khai báo, giám sát tình trạng sức khỏe kết nối và điều phối RTSP stream cho camera/face server.
                     </p>
                 </div>
+                <div className="flex gap-2">
+                <button
+                    onClick={() => setImportOpen(true)}
+                    className="inline-flex items-center justify-center px-4 py-2.5 bg-white border border-platinum-tint text-midnight-indigo hover:bg-slate-50 rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
+                >
+                    Import Excel
+                </button>
                 <button
                     onClick={openRegisterModal}
                     className="inline-flex items-center justify-center px-4 py-2.5 bg-action-blue text-white hover:bg-glacier-blue rounded-xl text-sm font-semibold shadow-sm transition-all duration-200"
@@ -809,7 +818,9 @@ const DeviceManagement = () => {
                     </svg>
                     Đăng ký thiết bị
                 </button>
+                </div>
             </div>
+            <ImportCamerasModal open={importOpen} onClose={() => setImportOpen(false)} onDone={() => fetchData(true)} />
 
             {/* Dải trạng thái live */}
             <div className="flex items-center justify-between gap-3 bg-white rounded-xl border border-platinum-tint px-4 py-2.5">

@@ -141,9 +141,12 @@ export const UNPLACED_BUILDINGS = [
 // match: so với zone_code / zone_name (đã bỏ dấu, viết hoa) của zone loại "gate".
 // face: hướng nhìn của camera cổng vào trong khuôn viên (độ, 0° = đông, 90° = nam).
 export const GATES = [
-  { id: "G1", name: "Cổng 1", at: [866, 932], side: "Cổng chính", face: -90, match: ["GATE_MAIN", "CONG CHINH", "CONG 1"] },
-  { id: "G2", name: "Cổng 2", at: [380, 333], side: "Đ. Trần Đại Nghĩa", face: 0, match: ["CONG 2"] },
-  { id: "G3", name: "Cổng 3", at: [955, 116], side: "Đ. Lương Văn Can", face: 90, match: ["CONG 3"] },
+  // Theo bản vẽ Final KTL: Gate1 = cổng chính (3 cam), Gate2 = cổng 2 mới góc Trần Đại Nghĩa – QL1 (4 cam),
+  // Gate2A = cổng 2 cũ (3 cam), Gate3 = cổng 3 Lương Văn Can (2 cam). G2A đặt trước G2 vì "CONG 2A" chứa "CONG 2".
+  { id: "G1", name: "Cổng 1", at: [866, 932], side: "Cổng chính", face: -90, match: ["GATE_1", "GATE_MAIN", "CONG CHINH", "CONG 1"] },
+  { id: "G2A", name: "Cổng 2A", at: [380, 333], side: "Cổng 2 cũ – Đ. Trần Đại Nghĩa", face: 0, match: ["GATE_2A", "CONG 2A"] },
+  { id: "G2", name: "Cổng 2", at: [372, 905], side: "Cổng 2 mới – Đ. Trần Đại Nghĩa", face: -45, match: ["GATE_2", "CONG 2"] },
+  { id: "G3", name: "Cổng 3", at: [955, 116], side: "Đ. Lương Văn Can", face: 90, match: ["GATE_3", "CONG 3"] },
   {
     id: "G4",
     name: "Cổng 4",

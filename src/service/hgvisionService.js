@@ -67,4 +67,7 @@ export const getHgResources = (options = {}) => get('/hgvision/resources', { ski
 export const getHgGroups = (options = {}) => get('/hgvision/groups', { skipToast: true, ...options });
 
 /** POST /hgvision/cameras — thêm camera sang HGVision (ONVIF mặc định hoặc RTSP) (quyền hgvision.camera.write). */
+/** Import camera từ Excel. dryRun=true → chỉ xem trước. Thêm 32 camera ONVIF có thể mất vài phút. */
+export const importHgCameras = (body, options = {}) =>
+    post('/hgvision/cameras/import', body, { skipToast: true, timeout: 15 * 60 * 1000, ...options });
 export const createHgCamera = (body, options = {}) => post('/hgvision/cameras', body, { skipToast: true, ...options });

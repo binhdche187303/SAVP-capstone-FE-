@@ -47,6 +47,34 @@ import "./CameraLayout.css";
 // Mặt bằng: ảnh bản vẽ của tầng nếu đã tải lên (PUT /iot-devices/layout/floor-plan), không thì
 // FE tự vẽ từ danh sách zone/phòng.
 
+// Ảnh bản vẽ Final KTL (public/floor-plans) — dùng khi tầng chưa có ảnh tải lên. Ảnh tải lên ưu tiên.
+const GATE_FLOOR_KEY = "Khuôn viên - Cổng";
+const fp = (file, width, height, note) => ({
+  url: `${process.env.PUBLIC_URL || ""}/floor-plans/${file}`,
+  width,
+  height,
+  note,
+  isDefault: true,
+});
+export const DEFAULT_FLOOR_PLANS = {
+  "A1 - Tầng G": fp("A1-G.png", 2356, 785),
+  "A1 - Tầng 1": fp("A1-1.png", 2356, 597),
+  "A1 - Tầng 2": fp("A1-1.png", 2356, 597, "Chưa có bản vẽ lầu 2 — tạm dùng mặt bằng lầu 1"),
+  "A2 - Tầng 1": fp("A2-1.png", 1686, 884),
+  "B1 - Tầng G": fp("B1-G.png", 2978, 1178),
+  [GATE_FLOOR_KEY]: fp("campus-gates.png", 1980, 1530),
+};
+/**
+ * Khoá tầng: mọi zone cổng → tầng ảo "Khuôn viên - Cổng"; tòa bỏ tiền tố "KTL." để zone cũ
+ * (KTL.A1) và zone import (A1) cùng 1 tầng, khớp ảnh bản vẽ.
+ */
+const floorKeyOf = (z) => {
+  if (z.zone_type === "gate") return GATE_FLOOR_KEY;
+  if (!z.building || !z.floor) return null;
+  const b = String(z.building).trim().replace(/^KTL[.\s-]*/i, "").toUpperCase();
+  return zoneFloorKey({ building: b, floor: String(z.floor).toUpperCase() });
+};
+
 const PLAN_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const PLAN_MAX_BYTES = 10 * 1024 * 1024;
 
@@ -194,7 +222,7 @@ const CameraLayout = () => {
       return map.get(key);
     };
     zones.forEach((z) => {
-      const key = zoneFloorKey(z);
+      const key = floorKeyOf(z);
       if (key) ensure(key).zones.push(z);
     });
     rooms.forEach((r) => {
@@ -204,12 +232,18 @@ const CameraLayout = () => {
   }, [zones, rooms]);
 
   const current = floors.find((f) => f.key === floor) || floors[0];
-  const currentPlan = current ? floorPlans[current.key] : null;
+  const uploadedPlan = current ? floorPlans[current.key] : null;
+  const currentPlan =
+    uploadedPlan || (current ? DEFAULT_FLOOR_PLANS[current.key] : null) || null;
 
   // Ảnh mặt bằng cần token → tải qua request thành blob URL; thu hồi khi đổi tầng/ảnh.
   useEffect(() => {
     if (!currentPlan) {
       setPlanImageUrl(null);
+      return undefined;
+    }
+    if (currentPlan.isDefault) {
+      setPlanImageUrl(currentPlan.url);
       return undefined;
     }
     let url = null;
@@ -488,11 +522,11 @@ const CameraLayout = () => {
                 <ImagePlus className="w-3.5 h-3.5" />{" "}
                 {planBusy
                   ? "Đang xử lý..."
-                  : currentPlan
+                  : uploadedPlan
                     ? "Thay ảnh mặt bằng"
                     : "Tải ảnh mặt bằng"}
               </button>
-              {currentPlan && (
+              {uploadedPlan && (
                 <button
                   type="button"
                   onClick={handleRemovePlan}
@@ -736,6 +770,9 @@ const CameraLayout = () => {
             </svg>
             </div>
             <div data-ui-text="secondary" className="camera-layout-legend flex flex-wrap gap-4 text-[11px] text-slate-blue">
+              {currentPlan?.note && (
+                <span className="text-amber-700 font-semibold">{currentPlan.note}</span>
+              )}
               {Object.entries(STATUS_LABEL).map(([k, label]) => (
                 <button
                   key={k}
