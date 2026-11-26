@@ -1173,6 +1173,7 @@ const SecurityAlerts = () => {
                                                         // lặp lại đúng 1 ảnh do BE ghi trùng entry cho người lạ (userId=null).
                                                         const occImages = [...new Set(occurrences.map(o => o.sourceEventId).filter(Boolean))];
                                                         setSnapshotEventIds(occImages);
+                                                        setSnapshotAlert(occurrencesModal.alert);
                                                         setSnapshotEventId(occ.sourceEventId);
                                                         setIsSnapshotOpen(true);
                                                     }}
