@@ -30,13 +30,14 @@ import {
     configureFaceTerminal,
 } from '../../service/sysAdminServices';
 import { createHgCamera } from '../../service/hgvisionService';
+import { addCameraGroupDevices, getCameraGroups } from '../../service/cameraGroupServices';
 import { CAMERA_TYPES as HG_CAMERA_TYPES } from '../../mocks/cameraMock';
 
 import { subscribeToDeviceStatusChanges, subscribeToNotificationUpdates, subscribeToSecurityAlerts } from '../../utils/socket';
 import DeviceConnectionHistoryPanel from '../../components/devices/DeviceConnectionHistoryPanel';
 import CameraAiConfigModal from '../../components/devices/CameraAiConfigModal';
 import { CAMERA_TYPES, LANE_LABEL, getAnprInfo } from '../../mocks/cameraMock';
-const HG_DEFAULT = { enabled: true, protocol: 'ONVIF', port: '80', username: 'admin', password: '', forceH264: true, mainUrl: '', subUrl: '', group: '', usingAi: true };
+const HG_DEFAULT = { enabled: true, protocol: 'ONVIF', port: '80', username: 'admin', password: '', forceH264: true, mainUrl: '', subUrl: '', groupId: '', usingAi: true };
 
 // Realtime trạng thái: tải lại im lặng mỗi 30s + ngay khi có cảnh báo/thông báo mới qua
 // WebSocket (BE gửi khi camera đổi online↔offline). So trạng thái cũ/mới để báo thay đổi.
@@ -165,6 +166,14 @@ const DeviceManagement = () => {
     const setHgField = (k, v) => setHg((p) => ({ ...p, [k]: v }));
     const isCameraType = HG_CAMERA_TYPES.includes(formData.deviceType);
     const pushToHg = isCameraType && hg.enabled;
+    // Nhóm camera SAVP — chọn ở form đăng ký; BE tự đồng bộ tên nhóm sang HGVision.
+    const [camGroups, setCamGroups] = useState([]);
+    useEffect(() => {
+        if (!isRegisterModalOpen || !isCameraType) return;
+        getCameraGroups({ limit: 100 })
+            .then((r) => setCamGroups(Array.isArray(r?.data) ? r.data : r?.data?.items || []))
+            .catch(() => {});
+    }, [isRegisterModalOpen, isCameraType]);
 
     // Load rooms and devices
     // silent = cập nhật nền (poll/WebSocket): không hiện spinner, không xóa thông báo lỗi.
@@ -325,7 +334,7 @@ const DeviceManagement = () => {
                 const body = {
                     name: camName,
                     protocol: hg.protocol,
-                    group: hg.group.trim() || undefined,
+                    group: camGroups.find((g) => g.id === hg.groupId)?.group_name || undefined,
                     usingAi: hg.usingAi,
                     ...(hg.protocol === 'RTSP'
                         ? { mainUrl: hg.mainUrl.trim(), subUrl: hg.subUrl.trim() || undefined }
@@ -352,6 +361,9 @@ const DeviceManagement = () => {
             if (res?.success) {
                 if (isCameraType && formData.roomId && res.data?.id) {
                     await assignDeviceRoom(res.data.id, { room_id: formData.roomId }).catch(() => {});
+                }
+                if (isCameraType && hg.groupId && res.data?.id) {
+                    await addCameraGroupDevices(hg.groupId, [res.data.id]).catch(() => {});
                 }
                 setSuccessMessage(pushToHg
                     ? `Đã thêm camera sang HGVision và đăng ký thiết bị.${h264Warn ? ` Lưu ý: ${h264Warn}` : ''}`
@@ -1326,13 +1338,17 @@ const DeviceManagement = () => {
                                             <div><label className="block text-xs font-bold text-slate-blue uppercase mb-1">Luồng chính <span className="text-red-500">*</span></label><input value={hg.mainUrl} onChange={(e) => setHgField('mainUrl', e.target.value)} placeholder="rtsp://user:pass@IP:554/..." className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white" /></div>
                                             <div><label className="block text-xs font-bold text-slate-blue uppercase mb-1">Luồng phụ</label><input value={hg.subUrl} onChange={(e) => setHgField('subUrl', e.target.value)} placeholder="rtsp://... (tuỳ chọn)" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white" /></div>
                                         </>)}
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div><label className="block text-xs font-bold text-slate-blue uppercase mb-1">Nhóm HGVision</label><input value={hg.group} onChange={(e) => setHgField('group', e.target.value)} placeholder="Tuỳ chọn" className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white" /></div>
-                                            <label className="flex items-center gap-2 text-xs text-slate-blue mt-5">
-                                                <input type="checkbox" checked={hg.usingAi} onChange={(e) => setHgField('usingAi', e.target.checked)} /> Bật AI
-                                            </label>
-                                        </div>
+                                        <label className="flex items-center gap-2 text-xs text-slate-blue">
+                                            <input type="checkbox" checked={hg.usingAi} onChange={(e) => setHgField('usingAi', e.target.checked)} /> Bật AI
+                                        </label>
                                     </>)}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Nhóm camera (tuỳ chọn)</label>
+                                        <select value={hg.groupId} onChange={(e) => setHgField('groupId', e.target.value)} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white">
+                                            <option value="">— Không thuộc nhóm —</option>
+                                            {camGroups.map((g) => (<option key={g.id} value={g.id}>{g.group_name}</option>))}
+                                        </select>
+                                    </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Phòng (tuỳ chọn)</label>
                                         <select value={formData.roomId} onChange={(e) => setFormData({ ...formData, roomId: e.target.value })} className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white">
