@@ -995,11 +995,12 @@ const ANPRManagement = ({ guardMode = false }) => {
                 eventId={snapshotEventId} 
                 showPlate
                 details={snapshotItem ? [
-                    { label: 'Biển số xe', value: snapshotItem.plateNumber },
-                    { label: 'Loại đối tượng', value: getVehicleTypeLabel(snapshotItem.vehicleType || snapshotItem.vehicle_type) },
                     { label: 'Camera', value: snapshotItem.cameraName },
-                    { label: 'Khu vực/cổng', value: snapshotItem.zoneName },
+                    { label: 'Loại đối tượng', value: getVehicleTypeLabel(snapshotItem.vehicleType || snapshotItem.vehicle_type) },
                     { label: 'Thời gian', value: snapshotItem.eventTime ? new Date(snapshotItem.eventTime).toLocaleString('vi-VN') : null },
+                    { label: 'Hướng', value: ({ in: 'Vào', enter: 'Vào', ENTRY: 'Vào', out: 'Ra', leave: 'Ra', EXIT: 'Ra' })[snapshotItem.direction] || null },
+                    { label: 'Biển số xe', value: snapshotItem.plateNumber, plate: true },
+                    { label: 'Khu vực/cổng', value: snapshotItem.zoneName },
                     ...(snapshotItem.owner?.fullName ? [{ label: 'Chủ xe', value: snapshotItem.owner.fullName }] : []),
                 ] : null}
                 onClose={() => {
