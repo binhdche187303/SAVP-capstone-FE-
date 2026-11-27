@@ -213,7 +213,7 @@ const ImportCamerasModal = ({ open, onClose, onDone }) => {
                             onChange={(e) => setPushToHg(e.target.checked)}
                             disabled={busy || !!result}
                         />
-                        Thêm camera sang HGVision (ONVIF, ép H.264)
+                        Thêm camera sang HGVision (ONVIF) + chuẩn hoá luồng chính 2560x1440 · 20fps · H.264 · 4096kbps, luồng phụ H.264
                     </label>
                     <div className="flex gap-2">
                         <button onClick={close} className="px-4 py-2 rounded-xl border border-platinum-tint text-sm font-semibold">
