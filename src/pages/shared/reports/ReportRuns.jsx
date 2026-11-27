@@ -97,7 +97,7 @@ const ReportRuns = () => {
                 <PageHeading badge="Báo cáo" icon={<History className="w-6 h-6 text-action-blue" />} data-page-title className="text-xl font-bold text-midnight-indigo flex items-center gap-2.5">
                     Lịch sử gửi báo cáo
                 </PageHeading>
-                <p data-page-description className="text-xs text-slate-blue mt-1">Từng lần hệ thống tạo và gửi báo cáo: kết quả, người nhận, file đính kèm.</p>
+                <p data-page-description className="text-xs text-slate-blue mt-1">Các lượt gửi đã kết thúc: kết quả, người nhận và file đính kèm.</p>
             </div>
 
             <FilterBar variant="card" className="report-runs-filters">
@@ -177,12 +177,12 @@ const ReportRuns = () => {
                                     <td className={`${tdCls} report-runs-wrap`}>
                                         {run.status === 'success' ? (
                                             <span data-ui-text="badge" className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-green-700 bg-green-50">Thành công</span>
-                                        ) : (
+                                        ) : run.status === 'failed' ? (
                                             <>
                                                 <span data-ui-text="badge" className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-red-700 bg-red-50">Thất bại</span>
                                                 <p data-ui-text="secondary" className="mt-1 text-[11px] text-red-700 truncate" title={run.error}>{run.error}</p>
                                             </>
-                                        )}
+                                        ) : <span>—</span>}
                                     </td>
                                     <td className={tdCls}>
                                         {run.status === 'success' ? (
@@ -193,11 +193,11 @@ const ReportRuns = () => {
                                                     </button>
                                                 ))}
                                             </span>
-                                        ) : !run.retriedByRunId ? (
+                                        ) : run.status === 'failed' && !run.retriedByRunId ? (
                                             <button type="button" aria-label="Gửi lại" disabled={busyId === run.id} onClick={() => retry(run)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-blue-200 text-[11px] text-action-blue font-semibold hover:bg-blue-50 disabled:opacity-50">
                                                 <RotateCcw className="w-3.5 h-3.5" /> Gửi lại
                                             </button>
-                                        ) : <span data-ui-text="primary" className="text-[11px] font-semibold text-slate-blue">Đã gửi lại</span>}
+                                        ) : run.status === 'failed' ? <span data-ui-text="primary" className="text-[11px] font-semibold text-slate-blue">Đã gửi lại</span> : null}
                                     </td>
                                 </tr>
                             ))}
