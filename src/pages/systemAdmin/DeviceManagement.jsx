@@ -13,6 +13,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { createPortal } from 'react-dom';
 import { API_BASE_URL } from '../../utils/request';
+import { getDeviceCallbackBaseUrl } from '../../utils/backendResolver';
 import {
     getDevices,
     getDeviceStatusSummary,
@@ -504,9 +505,9 @@ const DeviceManagement = () => {
                             // Rotate sinh token MỚI → 3 URL cũ (nếu có) hết tác dụng ngay lập tức,
                             // nên dựng lại URL mới luôn, giống flow Configure lần đầu.
                             urls: token ? {
-                                verify: `${API_BASE_URL}/vf/${code}/${token}`,
-                                heartbeat: `${API_BASE_URL}/hb/${code}/${token}`,
-                                stranger: `${API_BASE_URL}/sf/${code}/${token}`,
+                                verify: `${getDeviceCallbackBaseUrl()}/vf/${code}/${token}`,
+                                heartbeat: `${getDeviceCallbackBaseUrl()}/hb/${code}/${token}`,
+                                stranger: `${getDeviceCallbackBaseUrl()}/sf/${code}/${token}`,
                             } : null,
                         });
                         setCopiedField(null);
@@ -678,9 +679,9 @@ const DeviceManagement = () => {
                     deviceCode: code,
                     action: 'configure',
                     urls: token ? {
-                        verify: `${API_BASE_URL}/vf/${code}/${token}`,
-                        heartbeat: `${API_BASE_URL}/hb/${code}/${token}`,
-                        stranger: `${API_BASE_URL}/sf/${code}/${token}`,
+                        verify: `${getDeviceCallbackBaseUrl()}/vf/${code}/${token}`,
+                        heartbeat: `${getDeviceCallbackBaseUrl()}/hb/${code}/${token}`,
+                        stranger: `${getDeviceCallbackBaseUrl()}/sf/${code}/${token}`,
                     } : null,
                 });
                 setCopiedField(null);
