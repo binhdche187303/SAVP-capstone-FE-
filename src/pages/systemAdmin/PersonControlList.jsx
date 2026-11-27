@@ -46,6 +46,24 @@ export const reasonPoints = (reason) => String(reason || '')
     .filter(Boolean)
     .map((x) => x.charAt(0).toUpperCase() + x.slice(1));
 
+// Trạng thái đẩy danh sách đen sang HGVision (camera nhận diện mới cảnh báo được).
+const HgvisionSyncBadge = ({ person }) => {
+    const status = person.hgvision_sync_status;
+    if (!person.active || !status) return null;
+    const map = {
+        synced: { cls: 'text-green-700', text: 'Đã đẩy sang HGVision' },
+        pending: { cls: 'text-amber-600', text: 'Đang chờ đẩy sang HGVision' },
+        failed: { cls: 'text-red-600', text: person.hgvision_sync_error || 'Chưa đẩy được sang HGVision' },
+    };
+    const m = map[status];
+    if (!m) return null;
+    return (
+        <div data-ui-text="secondary" className={`mt-1 text-[11px] font-medium ${m.cls}`} title={person.hgvision_sync_error || m.text}>
+            {m.text}
+        </div>
+    );
+};
+
 const PersonControlList = () => {
     const [persons, setPersons] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -463,6 +481,7 @@ const PersonControlList = () => {
                                                         </span>
                                                     )}
                                                 </div>
+                                                <HgvisionSyncBadge person={person} />
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">

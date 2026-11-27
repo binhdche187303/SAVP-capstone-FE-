@@ -14,7 +14,7 @@ import StatisticCard, { statisticTone } from '../../components/common/StatisticC
 import FilterBar from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { AlertTriangle, CheckCircle, CheckSquare, Clock, Download, Edit3, Eye, Filter, RefreshCw, Search, Shield, ShieldAlert, Image as ImageIcon, Users, Car, Tag, User, AlertCircle, Loader2, WifiOff, Wrench } from 'lucide-react';
+import { AlertTriangle, CheckCircle, CheckSquare, Clock, Download, Edit3, Eye, Filter, RefreshCw, Search, Shield, ShieldAlert, Image as ImageIcon, Users, Car, Tag, User, AlertCircle, Loader2, WifiOff, Wrench, Play } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -28,6 +28,7 @@ import ExportReportModal from '../../components/common/ExportReportModal';
 import { getZones } from '../../service/zoneServices';
 import { getUserById } from '../../service/sysAdminServices';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
+import EventPlaybackModal from '../../components/anpr/EventPlaybackModal';
 import SimpleModal from '../../components/common/SimpleModal';
 import { getDeviceErrorDetail } from '../../utils/deviceErrorDetail';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
@@ -228,6 +229,7 @@ const SecurityAlerts = () => {
     const [snapshotEventId, setSnapshotEventId] = useState(null);
     const [snapshotEventIds, setSnapshotEventIds] = useState([]);
     const [snapshotAlert, setSnapshotAlert] = useState(null);
+    const [playbackItem, setPlaybackItem] = useState(null);
     const [isSnapshotOpen, setIsSnapshotOpen] = useState(false);
     const [deviceListAlert, setDeviceListAlert] = useState(null); // Lỗi thiết bị nhiều camera → modal danh sách
 
@@ -1310,7 +1312,24 @@ const SecurityAlerts = () => {
                     { label: 'Lần cuối', value: formatDateTime(snapshotAlert.last_seen_at || snapshotAlert.updated_at || snapshotAlert.triggered_at) },
                     ...(getAlertPlateNumber(snapshotAlert) ? [{ label: 'Biển số xe', value: getAlertPlateNumber(snapshotAlert), plate: true }] : []),
                 ] : null}
+                actions={snapshotAlert ? (() => {
+                    const cameraName = snapshotAlert.payload_json?.cameraName || snapshotAlert.payload_json?.deviceName || null;
+                    return (
+                        <button type="button" title={cameraName ? 'Xem lại video' : 'Không rõ camera'} disabled={!cameraName}
+                            onClick={() => {
+                                const first = snapshotAlert.created_at || snapshotAlert.triggered_at;
+                                const last = snapshotAlert.last_seen_at || snapshotAlert.updated_at || first;
+                                // updated_at đổi khi xử lý cảnh báo → khoảng quá 5 phút thì chỉ xem quanh lần đầu.
+                                const tooLong = new Date(last) - new Date(first) > 5 * 60 * 1000;
+                                setPlaybackItem({ cameraName, firstSeenAt: first, lastSeenAt: tooLong ? first : last });
+                            }}
+                            className="p-2 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100">
+                            <Play className="w-4 h-4" />
+                        </button>
+                    );
+                })() : null}
             />
+            <EventPlaybackModal item={playbackItem} onClose={() => setPlaybackItem(null)} />
 
             <ExportReportModal
                 isOpen={isExportOpen}
