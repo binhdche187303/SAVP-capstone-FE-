@@ -4,6 +4,7 @@ build
 .env
 *.log
 .env.local
+.env.*.local
 
 # Agent scaffolding
 .agents/

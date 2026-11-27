@@ -6,4 +6,6 @@ jest.mock('./utils/backendResolver', () => ({
     backendReady: Promise.resolve(),
     getApiBaseUrl: () => 'http://localhost/api/v1',
     getWsBaseUrl: () => 'http://localhost',
+    getDeviceCallbackBaseUrl: () => 'http://localhost/api/v1',
+    SAME_ORIGIN_MODE: false,
 }));
