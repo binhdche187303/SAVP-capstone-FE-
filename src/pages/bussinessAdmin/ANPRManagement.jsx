@@ -43,6 +43,20 @@ const ANPR_HISTORY_REFRESH_MS = 5000;
 // "Xe máy" gộp hai mã camera có thể gửi: motorbike và motorcycle.
 const expandVehicleType = (value) => filterValues(value).flatMap((v) => (v === 'motorbike' ? ['motorbike', 'motorcycle'] : [v]));
 
+// HGVision trả màu biển dạng "<màu>_lp" (yellow_lp, white_lp...) — hiển thị tiếng Việt.
+const PLATE_COLOR_LABELS = {
+    white: 'Biển trắng',
+    yellow: 'Biển vàng',
+    blue: 'Biển xanh',
+    red: 'Biển đỏ',
+    green: 'Biển xanh lá',
+    black: 'Biển đen',
+};
+const getPlateColorLabel = (value) => {
+    const key = String(value || '').toLowerCase().replace(/[_-]?(lp|plate)$/, '');
+    return PLATE_COLOR_LABELS[key] || value;
+};
+
 const getVehicleTypeLabel = (type) => {
     const normalized = String(type || '').toUpperCase();
     if (normalized === 'CAR') return 'Ô tô';
@@ -1024,7 +1038,7 @@ const ANPRManagement = ({ guardMode = false }) => {
                         : [{ label: 'Thời gian', value: snapshotItem.eventTime ? new Date(snapshotItem.eventTime).toLocaleString('vi-VN') : null }]),
                     { label: 'Hướng', value: ({ in: 'Vào', enter: 'Vào', ENTRY: 'Vào', out: 'Ra', leave: 'Ra', EXIT: 'Ra' })[snapshotItem.direction] || null },
                     { label: 'Biển số xe', value: snapshotItem.plateNumber, plate: true },
-                    ...(snapshotItem.plateColor ? [{ label: 'Loại biển số', value: snapshotItem.plateColor }] : []),
+                    ...(snapshotItem.plateColor ? [{ label: 'Loại biển số', value: getPlateColorLabel(snapshotItem.plateColor) }] : []),
                     { label: 'Khu vực/cổng', value: snapshotItem.zoneName },
                     ...(snapshotItem.owner?.fullName ? [{ label: 'Chủ xe', value: snapshotItem.owner.fullName }] : []),
                 ] : null}
