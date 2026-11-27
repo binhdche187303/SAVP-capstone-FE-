@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
 import UserAvatar from '../../components/common/UserAvatar';
-import { formatAuditAction } from '../../constants/auditActionLabels';
+import { expandAuditActionSelection, formatAuditAction, groupAuditActionOptions } from '../../constants/auditActionLabels';
 import { getAuditLogs, exportAuditLogs, getUserById, getAuditLogActionTypes } from '../../service/sysAdminServices';
 
 /**
@@ -60,7 +60,28 @@ const ENTITY_TRANSLATIONS = {
     'zones': 'Khu vực giám sát',
     'visitor_visits': 'Quản lý lượt khách',
     'visitor_visit': 'Quản lý lượt khách',
-    'visitors': 'Quản lý khách'
+    'visitors': 'Quản lý khách',
+    'camera_groups': 'Nhóm camera',
+    'person_control_list': 'Danh sách người giám sát',
+    'anpr': 'Nhận diện biển số',
+    'alert_rules': 'Quy tắc cảnh báo',
+    'room_bookings': 'Đặt phòng',
+    'meeting_requests': 'Yêu cầu họp',
+    'roles': 'Vai trò',
+    'permissions': 'Quyền hạn',
+    'departments': 'Phòng ban',
+    'equipments': 'Thiết bị',
+    'reports': 'Báo cáo',
+    'report_templates': 'Mẫu báo cáo',
+    'report_schedules': 'Lịch báo cáo',
+    'class_attendance': 'Điểm danh lớp học',
+    'uel_sync': 'Đồng bộ UEL',
+    'hgvision': 'HGVision',
+    'face_access': 'Ra vào bằng khuôn mặt',
+    'system_configurations': 'Cấu hình hệ thống',
+    'live_meetings': 'Phiên họp trực tiếp',
+    'admin': 'Quản trị',
+    'me': 'Hồ sơ cá nhân'
 };
 
 // So khớp không phân biệt hoa/thường và dấu tiếng Việt
@@ -189,6 +210,9 @@ const AuditLogs = () => {
     const [selectedActorUser, setSelectedActorUser] = useState(null);
     const [actorDetailLoading, setActorDetailLoading] = useState(false);
 
+    // Gom mã trùng nhãn, sắp A→Z theo nhãn tiếng Việt
+    const actionOptions = useMemo(() => groupAuditActionOptions(actionTypes), [actionTypes]);
+
     // Load action types once on mount
     useEffect(() => {
         getAuditLogActionTypes()
@@ -226,7 +250,7 @@ const AuditLogs = () => {
             page: pageNumber,
             limit: pageLimit,
             ...searchParams,
-            action: selectedAction || undefined,
+            action: expandAuditActionSelection(selectedAction),
             entity: selectedEntity || undefined,
             severity: selectedSeverity || undefined,
             startDate: startDate || undefined,
@@ -264,7 +288,7 @@ const AuditLogs = () => {
         ['info', 'warning', 'error', 'critical'],
         (value) => getAuditLogs({
             ...searchParams,
-            action: selectedAction || undefined,
+            action: expandAuditActionSelection(selectedAction),
             entity: selectedEntity || undefined,
             severity: value || undefined,
             startDate: startDate || undefined,
@@ -349,7 +373,7 @@ const AuditLogs = () => {
             const res = await exportAuditLogs({
                 startDate,
                 endDate,
-                action: selectedAction,
+                action: expandAuditActionSelection(selectedAction),
                 entity: selectedEntity,
                 severity: selectedSeverity,
                 ...searchParams
@@ -485,7 +509,7 @@ const AuditLogs = () => {
                     <FilterField label="Loại hành động">
                         <FilterMultiSelect value={selectedAction} onChange={event => setSelectedAction(event.target.value)}>
                             <option value="">Tất cả hành động</option>
-                            {actionTypes.map(action => <option key={action.actionType} value={action.actionType}>{formatActionName(action.actionType)} ({action.count})</option>)}
+                            {actionOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label} ({opt.count})</option>)}
                         </FilterMultiSelect>
                     </FilterField>
                     <FilterField label="Mức độ">

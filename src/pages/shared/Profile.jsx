@@ -38,6 +38,13 @@ const formatHomeroomTeacher = (studentProfile, profile) => {
         || "Chưa cung cấp";
 };
 
+const StaticField = ({ label, value }) => (
+    <div>
+        <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">{label}</span>
+        <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{value || "Chưa cung cấp"}</span>
+    </div>
+);
+
 const Profile = () => {
     const location = useLocation();
 
@@ -252,7 +259,7 @@ const Profile = () => {
         setSuccessMessage(null);
         setUpdating(true);
         const phoneRegex = /^[0-9]+$/;
-        if (formData.phone && !phoneRegex.test(formData.phone)) {
+        if (!isStudentProfile && formData.phone && !phoneRegex.test(formData.phone)) {
             setError("Số điện thoại không hợp lệ. Vui lòng chỉ nhập các chữ số.");
             setUpdating(false);
             return;
@@ -262,7 +269,9 @@ const Profile = () => {
             if (!localUserStr) throw new Error("Không tìm thấy thông tin phiên làm việc.");
             const localUser = JSON.parse(localUserStr);
             const userId = localUser.id;
-            const payload = { fullName: formData.fullName, phoneNumber: formData.phone };
+            const payload = isStudentProfile
+                ? { fullName: formData.fullName }
+                : { fullName: formData.fullName, phoneNumber: formData.phone };
             const res = await updateSelfProfile(userId, payload);
             if (res?.success) {
                 setSuccessMessage("Cập nhật thông tin cá nhân thành công.");
@@ -307,10 +316,14 @@ const Profile = () => {
     const managerValue = isStudentProfile
         ? formatHomeroomTeacher(studentProfile, profile)
         : (profile?.directManager?.fullName || "Không có quản lý");
-    const titleLabel = isStudentProfile ? "Ngành / Khóa" : "Chức vụ";
-    const titleValue = isStudentProfile
-        ? [studentProfile?.major || profile?.major, studentProfile?.cohort || profile?.cohort].filter(Boolean).join(" - ") || "Chưa cung cấp"
-        : (profile?.positionTitle || "Chưa cung cấp");
+    const titleLabel = "Chức vụ";
+    const titleValue = profile?.positionTitle || "Chưa cung cấp";
+    // Thông tin đào tạo theo lớp hành chính (UEL bac_dao_tao / loai_hinh_dao_tao / thuoc_khoa)
+    const studentTrainingFields = [
+        { label: "Bậc đào tạo", value: studentProfile?.educationLevel },
+        { label: "Loại hình đào tạo", value: studentProfile?.trainingType },
+        { label: "Khoa quản lý", value: studentProfile?.facultyName },
+    ];
 
     if (loading) {
         return (
@@ -452,7 +465,7 @@ const Profile = () => {
                                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue disabled:bg-cloud-mist/30 text-midnight-indigo font-medium"
                                     />
                                 </div>
-                                <div>
+                                {!isStudentProfile && (<div>
                                     <label className="block text-xs font-bold text-slate-blue uppercase mb-1.5">Số điện thoại</label>
                                     <input
                                         type="text"
@@ -461,7 +474,7 @@ const Profile = () => {
                                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                                         className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue disabled:bg-cloud-mist/30 text-midnight-indigo font-medium"
                                     />
-                                </div>
+                                </div>)}
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
@@ -480,11 +493,20 @@ const Profile = () => {
                                     <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">{orgLabel}</span>
                                     <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{orgValue}</span>
                                 </div>
-                                <div>
-                                    <span className="block text-xs font-bold text-slate-blue uppercase mb-1.5">{titleLabel}</span>
-                                    <span className="text-sm font-semibold text-midnight-indigo block px-3 py-2 bg-cloud-mist/30 border border-platinum-tint/50 rounded-xl">{titleValue}</span>
-                                </div>
+                                {isStudentProfile ? (
+                                    <StaticField label={studentTrainingFields[0].label} value={studentTrainingFields[0].value} />
+                                ) : (
+                                    <StaticField label={titleLabel} value={titleValue} />
+                                )}
                             </div>
+
+                            {isStudentProfile && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                                    {studentTrainingFields.slice(1).map(f => (
+                                        <StaticField key={f.label} label={f.label} value={f.value} />
+                                    ))}
+                                </div>
+                            )}
                         </form>
                     </div>
 

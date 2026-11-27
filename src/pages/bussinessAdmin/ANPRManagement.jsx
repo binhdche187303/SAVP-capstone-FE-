@@ -21,7 +21,8 @@ import {
     adminRegisterVehicle,
     getUnknownVehicles,
     mockAnprVehicleEvent,
-    setupMockAnprCamera
+    setupMockAnprCamera,
+    getVehicleHistoryCameras,
 } from '../../service/anprService';
 import { getUsers } from '../../service/employeeServices'; // Để lấy danh sách nhân viên
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
@@ -34,7 +35,7 @@ import { exportAnprHistoryReport } from '../../utils/anprReportExport';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import UserAvatar from '../../components/common/UserAvatar';
 
-import { getDevices, getZones } from '../../service/sysAdminServices';
+import { getZones } from '../../service/sysAdminServices';
 import { useDebouncedValue, useInstantFilter } from '../../hooks/useInstantSearch';
 import { totalOf, useFacetCounts } from '../../hooks/useFilterCounts';
 
@@ -104,32 +105,24 @@ const ANPRManagement = ({ guardMode = false }) => {
         let cancelled = false;
 
         Promise.all([
-            getDevices({ page: 1, limit: 100 }),
+            // Camera lấy theo tên HGVision (cùng nguồn với cột Camera) — tên thiết bị trong
+            // bảng devices có dấu nên không khớp → số đếm/lọc ra 0.
+            getVehicleHistoryCameras().catch(() => null),
             getZones({ page: 1, limit: 100, status: 'active', zone_type: 'gate' }),
         ])
-            .then(([devicesRes, zonesRes]) => {
+            .then(([camerasRes, zonesRes]) => {
                 if (cancelled) return;
 
-                const devicePayload = devicesRes?.data ?? devicesRes;
+                const cameraPayload = camerasRes?.data ?? camerasRes;
                 const zonePayload = zonesRes?.data ?? zonesRes;
 
-                const devices = Array.isArray(devicePayload)
-                    ? devicePayload
-                    : (devicePayload?.items || []);
+                const cameraNames = Array.isArray(cameraPayload) ? cameraPayload : [];
 
                 const zones = Array.isArray(zonePayload)
                     ? zonePayload
                     : (zonePayload?.items || []);
 
-                setCameraOptions(
-                    devices.filter((device) => {
-                        const type = String(
-                            device.device_type || device.deviceType || ''
-                        ).toLowerCase();
-
-                        return type === 'door_camera';
-                    })
-                );
+                setCameraOptions(cameraNames.map((name) => ({ id: name, deviceName: name })));
 
                 setZoneOptions(
                     zones.filter((zone) => {
@@ -144,7 +137,6 @@ const ANPRManagement = ({ guardMode = false }) => {
                     })
                 );
 
-                console.log('[ANPR] Camera từ DB:', devices);
                 console.log('[ANPR] Khu vực từ DB:', zones);
             })
             .catch((error) => {

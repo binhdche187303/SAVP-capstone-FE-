@@ -173,6 +173,51 @@ export const AUDIT_ACTION_VI = {
     read_analytics_meeting_average_duration: 'Xem thống kê thời lượng họp trung bình',
     read_analytics_security_alerts_daily_trend: 'Xem thống kê xu hướng cảnh báo an ninh theo ngày',
     read_analytics_audit_activity_hourly: 'Xem thống kê hoạt động hệ thống theo giờ',
+    'biometric.auto_approve': 'Tự động duyệt dữ liệu khuôn mặt',
+    'camera_trace.view': 'Xem truy vết camera',
+    'user_journey.view': 'Xem hành trình người dùng',
+    'meeting.create': 'Tạo cuộc họp',
+    hgvision_plate_mismatch: 'Phát hiện lệch biển số với HGVision',
+    hgvision_plate_restored: 'Khôi phục biển số trên HGVision',
+    read_live_participants: 'Xem người tham gia đang họp',
+    read_meeting_attendance: 'Xem điểm danh cuộc họp',
+};
+
+// Tên tài nguyên (đoạn đầu route) — dùng cho mã nhật ký tự động `<route>_<create|update|delete>`.
+const RESOURCE_VI = {
+    admin: 'Quản trị', alert_rules: 'quy tắc cảnh báo', analytics: 'thống kê', anpr: 'nhận diện biển số',
+    anpr_admin_control_list: 'danh sách biển số giám sát', anpr_admin_vehicles: 'xe đăng ký',
+    attendance: 'điểm danh', audit_logs: 'nhật ký hệ thống', background_jobs: 'tác vụ nền',
+    camera_groups: 'nhóm camera', camera_groups_members: 'camera trong nhóm', campus: 'khuôn viên',
+    campus_dashboard: 'bảng điều khiển khuôn viên', class_attendance: 'điểm danh lớp học',
+    departments: 'phòng ban', early_vacancy_config: 'cấu hình trả phòng sớm', equipments: 'thiết bị',
+    face_access: 'ra vào bằng khuôn mặt', gate_access: 'ra vào cổng', hgvision: 'HGVision',
+    iot_devices: 'thiết bị IoT', ivss: 'IVSS', live_meetings: 'phiên họp trực tiếp',
+    meeting_calendar_roles: 'vai trò lịch', meeting_minutes: 'biên bản họp', meeting_requests: 'yêu cầu họp',
+    meetings: 'cuộc họp', minutes_inbox: 'hộp biên bản', no_show_config: 'cấu hình vắng mặt',
+    permissions: 'quyền hạn', person_control_list: 'danh sách người giám sát',
+    report_schedule_runs: 'lượt chạy lịch báo cáo', report_schedules: 'lịch báo cáo',
+    report_templates: 'mẫu báo cáo', reports: 'báo cáo', roles: 'vai trò', room_bookings: 'đặt phòng',
+    rooms: 'phòng', security_alerts: 'cảnh báo an ninh', security_alerts_config: 'cấu hình cảnh báo an ninh',
+    system_configurations: 'cấu hình hệ thống', transcripts: 'bản ghi lời nói', uel_sync: 'đồng bộ UEL',
+    users: 'tài khoản', visitors: 'khách', zones: 'khu vực', me: 'hồ sơ cá nhân',
+};
+const AUTO_VERB_VI = { create: 'Thêm', update: 'Cập nhật', delete: 'Xóa' };
+const humanize = (t) => t.replace(/_/g, ' ');
+
+/** Mã tự động: `camera_groups_members_delete` → "Xóa camera trong nhóm". */
+const formatAutoAction = (code) => {
+    const m = /^(.+)_(create|update|delete)$/.exec(code);
+    if (!m) return null;
+    const parts = m[1].split('_');
+    for (let i = parts.length; i > 0; i--) {
+        const key = parts.slice(0, i).join('_');
+        if (RESOURCE_VI[key]) {
+            const rest = parts.slice(i).join('_');
+            return `${AUTO_VERB_VI[m[2]]} ${RESOURCE_VI[key]}${rest ? ` (${humanize(rest)})` : ''}`;
+        }
+    }
+    return null;
 };
 
 // Mã chưa có trong bảng: dịch các cụm phổ biến, phần còn lại giữ nguyên (giống BE translateActionTypeToVn).
@@ -194,8 +239,38 @@ export const formatAuditAction = (action) => {
     if (!action) return '';
     const mapped = AUDIT_ACTION_VI[action.toLowerCase()];
     if (mapped) return mapped;
+    const auto = formatAutoAction(action.toLowerCase());
+    if (auto) return auto;
     let text = action.toLowerCase().replace(/[_.-]+/g, ' ').trim();
     for (const [pattern, replacement] of KEYWORD_FALLBACK) text = text.replace(pattern, replacement);
     if (!text) return action;
     return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+/**
+ * Gom mã cùng nhãn (vd UPDATE_ROOM / room_update) thành 1 lựa chọn, cộng dồn số,
+ * sắp theo nhãn A→Z. value = các mã nối bằng '|'.
+ */
+export const groupAuditActionOptions = (actionTypes = []) => {
+    const byLabel = new Map();
+    for (const { actionType, count } of actionTypes) {
+        if (!actionType) continue;
+        const label = formatAuditAction(actionType);
+        const g = byLabel.get(label) ?? { label, codes: [], count: 0 };
+        g.codes.push(actionType);
+        g.count += Number(count) || 0;
+        byLabel.set(label, g);
+    }
+    return [...byLabel.values()]
+        .map((g) => ({ ...g, value: g.codes.join('|') }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+};
+
+/** Lựa chọn dropdown ('a|b' hoặc mảng) → danh sách mã gửi BE. */
+export const expandAuditActionSelection = (selection) => {
+    const codes = (Array.isArray(selection) ? selection : [selection])
+        .flatMap((v) => (v ? String(v).split('|') : []))
+        .filter(Boolean);
+    if (!codes.length) return undefined;
+    return codes.length === 1 ? codes[0] : codes;
 };

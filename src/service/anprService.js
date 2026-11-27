@@ -85,6 +85,14 @@ export const getAdminVehicleHistory = async (params = {}) => {
 };
 
 /**
+ * Tên camera (theo HGVision) có lượt xe — dùng cho bộ lọc Camera, khớp với cột Camera.
+ * GET /anpr/admin/vehicle-history/cameras
+ */
+export const getVehicleHistoryCameras = async () => {
+    return await get('/anpr/admin/vehicle-history/cameras');
+};
+
+/**
  * Lấy danh sách biển lạ / chưa đăng ký (Admin)
  * GET /anpr/admin/unknown-vehicles
  */

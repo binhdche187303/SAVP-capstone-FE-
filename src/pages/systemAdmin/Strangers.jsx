@@ -9,7 +9,7 @@ import StatisticCard from '../../components/common/StatisticCard';
 import FilterBar, { FilterField } from '../../components/common/FilterBar';
 import PaginationFooter, { PaginationRegion } from '../../components/common/PaginationFooter';
 import RefreshButton from '../../components/common/RefreshButton';
-import { Filter, Clock, ChevronDown, AlertTriangle, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X, CheckSquare, Square } from 'lucide-react';
+import { Filter, Clock, ChevronDown, AlertTriangle, RotateCcw, ShieldOff, ShieldPlus, UserCheck, UserX, X, CheckSquare, Square, Play } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -21,6 +21,7 @@ import { getDevices } from '../../service/sysAdminServices';
 import ThumbnailImage from '../../components/common/ThumbnailImage';
 import { CAMERA_TYPES } from '../../mocks/cameraMock';
 import EventSnapshotModal from '../../components/security/EventSnapshotModal';
+import EventPlaybackModal from '../../components/anpr/EventPlaybackModal';
 
 import StrangerReviewModal from '../../components/security/StrangerReviewModal';
 import StrangerDismissModal, { dismissReasonLabel } from '../../components/security/StrangerDismissModal';
@@ -87,6 +88,9 @@ const Strangers = () => {
     const toggleCollapsed = (k) => setCollapsed(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
     const [detail, setDetail] = useState(null); // { stranger, sightings, loading }
     const [snapshot, setSnapshot] = useState({ open: false, ids: [], index: 0 });
+    // Ảnh đang xem trong "Chi tiết phát hiện" (đổi khi bấm trước/sau) + lượt xem lại video.
+    const [snapshotIndex, setSnapshotIndex] = useState(0);
+    const [playbackItem, setPlaybackItem] = useState(null);
     const [addForm, setAddForm] = useState(null); // { stranger, display_name, list_type, priority, reason }
     const [reviewing, setReviewing] = useState(null); // stranger đang hậu kiểm "đây là ai"
     const [dismissing, setDismissing] = useState(null); // stranger đang đóng cảnh báo
@@ -523,7 +527,39 @@ const Strangers = () => {
                 />
             )}
 
-            <EventSnapshotModal isOpen={snapshot.open} onClose={() => setSnapshot({ open: false, ids: [], index: 0 })} eventIds={snapshot.ids} initialIndex={snapshot.index} />
+            {(() => {
+                // Mở từ 1 lần xuất hiện của người lạ ⇒ giao diện "Chi tiết phát hiện" + xem lại video.
+                const stranger = snapshot.open ? detail?.stranger : null;
+                const sightings = detail?.sightings || [];
+                const curId = snapshot.ids[snapshotIndex];
+                const cur = stranger ? sightings.find(y => y.eventId === curId) : null;
+                const nth = cur ? sightings.length - sightings.indexOf(cur) : null;
+                const cameraName = stranger?.deviceCode || null;
+                return (
+                    <EventSnapshotModal
+                        isOpen={snapshot.open}
+                        onClose={() => setSnapshot({ open: false, ids: [], index: 0 })}
+                        eventIds={snapshot.ids}
+                        initialIndex={snapshot.index}
+                        onIndexChange={setSnapshotIndex}
+                        badge={cur?.similarity ? `${cur.similarity}%` : null}
+                        details={cur ? [
+                            { label: 'Camera', value: cameraName },
+                            { label: 'Vị trí', value: stranger.roomName || stranger.zoneName },
+                            { label: 'Thời điểm', value: fmtDateTime(cur.time) },
+                            { label: 'Lần xuất hiện', value: `#${nth} / ${sightings.length}` },
+                        ] : null}
+                        actions={cur ? (
+                            <button type="button" title={cameraName ? 'Xem lại video' : 'Không rõ camera'} disabled={!cameraName}
+                                onClick={() => setPlaybackItem({ cameraName, eventTime: cur.time })}
+                                className="p-2 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100">
+                                <Play className="w-4 h-4" />
+                            </button>
+                        ) : null}
+                    />
+                );
+            })()}
+            <EventPlaybackModal item={playbackItem} onClose={() => setPlaybackItem(null)} />
 
             {toast && (
                 <div className="fixed bottom-6 right-6 z-[10000] px-4 py-3 rounded-xl bg-midnight-indigo text-white text-sm font-semibold shadow-lg">

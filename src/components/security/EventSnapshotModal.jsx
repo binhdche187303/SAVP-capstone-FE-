@@ -4,7 +4,7 @@ import { X, Image as ImageIcon, AlertCircle, ChevronLeft, ChevronRight, Loader2 
 import { API_BASE_URL } from '../../utils/request';
 
 // showPlate: hiện thêm ảnh cắt biển số (chỉ sự kiện HGVision có; sự kiện khác 404 → tự ẩn).
-const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIndex = 0, showPlate = false, details = null, badge = null, actions = null }) => {
+const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIndex = 0, showPlate = false, details = null, badge = null, actions = null, onIndexChange = null }) => {
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [notFound, setNotFound] = useState(false);
@@ -33,6 +33,11 @@ const EventSnapshotModal = ({ isOpen, onClose, eventId, eventIds = [], initialIn
     }, [isOpen, eventId, eventIds, initialIndex]);
 
     const activeEventId = idsList[currentIndex] || null;
+
+    // Báo trang cha ảnh đang xem (để details/actions đổi theo khi bấm trước/sau).
+    useEffect(() => {
+        if (isOpen && onIndexChange) onIndexChange(currentIndex);
+    }, [isOpen, currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (!isOpen || !activeEventId) {
