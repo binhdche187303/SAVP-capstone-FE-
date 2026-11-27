@@ -233,6 +233,7 @@ export const listScheduleRuns = (params = {}) => {
     const { scheduleId, status, from, to, page = 1, limit = 10 } = params;
     const runs = loadState().runs
         .filter((r) => {
+            if (!['success', 'failed'].includes(r.status)) return false;
             if (scheduleId && r.scheduleId !== scheduleId) return false;
             if (status && r.status !== status) return false;
             const day = localYmd(r.ranAt);

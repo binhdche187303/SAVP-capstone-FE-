@@ -667,7 +667,7 @@ const DashBoard = () => {
                         <KpiTile delay={50}  icon={ShieldAlert} label="Cảnh báo chưa xử lý"   value={campusLoading ? '—' : kpi.alertsNew}         sub={kpi.alertsNew > 0 ? 'Cần xử lý ngay' : 'Ổn định'} iconColor={kpi.alertsNew > 0 ? D.red : D.green} subColor={kpi.alertsNew > 0 ? '#DC2626' : '#059669'} />
                         <KpiTile delay={100} icon={MapPin}      label="Khu vực giám sát"       value={campusLoading ? '—' : `${kpi.zonesActive}/${kpi.zonesTotal}`} sub="Zone có dữ liệu hôm nay" iconColor={D.purple} progress={campusLoading ? undefined : zonePct} />
                         <KpiTile delay={150} icon={Wifi}        label="Thiết bị Online"         value={campusLoading ? '—' : kpi.devicesOnline}    sub={campusLoading ? '' : `/ ${kpi.devicesTotal} thiết bị`} iconColor={D.green} progress={campusLoading ? undefined : onlinePct} />
-                        <KpiTile delay={200} icon={Building2}   label="Phòng đang sử dụng"      value={meetLoading ? '—' : stats.activeRooms}      sub="Trên tổng số phòng" iconColor={D.blue} />
+                        <KpiTile delay={200} icon={Building2}   label="Phòng đang sử dụng"      value={meetLoading ? '—' : stats.activeRooms}      sub="Đang có cuộc họp diễn ra" iconColor={D.blue} />
                         <KpiTile delay={250} icon={Car}         label="Xe khớp kiểm soát"       value={campusLoading ? '—' : kpi.vehicleHitsToday} sub={kpi.vehicleHitsToday > 0 ? 'Danh sách chặn / theo dõi' : 'Không có khớp'} iconColor={kpi.vehicleHitsToday > 0 ? D.amber : D.muted2} subColor={kpi.vehicleHitsToday > 0 ? '#B45309' : D.muted} />
                     </StatisticGrid>
 
