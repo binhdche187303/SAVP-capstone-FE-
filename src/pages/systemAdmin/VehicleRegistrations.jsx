@@ -276,37 +276,36 @@ const VehicleRegistrations = () => {
                     <h1 className="text-2xl font-extrabold text-midnight-indigo tracking-tight">Lịch sử Đăng ký Xe</h1>
                     <p className="text-slate-blue text-sm mt-1">Toàn bộ phương tiện đã đăng ký — tra cứu theo chủ xe, biển số hoặc loại xe.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    {canSync && (
-                        <button
-                            type="button"
-                            onClick={handleResyncAll}
-                            disabled={bulkSyncing}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-platinum-tint bg-white text-sm font-bold text-midnight-indigo hover:bg-cloud-mist/40 transition-colors disabled:opacity-50"
-                            title="Đẩy các xe chưa đồng bộ sang HGVision (Bình thường, chủ xe theo tài khoản)"
-                        >
-                            <RefreshCw className={`w-4 h-4 ${bulkSyncing ? 'animate-spin' : ''}`} />
-                            Đồng bộ HGVision
-                        </button>
-                    )}
-                    {canSync && (
-                        <button
-                            type="button"
-                            onClick={handleReconcile}
-                            disabled={reconciling}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-platinum-tint bg-white text-sm font-bold text-midnight-indigo hover:bg-cloud-mist/40 transition-colors disabled:opacity-50"
-                            title="So danh sách biển với HGVision: khôi phục biển bị xoá, báo biển lệch, xoá biển thừa (tự chạy mỗi 15 phút)"
-                        >
-                            <ScanSearch className={`w-4 h-4 ${reconciling ? 'animate-pulse' : ''}`} />
-                            Đối soát ngay
-                        </button>
-                    )}
-                    <RefreshButton
-                        onClick={() => fetchRegistrations()}
-                        title="Làm mới dữ liệu"
-                        busy={loading}
-                    />
-                </div>
+                {/* Gộp các nút thao tác vào cùng hàng với nút làm mới (prop `before`); dòng "Lần cuối làm mới" nằm dưới cả nhóm. */}
+                <RefreshButton
+                    onClick={() => fetchRegistrations()}
+                    title="Làm mới dữ liệu"
+                    busy={loading}
+                    before={canSync ? (
+                        <>
+                            <button
+                                type="button"
+                                onClick={handleResyncAll}
+                                disabled={bulkSyncing}
+                                className="inline-flex h-9 items-center gap-2 px-4 rounded-xl border border-platinum-tint bg-white text-sm font-bold text-midnight-indigo hover:bg-cloud-mist/40 transition-colors disabled:opacity-50"
+                                title="Đẩy các xe chưa đồng bộ sang HGVision (Bình thường, chủ xe theo tài khoản)"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${bulkSyncing ? 'animate-spin' : ''}`} />
+                                Đồng bộ HGVision
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleReconcile}
+                                disabled={reconciling}
+                                className="inline-flex h-9 items-center gap-2 px-4 rounded-xl border border-platinum-tint bg-white text-sm font-bold text-midnight-indigo hover:bg-cloud-mist/40 transition-colors disabled:opacity-50"
+                                title="So danh sách biển với HGVision: khôi phục biển bị xoá, báo biển lệch, xoá biển thừa (tự chạy mỗi 15 phút)"
+                            >
+                                <ScanSearch className={`w-4 h-4 ${reconciling ? 'animate-pulse' : ''}`} />
+                                Đối soát ngay
+                            </button>
+                        </>
+                    ) : undefined}
+                />
             </div>
 
             {/* ── Stat cards ── */}
