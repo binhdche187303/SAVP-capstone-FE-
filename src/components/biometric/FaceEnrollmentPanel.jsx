@@ -257,12 +257,14 @@ const FaceEnrollmentPanel = ({ onStateChange, onDone, onCancel }) => {
     if (view === 'intro' || state === 'not_uploaded') {
         const qrFirst = !hasCamera && !touch;
         return (
-            <div className="space-y-6">
+            <div className="space-y-4">
                 {state !== 'not_uploaded' && (
                     <button type="button" onClick={() => setView(null)} className="text-xs font-semibold text-action-blue hover:underline">
                         ← Quay lại
                     </button>
                 )}
+                <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-4">
                 <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-action-blue">
                         <Shield className="h-6 w-6" />
@@ -273,7 +275,7 @@ const FaceEnrollmentPanel = ({ onStateChange, onDone, onCancel }) => {
                     </div>
                 </div>
 
-                <div className="max-h-60 space-y-3 overflow-y-auto rounded-xl border border-outline-gray bg-cloud-mist p-4 text-sm leading-relaxed text-slate-blue">
+                <div className="max-h-60 md:max-h-72 space-y-3 overflow-y-auto rounded-xl border border-outline-gray bg-cloud-mist p-4 text-sm leading-relaxed text-slate-blue">
                     <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">1. Mục đích thu thập dữ liệu:</p>
                     <p className="text-xs">{pdpa.purpose}</p>
                     <p data-ui-text="primary" className="text-xs font-semibold text-midnight-indigo">2. Bảo mật và lưu trữ:</p>
@@ -293,7 +295,9 @@ const FaceEnrollmentPanel = ({ onStateChange, onDone, onCancel }) => {
                         Tôi đã đọc, hiểu rõ và đồng ý cho phép hệ thống VISMA IVA thu thập, xử lý và lưu trữ dữ liệu sinh trắc học khuôn mặt của tôi cho các mục đích quản lý nêu trên.
                     </span>
                 </label>
+                </div>
 
+                <div className="space-y-4 md:border-l md:border-platinum-tint md:pl-6">
                 <p className="text-[11px] leading-relaxed text-steel-gray">
                     Camera sẽ hướng dẫn bạn quét 5 góc (thẳng, trái, phải, ngẩng, cúi) và tự chụp khi đúng tư thế — khoảng 30 giây. Ngồi nơi đủ sáng, bỏ khẩu trang / kính râm / mũ, chỉ một mình bạn trong khung hình.
                 </p>
@@ -342,6 +346,8 @@ const FaceEnrollmentPanel = ({ onStateChange, onDone, onCancel }) => {
                         {showQr && <PhoneQr />}
                     </>
                 )}
+                </div>
+                </div>
             </div>
         );
     }

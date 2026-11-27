@@ -69,7 +69,7 @@ const BiometricReminderModal = () => {
             aria-label="Đăng ký FaceID"
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xl"
         >
-            <div className="flex max-h-[95vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-platinum-tint bg-white shadow-xl animate-fade-in-up">
+            <div className="flex max-h-[95vh] w-full max-w-lg md:max-w-4xl flex-col overflow-hidden rounded-3xl border border-platinum-tint bg-white shadow-xl animate-fade-in-up">
                 <div className="flex items-center justify-between border-b border-platinum-tint bg-cloud-mist/30 px-6 py-4">
                     <div className="flex items-center gap-2.5">
                         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-action-blue/10 text-action-blue">
