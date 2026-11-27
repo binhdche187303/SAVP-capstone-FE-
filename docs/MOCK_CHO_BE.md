@@ -6,6 +6,7 @@ Trong code, chỗ còn mock có comment `// MOCK-BE:` (`grep -rn "MOCK-BE" src`)
 ## 📝 CHANGELOG & REVISION HISTORY
 | Ngày cập nhật | Tóm tắt thay đổi | Các dòng thay đổi |
 | :--- | :--- | :--- |
+| 2026-11-27 | Ghi hình & lưu trữ (2.2.7) hết mock: cột Lịch ghi/Lưu trữ thay bằng video cũ nhất, số ngày đang lưu, ghi gần nhất từ `GET /hgvision/recording/retention`. | Mục "Ghi hình & lưu trữ (2.2.7)" |
 | 2026-11-13 | BE đã làm xong mục "Đồng bộ UEL — 1 nút + tự động": `POST /uel-sync/run-all` (lịch học chỉ từ hôm nay tới +`sessionDaysAhead`, không lấy quá khứ), tự nhận học kỳ, cài đặt mới, cron động, `status` mới, chặn hủy nhầm. Cột "Hiện trạng BE" ghi rõ. | Mục "Đồng bộ UEL — 1 nút + tự động" |
 | 2026-11-13 | Thêm mục "Lịch họp VPĐT": cờ `MEETING_BOOKING_ENABLED` để ẩn/hiện "Đăng ký họp" (hiện đang bật). `/teacher/my-schedule` (và `/employee`, `/manager` dùng chung `PersonalCalendar`) hiển thị lịch mock theo tài liệu "Mô tả về Lịch tuần UEL trên VPĐT": 3 loại lịch, điểm danh, ra vào trực tiếp, báo cáo. Ghi hợp đồng API BE cần làm. | Đầu file, mục "Lịch họp VPĐT" |
 | 2026-11-12 | Thêm mục "Đồng bộ UEL — 1 nút + tự động": trang `/system-admin/uel-sync` có 1 nút "Đồng bộ toàn bộ" và cài đặt hằng ngày/hằng tuần + giờ chạy. FE xem trước bằng mock (`REACT_APP_UEL_SYNC_MOCK=true`); ghi hợp đồng API BE cần làm. | Đầu file, mục "Đồng bộ UEL — 1 nút + tự động" |
@@ -157,6 +158,8 @@ lại cho 2.3.6 và 2.3.7.
 ---
 
 ## Ghi hình & lưu trữ (2.2.7) — chỉ xem, đồng bộ HGVision (2026-11-25)
+
+> **2026-11-27: hết mock.** Bỏ cột Lịch ghi/Lưu trữ cố định; thay bằng video cũ nhất, số ngày đang lưu, ghi gần nhất từ `GET /hgvision/recording/retention` (suy từ dải ghi playback, nhìn lại 90 ngày, cache 10 phút). Cài đặt số ngày lưu/ngưỡng xoá vẫn chỉ chỉnh trên HGVision (không có API).
 
 | Phần đã thật (BE) | Phần mock (FE) | Việc BE cần làm |
 |---|---|---|

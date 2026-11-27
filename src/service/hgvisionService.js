@@ -63,6 +63,9 @@ export const getHgMediaBlob = (path, options = {}) =>
 /** GET /hgvision/resources — tài nguyên máy chủ HGVision: {cpu, memory, disk:{percent,used,total}, gpu}. */
 export const getHgResources = (options = {}) => get('/hgvision/resources', { skipToast: true, ...options });
 
+/** GET /hgvision/recording/retention — video cũ nhất/mới nhất từng camera (BE cache 10 phút). */
+export const getHgRecordingRetention = (options = {}) => get('/hgvision/recording/retention', { skipToast: true, timeout: 120000, ...options });
+
 /** GET /hgvision/groups — nhóm camera trên HGVision. */
 export const getHgGroups = (options = {}) => get('/hgvision/groups', { skipToast: true, ...options });
 
