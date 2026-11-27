@@ -3,7 +3,11 @@ import { createPortal } from 'react-dom';
 import { Lock, AlertTriangle, Eye, EyeOff, CheckCircle, Check, X } from 'lucide-react';
 import { changePassword } from '../../service/authService';
 
-const ChangePasswordModal = ({ isOpen, onClose }) => {
+/**
+ * forced = true: tài khoản bắt buộc đổi mật khẩu (mật khẩu tạm do quản trị cấp/import).
+ * Không cho đóng; đổi xong backend thu hồi mọi phiên → đưa về trang đăng nhập.
+ */
+const ChangePasswordModal = ({ isOpen, onClose, forced = false }) => {
     const [formData, setFormData] = useState({
         oldPassword: '',
         newPassword: '',
@@ -74,11 +78,15 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
             // BE ChangePasswordDto: { currentPassword, newPassword, confirmPassword }
             const res = await changePassword(formData.oldPassword, formData.newPassword, formData.confirmPassword);
             if (res?.success) {
-                setSuccessMessage('Đổi mật khẩu thành công!');
+                setSuccessMessage(forced ? 'Đổi mật khẩu thành công! Vui lòng đăng nhập lại bằng mật khẩu mới.' : 'Đổi mật khẩu thành công!');
                 // Clear form
                 setFormData({ oldPassword: '', newPassword: '', confirmPassword: '' });
                 // Tự đóng sau 2 giây
                 setTimeout(() => {
+                    if (forced) {
+                        window.dispatchEvent(new Event('auth-expired'));
+                        return;
+                    }
                     onClose();
                     setSuccessMessage(null);
                 }, 2000);
@@ -100,6 +108,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                         <Lock className="w-5 h-5 text-action-blue" />
                         Đổi mật khẩu
                     </h3>
+                    {!forced && (
                     <button 
                         onClick={onClose} 
                         disabled={loading}
@@ -107,9 +116,15 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                     >
                         ✕
                     </button>
+                    )}
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {forced && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm">
+                            Tài khoản của bạn đang dùng mật khẩu tạm. Vui lòng đặt mật khẩu mới để tiếp tục sử dụng hệ thống.
+                        </div>
+                    )}
                     {error && (
                         <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-start text-sm animate-fade-in-up">
                             <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
@@ -229,6 +244,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                     </div>
 
                     <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-platinum-tint">
+                        {!forced && (
                         <button 
                             type="button" 
                             onClick={onClose} 
@@ -237,6 +253,7 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
                         >
                             Hủy
                         </button>
+                        )}
                         <button 
                             type="submit" 
                             disabled={loading}

@@ -16,6 +16,10 @@ ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
 ENV REACT_APP_WS_URL=$REACT_APP_WS_URL
 
 COPY . .
+# Bundle lớn (xem trước PPTX/DOCX, MediaPipe…) làm Node hết heap mặc định khi build → nâng lên 4GB.
+# Không sinh source map: giảm mạnh bộ nhớ build và không để lộ mã nguồn gốc ở bản production.
+ENV NODE_OPTIONS=--max-old-space-size=4096
+ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
 FROM nginx:1.27-alpine

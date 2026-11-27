@@ -182,7 +182,11 @@ const VisitorRegister = () => {
             scheduledTo: fromLocalInput(form.schedule.scheduledTo),
             consent: form.consent,
         });
-        if (res?.success) setCreated(res.data);
+        if (res?.success) {
+            // Nhớ SĐT trong phiên này để trang Tra cứu hiển thị đủ chi tiết ngay (không đưa SĐT lên URL).
+            try { sessionStorage.setItem(`visitorPhone:${res.data.code}`, form.visitor.phone || ''); } catch { /* bỏ qua */ }
+            setCreated(res.data);
+        }
         else setError(res?.message || 'Không gửi được đăng ký');
         setSubmitting(false);
     };

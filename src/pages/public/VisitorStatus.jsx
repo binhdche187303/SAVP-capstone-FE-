@@ -35,6 +35,10 @@ const VisitorStatus = () => {
     const [visit, setVisit] = useState(null);
     const [notFound, setNotFound] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [phone, setPhone] = useState('');
+    const [phoneTried, setPhoneTried] = useState(false);
+
+    const fetchVisit = (wantedCode, phoneValue) => getPublicRegistration(wantedCode, phoneValue);
 
     useEffect(() => {
         setInput(code || '');
@@ -43,7 +47,11 @@ const VisitorStatus = () => {
         if (!code) return undefined;
         let cancelled = false;
         setLoading(true);
-        getPublicRegistration(code).then((res) => {
+        let remembered = '';
+        try { remembered = sessionStorage.getItem(`visitorPhone:${code}`) || ''; } catch { /* bỏ qua */ }
+        setPhone(remembered);
+        setPhoneTried(false);
+        fetchVisit(code, remembered).then((res) => {
             if (cancelled) return;
             if (res?.success) setVisit(res.data);
             else setNotFound(res?.message || 'Không tìm thấy lượt đăng ký với mã này');
@@ -51,6 +59,20 @@ const VisitorStatus = () => {
         });
         return () => { cancelled = true; };
     }, [code]);
+
+    // Xác minh SĐT để xem chi tiết (tên, người được gặp, khu vực…).
+    const verifyPhone = async (e) => {
+        e.preventDefault();
+        if (!phone.trim()) return;
+        setLoading(true);
+        const res = await fetchVisit(code, phone.trim());
+        if (res?.success) setVisit(res.data);
+        setPhoneTried(true);
+        setLoading(false);
+        if (res?.success && res.data?.verified !== false) {
+            try { sessionStorage.setItem(`visitorPhone:${code}`, phone.trim()); } catch { /* bỏ qua */ }
+        }
+    };
 
     const lookup = (e) => {
         e.preventDefault();
@@ -83,7 +105,30 @@ const VisitorStatus = () => {
                 </div>
             )}
 
-            {visit && (
+            {visit && visit.verified === false && (
+                <div className={`${cardCls} p-6 space-y-4`}>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-xs text-slate-blue">Mã lượt</p>
+                            <p className="text-lg font-bold text-midnight-indigo">{visit.code}</p>
+                        </div>
+                        <VisitStatusBadge status={visit.status} />
+                    </div>
+                    <Row label="Giờ hẹn">{fmtTimeRange(visit.scheduledFrom, visit.scheduledTo)}</Row>
+                    <form onSubmit={verifyPhone} className="flex flex-wrap items-end gap-3 pt-2">
+                        <div className="flex-1 min-w-[200px] space-y-1">
+                            <label className={labelCls} htmlFor="vs-phone">Số điện thoại đã đăng ký</label>
+                            <input id="vs-phone" className={`${inputCls} w-full`} inputMode="tel" placeholder="09xxxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                        </div>
+                        <button type="submit" className={btnPrimary}>Xem chi tiết</button>
+                    </form>
+                    <p className="text-xs text-slate-blue">
+                        {phoneTried ? 'Số điện thoại không khớp với lượt đăng ký này.' : 'Để bảo vệ thông tin cá nhân, nhập số điện thoại bạn đã dùng khi đăng ký để xem người được gặp, khu vực được cấp và mã QR.'}
+                    </p>
+                </div>
+            )}
+
+            {visit && visit.verified !== false && (
                 <div className={`${cardCls} p-6 space-y-6`}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>

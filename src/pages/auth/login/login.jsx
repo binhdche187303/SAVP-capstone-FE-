@@ -128,6 +128,8 @@ const Login = () => {
 
                 // Store user information if needed
                 localStorage.setItem("user", JSON.stringify(user));
+                // Mật khẩu tạm → bắt đổi ngay (ForcePasswordChangeGate ở App).
+                if (user?.mustChangePassword) window.dispatchEvent(new Event("auth-must-change-password"));
                 if (rememberLogin) {
                     localStorage.setItem("rememberedEmail", trimmedEmail);
                 } else {
@@ -169,6 +171,10 @@ const Login = () => {
                     break;
                 case "AUTH_TOO_MANY_ATTEMPTS":
                     message = "Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau ít phút.";
+                    break;
+                case "AUTH_ACCOUNT_TEMP_LOCKED":
+                    // BE trả sẵn câu tiếng Việt kèm số phút phải chờ.
+                    message = rawMessage || "Tài khoản tạm khoá do đăng nhập sai nhiều lần. Vui lòng thử lại sau.";
                     break;
                 default: {
                     // Fallback cho lỗi không có code chuẩn (lỗi mạng, lỗi hệ thống khác)

@@ -307,6 +307,11 @@ const handleResponse = async (response, options = {}) => {
         const code = errorDetail.code || 'UNKNOWN_ERROR';
         let requestId = result.requestId || errorDetail.requestId || 'unknown';
 
+        // Backend chặn vì tài khoản phải đổi mật khẩu → mở hộp thoại bắt buộc (ForcePasswordChangeGate).
+        if (response.status === 403 && code === 'MUST_CHANGE_PASSWORD') {
+            window.dispatchEvent(new Event('auth-must-change-password'));
+        }
+
         if (typeof message === 'string') {
             if (message.startsWith('Cannot ') && (message.includes('POST') || message.includes('GET') || message.includes('PUT') || message.includes('DELETE') || message.includes('PATCH'))) {
                 message = 'Lỗi hệ thống: Đường dẫn không tồn tại hoặc chưa được hỗ trợ.';

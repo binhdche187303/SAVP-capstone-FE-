@@ -39,7 +39,11 @@ export const getPublicHost = (id) => call(() => mock.getPublicHost(id), () => ge
 export const createPublicRegistration = (payload) => call(() => mock.createPublicRegistration(payload), () => post('/public/visitor-registrations', payload));
 export const requestReturningVisitorVerification = (contact) => call(() => mock.requestReturningVisitorVerification(contact), () => post('/public/visitor-verifications/request', contact));
 export const verifyReturningVisitor = (payload) => call(() => mock.verifyReturningVisitor(payload), () => post('/public/visitor-verifications/verify', payload));
-export const getPublicRegistration = (code) => call(() => mock.getPublicRegistration(code), () => get(`/public/visitor-registrations/${encodeURIComponent(code)}`));
+// Có SĐT đã đăng ký → BE trả đủ chi tiết; không có → chỉ trạng thái + giờ hẹn (chống dò mã tuần tự).
+// Gửi qua header để SĐT không nằm trong URL / access log.
+export const getPublicRegistration = (code, phone) => call(() => mock.getPublicRegistration(code), () => (phone
+    ? get(`/public/visitor-registrations/${encodeURIComponent(code)}`, { headers: { 'X-Visitor-Phone': phone } })
+    : get(`/public/visitor-registrations/${encodeURIComponent(code)}`)));
 export const listVisits = (params) => call(() => mock.listVisits(params), () => get(`/visitors/visits${qs(params)}`));
 export const getVisit = (id) => call(() => mock.getVisit(id), () => get(`/visitors/visits/${id}`));
 export const listVisitsOfVisitor = (id) => call(() => mock.listVisitsOfVisitor(id), () => get(`/visitors/visits/${id}/related`));

@@ -72,9 +72,12 @@ const DepartmentManagement = () => {
     const [deptCodeInlineError, setDeptCodeInlineError] = useState(null);
 
     // Org Form inputs states
+    // Ứng viên trưởng đơn vị (cán bộ thuộc phòng) cho form sửa.
+    const [managerCandidates, setManagerCandidates] = useState([]);
     const [formData, setFormData] = useState({
         departmentCode: '',
         name: '',
+        managerUserId: '',
         description: ''
     });
 
@@ -262,7 +265,7 @@ const DepartmentManagement = () => {
     };
 
     const resetForm = () => {
-        setFormData({ departmentCode: generateDeptCode(), name: '', description: '' });
+        setFormData({ departmentCode: generateDeptCode(), name: '', managerUserId: '', description: '' });
         setCreateDeptError(null);
         setDeptCodeInlineError(null);
     };
@@ -274,10 +277,12 @@ const DepartmentManagement = () => {
 
     const openEditModal = async (dept) => {
         setSelectedDept(dept);
+        setManagerCandidates([]);
         setFormData({
             name: dept.name,
             description: dept.description || '',
             departmentCode: dept.departmentCode || dept.code || '',
+            managerUserId: dept.managerUserId || '',
         });
         setIsEditModalOpen(true);
         try {
@@ -289,10 +294,19 @@ const DepartmentManagement = () => {
                     name: fresh.name,
                     description: fresh.description || '',
                     departmentCode: fresh.departmentCode || fresh.code || '',
+                    managerUserId: fresh.managerUserId || '',
                 });
             }
         } catch {
             // giữ nguyên data từ list nếu fetch thất bại
+        }
+        // Trưởng đơn vị quyết định phạm vi xem thống kê/báo cáo của role Trưởng nhóm (MANAGER);
+        // gán ở đây thì backend tự cấp/gỡ role MANAGER tương ứng.
+        try {
+            const res = await getUsersForManagement({ departmentId: dept.id, accountType: 'staff', page: 1, limit: 100 });
+            if (res?.success) setManagerCandidates(res.data || []);
+        } catch {
+            setManagerCandidates([]);
         }
     };
 
@@ -349,7 +363,8 @@ const DepartmentManagement = () => {
         try {
             const res = await updateDepartment(selectedDept.id, {
                 departmentName: formData.name,
-                description: formData.description
+                description: formData.description,
+                managerUserId: formData.managerUserId || null,
             });
             if (res?.success) {
                 setSuccessMessage('Cập nhật thông tin phòng ban thành công!');
@@ -944,6 +959,24 @@ const DepartmentManagement = () => {
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue"
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-blue uppercase mb-1" htmlFor="dept-manager">Trưởng đơn vị</label>
+                                <select
+                                    id="dept-manager"
+                                    value={formData.managerUserId}
+                                    onChange={(e) => setFormData({ ...formData, managerUserId: e.target.value })}
+                                    className="w-full px-3 py-2 border border-platinum-tint rounded-xl text-sm focus:outline-none focus:border-action-blue bg-white"
+                                >
+                                    <option value="">— Chưa gán —</option>
+                                    {formData.managerUserId && !managerCandidates.some((u) => u.id === formData.managerUserId) && (
+                                        <option value={formData.managerUserId}>{selectedDept?.managerName || selectedDept?.manager?.fullName || 'Trưởng đơn vị hiện tại'}</option>
+                                    )}
+                                    {managerCandidates.map((u) => (
+                                        <option key={u.id} value={u.id}>{u.fullName}{u.email ? ` (${u.email})` : ''}</option>
+                                    ))}
+                                </select>
+                                <p className="text-[11px] text-slate-blue mt-1">Trưởng đơn vị được cấp vai trò Trưởng nhóm và xem thống kê, báo cáo của đơn vị này.</p>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-blue uppercase mb-1">Mô tả hoạt động</label>

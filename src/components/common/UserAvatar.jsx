@@ -33,7 +33,11 @@ const UserAvatar = ({
     const [failedUrl, setFailedUrl] = useState('');
 
     let finalAvatarUrl = avatarUrl;
-    if (finalAvatarUrl && finalAvatarUrl.startsWith('/') && !finalAvatarUrl.startsWith('//')) {
+    if (finalAvatarUrl && finalAvatarUrl.startsWith('/uploads/')) {
+        // Ảnh lưu local: backend phục vụ ở gốc /uploads (KHÔNG nằm dưới /api/v1). Ghép với origin
+        // của API — chế độ 1 địa chỉ thì chính là địa chỉ đang mở, nên đổi IP → tên miền vẫn đúng.
+        finalAvatarUrl = `${API_BASE_URL.replace(/\/api\/v1\/?$/, '')}${finalAvatarUrl}`;
+    } else if (finalAvatarUrl && finalAvatarUrl.startsWith('/') && !finalAvatarUrl.startsWith('//')) {
         const token = localStorage.getItem('token');
         finalAvatarUrl = `${API_BASE_URL}${finalAvatarUrl}${finalAvatarUrl.includes('?') ? '&' : '?'}token=${token}`;
     }

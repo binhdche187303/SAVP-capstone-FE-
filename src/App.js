@@ -2,6 +2,7 @@ import AppTypography from "./components/common/AppTypography";
 import ToastContainer from "./components/common/ToastContainer";
 import NotificationBanner from "./components/common/NotificationBanner";
 import AllRouter from "./routers/AllRouter";
+import ForcePasswordChangeGate from "./components/auth/ForcePasswordChangeGate";
 
 // Handle auth expiry globally — full reload to /login clears all stale state
 window.addEventListener('auth-expired', () => {
@@ -18,6 +19,7 @@ function App() {
       <AllRouter />
       <ToastContainer />
       <NotificationBanner />
+      <ForcePasswordChangeGate />
     </>
   );
 }
